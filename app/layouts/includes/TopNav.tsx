@@ -1,9 +1,7 @@
 "use client"
 import Link from "next/link"
-import { debounce } from "debounce";
 import { useRouter, usePathname } from "next/navigation"
 import { BiSearch, BiUser } from "react-icons/bi"
-import { AiOutlinePlus } from "react-icons/ai"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiLogOut } from "react-icons/fi"
 import { useEffect, useState } from "react" 
@@ -70,45 +68,46 @@ export default function TopNav({ params }: ProfilePageTypes) {
                 useSearchProfilesByName(event.target.value), // Assuming this function returns an array of RandomUsers
                 searchTracksByName(event.target.value), // Assuming this function returns an array of Post
             ]);
-        
             if (profileResults && trackResults) {
                 const formattedTrackResults: Post[] = trackResults.map((track) => ({
                     id: track.id,
-                    name: track.name, // Используйте track.trackname как name
-                    image: track.image,
-                    user_id: '',
-                    audio_url: '', // Добавьте свойство audio_url здесь
-                    image_url: '', // Добавьте свойство image_url здесь
-                    text: '', // Добавьте свойство text здесь
-                    created_at: '', // Добавьте свойство created_at здесь
-                    trackname: '', // Добавьте свойство trackname здесь
-                    genre: '', // Добавьте свойство genre здесь
-                    price: '', // Добавьте свойство price здесь
-                    type: '', // Добавьте свойство type здесь
-                    mp3_url: '', // Добавьте свойство mp3_url здесь
+                    name: track.name || '', // Используйте track.name вместо track.trackname
+                    image: track.image || '',
+                    user_id:  '',
+                    audio_url: '',
+                    image_url:  '',
+                    text: '',
+                    created_at: '',
+                    updated_at: '',
+                    trackname: track.name || '', // Если `trackname` необходим, обеспечьте соответствие
+                    genre: '',
+                    price: '',
+                    type: track.type || '',
+                    mp3_url: '',
                     profile: {
-                    user_id: '', // Добавьте свойство user_id здесь
-                    name: '', // Добавьте свойство name здесь
-                    image: '', // Добавьте свойство image здесь
+                        user_id:  '',
+                        name:  '',
+                        image:  '',
                     },
                 }));
-                
-        
+            
+            
+                // Объединяем результат с профилями
                 const combinedResults: (RandomUsers | Post)[] = [
                     ...profileResults.map((profile) => ({
-                    id: profile.id,
-                    name: profile.name,
-                    image: profile.image,
-                    type: 'someType', // Добавьте свойство type для RandomUsers
-                    profile: {
-                        user_id: 'userId', // Добавьте свойство user_id для RandomUsers
-                        name: 'userName', // Добавьте свойство name для RandomUsers
-                        image: 'userImage', // Добавьте свойство image для RandomUsers
-                    },
+                        id: profile.id,
+                        name: profile.name,
+                        image: profile.image,
+                        type: 'someType', // Убедитесь, что этот тип соответствует вашему ожиданию
+                        profile: {
+                            user_id:  '', // Добавь user_id для RandomUsers
+                            name: profile.name || '', // Добавь name для RandomUsers
+                            image: profile.image || '', // Добавь image для RandomUsers
+                        },
                     })),
-                    ...formattedTrackResults, // Предполагается, что formattedTrackResults уже имеет тип Post[]
+                    ...formattedTrackResults,
                 ];
-        
+            
                 setSearchProfiles(combinedResults);
             } else {
                 setSearchProfiles([]);
@@ -207,8 +206,8 @@ export default function TopNav({ params }: ProfilePageTypes) {
   
 
     return (
-        <>  <div className="fixed bg-[#15191F] w-full h-[20px]  z-30 flex items-center"></div>
-            <div id="TopNav" className="fixed bg-[#272B43] z-30 flex items-center  h-[60px] left-5 mt-5 rounded-2xl right-5 border-0.5 border-[#090C15] ">
+        <>  
+            <div id="TopNav" className="fixed bg-[#272B43] z-30 flex items-center  h-[60px] right-0 left-0 border-b-0.5 border-[#090C15] ">
                 <div className={`flex items-center justify-between gap-6 w-full pl-5 pr-2 mx-auto ${pathname === '/' ? 'max-w-full' : ''}`}>
 
                     <Link href="/" className="flex items-center">

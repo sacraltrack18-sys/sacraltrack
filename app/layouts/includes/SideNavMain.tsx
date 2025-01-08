@@ -25,27 +25,38 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
         setCurrentProfile(params?.id)
     
     }, [])
-
+ 
     return (
         <>
                     <div 
                         id="SideNavMain" 
                         className={`
-                            fixed z-20 bg-[#272B43] pt-[10px]  mt-[100px] ml-[20px] 
-                            overflow-hidden p-[20px] rounded-2xl justify-bottom
-                            flex flex-col items-center w-[80px] h-[120px] 
-                            ${pathname === '/' ? 'lg:w-[290px] lg:h-[300px]' : 'lg:w-[290px] lg:h-[300px]'}
+                            fixed bottom-[20px] md:top-[83px] z-[99] bg-[#272B43] md:pt-[10px]  
+                            overflow-hidden md:p-[20px] rounded-2xl justify-bottom
+                            md:flex md:flex-col items-center w-[40%] md:w-[44%] md:z-0 md:h-[276px] h-[80px] 
+                            shadow-[0_20px_20px_rgba(0,0,0,0.2)]
                         `}
                     >   
 
                         {/*Profile image*/}
                         <div className="2xl:mx-auto">
 
-                        <div className="flex flex-col">
+                        <div className="flex items-center md:flex-col">
+
+                        <ClientOnly>
+                                {currentProfile ? (
+                                    <img className="md:absolute bottom-0 left-0 md:mt-[5px] w-[80px] md:w-full md:max-h-[240px] object-cover rounded-2xl" 
+                                    src={useCreateBucketUrl(currentProfile.image)} style={{ boxShadow: '0px 10px 10px -10px rgba(0, 0, 0, 0.3)' }} />
+                                ) : (
+                                    <img src="/images/user.svg" className="min-w-full max-h-[300px] rounded-xl" />
+                                )}
+                            </ClientOnly>
+
+
                             <ClientOnly>
                                 {(currentProfile as User)?.name ? (
                                     <div>
-                                        <p className="text-[14px] font-bold truncate">{currentProfile?.name}</p>
+                                        <p className="text-[14px] ml-6 font-bold truncate">{currentProfile?.name}</p>
                                     </div>
                                 ) : (
                                     <div className="h-[14px]">
@@ -54,14 +65,7 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
                                 )} 
                             </ClientOnly>
 
-                            <ClientOnly>
-                                {currentProfile ? (
-                                    <img className="absolute left-0 mt-[5px] w-full max-h-[240px] object-cover rounded-2xl" 
-                                    src={useCreateBucketUrl(currentProfile.image)} style={{ boxShadow: '0px 10px 10px -10px rgba(0, 0, 0, 0.3)' }} />
-                                ) : (
-                                    <img src="/images/user.svg" className="min-w-full max-h-[300px] rounded-xl" />
-                                )}
-                            </ClientOnly>
+                          
 
                         </div>
 

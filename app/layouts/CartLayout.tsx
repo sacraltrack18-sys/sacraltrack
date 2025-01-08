@@ -41,24 +41,24 @@ export default function CartLayout({ children }: { children: React.ReactNode }) 
                     <TopNav params={{ id: userContext?.user?.id as string }}/>
 
         
-        <div className="flex justify-between mx-auto w-full px-0">
+        <div className="flex justify-between mx-auto w-full px-[20px]">
             
-            <div className="flex justify-start bg-[#15191F] w-auto md:w-300 px-0">
+            <div className="flex justify-start bg-[#15191F] w-auto md:w-300">
             <motion.div
                 initial={{ opacity: 0, x: -100 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
-                className="flex justify-start bg-[#15191F] w-auto md:w-300 px-0"
+                className="flex justify-start bg-[#15191F] w-auto md:w-300"
             >
                 </motion.div>
             </div>
 
-            <div className="flex justify-center bg-[#15191F] w-[720px] px-0">
+            <div className="flex justify-center bg-[#15191F] w-[720px]">
             <motion.div
                 initial={{ opacity: 0, y: -100 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="flex justify-center bg-[#15191F] w-[720px] px-0"
+                className="flex justify-center bg-[#15191F] w-[720px]"
             >
         
         

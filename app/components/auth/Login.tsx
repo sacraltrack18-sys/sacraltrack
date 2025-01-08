@@ -77,6 +77,8 @@ export default function Login() {
                         onUpdate={setEmail}
                         inputType="email"
                         error={showError('email')}
+                        className={`border border-gray-300 rounded-xl p-2 ${error ? 'border-red-500' : 'border-[#2e3463]'}`} // Добавим условное стилизование
+                        style={{ backgroundColor: '#1E2136', color: '#ffffff' }} // Придаем стиль
                     />
                 </div>
 

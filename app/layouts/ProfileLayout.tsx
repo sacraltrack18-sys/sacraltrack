@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect } from "react";
 import SideNavMain from "./includes/SideNavMain"
 import TopNav from "./includes/TopNav"
 import { usePathname } from "next/navigation"
@@ -7,6 +7,8 @@ import ProfileComponents from "./includes/ProfileComponents"
 import { ProfilePageTypes } from "../types"
 import { RecoilRoot } from "recoil"
 import { useUser } from "@/app/context/user";
+import '@/app/globals.css';
+
 
 
 
@@ -17,6 +19,8 @@ export default function ProfileLayout({ children, params }: { children: React.Re
     const pathname = usePathname()
 
 	const userContext = useUser();   
+	
+				
 
 
     return (
@@ -24,15 +28,14 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		<RecoilRoot>
 		<TopNav params={{ id: userContext?.user?.id as string }} />
 		
-		<div className="flex justify-between mx-auto w-full px-0">
-			<div className="flex justify-start bg-[rgb(21,25,31)] w-[340px] px-0">
-                <div className="h-auto flex mr-5 flex-col fixed">
+		<div className="flex justify-between mx-auto w-full px-5">
+			
+				
 				<SideNavMain params={params.params} />
-                <ProfileComponents />
-                </div>
-			</div>
+		
+                <ProfileComponents  />
             
-			<div className="flex justify-center bg-[#15191F] w-[720px] px-5">
+				<div className="flex justify-end w-full">
 				{children}
 			</div>
 			{/* <div className="hidden md:flex justify-end bg-[#15191F] w-[300px] md:pr-[20px]">

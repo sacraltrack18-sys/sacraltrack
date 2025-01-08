@@ -47,6 +47,7 @@ export default function EditProfileOverlay() {
         const selectedFile = event.target.files && event.target.files[0];
         
         if (selectedFile) {
+            console.log('File details:', selectedFile); // Логи свойств файла, включая размер и тип
             setFile(selectedFile);
             setUploadedImage(URL.createObjectURL(selectedFile));
         } else {
@@ -118,11 +119,11 @@ export default function EditProfileOverlay() {
         <>
             <div 
                 id="EditProfileOverlay" 
-                className="fixed flex justify-center pt-14 md:pt-[105px] z-50 top-0 left-0 w-full h-full bg-black bg-opacity-50 overflow-auto"
+                className="fixed flex justify-center pt-14 md:pt-[105px] z-50 top-0 left-0 w-full h-full bg-black bg-opacity-80 backdrop-blur-lg overflow-auto"
             >
                 <div 
                     className={`
-                        relative bg-[#15191F] w-full max-w-[700px] sm:h-[580px] h-[655px] mx-3 p-4 rounded-2xl mb-10
+                        relative bg-[#15191F] w-full max-w-[700px] sm:h-[580px] h-[655px] mx-3 p-2 rounded-2xl mb-10
                         ${!uploadedImage ? 'h-[655px]' : 'h-[580px]'}
                     `}
                 >
@@ -133,9 +134,9 @@ export default function EditProfileOverlay() {
                         <button 
                             disabled={isUpdating} 
                             onClick={() => setIsEditProfileOpen(false)} 
-                            className="hover:bg-[#1E2136] p-1 rounded-full"
+                            className="hover:bg-[#1E2136] p-2 rounded-2xl"
                         >
-                            <AiOutlineClose size="25"/>
+                            <AiOutlineClose size="16"/>
                         </button>
                     </div>
                     {/* UPLOAD IMAGE ----------------------- */}
@@ -278,12 +279,12 @@ export default function EditProfileOverlay() {
                         ) : (
                             <div id="CropperButtons" className="flex items-center justify-end" >
 
-                                <button 
+                             {/*  <button 
                                     onClick={() => setUploadedImage(null)}
                                     className="flex items-center rounded-xl px-3 py-[6px] hover:bg-black hover:text-white"
                                 >
                                     <span className="px-2 font-medium text-[15px]">Cancel</span>
-                                </button>
+                                </button> */}
 
                                 <button 
                                     onClick={() => cropAndUpdateImage()}

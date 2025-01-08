@@ -140,7 +140,7 @@ import {
                     <Link
                      //   href={`/profile/${params?.userId}`}
                      href={`/`}
-                        className="absolute text-white z-20 m-5 rounded-xl bg-gray-700 p-1.5 hover:bg-gray-800 opacity-90"
+                        className="absolute text-white z-20 m-5 rounded-xl p-1.5 hover:opacity-100 opacity-80"
                     >
                         <AiOutlineClose size="18"/>
                     </Link>

@@ -1,3 +1,6 @@
+import { CSSProperties } from 'react';
+
+
 export interface UserContextTypes {
     id: string | null;
     user: User | null;
@@ -6,6 +9,7 @@ export interface UserContextTypes {
     logout: () => Promise<void>;
     checkUser: () => Promise<void>;
 }
+
 
 export interface Product {
     post: PostMainCompTypes;
@@ -109,6 +113,8 @@ export interface Post {
     created_at: string;
     trackname: string;
     price: any;
+    updated_at: string; // This is the property you are referring to
+
     genre: string;
     type: string;  // Add the 'type' property to the interface
     name: string;
@@ -313,7 +319,11 @@ export interface TextInputCompTypes {
     placeholder: string;
     onUpdate: (newValue: string) => void;
     error: string;
+    className?: string; // Добавляем свойство className
+  style?: CSSProperties; // Добавляем свойство style
 }
+
+
 export interface PeopleCardCompTypes {
     id: string;
     user_id: string;

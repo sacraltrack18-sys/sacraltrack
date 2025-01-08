@@ -129,7 +129,7 @@ export default function Register() {
                         onClick={() => register()} 
                         className={`
                             flex items-center justify-center w-full text-[14px] font-semibold text-white py-6 rounded-2xl
-                            ${(!name || !email || !password || !confirmPassword) ? 'bg-[#40C998]' : 'bg-[#F02C56]'}
+                            ${(!name || !email || !password || !confirmPassword) ? 'bg-[#40C998]' : 'bg-[#42c2aa]'}
                         `}
                     >
                         {loading ? <BiLoaderCircle className="animate-spin" color="#ffffff" size={25} /> : 'Sign up'}

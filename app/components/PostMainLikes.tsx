@@ -129,7 +129,7 @@ export default function PostMainLikes({ post }: PostMainLikesCompTypes) {
                             <button 
                             disabled={hasClickedLike}
                             onClick={() => likeOrUnlike()} 
-                            className="h-[50px] flex  rounded-xl bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer"
+                            className="h-[50px] flex  rounded-xl bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90"
                             >
                             {!hasClickedLike ? (
                                 <AiFillHeart color={likes?.length > 0 && userLiked ? '#FF0000' : ''} size="18"/>
@@ -145,14 +145,14 @@ export default function PostMainLikes({ post }: PostMainLikesCompTypes) {
 
                             <button 
                             onClick={() => router.push(`/post/${post?.id}/${post?.profile?.user_id}`)} 
-                            className="flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer"
+                            className="flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90"
                             >
                             <img src="/images/comments.svg" className="w-[16px] h-[16px]"/>
                             <span className="text-xs text-white font-semibold flex-grow ml-2">{comments?.length}</span>
 
                             </button>
 
-                            <button onClick={handleShareClick} className="justify-end flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer">
+                            <button onClick={handleShareClick} className="justify-end flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90">
                             <img src="/images/share.svg" className="w-[16px] h-[16px]"/>
                             {/* <span className="text-xs text-white font-semibold flex-grow ml-2"></span>*/}
                             </button>

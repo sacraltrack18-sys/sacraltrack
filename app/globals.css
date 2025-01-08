@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+
+
+ 
+
 /* Подключение шрифта Gotham Pro */
 @font-face {
     font-family: 'Gotham Pro';
@@ -63,3 +67,52 @@
     }
   }
   
+
+  /*BG*/
+  .gradient-bg {
+    position: fixed; /* Сделаем позиционирование фиксированным */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1; /* Установите и на уровень ниже содержимого */
+}
+
+.gradients-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.interactive {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  opacity: 0.2;
+  filter: blur(50px);
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 255, 0.4); /* Синий с 40% непрозрачностью */
+  mix-blend-mode: screen; 
+}
+
+
+.dynamic-bubble {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.3;
+}
+
+.dynamic-bubble.pink {
+
+  background-color: rgba(255, 20, 147, 0.4); /* Pink with 40% opacity */
+}
+
+.dynamic-bubble.purple {
+  background-color: rgba(128, 0, 128, 0.4); /* Purple with 40% opacity */
+}

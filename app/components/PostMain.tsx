@@ -13,6 +13,9 @@ import CartContext from "../context/CartContext";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { usePlayerContext } from '@/app/context/playerContext'; // Updated context usage
+import Player from '@/app/components/Player'; // Import the Player component
+
 
 interface MyWaveSurfer extends WaveSurfer {
   destroy: () => void;
@@ -22,6 +25,9 @@ interface MyWaveSurfer extends WaveSurfer {
 const PostMain = memo(({ post }: PostMainCompTypes) => {
   const pathname = usePathname();
 
+  const { currentAudioId, setCurrentAudioId } = usePlayerContext();
+
+ 
   // Add to cart
   const { addItemToCart } = useContext(CartContext);
 
@@ -38,134 +44,104 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
     toast.success("Added to cart");
   }, [addItemToCart, post]);
 
-  // WaveSurfer
-  const [isPlaying, setIsPlaying] = useState(false);
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const [wavesurfer, setWaveSurfer] = useState<MyWaveSurfer | null>(null);
-  const [wavesurferList, setWavesurferList] = useState<MyWaveSurfer[]>([]);
+  // PlayPause btn card
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null); // Keep this for mouseover/mouseout
 
-  useEffect(() => {
-    if (waveformRef.current) {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              // Если элемент находится в видимой области экрана
-              if (!wavesurfer) {
-                const newWaveSurfer = WaveSurfer.create({
-                  container: waveformRef.current as HTMLElement,
-                  waveColor: "#ffffff",
-                  progressColor: "#018CFD",
-                  dragToSeek: true,
-                  width: "47vw",
-                  hideScrollbar: true,
-                  normalize: true,
-                  barGap: 1,
-                  height: 40,
-                  barHeight: 20,
-                  barRadius: 20,
-                  barWidth: 4,
-                }) as MyWaveSurfer;
+// Default value for isPlaying
+const [isPlaying, setIsPlaying] = useState(false);
 
-                newWaveSurfer.load(useCreateBucketUrl(post?.mp3_url));
 
-                setWaveSurfer(newWaveSurfer);
-                setWavesurferList((prevList) => [...prevList, newWaveSurfer]);
-
-                newWaveSurfer.on("finish", () => {
-                  console.log("Песня закончилась");
-                  setIsPlaying(false);
-                });
-
-                newWaveSurfer.on("ready", () => {
-                  console.log("Волновая форма готова");
-                  if (isPlaying) {
-                    newWaveSurfer.play();
-                  }
-                });
-              } else {
-                if (isPlaying) {
-                  wavesurfer.play();
-                }
-              }
-            } else {
-              // Если элемент находится за пределами видимой области экрана
-              // Не делаем ничего, трек должен продолжать играть
-            }
-          });
-        },
-        {
-          rootMargin: "0px",
-          threshold: 0.5,
-        }
-      );
-
-      observer.observe(waveformRef.current);
-
-      return () => {
-        observer.disconnect();
-      };
-    }
-  }, [post?.mp3_url, wavesurfer, isPlaying]);
-
-  useEffect(() => {
-    if (wavesurfer) {
-      const playHandler = () => setIsPlaying(true);
-      const pauseHandler = () => setIsPlaying(false);
-      const finishHandler = () => setIsPlaying(false);
-
-      wavesurfer.on("play", playHandler);
-      wavesurfer.on("pause", pauseHandler);
-      wavesurfer.on("finish", finishHandler);
-
-      return () => {
-       
-      };
-    }
-  }, [wavesurfer]);
-
-  const handlePause = useCallback((currentWaveSurfer: MyWaveSurfer) => {
-    wavesurferList.forEach((ws) => {
-      if (ws !== currentWaveSurfer) {
-        ws.pause();
-      } else {
-        ws.playPause();
-        setIsPlaying((prevState) => !prevState);
-      }
-    });
-  }, [wavesurferList]);
-  
-  
-
-  const fetchAndLoadAudio = (audioUrl: string) => {
-    const cachedAudio = localStorage.getItem(audioUrl);
-    if (cachedAudio) {
-      wavesurfer?.load(cachedAudio);
-    } else {
-      fetch(useCreateBucketUrl(audioUrl))
-        .then((response) => response.blob())
-        .then((blob) => {
-          const audioUrl = URL.createObjectURL(blob);
-          wavesurfer?.load(audioUrl);
-          localStorage.setItem(audioUrl, audioUrl);
-        })
-        .catch((error) => {
-          console.error("Ошибка при предварительной загрузке аудио:", error);
-        });
+useEffect(() => {
+  const handleImageMouseOver = () => {
+    if (isPlaying && imageRef.current) {
+      imageRef.current.style.cursor = "url('/images/pause-icon.svg'), auto";
+    } else if (imageRef.current) {
+      imageRef.current.style.cursor = "url('/images/play-icon.svg'), auto";
     }
   };
+
+  const handleImageMouseOut = () => {
+    if (imageRef.current) {
+      imageRef.current.style.cursor = "default";
+    }
+  };
+
+  if (imageRef.current) {
+    imageRef.current.addEventListener('mouseover', handleImageMouseOver);
+    imageRef.current.addEventListener('mouseout', handleImageMouseOut);
+  }
+
+  return () => {
+    if (imageRef.current) {
+      imageRef.current.removeEventListener('mouseover', handleImageMouseOver);
+      imageRef.current.removeEventListener('mouseout', handleImageMouseOut);
+    }
+  };
+}, [isPlaying, imageRef]);
+
+useEffect(() => {
+  if (waveformRef.current) {
+    const handleWaveformMouseEnter = () => {
+      if (imageRef.current) {
+        imageRef.current.style.cursor = "default";
+      }
+    };
+
+    waveformRef.current.addEventListener('mouseenter', handleWaveformMouseEnter);
+
+    return () => {
+      if (waveformRef.current) {
+        waveformRef.current.removeEventListener('mouseenter', handleWaveformMouseEnter);
+      }
+    };
+  }
+}, [imageRef.current]);
+
+
+
+  // WaveSurfer
+//  const [isPlaying, setIsPlaying] = useState(false);
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const [wavesurfer, setWaveSurfer] = useState<MyWaveSurfer | null>(null);
+  
+
+    // Переключение воспроизведения
+    const handlePause = () => {
+      if (currentAudioId === post.id) {
+        setIsPlaying(false);
+        setCurrentAudioId(null); // Остановить аудио
+      } else {
+        setCurrentAudioId(post.id); // Установить ID текущего трека
+        setIsPlaying(true); // Включить воспроизведение
+      }
+    };
+  
+    useEffect(() => {
+      // Проверка на смену текущего трека
+      if (currentAudioId === post.id) {
+        setIsPlaying(true); // Если текущий трек соответствует ID поста, включаем
+      } else {
+        setIsPlaying(false); // Если нет, останавливаем
+      }
+    }, [currentAudioId, post.id]);
+
+    
+  
   
   return (
     <div
       id={`PostMain-${post.id}`}
+      ref={imageRef}
       style={{
         backgroundImage: `url(${useCreateBucketUrl(post?.image_url)})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
-      className="relative flex flex-col justify-between p-2 mt-5 mb-5 
+      onClick={(e) => handlePause()}
+      className="relative flex flex-col justify-between p-2 mb-5 
         object-cover rounded-[20px] h-[500px] overflow-hidden 
-        md:w-[700px] w-[318px] mx-auto"
+        md:w-[700px] w-full mx-auto"
     >
       {post ? (
         <>
@@ -208,10 +184,10 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
           </div>
 
           {/* Audio Controls */}
-          <div className="wavesurfer-controls absolute z-5 top-[40%] left-[43%] border-color-white border-opacity-20 px-10 py-7 rounded-xl">
+          <div className="absolute md:visible hidden wavesurfer-controls z-5 top-[40%] left-[43%] border-color-white border-opacity-20 px-10 py-7 rounded-xl">
           <button
             className="w-[40px] h-[40px]"
-            onClick={() => handlePause(wavesurfer as MyWaveSurfer)}
+            onClick={() => handlePause()}
           >
             {isPlaying ? (
               <BsFillStopFill size={24} />
@@ -220,16 +196,18 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
             )}
           </button>
           </div>
-
-          {/* Audio Waveform */}
-          <div className="flex overflow-hidden mt-80 absolute h-[40px] mb-10 w-full">
-            <div>
-              <div ref={waveformRef} className="wavesurfer-container" />
-            </div>
-          </div>
+            
+          
+        <div className="absolute bottom-24 left-0 right-0 z-10 opacity-90">
+          <Player 
+            audioUrl={useCreateBucketUrl(post.mp3_url)} 
+            isPlaying={isPlaying} 
+            onPlay={() => setIsPlaying(true)} // Обновите, если хотите
+            onPause={() => setIsPlaying(false)} // Обновите, если хотите
+          /></div>
 
           {/* Interaction Buttons */}
-          <div className="absolute w-full h-[60px] bottom-1 justify-between pr-4">
+          <div className="absolute w-full h-[60px] bottom-0 justify-between pr-4">
             <PostMainLikes post={post} />
           </div>
 
@@ -237,7 +215,7 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
           <div className="absolute right-2 align-middle top-[30%]">
           <button
             onClick={addToCartHandler}
-            className="py-12 px-4 bg-[#20DDBB] text-white rounded-t-xl"
+            className="py-12 px-4 bg-[#20DDBB] text-white rounded-t-xl hover:bg-[#21C3A6]"
           >
             <img src="/images/cart.svg" alt="sacraltrack cart" />
           </button>
@@ -248,48 +226,7 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
         </>
         ) : (
         <div className="flex flex-col justify-between p-2 mt-5 mb-5 object-cover rounded-[20px] h-[500px] overflow-hidden">
-          <div className="flex justify-between">
-            <div className="cursor-pointer">
-              <Skeleton
-                className="rounded-[15px] max-h-[50px] w-[50px]"
-                height={50}
-                width={50}
-              />
-            </div>
-            <div className="bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] w-full h-[50px] flex items-between rounded-xl ml-2">
-              <div className="pl-3 w-full px-2">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="text-[#818BAC] size-[15px]" width={100} />
-                </div>
-                <Skeleton className="text-[14px] pb-0.5" width={200} />
-              </div>
-            </div>
-          </div>
-
-        <div className="absolute top-16 left-16 py-1 px-2 bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] flex items-center rounded-lg">
-          <Skeleton className="text-[13px] text-[#818BAC]" width={80} />
-        </div>
-
-        <div className="wavesurfer-controls absolute z-5 top-[40%] left-[43%] border-color-white border-opacity-20 px-10 py-7 rounded-xl">
-          <Skeleton className="w-[40px] h-[40px]" />
-        </div>
-
-        <div className="flex overflow-hidden mt-80 absolute h-[40px] mb-10 w-full">
-          <div>
-            <Skeleton className="wavesurfer-container" height={40} />
-          </div>
-        </div>
-
-        <div className="absolute w-full h-[60px] bottom-1 justify-between pr-4">
-          <Skeleton className="w-full h-[60px]" />
-        </div>
-
-        <div className="absolute right-2 align-middle top-[30%]">
-          <section>
-            <Skeleton className="py-12 px-4 bg-[#20DDBB] text-white rounded-t-[12px]" height={60} />
-            <Skeleton className="w-auto flex items-center justify-center py-2 px-2 bg-[#21C3A6] text-white text-size-[12px] rounded-b-[12px]" height={40} />
-          </section>
-        </div>
+         {/*Skeleton*/}
       </div>
       )}
       </div>

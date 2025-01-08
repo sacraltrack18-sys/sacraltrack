@@ -11,7 +11,8 @@ import { usePaidPostStore } from '@/app/stores/usePaidPostStore';
 import useFileDownload from '@/app/hooks/useFileDownload';
 import { PostWithProfile } from '@/app/types';
 import { client, storage } from '@/libs/AppWriteClient';
-
+import { usePlayerContext } from '@/app/context/playerContext';
+import Player from '@/app/components/Player'; 
 
 
 
@@ -46,210 +47,155 @@ interface Post {
 
 const PaidPosts: React.FC<PaidPostsProps> = ({ userId, posts }) => {
   const { paidPosts, setPaidPosts } = usePaidPostStore();
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  {/* Download Wav */}
-  const handleDownload = async (post: Post) => {
-    setIsLoading(true);
-    try {
-      const result = await storage.getFileDownload(
-        process.env.NEXT_PUBLIC_BUCKET_ID!,
-        post.audio_url
-      );
-
-      // Создаем ссылку для скачивания файла
-      const downloadLink = document.createElement('a');
-      downloadLink.href = result.href;
-      downloadLink.setAttribute('download', post.trackname);
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-    } catch (error) {
-      console.error('Ошибка при загрузке файла:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [currentAudioId, setCurrentAudioId] = useState<string | null>(null);
   
-  useEffect(() => {
-    setPaidPosts(userId);
-  }, [userId, setPaidPosts]);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState<{ [key: string]: boolean }>({}); // Изменяем на объект для отслеживания состояния каждого трека
 
   // WaveSurfer
   const waveformRef = useRef<HTMLDivElement>(null);
-  //const [wavesurfers, setWavesurfers] = useState<{ [key: string]: any }>({});
-
   const [wavesurfer, setWaveSurfer] = useState<WaveSurfer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && waveformRef.current) {
-          // Если элемент находится в видимой области экрана
-          const newWaveSurfer = WaveSurfer.create({
-            container: waveformRef.current,
-            waveColor: "#ffffff",
-            progressColor: "#018CFD",
-            dragToSeek: true,
-            width: "47vw",
-            hideScrollbar: true,
-            normalize: true,
-            barGap: 1,
-            height: 40,
-            barHeight: 20,
-            barRadius: 20,
-            barWidth: 4,
-          });
-  
-          paidPosts.forEach((post) => {
-            if (post && post.mp3_url) {
-              newWaveSurfer.load(useCreateBucketUrl(post.mp3_url));
-            }
-          });
-  
-          setWaveSurfer(newWaveSurfer);
-  
-          newWaveSurfer.on("finish", () => {
-            console.log("Песня закончилась");
-          });
-  
-          newWaveSurfer.on("ready", () => {
-            console.log("Волновая форма готова");
-          });
-        } else {
-          // Если элемент находится за пределами видимой области экрана
-          if (wavesurfer) {
-            wavesurfer.destroy();
-            setWaveSurfer(null);
-          }
+
+
+  // PlayPause
+  const handlePause = (postId: string) => {
+    if (currentAudioId === postId) {
+      // Останавливаем воспроизведение для текущего поста
+      setIsPlaying((prev) => ({ ...prev, [postId]: false }));
+      setCurrentAudioId(null);
+    } else {
+      // Останавливаем воспроизведение текущего поста и начинаем воспроизводить новый пост
+      setIsPlaying((prev) => {
+        const updatedPlaying = { ...prev, [postId]: true }; // Устанавливаем новый пост в воспроизведение
+        if (currentAudioId) {
+          updatedPlaying[currentAudioId] = false; // Останавливаем старый пост
         }
-      },
-      { threshold: 0.1 }
-    );
-  
-    waveformRef.current && observer.observe(waveformRef.current);
-  
-    return () => {
-      observer.disconnect();
-    };
-  }, [paidPosts]);
-  
-  
-  // WaveSurfer PlayPause
-  const handlePause = useCallback(() => {
-    if (wavesurfer) {
-      if (isPlaying) {
-        wavesurfer.stop();
-        setIsPlaying(false);
-      } else {
-        wavesurfer.playPause();
-        setIsPlaying(true);
-      }
+        return updatedPlaying;
+      });
+      setCurrentAudioId(postId);
     }
-  }, [isPlaying, wavesurfer]);
+  };
+
+
 
   
-    
 
+  {/* Download Wav */}
+      const handleDownload = async (post: Post) => {
+        setIsLoading(true);
+        try {
+          const result = await storage.getFileDownload(
+            process.env.NEXT_PUBLIC_BUCKET_ID!,
+            post.audio_url
+          );
+
+          // Создаем ссылку для скачивания файла
+          const downloadLink = document.createElement('a');
+          downloadLink.href = result.href;
+          downloadLink.setAttribute('download', post.trackname);
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          downloadLink.remove();
+        } catch (error) {
+          console.error('Ошибка при загрузке файла:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      useEffect(() => {
+        setPaidPosts(userId);
+      }, [userId, setPaidPosts]);
   
-  return (
-  <>
-    {paidPosts.map((post, index) => (
-      <div
-        key={index}
-        id={`PostMain-${post?.id}`}
-        style={{
-          backgroundImage: `url(${useCreateBucketUrl(post?.image_url as string)})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-        className={`relative flex flex-col justify-between p-2 mt-5 mb-5 mx-5 object-cover rounded-[20px] md:mr-[0px] mr-[40px] md:w-[500px] w-[220px] h-[500px] overflow-hidden`}
-      >
-        <div className="flex justify-between">
-          {/* Profile Image */}
-          <div className="cursor-pointer">
-            <img
-              className="rounded-[15px] max-h-[50px] w-[50px]"
-              src={useCreateBucketUrl(post?.profile.image as string)}
-            />
-          </div>
-
-          {/* Name / Trackname */}
-          <div className="bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] w-full h-[50px] flex items-between rounded-xl ml-2">
-            <div className="pl-3 w-full px-2">
-              <div className="flex items-center justify-between">
-                <Link
-                  className="text-[#818BAC] size-[15px]"
-                  href={`/profile/${post?.user_id}`}
+   
+   
+  
+      return (
+        <>
+          {paidPosts.length > 0 ? (
+            paidPosts.map((post, index) => {
+              //Check for null or undefined post before accessing properties
+              if (!post) {
+                console.warn(`Post at index ${index} is undefined or null.`);
+                return null; 
+              }
+      
+              return (
+                <div
+                  key={post.id}
+                  ref={imageRef}
+                  id={`PostMain-${post.id}`}
+                  style={{
+                    backgroundImage: `url(${useCreateBucketUrl(post.image_url ?? "")})`, // Handle undefined image_url
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                  onClick={() => handlePause(post.id)}
+                  className={`relative z-[0] flex flex-col md:ml-[600px] justify-between p-2 mb-5 object-cover rounded-2xl md:mr-[0px] md:w-[600px] w-full h-[500px] overflow-hidden`}
                 >
-                  <span className="font-bold hover:underline cursor-pointer">
-                  {post?.profile.name}
-                  </span>
-                </Link>
-              </div>
-              <p className="text-[14px] pb-0.5 break-words md:max-w-[400px] max-w-[300px]">
-                {post?.text}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Genre */}
-        <div className="absolute top-16 left-16 py-1 px-2 bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] flex items-center rounded-lg">
-          <p className="text-[13px] text-[#818BAC] hover:text-white cursor-pointer ">
-            {post?.genre}
-          </p>
-        </div>
-
-         {/* Controls */}
-         <div className="wavesurfer-controls absolute z-5 top-[43%] left-[43%] {/*border b-4*/} border-color-white border-opacity-20 px-10 py-7 rounded-xl">
-                <button onClick={handlePause}>
-                    {isPlaying ? <BsFillStopFill size={24} /> : <BsFillPlayFill size={24} />}
-                </button>
-            </div>
-
-            {/* Audio */}
-            <div className="flex overflow-hidden h-[40px] mb-16 w-full">
-                <div style={{  }}>
-                    <div ref={waveformRef} className="wavesurfer-container" />
+                  <div className="flex justify-between">
+                    <div className="cursor-pointer">
+                      <img
+                        className="rounded-[15px] max-h-[50px] w-[50px]"
+                        src={useCreateBucketUrl(post.profile?.image ?? '/placeholder.jpg')} //Safe access and default image
+                        alt="Profile" //Always add alt text for accessibility
+                      />
+                    </div>
+                    <div className="bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] w-full h-[50px] flex items-between rounded-xl ml-2">
+                      <div className="pl-3 w-full px-2">
+                        <div className="flex items-center justify-between">
+                          <Link
+                            className="text-[#818BAC] size-[15px]"
+                            href={`/profile/${post.user_id}`}
+                          >
+                            <span className="font-bold hover:underline cursor-pointer">
+                              {post.profile?.name ?? "Unknown User"} {/*Handle undefined name*/}
+                            </span>
+                          </Link>
+                        </div>
+                        <p className="text-[14px] pb-0.5 break-words md:max-w-[400px] max-w-[300px]">
+                          {post.text ?? ""} {/*Handle undefined text*/}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute top-16 left-16 py-1 px-2 bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] flex items-center rounded-lg">
+                    <p className="text-[13px] text-[#818BAC] hover:text-white cursor-pointer">
+                      {post.genre ?? "Unknown Genre"} {/*Handle undefined genre*/}
+                    </p>
+                  </div>
+                  <div className="absolute bottom-24 left-0 right-0 z-10 opacity-90">
+                    <Player
+                      audioUrl={useCreateBucketUrl(post.mp3_url ?? "")} //Handle undefined mp3_url
+                      isPlaying={!!isPlaying[post.id]}
+                      onPlay={() => setIsPlaying((prev) => ({ ...prev, [post.id]: true }))}
+                      onPause={() => setIsPlaying((prev) => ({ ...prev, [post.id]: false }))}
+                    />
+                  </div>
+                  <div className="absolute w-full h-[60px] bottom-1 justify-between pr-4">
+                    <PostMainLikes post={{ ...post, id: post.id, profile: post.profile ?? {} } as PostWithProfile} /> {/*Safe handling of profile*/}
+                  </div>
+                  <div className="absolute right-2 align-middle top-[30%]">
+                    <button
+                      className={`bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center rounded-xl px-3 py-4 text-[#818BAC] hover:text-white cursor-pointer ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={() => handleDownload(post)}
+                      disabled={isLoading}
+                    >
+                      <img className="h-[18px] w-[18px]" src="/images/downloads.svg" alt="Download" />
+                      <span className="text-[12px] mt-2 opacity-60">WAV</span>
+                    </button>
+                  </div>
                 </div>
-            </div>
-
-            {/* comments slider */}
-
-            {/* Buttons like comments share */}
-            <div className="absolute w-full h-[60px] bottom-1 justify-between pr-4">
-
-
-
-            <PostMainLikes post={{ ...post, id: post?.id ?? '', profile: { user_id: post?.user_id ?? '', name: post?.profile.name ?? '', image: post?.profile.image ?? '' } } as PostWithProfile} />
-
-
-
-            </div>
-         {/* Download button*/}
-         <div className="absolute right-2 align-middle top-[30%]">
-            <section>
-              
-            <button
-            className={`bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] rounded-lg px-3 py-2 text-[#818BAC] hover:text-white cursor-pointer ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={() => handleDownload(post as Post)}
-            disabled={isLoading}
-            >
-              <BsDownload />
-            </button>
-
-
-
-            </section>
-          </div>
-        </div>
-      ))}
-    </>
-  );
-};
+              );
+            })
+          ) : (
+            <p>Loading posts... or No paid posts found.</p>
+          )}
+        </>
+      );
+    }
 
 export default PaidPosts;

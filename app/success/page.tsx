@@ -115,15 +115,15 @@ function SuccessPageContent() {
   
   return (
     <div className="flex justify-center items-center h-screen p-[20px]">
-      <div className="bg-[#1E2136]rounded-2xl p-2 w-full max-w-md shadow-2xl">
+      <div className="bg-[#1E2136]rounded-2xl p-2 w-full h-auto max-w-md shadow-2xl">
       <img src="images/success.jpg" alt="Success" className="w-full h-200px rounded-xl mb-5" />
         <h1 className="text-2xl font-bold mb-4">Payment Successful!</h1>
         
         <p className="text-[#7B7B8C] mb-5">
-          Your tracks are available for download in your profile under the "Show downloads".
+          Your tracks are available for download in your profile by the button "Show downloads".
         </p>
         <button
-          className="bg-[#1E2136] hover:bg-[#] text-white font-bold py-2 px-4 rounded-2xl mb-5"
+          className="bg-[#1E2136] hover:bg-[#4e406a] text-white font-bold py-2 px-4 rounded-2xl mb-5"
           onClick={handleNavigateHome}
         >
           Go to Profile

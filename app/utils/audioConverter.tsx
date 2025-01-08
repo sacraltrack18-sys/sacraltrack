@@ -7,7 +7,7 @@ function getFileExtension(file_name: string) {
   const match = regex.exec(file_name);
   if (match && match[1]) {
     return match[1];
-  }
+  } 
   return '';
 }
 
@@ -19,44 +19,33 @@ function removeFileExtension(file_name: string) {
   }
   return file_name;
 }
-
-
 export async function convertWavToMp3(ffmpeg: FFmpeg, wavFile: File): Promise<{ mp3Url: string, mp3Blob: Blob } | { error: string }> {
   try {
     const file_name = wavFile.name;
     const outputMp3 = removeFileExtension(file_name) + '.mp3';
 
-    // Записываем файл WAV в FFmpeg
+    // Write the WAV file to FFmpeg
     ffmpeg.writeFile(file_name, new Uint8Array(await wavFile.arrayBuffer()));
 
     const mp3Conversion = [
       '-i',
       file_name,
       '-b:a',
-      '320k',
+      '192k', // Set the audio bitrate to 192k
       outputMp3,
     ]
 
-    // Выполняем конвертацию в MP3
+    // Execute the MP3 conversion
     await ffmpeg.exec(mp3Conversion);
 
-    // Читаем данные файла MP3
+    // Read the MP3 file data
     const mp3Data = await ffmpeg.readFile(outputMp3);
     const mp3Blob = new Blob([mp3Data], { type: 'audio/mp3' });
     const mp3Url = URL.createObjectURL(mp3Blob);
 
-   
-    // Автоматическое скачивание файла MP3
-    const downloadLink = document.createElement('a');
-    downloadLink.href = mp3Url;
-    downloadLink.download = 'converted_audio.mp3';
-    downloadLink.style.display = 'none';
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-
+    // Return the URL and Blob without triggering automatic download
     return { mp3Url, mp3Blob };
   } catch (error) {
-    return { error: 'Произошла ошибка при конвертации аудиофайла' };
+    return { error: 'An error occurred while converting the audio file' };
   }
 }

@@ -9,7 +9,7 @@ export const useGetRoyaltyBalance = () => {
   const [soldTracks, setSoldTracks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const user = useUser();
+  const user = useUser(); 
   const [posts, setPosts] = useState<any[]>([]);
   const { updateRoyaltyBalance } = useUpdateRoyaltyBalance();
 

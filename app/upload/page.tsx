@@ -1,8 +1,9 @@
 "use client"
+
 {/*UPLOAD PAGE*/}
 
 import React, { useEffect, useState } from "react";
-import UploadLayout from "../layouts/UploadLayout";
+import UploadLayout from "../layouts/UploadLayout"; 
 import { BiLoaderCircle, BiSolidCloudUpload } from "react-icons/bi"
 import { AiOutlineCheckCircle } from "react-icons/ai";
 import { useRouter } from "next/navigation";
@@ -62,7 +63,7 @@ export default function Upload() {
         if (!contextUser?.user) router.push('/')
     }, [contextUser])
 
-    /* AUDIO WAV ONLY*/
+    /* AUDIO WAV ONLY*/ 
     
     const onChangeAudio = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -217,13 +218,13 @@ export default function Upload() {
         setIsUploading(true);
         setIsPostClicked(true); // Set isPostClicked to true before starting the upload
         console.log('Blob Content:', mp3Blob); // Добавленный console.log для отладки
-        console.log('в хуке до try createNewPost, MP3 Blob Size:', mp3Blob.size);  // Должен показать корректный размер до создания File
+        console.log('try createNewPost, MP3 Blob Size:', mp3Blob.size);  // Должен показать корректный размер до создания File
 
     
         try {
             if (fileAudio && imageFile && contextUser && contextUser.user) {
             
-            console.log('в hook createNewPost, MP3 Blob Size:', mp3Blob.size);  // Должен показать корректный размер до создания File
+            console.log('hook createNewPost, MP3 Blob Size:', mp3Blob.size);  // Должен показать корректный размер до создания File
         
             const mp3File = new File([mp3Blob], 'converted.mp3', { type: 'audio/mp3' });
 
@@ -258,7 +259,7 @@ export default function Upload() {
                 <UploadLayout>
                  {isModalOpen && <UploadModal onClose={closeModal} />}
 
-                    <div className="flex flex-col items-center justify-center h-screen w-full shadow-lg rounded-md py-6 md:px-10 px-4">
+                    <div className="flex flex-col items-center justify-center h-screen w-full rounded-md py-6 md:px-10 px-4">
                    
 
                     <div style={{ position: 'absolute', height: '10px', width: '100%', bottom: 0, left: 0, zIndex: 80 }}>
@@ -279,28 +280,28 @@ export default function Upload() {
 
                         {/* TRACK NAME */}
                         <div className="flex items-center align-center">
-                        <div className="mt-4 sm:w-[566px] w-[170px] sm:mr-[20px] mr-5">
-                                <div className="flex items-center justify-between">
-                                </div>
-                                <input 
-                                    maxLength={150}
-                                    type="text"
-                                    className="
-                                        bg-[#1E2136]
-                                        w-full
-                                        border-[0.5px solid#1E2136]
-                                        p-4
-                                        rounded-xl
-                                        focus:outline-none
-                                    "
-                                    placeholder="Track Name" 
-                                    value={trackname}
-                                    onChange={event => setTrackname(event.target.value)}
-                                    style={{fontSize: '14px', color: '#ffff'}}
-                                    //'::placeholder': {fontSize: '12px', color: '#7B7B8C'}}} // Размер и цвет плейсхолдера
+                        <div className="mt-4 w-full sm:w-[566px] sm:mr-[20px] mr-5">
+                        <div className="flex items-center justify-between">
+                            {/* Другие элементы, если есть */}
+                        </div>
+                        <input 
+                            maxLength={150}
+                            type="text"
+                            className="
+                                bg-[#1E2136]
+                                w-full
+                                border-[0.5px solid #1E2136]
+                                p-4
+                                rounded-xl
+                                focus:outline-none
+                            "
+                            placeholder="Track Name" 
+                            value={trackname}
+                            onChange={event => setTrackname(event.target.value)}
+                            style={{ fontSize: '14px', color: '#ffff' }}
+                        />
+                    </div>
 
-                                />
-                            </div>
 
                             {/* CHOOSE GENRE ----------------------- */}
 
@@ -422,18 +423,20 @@ export default function Upload() {
                     {/* POPUP ----------------------- */}
                     
                         {showPopup && (
-                        <div id="popupOverlay" className="top-0 popup-overlay absolute z-5 bg-[#15191F] px-5 z-10 py-[160px] w-full h-screen flex-col justify-center items-center ">
+                        <div id="popupOverlay" className="top-0 bottom-0 popup-overlay absolute  bg-[#15191F] z-10 pt-[160px] w-full h-full flex-col justify-center items-center ">
                             <div className="popup-content">
-                            <div className="flex flex-col items-center justify-center h-full w-full shadow-lg rounded-md py-6 md:px-10 px-5">
+                            <div className="flex flex-col items-center justify-center h-full w-full  rounded-md py-6 md:px-10 px-5">
                             <div className="mt-1 mb-4">
                     <div className="flex flex-col items-center ">
+
+                        
                     {/* UPLOAD ARTWORK CAN BE HERE ----------------------- */} 
                     <div className="mt-0">
                             <h1 className="text-[20px]  mb-4 font-semibold">Upload image artwork</h1>
                             {/* <h2 className="text-gray-400 mt-1">Send your track for release</h2> */}
                         </div>
 
-                    <div className="mx-auto mt-5 mb-6  md:w-[728px] w-[310px] h-[180px] text-center p-1 border-2 border-dashed border-[#1E2136] rounded-2xl hover:bg-[#1E2136] cursor-pointer">
+                    <div className="mx-auto mt-5 mb-6  md:w-[728px] w-full h-[180px] flex flex:items-center justify-center text-center p-1 border-2 border-dashed border-[#1E2136] rounded-2xl hover:bg-[#1E2136] cursor-pointer">
                     {!fileDisplayImage ? (
                         <label
                             htmlFor="fileInputImage"
@@ -443,7 +446,7 @@ export default function Upload() {
                                 flex-col 
                                 items-center 
                                 justify-center 
-                                md:w-[728px] w-[310px]
+                                md:w-[728px] w-full
                                 h-full
                                 text-center 
                                 p-1 
@@ -464,14 +467,10 @@ export default function Upload() {
                                         ) : (
                                             <div
                                                 className="
-
-                  
-                                   
-                                        
                                                     flex 
                                                     items-center 
                                                     justify-center 
-                                                    md:w-[728px] w-[310px]
+                                                    md:w-[728px] w-full
                                                     h-full
                                                     p-2
                                                     rounded-2xl
@@ -507,25 +506,26 @@ export default function Upload() {
 
                 {/*CAPTION*/}
                 <div className="mt-5">
-                                <div className="flex items-center justify-between ">
-                                </div>
+                              
                                 <input 
                             maxLength={150}
                             type="text"
                             className="
+                                flex 
                                 bg-[#1E2136]
-                                md:w-[728px] w-[310px]
+                                md:w-[728px] 
+                                w-full
                                 border-[0.5px solid#1E2136]
                                 p-4
                                 rounded-2xl
                                 focus:outline-none
-                                mt-5
-                                placeholder:text-[12px] placeholder:text-[#7B7B8C]
+                                mb-2
+                                placeholder:text-[13px] placeholder:text-[#7B7B8C]
                             "
                             placeholder="Some words about your release" 
                             value={caption}
                             onChange={event => setCaption(event.target.value)}
-                            style={{fontSize: '12px', color: '#ffff'}}
+                            style={{fontSize: '13px', color: '#ffff'}}
                             />
                             </div> 
 

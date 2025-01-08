@@ -28,26 +28,32 @@ export default function Profile({ params }: ProfilePageTypes) {
   useEffect(() => {
     setCurrentProfile(params?.id)
     setPostsByUser(params?.id)
+    
   }, [params.id, setCurrentProfile]);
 
   return (
     <>
       <ProfileLayout params={{ params }}>
-        <div className="pt-[90px] ml-[20px] lg:pr-0 w-[calc(100%-90px)] max-w-[1200px] 2xl:mx-auto">
-          <ClientOnly>
+      <div className="pt-[90px] lg:pr-0 w-full max-w-[1200px] ">
+        <ClientOnly>
           {!hidePostUser && (
-              <div className="justify-center">
-                {postsByUser?.map((post, index) => (
-                 <PostUser
-                 key={index}
-                 params={{ userId: params.id, postId: post.id }}
-                 post={post as PostWithProfile}
-                 userId={params.id} // Add this line
-               />
-                ))}
-              </div>
-            )}
-          </ClientOnly>
+            <div className="justify center">
+              {postsByUser?.map((post, index) => {
+                // Log the post information
+                console.log("Post User:", post);
+
+                return (
+                  <PostUser
+                    key={index}
+                    params={{ userId: params.id, postId: post.id }}
+                    post={post as PostWithProfile}
+                    userId={params.id}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </ClientOnly>
 
        
           {showPaidPosts && (

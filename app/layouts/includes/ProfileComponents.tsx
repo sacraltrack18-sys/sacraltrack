@@ -51,14 +51,14 @@ const ProfileComponents = () => {
     return (
         <div>
             {isMobile ? (
-                 <div className="ml-[20px] mt-[240px]">
+                 <div className="fixed bottom-5 right-[20px] z-[100]"> 
                    <button
             onClick={toggleShowPaidPosts}
-            className={`flex items-center bg-[#231c2c] rounded-xl py-2 px-3 hover:bg-[#1f1a23] transition-colors duration-300`}
+            className={`flex items-center bg-[#271f32] rounded-2xl h-[80px] py-4 px-6  hover:bg-[#3e3049] transition-colors duration-300    shadow-[0_20px_20px_rgba(0,0,0,0.3)]`}
           >
                            <img src="/images/downloads.svg" alt="downloads" />
             <span className="ml-2 font-medium text-[14px] text-white">
-              {showPaidPosts ? 'Hide' : 'Show'}
+              {showPaidPosts ? 'Hide downloads' : 'Show downloads'}
             </span>
           </button>
                     {/*
@@ -73,10 +73,11 @@ const ProfileComponents = () => {
                     </button> */}
                 </div> 
             ) : (
-                <div className="ml-[20px] mt-[450px]"> <button
+                <div className="mt-[400px]"> 
+                <button
                 onClick={toggleShowPaidPosts}
-                className={`flex items-center bg-[#231c2c] rounded-xl py-2 px-3 hover:bg-[#1f1a23] transition-colors duration-300`}
-              >
+                className={`fixed flex items-center bg-[#271e32] rounded-2xl py-4 px-4 hover:bg-[#221c28] transition-colors duration-300`}
+                >
                 <img src="/images/downloads.svg" alt="downloads" />
                 <span className="ml-2 font-medium text-[14px] text-white">
                   {showPaidPosts ? 'Hide Downloads' : 'Show Downloads'}
