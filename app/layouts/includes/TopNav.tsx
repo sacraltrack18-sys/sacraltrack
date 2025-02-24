@@ -1,21 +1,15 @@
 "use client"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { BiSearch, BiUser } from "react-icons/bi"
+import { BiSearch } from "react-icons/bi"
 import { BsThreeDotsVertical } from "react-icons/bs"
-import { FiLogOut } from "react-icons/fi"
-import { useEffect, useState } from "react" 
+import { useEffect, useState, useRef, useCallback } from "react" 
 import { useUser } from "@/app/context/user"
 import { useGeneralStore } from "@/app/stores/general"
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
 import { RandomUsers } from "@/app/types"
 import useSearchProfilesByName from "@/app/hooks/useSearchProfilesByName";
-import TopMenuItem from "./MenuItem"
-import { BsPencil } from "react-icons/bs"
-import CartContext from "@/app/context/CartContext"
 import { useContext } from "react"
-import { imageConfigDefault } from "next/dist/shared/lib/image-config";
-//import Genres from "@/app/components/Genres";
 import { Genre } from "@/app/types";
 import { GenreContext } from "@/app/context/GenreContext";
 import { ProfilePageTypes, User } from "@/app/types"
@@ -23,6 +17,7 @@ import { useProfileStore } from "@/app/stores/profile"
 import ClientOnly from "@/app/components/ClientOnly"
 import { Post } from "@/app/types";
 import { usePostStore } from "@/app/stores/post"
+import { motion, AnimatePresence } from "framer-motion";
 
 
 
@@ -35,13 +30,14 @@ export default function TopNav({ params }: ProfilePageTypes) {
     const router = useRouter()
     const pathname = usePathname()
     const [isVideoMode, setIsAudioMode] = useState(false);
-    const { cart } = useContext(CartContext);
-    const cartItems = cart?.cartItems;
 
     {/*SEARCH*/}
    
    const { searchTracksByName } = usePostStore();
    const [searchProfiles, setSearchProfiles] = useState<(RandomUsers | Post)[]>([]);
+   const [showSearch, setShowSearch] = useState(false);
+   const [searchQuery, setSearchQuery] = useState("");
+   const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Debounce function
         function debounce(func: Function, wait: number) {
@@ -57,76 +53,69 @@ export default function TopNav({ params }: ProfilePageTypes) {
         }
 
         // Define the handleSearchName function
-        const handleSearchName = async (event: { target: { value: string } }) => {
-            if (event.target.value === "") {
+        const handleSearch = useCallback(
+            debounce(async (query: string) => {
+                if (!query.trim()) {
             setSearchProfiles([]);
             return;
             }
         
             try {
             const [profileResults, trackResults] = await Promise.all([
-                useSearchProfilesByName(event.target.value), // Assuming this function returns an array of RandomUsers
-                searchTracksByName(event.target.value), // Assuming this function returns an array of Post
-            ]);
-            if (profileResults && trackResults) {
-                const formattedTrackResults: Post[] = trackResults.map((track) => ({
-                    id: track.id,
-                    name: track.name || '', // Используйте track.name вместо track.trackname
-                    image: track.image || '',
-                    user_id:  '',
-                    audio_url: '',
-                    image_url:  '',
-                    text: '',
-                    created_at: '',
-                    updated_at: '',
-                    trackname: track.name || '', // Если `trackname` необходим, обеспечьте соответствие
-                    genre: '',
-                    price: '',
-                    type: track.type || '',
-                    mp3_url: '',
-                    profile: {
-                        user_id:  '',
-                        name:  '',
-                        image:  '',
-                    },
-                }));
-            
-            
-                // Объединяем результат с профилями
-                const combinedResults: (RandomUsers | Post)[] = [
-                    ...profileResults.map((profile) => ({
+                        useSearchProfilesByName(query),
+                        searchTracksByName(query)
+                    ]);
+
+                    const formattedResults = [
+                        ...(profileResults?.map(profile => ({
                         id: profile.id,
+                            type: 'profile',
                         name: profile.name,
                         image: profile.image,
-                        type: 'someType', // Убедитесь, что этот тип соответствует вашему ожиданию
-                        profile: {
-                            user_id:  '', // Добавь user_id для RandomUsers
-                            name: profile.name || '', // Добавь name для RandomUsers
-                            image: profile.image || '', // Добавь image для RandomUsers
-                        },
-                    })),
-                    ...formattedTrackResults,
-                ];
-            
-                setSearchProfiles(combinedResults);
+                            user_id: profile.user_id
+                        })) || []),
+                        ...(trackResults?.map(track => ({
+                            id: track.id,
+                            type: 'track',
+                            name: track.name,
+                            image: track.image,
+                            user_id: track.user_id
+                        })) || [])
+                    ];
+
+                    setSearchProfiles(formattedResults);
+                } catch (error) {
+                    console.error('Search error:', error);
+                    setSearchProfiles([]);
+                }
+            }, 300),
+            []
+        );
+
+        // Обработчик клика по результату поиска
+        const handleSearchResultClick = (result: any) => {
+            if (result.type === 'profile') {
+                router.push(`/profile/${result.user_id}`);
             } else {
-                setSearchProfiles([]);
+                router.push(`/post/${result.user_id}/${result.id}`);
             }
-        
-            } catch (error) {
-            console.log(error);
+            setShowSearch(false);
+            setSearchQuery("");
             setSearchProfiles([]);
-            alert(error);
-            }
         };
 
-        // Debounced search handler
-            const debouncedSearch = debounce(handleSearchName, 500);
+        // Автофокус при открытии поиска
+        useEffect(() => {
+            if (showSearch && searchInputRef.current) {
+                searchInputRef.current.focus();
+            }
+        }, [showSearch]);
 
             let [showMenu, setShowMenu] = useState<boolean>(false)
             let { isEditProfileOpen, setIsLoginOpen, setIsEditProfileOpen } = useGeneralStore()
             let { setCurrentProfile, currentProfile } = useProfileStore()
-
+            let menuRef = useRef<HTMLDivElement>(null)
+            let buttonRef = useRef<HTMLButtonElement>(null)
 
             useEffect(() => {
                 setCurrentProfile(params?.id)
@@ -134,7 +123,21 @@ export default function TopNav({ params }: ProfilePageTypes) {
 
             useEffect(() => { setIsEditProfileOpen(false) }, [])
 
+            // Обработчик клика вне меню
+            useEffect(() => {
+                const handleClickOutside = (event: MouseEvent) => {
+                    if (showMenu && 
+                        menuRef.current && 
+                        buttonRef.current && 
+                        !menuRef.current.contains(event.target as Node) &&
+                        !buttonRef.current.contains(event.target as Node)) {
+                        setShowMenu(false)
+                    }
+                }
 
+                document.addEventListener('mousedown', handleClickOutside)
+                return () => document.removeEventListener('mousedown', handleClickOutside)
+            }, [showMenu])
 
             const goTo = () => {
                 if (!userContext?.user) return setIsLoginOpen(true)
@@ -146,14 +149,9 @@ export default function TopNav({ params }: ProfilePageTypes) {
                 router.push("/people");
             };
 
-            const goToCart = () => {
-                if (!userContext?.user) return setIsLoginOpen(true);
-                router.push("/cart");
-            };
-
      /* Genres */
     const [showGenresPopup, setShowGenresPopup] = useState(false);
-    const { setSelectedGenre } = useContext(GenreContext);
+    const { setSelectedGenre, selectedGenre } = useContext(GenreContext);
 
     const handleGenresClick = () => {
         setShowGenresPopup(!showGenresPopup);
@@ -161,58 +159,60 @@ export default function TopNav({ params }: ProfilePageTypes) {
     
 
     const handleGenreSelect = (genreName: string) => {
-        setSelectedGenre(genreName);
-        console.log("Selected genre:", genreName);
-        setShowGenresPopup(false); // Hide the dropdown menu after selecting a genre
-        //router.push(`/?genre=${genreName.toLowerCase().replace(/\s/g, "-")}`);
+        const normalizedGenre = genreName.toLowerCase();
+        setSelectedGenre(normalizedGenre);
+        setShowGenresPopup(false);
       };
 
       const genres: Genre[] = [
-        { id: "0", name: "All" },
-        { id: "29", name: "Afro house" },
-        { id: "16", name: "Ambient" },
-        { id: "17", name: "Acapella" },
-        { id: "18", name: "Ai" },
-        { id: "10", name: "Bass" },
-        { id: "9", name: "DnB" },
-        { id: "28", name: "Downtempo" },
-        { id: "3", name: "Deep" },
-        { id: "24", name: "Deep bass" },
-        { id: "27", name: "Dubstep" },
-        { id: "26", name: "Electro" },
-        { id: "6", name: "Electronic" },
-        { id: "19", name: "Films" },
-        { id: "33", name: "Jazz" },
-        { id: "20", name: "Games" },
-        { id: "4", name: "Hip-hop" },
-        { id: "21", name: "Instrumental" },
-        { id: "2", name: "K-pop" },
-        { id: "12", name: "Lo-fi" },
-        { id: "5", name: "Meditative" },
-        { id: "11", name: "Minimal" },
-        { id: "13", name: "Neurofunk" },
-        { id: "22", name: "Poetry" },
-        { id: "14", name: "Psy" },
-        { id: "23", name: "Rap" },
-        { id: "7", name: "Rave" },
-        { id: "32", name: "Street music" },
-        { id: "1", name: "Techno" },
-        { id: "30", name: "Minimal techno" },
-        { id: "31", name: "Melodic techno" },
-        { id: "15", name: "Trap" },
-        { id: "8", name: "House" },
+        { id: "genre-all", name: "All" },
+        { id: "genre-29", name: "Afro house" },
+        { id: "genre-16", name: "Ambient" },
+        { id: "genre-17", name: "Acapella" },
+        { id: "genre-18", name: "Ai" },
+        { id: "genre-10", name: "Bass" },
+        { id: "genre-9", name: "DnB" },
+        { id: "genre-28", name: "Downtempo" },
+        { id: "genre-3", name: "Deep" },
+        { id: "genre-24", name: "Deep bass" },
+        { id: "genre-27", name: "Dubstep" },
+        { id: "genre-26", name: "Electro" },
+        { id: "genre-6", name: "Electronic" },
+        { id: "genre-19", name: "Films" },
+        { id: "genre-33", name: "Jazz" },
+        { id: "genre-20", name: "Games" },
+        { id: "genre-4", name: "Hip-hop" },
+        { id: "genre-21", name: "Instrumental" },
+        { id: "genre-2", name: "K-pop" },
+        { id: "genre-12", name: "Lo-fi" },
+        { id: "genre-5", name: "Meditative" },
+        { id: "genre-11", name: "Minimal" },
+        { id: "genre-13", name: "Neurofunk" },
+        { id: "genre-22", name: "Poetry" },
+        { id: "genre-14", name: "Psy" },
+        { id: "genre-23", name: "Rap" },
+        { id: "genre-7", name: "Rave" },
+        { id: "genre-32", name: "Street music" },
+        { id: "genre-1", name: "Techno" },
+        { id: "genre-30", name: "Minimal techno" },
+        { id: "genre-31", name: "Melodic techno" },
+        { id: "genre-15", name: "Trap" },
+        { id: "genre-8", name: "House" },
       ];
       
   
 
     return (
         <>  
-            <div id="TopNav" className="fixed bg-[#272B43] z-30 flex items-center  h-[60px] right-0 left-0 border-b-0.5 border-[#090C15] ">
+            <div id="TopNav" className="fixed bg-[linear-gradient(60deg,#2E2469,#351E43)] z-30 flex items-center  h-[70px] right-0 left-0 border-b-2 border-[#fff] ">
                 <div className={`flex items-center justify-between gap-6 w-full pl-5 pr-2 mx-auto ${pathname === '/' ? 'max-w-full' : ''}`}>
 
                     <Link href="/" className="flex items-center">
-                        <img className="min-w-[20px] w-[20px] mr-0 md:mr-2" src="/images/st.png"/>
-                        <span className="px-1 py-1 font-medium text-[13px] hidden md:inline">Sacral Track</span>   
+                        <img 
+                            className="min-w-[24px] w-[24px] mr-0 md:mr-2 transition-transform duration-200 hover:scale-110" 
+                            src="/images/T-logo.svg"
+                        />
+                        <span className="px-1 py-1 font-medium text-[13px] hidden md:inline">T</span>   
                     </Link>
                     
 
@@ -222,103 +222,111 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                 <button
                                 className="text-white text-[13px] flex items-center mr-0 md:mr-4"
                                 onClick={handleGenresClick}
-                                onMouseEnter={(e) => {
-                                  
-                                e.currentTarget?.querySelector('img')?.classList.add('rotate-180');
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget?.querySelector('img')?.classList.remove('rotate-180');
-                                }}
                                 >
                                 <img
-                                    className="w-[15px] h-[15px] mr-2 transition-transform duration-300 ease-in-out"
-                                    src="/images/genres.svg"
+                                    className="w-[23px] h-[23px] mr-2 transition-transform duration-200 hover:scale-110"
+                                    src="/images/ico-genre.svg"
                                 />
-                                <span className="px-1 py-1 font-medium text-[13px] hidden md:inline">Genres</span>
+                                <span className="px-1 py-1 font-medium text-[13px] hidden md:inline"></span>
                                 </button>
                             )}
                     {showGenresPopup && (
-                        <div className="absolute z-10 top-0 right-0 p-2 left-0 mt-[80px]  bg-[#272B43] rounded-2xl shadow-2xl">
-                        <ul className=" grid grid-cols-2 gap-2">
-                            {genres.map((genre) => (
-                            <li
+                        <div className="absolute z-10 top-0 right-0 p-6 left-0 mt-[80px] bg-[#24183D] rounded-2xl shadow-2xl">
+                            <div className="flex flex-wrap gap-3">
+                                {genres
+                                    .sort((a, b) => {
+                                        if (a.name === 'All') return -1;
+                                        if (b.name === 'All') return 1;
+                                        return a.name.localeCompare(b.name);
+                                    })
+                                    .map((genre) => (
+                                        <button
                                 key={genre.id}
-                                className="p-3 text-white text-[13px] rounded-lg hover:bg-[#15191F] cursor-pointer"
                                 onClick={() => handleGenreSelect(genre.name)} 
+                                            className={`px-6 py-3 text-[14px] ${
+                                                selectedGenre === genre.name.toLowerCase() 
+                                                ? 'bg-[#20DDBB] text-black' 
+                                                : 'bg-[#2E2469] text-white'
+                                            } hover:bg-[#20DDBB] 
+                                            rounded-full transition-all duration-300 
+                                            whitespace-nowrap hover:text-black font-medium
+                                            hover:shadow-lg hover:scale-105`}
                             >
                                 {genre.name}
-                            </li>
+                                        </button>
                             ))}
-                        </ul>
+                            </div>
                         </div>
                     )}
 
-                    {/*people*/}
-                    <button
-                    onClick={() => goToPeople()}
-                    className="flex pl-[15px] pr-[15px] items-center bg-[#] rounded-lg py-[6px]"
-                    >
-                    <div
-                        className="flex items-center hover:translate-y-[-2px] transition-transform duration-300 ease-in-out"
-                        onMouseEnter={(e) => {
-                        e.currentTarget?.querySelector('img')?.classList.add('hover:translate-y-[-1px]', 'transition-transform', 'duration-300', 'ease-in-out');
-                        }}
-                        onMouseLeave={(e) => {
-                        e.currentTarget?.querySelector('img')?.classList.remove('hover:translate-y-[-1px]', 'transition-transform', 'duration-300', 'ease-in-out');
-                        }}
-                    >
-                        <img className="w-[15px] h-[15px] mr-1" src="/images/people.svg" />
-                        <span className="px-1 py-2 font-medium text-[13px] hidden md:inline">People</span>
-
-                    </div>
-                    </button>
 
 
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative hidden md:flex items-center justify-end bg-[#1A2338] p-1 rounded-2xl max-w-[220px] w-full">
-                            <input 
-                                type="text" 
-                                onChange={handleSearchName}
-                                className="w-full pl-3 my-2 bg-transparent placeholder-[#1A2338] text-[13px] focus:outline-none"
-                                placeholder="Search"
+                    <div className="relative flex items-center">
+                        <button
+                            onClick={() => setShowSearch(!showSearch)}
+                            className="p-2 hover:bg-[#2E2469] rounded-full transition-all duration-200"
+                        >
+                            <BiSearch 
+                                size={24} 
+                                className="text-white transition-transform duration-200 hover:scale-110" 
                             />
-                             <ClientOnly>
+                        </button>
 
-                                {/* Search Profile */}{searchProfiles.length > 0 ?
-                                    <div className="absolute bg-[#0D2D3F] max-w-[910px] h-auto w-full z-20 left-0 top-12 rounded-xl p-2 shadow-2xl">
-                                    {searchProfiles.map((result, index) => (
-                                        <div className="p-1" key={index}>
-                                        <Link
-                                            href={`/post/${result.profile?.user_id}/${result.id}`} 
-                                            className="flex items-center justify-between w-full cursor-pointer hover:bg-[#1E2136] rounded-xl p-2 px-2 hover:text-white text-13px"
-                                        >
-                                            <div className="flex items-center">
-                                            {result.type === "track" ? (
-                                                <>
-                                                <img className="rounded-2xl" width="40" height="40" src={useCreateBucketUrl(result.image || '')} />
-                                                <div className="truncate ml-2">{result?.name}</div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                <img className="rounded-2xl" width="40" height="40" src={useCreateBucketUrl(result.image || '')} />
-                                                <div className="truncate ml-2">{result.name}</div>
-                                                </>
-                                            )}
+                        <AnimatePresence>
+                            {showSearch && (
+                                <motion.div
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: "300px", opacity: 1 }}
+                                    exit={{ width: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="absolute right-12 top-1/2 -translate-y-1/2"
+                                >
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => {
+                                            setSearchQuery(e.target.value);
+                                            handleSearch(e.target.value);
+                                        }}
+                                        placeholder="Search tracks and artists..."
+                                        className="w-full px-4 py-2 bg-[#2E2469] text-white rounded-full 
+                                                 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] 
+                                                 placeholder-gray-400"
+                                    />
+
+                                    {/* Search Results */}
+                                    {searchProfiles.length > 0 && (
+                                        <div className="absolute top-full mt-2 w-full bg-[#24183D] rounded-xl 
+                                                      shadow-xl overflow-hidden">
+                                            {searchProfiles.map((result) => (
+                                                <div
+                                                    key={`${result.type}-${result.id}`}
+                                                    onClick={() => handleSearchResultClick(result)}
+                                                    className="flex items-center gap-3 p-3 hover:bg-[#2E2469] 
+                                                             cursor-pointer transition-colors"
+                                                >
+                                                    <img
+                                                        src={useCreateBucketUrl(result.image) || '/images/placeholder.jpg'}
+                                                        alt={result.name}
+                                                        className="w-10 h-10 rounded-full object-cover"
+                                                    />
+                                                    <div>
+                                                        <p className="text-white font-medium">{result.name}</p>
+                                                        <p className="text-gray-400 text-sm">
+                                                            {result.type === 'profile' ? 'Artist' : 'Track'}
+                                                        </p>
                                             </div>
-                                        </Link>
                                         </div>
                                     ))}
                                     </div>
-                                    : null}
-
-
-                            </ClientOnly>
-
-                            <div className="px-3 py-1 flex items-center">
-                                <BiSearch color="#fff" size="16" />
-                            </div>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* AUDIO/VIDEO SWITCH */}
@@ -342,25 +350,14 @@ export default function TopNav({ params }: ProfilePageTypes) {
                     <div className="flex items-center gap-4">
                     <button 
                         onClick={() => goTo()}
-                        className="flex pl-[15px] pr-[15px] items-center bg-[#20DDBB] rounded-2xl py-[6px] hover:bg-[#21C3A6]"
+                        className="flex pl-[15px] pr-[15px] items-center bg-[#] rounded-2xl py-[6px] hover:bg-[#]"
                     >
-                        <img className="w-[18px] h-[18px]" src="/images/wave.svg" />
+                        <img className="w-[24px] h-[24px] mr-2" src="/images/ico-rel.svg" />
                         <span className="px-2 py-1 font-medium text-[13px] h-[30px] md:hidden"></span>
-                        <span className="px-1 py-1 font-medium text-[13px] hidden md:inline">Release a track</span>
+                        <span className="px-1 py-1 font-medium text-[13px] hidden md:inline">RELEASE</span>
                     </button>
                     </div>
 
-                 
-                    {/* CART button */} 
-
-                        <button 
-                        onClick={() => goToCart()}
-                        className="md:w-[86px] w-[44px] bg-[#1A2338] rounded-2xl h-[44px] flex items-center justify-end">
-                            <span className="font-medium text-[12px] hidden md:inline">{cartItems?.length || 0}</span>
-                            <div className="md:ml-2 ml-0 h-[43px] w-[50px] bg-[#20DDBB] flex items-center justify-center rounded-2xl right-0 hover:bg-[#21C3A6]">
-                                <img src="/images/cart.svg" alt="cart" />
-                            </div>
-                        </button>
 
                     {/* Profile button */}
 
@@ -382,91 +379,117 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                 <div className="relative">
 
                                     <button 
-                                        onClick={() => setShowMenu(showMenu = !showMenu)} 
-                                        className="mt-1 rounded-full"
+                                        ref={buttonRef}
+                                        onClick={() => setShowMenu(!showMenu)} 
+                                        className="relative"
                                     >
-                                        <img className="rounded-[15px] w-[40px] h-[40px]" src={useCreateBucketUrl(userContext?.user?.image || '')} />
+                                        <img 
+                                            className="w-8 h-8 rounded-full object-cover"
+                                            src={useCreateBucketUrl(userContext?.user?.image || '')}
+                                        />
                                     </button>
                                     
-                                    {showMenu ? (
-                                        <div className="absolute bg-[#1A2338] rounded-xl mt-5 mr-[-8px] py-1.5 w-[200px] shadow-xl top-[40px] right-0">
-                                            <button 
-                                                onClick={() => { 
-                                                    router.push(`/profile/${userContext?.user?.id}`)
-                                                    setShowMenu(false)
+                                    {showMenu && (
+                                        <>
+                                            {/* Затемнение фона */}
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+                                                onClick={() => setShowMenu(false)}
+                                            />
+
+                                            {/* Меню */}
+                                            <motion.div
+                                                ref={menuRef}
+                                                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                                                transition={{ 
+                                                    duration: 0.2,
+                                                    ease: "easeOut"
                                                 }}
-                                                className="flex items-center w-full justify-start py-3 px-2 hover:bg-[#272B43] cursor-pointer"
+                                                className="absolute bg-[#24183D] rounded-2xl mt-5 py-4 w-[200px] 
+                                                         shadow-xl top-[40px] right-0 z-50"
                                             >
-                                                <img src="/images/people.svg" className="w-[16px] h-[16px]"/>
-                                                <span className="pl-2 font-semibold text-[12px]">Profile</span>
-                                            </button>
-                                            
-                                            <button 
-                                                onClick={() => { 
-                                                   // router.push(`/profile/${userContext?.user?.id}`)
-                                                    setShowMenu(false)
-                                                }}
-                                                className="flex items-center w-full justify-start py-3 px-2 hover:bg-[#272B43] cursor-pointer"
-                                            >
-                                                <img src="/images/msg.svg" className="w-[16px] h-[16px]"/>
-                                                <span className="pl-2 font-semibold text-[12px] text-[#818BAC]">Messages</span>
-                                            </button>
+                                                <div className="flex flex-col gap-2">
+                                                    {/* Profile Info */}
+                                                    <div className="px-4 py-2 border-b border-[#2E2469]">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full overflow-hidden">
+                                                                <img 
+                                                                    className="w-full h-full object-cover"
+                                                                    src={userContext?.user?.image 
+                                                                        ? useCreateBucketUrl(userContext.user.image)
+                                                                        : '/images/placeholder-user.jpg'
+                                                                    } 
+                                                                    alt={userContext?.user?.name || 'User avatar'}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-white font-medium text-sm">
+                                                                    {userContext?.user?.name}
+                                                                </p>
+                                                                <p className="text-[#818BAC] text-xs">
+                                                                    View profile
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Menu Items */}
+                                                    <div className="px-2">
+                                                        <Link 
+                                                            href={`/profile/${userContext?.user?.id}`}
+                                                            onClick={() => setShowMenu(false)}
+                                                            className="flex items-center gap-3 p-3 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
+                                                        >
+                                                            <img src="/images/profile.svg" className="w-5 h-5" />
+                                                            <span className="text-[13px]">Profile</span>
+                                                        </Link>
+
+                                                        <Link 
+                                                            href="/royalty"
+                                                            onClick={() => setShowMenu(false)}
+                                                            className="flex items-center gap-3 p-3 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
+                                                        >
+                                                            <img src="/images/royalty.svg" className="w-5 h-5" />
+                                                            <span className="text-[13px]">Royalty</span>
+                                                        </Link>
+
+                                                        <Link 
+                                                            href="/people"
+                                                            onClick={() => setShowMenu(false)}
+                                                            className="flex items-center gap-3 p-3 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
+                                                        >
+                                                            <img src="/images/people.svg" className="w-5 h-5" />
+                                                            <span className="text-[13px]">People</span>
+                                                        </Link>
 
                                             <button 
                                                 onClick={() => { 
-                                                    //router.push(`/friends}`)
-                                                    setShowMenu(false)
+                                                                    userContext?.logout();
+                                                                    setShowMenu(false);
                                                 }}
-                                                className="flex items-center w-full justify-start py-3 px-2 hover:bg-[#272B43] cursor-pointer"
+                                                                className="w-full flex items-center gap-3 p-3 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
                                             >
-                                                <img src="/images/Friends.svg" className="w-[16px] h-[16px]"/>
-                                                <span className="pl-2 font-semibold text-[12px] text-[#818BAC]">Friends</span>
+                                                                <img src="/images/logout.svg" className="w-5 h-5" />
+                                                                <span className="text-[13px]">Log out</span>
                                             </button>
-
-                                            <button 
-                                                onClick={() => { 
-                                                    router.push(`/royalty`)
-                                                    setShowMenu(false)
-                                                }}
-                                                className="flex items-center w-full justify-start py-3 px-2 hover:bg-[#272B43] cursor-pointer"
-                                            >
-                                                <img className="w-[16px] h-[16px]" src="/images/Card.svg"/>
-                                                <span className="pl-2 font-semibold text-[12px]">Royalty</span>
-                                            </button>
-
-                                            <button 
-                                                onClick={async () => {
-                                                    await userContext?.logout()
-                                                    setShowMenu(false)
-                                                }} 
-                                                className="flex items-center justify-start w-full py-3 px-1.5 hover:bg-[#272B43] cursor-pointer"
-                                            >
-                                                <img src="/images/logout.svg" className="w-[16px] h-[16px]"/>
-                                                <span className="pl-2 font-semibold text-[12px]">Log out</span>
-                                            </button>
-                                            <ClientOnly>
-                                            
-
-                                            {pathname === `/profile/${userContext?.user?.id}` && (
-                                            <button 
-                                                onClick={() => setIsEditProfileOpen(isEditProfileOpen = !isEditProfileOpen)}
-                                                className="flex item-center rounded-xl py-1.5 px-3.5 mt-3 text-[15px] font-semibold hover:bg-[#1A2338]"
-                                            >
-                                                <img src="/images/edit.svg" className="w-[12px] h-[12px] mt-0.5"/>
-                                                <span className="text-[12px] pl-2">Settings</span>
-                                            </button>
-                                            )}
-                                            </ClientOnly>
-                                            <div className="lg:block hidden text-[11px] text-gray-500">
-                                                <p className="pt-4 px-2">© 2024 SACRAL TRACK</p>
                                             </div>
 
-                                            
-                                    
-
-
+                                                    {/* Footer */}
+                                                    <div className="px-4 pt-2 mt-2 border-t border-[#2E2469]">
+                                                        <p className="text-[11px] text-[#818BAC]">
+                                                            © 2024 SACRAL TRACK
+                                                        </p>
+                                            </div>
                                         </div>
-                                    ) : null}
+                                            </motion.div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         )}

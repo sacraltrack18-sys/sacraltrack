@@ -1,77 +1,87 @@
 // app/api/checkout_sessions/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import useCartStore from "@/app/stores/useCartStore";
+import { database } from "@/libs/AppWriteClient";
 
-const stripe = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY!);
+// Инициализация Stripe с проверкой ключа
+const initStripe = () => {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+        console.error('Missing STRIPE_SECRET_KEY environment variable');
+        throw new Error('Stripe configuration error');
+    }
+    return new Stripe(stripeSecretKey, {
+        apiVersion: "2023-10-16",
+        typescript: true,
+    });
+};
 
-export async function POST(request: NextRequest) {
-  console.log("Incoming request to /api/checkout_sessions");
-  console.log("Request headers:", request.headers);
+// Создаем инстанс Stripe
+let stripe: Stripe;
+try {
+    stripe = initStripe();
+} catch (error) {
+    console.error('Failed to initialize Stripe:', error);
+}
 
-  const { userId, cartItems } = await request.json();
-  console.log("Request Body: userId:", userId, ", cartItems:", cartItems);
+export async function POST(req: Request) {
+    // Проверяем инициализацию Stripe
+    if (!stripe) {
+        return NextResponse.json(
+            { success: false, error: "Stripe configuration error" },
+            { status: 500 }
+        );
+    }
 
-  // Используем промис для установки userId в Zustand Store
-  const setUserId = useCartStore.getState().setUserId;
-  await setUserId(userId);
-
-  // Проверяем, что userId был сохранен корректно
-  const savedUserId = useCartStore.getState().userId;
-  console.log("Saved userId in Zustand:", savedUserId);
-
-  if (savedUserId !== userId) {
-    console.error("Error saving user ID in Zustand store");
-    return NextResponse.json({ error: "Error saving user ID" });
-  }
-
-  // Сохраняем cartItems в Zustand Store
-  const setCartItems = useCartStore.getState().setCartItems;
-  setCartItems(cartItems);
-
-  // Проверяем, что cartItems были сохранены корректно
-  const savedCartItems = useCartStore.getState().cartItems;
-  console.log("Saved cartItems in Zustand:", JSON.stringify(savedCartItems));
-
-  if (!Array.isArray(savedCartItems) || savedCartItems.length !== cartItems.length) {
-    console.error("Error saving cart items in Zustand store");
-    return NextResponse.json({ error: "Error saving cart items" });
+    // Проверка метода запроса
+    if (req.method !== 'POST') {
+        return NextResponse.json(
+            { success: false, error: 'Method not allowed' },
+            { status: 405 }
+        );
   }
 
   try {
-    // Проверяем корректность cartItems
-    if (Array.isArray(cartItems) && cartItems.length > 0) {
-      console.log("Creating Stripe Checkout Session...");
+        const body = await req.json();
+        const { trackId, trackName, userId, authorId, image, audio } = body;
+
+        if (!trackId || !trackName || !userId || !authorId) {
+            return NextResponse.json(
+                { success: false, error: "Missing required parameters" },
+                { status: 400 }
+            );
+        }
 
       const session = await stripe.checkout.sessions.create({
-        submit_type: "pay",
-        mode: "payment",
-        payment_method_types: ["card"],
-        line_items: cartItems.map((item) => ({
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.name,
+            payment_method_types: ['card'],
+            metadata: {
+                trackId,
+                authorId,
             },
-            unit_amount: item.price * 100, // Convert dollars to cents
-          },
-          quantity: item.quantity,
-        })),
-        success_url: `${request.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}&userId=${userId}&cartItems=${encodeURIComponent(JSON.stringify(cartItems))}`,
-        cancel_url: `${request.headers.get("origin")}/?canceled=true`,
-      });
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: trackName,
+                            images: image ? [image] : [],
+                        },
+                        unit_amount: 200, // $2.00
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment',
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
+        });
 
-      console.log("Stripe Checkout Session created:", session);
-
-      return NextResponse.json({ session });
-    } else {
-      console.log("No data found in the cartItems.");
-      return NextResponse.json({ message: "No Data Found" });
-    }
-  } catch (err: any) {
-    console.error("Error creating Stripe Checkout Session:", err);
-    console.error("Error message:", err.message);
-    console.error("Error stack trace:", err.stack);
-    return NextResponse.json({ error: err.message });
+        return NextResponse.json({ success: true, session });
+    } catch (error: any) {
+        console.error('Checkout session error:', error);
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        );
   }
 }

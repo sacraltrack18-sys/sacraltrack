@@ -1,18 +1,34 @@
 // PlayerContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-interface PlayerContextType {
-    currentAudioId: string | null;
-    setCurrentAudioId: (id: string | null) => void;
-}
+export type PlayerContextType = {
+  currentTrack: {
+    id: string;
+    audio_url: string;
+    image_url: string;
+    name: string;
+    artist: string;
+  } | null;
+  isPlaying: boolean;
+  setCurrentTrack: (track: PlayerContextType['currentTrack']) => void;
+  togglePlayPause: () => void;
+};
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
-    const [currentAudioId, setCurrentAudioId] = useState<string | null>(null);
+    const [currentTrack, setCurrentTrack] = useState<PlayerContextType['currentTrack']>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const togglePlayPause = () => setIsPlaying(prev => !prev);
 
     return (
-        <PlayerContext.Provider value={{ currentAudioId, setCurrentAudioId }}>
+        <PlayerContext.Provider value={{ 
+            currentTrack, 
+            isPlaying, 
+            setCurrentTrack, 
+            togglePlayPause 
+        }}>
             {children}
         </PlayerContext.Provider>
     );

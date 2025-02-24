@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, memo } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import PostMainLikes from "@/app/components/PostMainLikes";
 import Link from "next/link";
 import { useUser } from "@/app/context/user";
@@ -9,232 +9,135 @@ import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { PostUserCompTypes } from "@/app/types";
 import toast from "react-hot-toast";
 import useDeletePostById from "@/app/hooks/useDeletePostById";
-import WaveSurfer from "wavesurfer.js";
-import {
-  BsFillStopFill,
-  BsFillPlayFill,
-} from "react-icons/bs";
-import { FaEdit } from 'react-icons/fa';
 import { BsThreeDotsVertical } from 'react-icons/bs';
 import EditTrackPopup from "@/app/components/trackedit/EditTrackPopup";
 import { usePlayerContext } from '@/app/context/playerContext';
-import Player from '@/app/components/Player'; 
+import { AudioPlayer } from '@/app/components/AudioPlayer';
 import { PostWithProfile } from "@/app/types";
-
-
-
-
-
-
-// Определите интерфейс для Post
-interface Post {
-  audioUrl: string;
-  imageUrl: string;
-  title: string;
-  caption: string;
-  genre: string;
-  id: string; 
-}
-
+import useGetProfileByUserId from "@/app/hooks/useGetProfileByUserId";
 
 
 const PostUser = memo(({ post, params }: PostUserCompTypes) => {
   const router = useRouter();
   const contextUser = useUser();
-  const user = useUser();
-  
-  const imageRef = useRef<HTMLDivElement>(null);
-
-  // Default value for player's audio
-  const [currentAudioId, setCurrentAudioId] = useState<string | null>(null);
-
+  const { currentTrack, isPlaying, setCurrentTrack, togglePlayPause } = usePlayerContext();
   const [showPopup, setShowPopup] = useState(false);
-
-  const [postData, setPostData] = useState<PostWithProfile>(post);
-
-
-  const handleUpdate: (updatedData: any) => void = (updatedData) => {
-    console.log("Updated Data:", updatedData);
-    // Ваш код для обновления состояния или других действий
-};
-
-
-  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [imageError, setImageError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
-    // WaveSurfer
-  const waveformRef = useRef<HTMLDivElement>(null);
+  const imageUrl = useCreateBucketUrl(post?.image_url);
+  const avatarUrl = useCreateBucketUrl(post?.profile?.image);
+  const m3u8Url = useCreateBucketUrl(post?.m3u8_url);
 
-  // Default value for isPlaying
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  // cursor
+  const isCurrentTrack = currentTrack?.id === post.id;
   
 useEffect(() => {
-  const handleImageMouseOver = () => {
-    if (isPlaying && imageRef.current) {
-      imageRef.current.style.cursor = "url('/images/pause-icon.svg'), auto";
-    } else if (imageRef.current) {
-      imageRef.current.style.cursor = "url('/images/play-icon.svg'), auto";
-    }
-  };
+    console.log('Post data:', {
+      postId: post.id,
+      userId: post.user_id,
+      m3u8_url: post.m3u8_url,
+      created_m3u8Url: m3u8Url
+    });
+  }, [post, m3u8Url]);
 
-  const handleImageMouseOut = () => {
-    if (imageRef.current) {
-      imageRef.current.style.cursor = "default";
+  const handlePlay = useCallback(() => {
+    if (!post.m3u8_url) {
+      console.error('Missing m3u8_url for post:', post.id);
+      return;
     }
-  };
 
-  if (imageRef.current) {
-    imageRef.current.addEventListener('mouseover', handleImageMouseOver);
-    imageRef.current.addEventListener('mouseout', handleImageMouseOut);
-  }
-
-  return () => {
-    if (imageRef.current) {
-      imageRef.current.removeEventListener('mouseover', handleImageMouseOver);
-      imageRef.current.removeEventListener('mouseout', handleImageMouseOut);
+    if (isCurrentTrack) {
+      togglePlayPause();
+    } else {
+      setCurrentTrack({
+        id: post.id,
+        audio_url: m3u8Url,
+        image_url: imageUrl,
+        name: post.trackname,
+        artist: post.profile.name,
+      });
+      
+      if (!isPlaying) {
+        togglePlayPause();
+      }
     }
-  };
-}, [isPlaying, imageRef]);
+  }, [isCurrentTrack, isPlaying, post, m3u8Url, imageUrl, setCurrentTrack, togglePlayPause]);
 
 useEffect(() => {
-  if (waveformRef.current) {
-    const handleWaveformMouseEnter = () => {
-      if (imageRef.current) {
-        imageRef.current.style.cursor = "default";
+    const loadImage = (url: string, setError: (error: boolean) => void) => {
+      if (typeof window !== 'undefined') {
+        const img = new window.Image();
+        img.src = url;
+        img.onerror = () => setError(true);
+        img.onload = () => setError(false);
       }
     };
 
-    waveformRef.current.addEventListener('mouseenter', handleWaveformMouseEnter);
-
-    return () => {
-      if (waveformRef.current) {
-        waveformRef.current.removeEventListener('mouseenter', handleWaveformMouseEnter);
-      }
-    };
-  }
-}, [imageRef.current]);
-
-
-  // Обработчики для открытия и закрытия дропдауна
-  const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev);
-  };
-
-  const handleCloseDropdown = () => {
-    setIsDropdownOpen(false);
-  };
-
-
-  // DELETE POST
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+    if (imageUrl) loadImage(imageUrl, setImageError);
+    if (avatarUrl) loadImage(avatarUrl, setAvatarError);
+  }, [imageUrl, avatarUrl]);
 
   const handleDeletePost = useCallback(async () => {
     let res = confirm("Are you sure you want to delete this post?");
     if (!res) return;
 
     setIsDeleting(true);
-
     try {
       await useDeletePostById(params?.postId, post?.audio_url);
       router.push(`/profile/${params.userId}`);
       setIsDeleting(false);
-      toast.success("Your release will be removed after the page refreshes.", {
-        duration: 7000,
-      });
+      toast.success("Your release will be removed after the page refreshes.");
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setIsDeleting(false);
-      toast.error("An error occurred while deleting the post.", {
-        duration: 7000,
-      });
+      toast.error("An error occurred while deleting the post.");
     }
   }, [params, post, router]);
 
-  // DROPDOWN
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleItemClick = (item: string) => {
-    console.log(`Clicked on ${item}`);
-  };
-
-  const handleToggle = () => {
-    console.log("Button clicked");
-    setIsOpen(!isOpen);
-  };
-
-
-  // Handle playing and pausing
-  const handlePause = () => {
-    if (currentAudioId === post.id) {
-      setIsPlaying(false);
-      setCurrentAudioId(null);
-    } else {
-      setCurrentAudioId(post.id);
-      setIsPlaying(true);
-    }
-  };
-
   useEffect(() => {
-    // Проверка на смену текущего трека
-    if (currentAudioId === post.id) {
-      setIsPlaying(true); // Если текущий трек соответствует ID поста, включаем
-    } else {
-      setIsPlaying(false); // Если нет, останавливаем
-    }
-  }, [currentAudioId, post.id]);
+    const fetchProfile = async () => {
+      try {
+        const userProfile = await useGetProfileByUserId(post.user_id);
+        setProfile(userProfile);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    };
+    
+    fetchProfile();
+  }, [post.user_id]);
 
-  
-
-
-  console.log("contextUser?.user?.id:", contextUser?.user?.id);
-  console.log("post?.profile?.user_id:", post?.profile?.user_id);
-  console.log("post:", post);
-
-
-  
+  // Добавляем проверку на существование post и profile
+  if (!post || !post.profile) {
+    return null; // или можно вернуть заглушку/скелетон
+  }
 
   return ( 
-    <>
-     
-
-      <div
-        id={`PostUser-${post.id}`}
-        ref={imageRef}
-        style={{
-          backgroundImage: `url(${useCreateBucketUrl(post?.image_url)})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}      
-        onClick={(e) => handlePause()}
-        className={`relative z-[0] flex flex-col  md:ml-[600px] justify-between p-2 mb-5 object-cover rounded-2xl md:mr-[0px]  md:w-[600px] w-full h-[500px] overflow-hidden`}
-
-
-      > 
-       {/* Name / Trackname */}
-        <div className="bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] w-full h-[54px] flex items-center rounded-2xl pt-0.5">
-          {post && post.profile && (
-            <Link
-              className="text-[#818BAC] size-[15px]"
-              href={`/profile/${post.profile.user_id}`}
-            >
-              <span className="font-bold hover:underline cursor-pointer">
-                {post.profile.name}
-              </span>
+    <div className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto">
+      <div className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href={`/profile/${post.user_id}`}>
+            <img
+              className="w-12 h-12 rounded-full object-cover"
+              src={avatarError ? '/images/placeholder-user.jpg' : useCreateBucketUrl(profile?.image)}
+              alt={profile?.name || 'User'}
+              onError={() => setAvatarError(true)}
+            />
+          </Link>
+          <div>
+            <Link href={`/profile/${post.user_id}`} className="text-white font-medium hover:underline">
+              {profile?.name || 'Unknown User'}
             </Link>
-          )}
+            <p className="text-[#818BAC] text-sm">{post.trackname || 'trackname'}</p>
+          </div>
+        </div>
 
-          <div className="pl-3 w-full px-2">
-            <div className="flex items-center justify-between pb-0.5">
-              <p className="text-[14px] pb-0.5 break-words md:max-w-[400px] max-w-[300px]">
-                {post.text}
-              </p>
-              
-              {/* Дропдаун для опций Edit и Delete */}
-              {post && post.user_id === contextUser?.user?.id && (
+        {post.user_id === contextUser?.user?.id && (
                 <div className="relative">
-                  <button onClick={toggleDropdown} className="focus:outline-none p-1 pr-2 pt-1 rounded-xl ">
+            <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="p-1 rounded-xl">
                     <BsThreeDotsVertical className="text-white hover:text-[#20DDBB]" size={20} />
                   </button>
 
@@ -243,7 +146,7 @@ useEffect(() => {
                       <button
                         onClick={() => {
                           setShowPopup(true);
-                          handleCloseDropdown();
+                    setIsDropdownOpen(false);
                         }}
                         className="block px-4 py-2 text-sm text-white rounded-xl hover:bg-[#272B43] w-full text-left"
                       >
@@ -253,7 +156,7 @@ useEffect(() => {
                         disabled={isDeleting}
                         onClick={() => {
                           handleDeletePost();
-                          handleCloseDropdown();
+                    setIsDropdownOpen(false);
                         }}
                         className="block px-4 py-2 text-sm text-white rounded-xl hover:bg-[#272B43] w-full text-left"
                       >
@@ -263,63 +166,86 @@ useEffect(() => {
                   )}
                 </div>
               )}
+      </div>
+
+      <div className="relative w-full">
+        <div 
+          onClick={handlePlay}
+          className="w-full aspect-square bg-cover bg-center relative overflow-hidden cursor-pointer"
+          style={{ 
+            backgroundImage: imageError ? 
+              'linear-gradient(45deg, #2E2469, #351E43)' : 
+              `url(${imageUrl})`
+          }}
+        >
+          {imageError && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center">
+                <img 
+                  src="/images/T-logo.svg" 
+                  alt="Default" 
+                  className="w-16 h-16 opacity-20"
+                />
+                <div className="mt-4 w-32 h-[1px] bg-white/10"></div>
+                <div className="mt-4 space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className="w-48 h-1 bg-white/10 rounded"
+                      style={{
+                        width: `${Math.random() * 100 + 100}px`
+                      }}
+                    ></div>
+                  ))}
+                </div>
             </div>
           </div>
-
-     
+          )}
         </div>
-
-
-        {/* Controls */}
-        <div className="wavesurfer-controls hidden absolute z-[111] top-[43%] left-[43%] border-color-white border-opacity-20 px-10 py-7 rounded-xl cursor-pointer">
-          <button onClick={handlePause}>
-            {isPlaying ? <BsFillStopFill size={24} /> : <BsFillPlayFill size={24} />}
-          </button>
         </div>
         
-       
-        {/* Player Component Integration */}
-        <div className="absolute bottom-24 left-0 right-0 z-10 opacity-90">
-           <Player
-          audioUrl={useCreateBucketUrl(post.mp3_url)} // Ensure correct audio URL is passed
-          isPlaying={isPlaying}
-          onPlay={() => setIsPlaying(true)} // Callback for when playing
-          onPause={() => setIsPlaying(false)} // Callback for when paused
-        /></div>
+      <div className="px-4 py-2 w-full">
+        <AudioPlayer 
+          m3u8Url={m3u8Url}
+          isPlaying={isCurrentTrack && isPlaying}
+          onPlay={handlePlay}
+          onPause={togglePlayPause}
+        />
+      </div>
 
-         {/* Likes etc. */}
-        <div className="absolute w-[97%] z-[111] h-[60px] bottom-0">
+      <div className="px-4 py-3 flex justify-between items-center w-full">
+        <div className="flex items-center gap-6">
           <PostMainLikes post={post} />
         </div>
       </div>
- 
 
       {showPopup && (
     <EditTrackPopup
     postData={{
-        id: postData.id,
-        audioUrl: postData.audio_url, // Use image_url as defined
-        imageUrl: postData.image_url,  // Use image_url as defined
-        caption: postData.text, 
-        trackname: postData.trackname,
-        created_at: postData.created_at,
-        updated_at: postData.created_at, // sourced from the original Post
+            id: post.id,
+            audioUrl: post.audio_url,
+            imageUrl: post.image_url,
+            caption: post.text,
+            trackname: post.trackname,
+            created_at: post.created_at,
+            updated_at: post.created_at,
         profile: {
-            user_id: postData.profile.user_id,
-            name: postData.profile.name,
-            image: postData.profile.image,
-        },
-    }}
-
-    onUpdate={handleUpdate}
+              user_id: post.profile.user_id,
+              name: post.profile.name,
+              image: post.profile.image,
+            },
+          }}
+          onUpdate={(updatedData) => {
+            console.log("Updated Data:", updatedData);
+          }}
     onClose={() => setShowPopup(false)}
 />
-
 )}
-
-    </>
+    </div>
   );
 });
+
+PostUser.displayName = 'PostUser';
 
 export default PostUser;
 

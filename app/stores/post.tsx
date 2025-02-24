@@ -13,6 +13,7 @@ interface PostStore {
     user_id: any;
     audio_url: any;
     mp3_url: any;
+    m3u8_url: any;
     trackname: any;
     image_url: any;
     text: any;
@@ -26,10 +27,15 @@ interface PostStore {
   }[];
   postById: PostWithProfile | null;
   selectedGenre: string;
+  page: number;
+  hasMore: boolean;
+  isLoading: boolean;
   setGenre: (genre: string) => void;
   setAllPosts: () => void;
   setPostsByUser: (userId: string) => void;
   setPostById: (postId: string) => void;
+  setPage: (page: number) => void;
+  loadMorePosts: () => Promise<void>;
   searchTracksByName: (query: string) => Promise<{ id: string; name: string; image: string; type: string }[]>;
 }
 
@@ -41,47 +47,64 @@ export const usePostStore = create<PostStore>()(
         postsByUser: [],
         postById: null,
         selectedGenre: "all",
+        page: 1,
+        hasMore: true,
+        isLoading: false,
 
         setGenre: async (genre: string) => {
-          const result: PostWithProfile[] = await useGetAllPosts();
-
-          set((state: PostStore) => {
-            const updatedSelectedGenre = genre === "all" ? "all" : genre.toLowerCase();
-            console.log("Before setting selectedGenre:", state.selectedGenre, "Genre to set:", updatedSelectedGenre);
-
-            return {
-              ...state,
-              selectedGenre: updatedSelectedGenre,
-              allPosts: result.filter((post) =>
-                updatedSelectedGenre === "all" || updatedSelectedGenre === (post.genre || "").toLowerCase()
-              ),
-            };
-          });
+          const result = await useGetAllPosts();
+          set((state) => ({
+            ...state,
+            selectedGenre: genre,
+            page: 1,
+            hasMore: true,
+            allPosts: genre === 'all' 
+              ? result 
+              : result.filter(post => post.genre?.toLowerCase() === genre.toLowerCase())
+          }));
         },
 
         setAllPosts: async () => {
           const result = await useGetAllPosts();
-          set({ allPosts: result });
+          const { selectedGenre } = get();
+          const filteredPosts = selectedGenre === 'all' 
+            ? result.slice(0, 5)
+            : result
+                .filter(post => post.genre?.toLowerCase() === selectedGenre)
+                .slice(0, 5);
+
+          set({ 
+            allPosts: filteredPosts,
+            hasMore: result.length > 5,
+            page: 2
+          });
         },
         
         setPostsByUser: async (userId: string) => {
           const result = await useGetPostsByUser(userId);
-          set({ postsByUser: result.map((post) => ({
-            id: post.id,
-            user_id: post.user_id,
-            audio_url: post.audio_url,
-            mp3_url: post.mp3_url,
-            trackname: post.trackname,
-            image_url: post.image_url,
-            text: post.text,
-            created_at: post.created_at,
-            price: post.price,
-            genre: post.genre,
-            type: "post", // Assuming "post" as the type
-            name: post.trackname, // Assuming "trackname" as the name
-            image: post.image_url, // Assuming "image_url" as the image
-            profile: null, // Set profile to null if it doesn't exist
-          })) });
+          set({ 
+            postsByUser: result.map((post) => ({
+              id: post.id,
+              user_id: post.user_id,
+              audio_url: post.audio_url,
+              mp3_url: post.mp3_url,
+              m3u8_url: post.m3u8_url,
+              trackname: post.trackname,
+              image_url: post.image_url,
+              text: post.text,
+              created_at: post.created_at,
+              price: post.price,
+              genre: post.genre,
+              type: "post",
+              name: post.trackname,
+              image: post.image_url,
+              profile: {
+                user_id: post.user_id,
+                name: post.profile?.name || '',
+                image: post.profile?.image || ''
+              }
+            }))
+          });
         },
         
         
@@ -120,10 +143,38 @@ export const usePostStore = create<PostStore>()(
           }
         },
         
-        
+        setPage: (page: number) => set({ page }),
+
+        loadMorePosts: async () => {
+          try {
+            set({ isLoading: true });
+            const result = await useGetAllPosts();
+            const { page, selectedGenre } = get();
+            
+            const filteredPosts = selectedGenre === 'all' 
+              ? result 
+              : result.filter(post => post.genre?.toLowerCase() === selectedGenre);
+
+            const startIndex = (page - 1) * 5;
+            const newPosts = filteredPosts.slice(startIndex, startIndex + 5);
+
+            if (newPosts.length < 5 || startIndex + 5 >= filteredPosts.length) {
+              set({ hasMore: false });
+            }
+
+            set((state) => ({
+              allPosts: [...state.allPosts, ...newPosts],
+              page: state.page + 1,
+            }));
+          } catch (error) {
+            console.error('Error loading more posts:', error);
+          } finally {
+            set({ isLoading: false });
+          }
+        },
       }),
       {
-        name: "store",
+        name: "post-store",
         storage: createJSONStorage(() => localStorage),
       }
     )

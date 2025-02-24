@@ -12,6 +12,7 @@ interface PlayerProps {
 const Player: React.FC<PlayerProps> = ({ audioUrl, isPlaying, onPlay, onPause }) => {
   const waveformRef = useRef<HTMLDivElement>(null);
   const [wavesurfer, setWaveSurfer] = useState<WaveSurfer | null>(null);
+  const [bufferingProgress, setBufferingProgress] = useState(0);
 
   useEffect(() => {
     const wsInstance = WaveSurfer.create({
@@ -22,39 +23,60 @@ const Player: React.FC<PlayerProps> = ({ audioUrl, isPlaying, onPlay, onPause })
       cursorColor: '#4A90E2',
       height: 80,
       normalize: true,
+      backend: 'MediaElement', // Use MediaElement backend for better streaming support
+    });
+
+    wsInstance.on('loading', (progress) => {
+      setBufferingProgress(progress);
+    });
+
+    wsInstance.on('ready', () => {
+      // Waveform is ready, you could optionally show it here.
+      if (isPlaying) {
+        wsInstance.play();
+        onPlay();
+      }
+    });
+
+    wsInstance.on('error', (err) => {
+        console.error('Wavesurfer error:', err);
+        //Handle errors appropriately, for instance, display an error message
     });
     
     setWaveSurfer(wsInstance);
 
-    // Clean up on unmount
     return () => {
       wsInstance.destroy();
     };
   }, []);
 
   useEffect(() => {
-    if (wavesurfer) {
+    if (wavesurfer && audioUrl) {
       wavesurfer.load(audioUrl);
-      // Load the audio file only once, when audioUrl changes
     }
   }, [wavesurfer, audioUrl]);
+
 
   useEffect(() => {
     if (wavesurfer) {
       if (isPlaying) {
         wavesurfer.play();
-        onPlay(); // Call onPlay when audio is played
+        onPlay();
       } else {
         wavesurfer.pause();
-        onPause(); // Call onPause when audio is paused
+        onPause();
       }
     }
   }, [isPlaying, wavesurfer, onPlay, onPause]);
 
-  return <div ref={waveformRef} className="wavesurfer-container" />;
+  return (
+    <div>
+      <div ref={waveformRef} className="wavesurfer-container" />
+      {bufferingProgress < 100 && (
+        <p>Buffering: {Math.floor(bufferingProgress * 100)}%</p>
+      )}
+    </div>
+  );
 };
 
 export default Player;
-
-
-

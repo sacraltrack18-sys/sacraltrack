@@ -6,7 +6,7 @@
 
  
 
-/* Подключение шрифта Gotham Pro */
+/* Подключение фшрифта Gotham Pro */
 @font-face {
     font-family: 'Gotham Pro';
     src: url('/fonts/GothamPro.woff') format('woff');
@@ -115,4 +115,19 @@
 
 .dynamic-bubble.purple {
   background-color: rgba(128, 0, 128, 0.4); /* Purple with 40% opacity */
+}
+
+.icon-hover {
+  @apply transition-transform duration-200 hover:scale-110;
+}
+
+/* Стили для иконок в TopNav */
+#TopNav img, 
+#TopNav svg {
+  @apply transition-transform duration-200;
+}
+
+#TopNav img:hover, 
+#TopNav svg:hover {
+  @apply scale-110;
 }

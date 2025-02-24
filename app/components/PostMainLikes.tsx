@@ -11,11 +11,8 @@ import useGetLikesByPostId from "../hooks/useGetLikesByPostId"
 import useIsLiked from "../hooks/useIsLiked"
 import useCreateLike from "../hooks/useCreateLike"
 import useDeleteLike from "../hooks/useDeleteLike"
-import ShareModal from '@/app/components/ShareModal';
-
 
 export default function PostMainLikes({ post }: PostMainLikesCompTypes) {
-
 
     let { setIsLoginOpen } = useGeneralStore();
 
@@ -27,26 +24,6 @@ export default function PostMainLikes({ post }: PostMainLikesCompTypes) {
     const [likes, setLikes] = useState<Like[]>([])
     const user = useUser();
 
-
-
-
-    {/*SHARE  
-    const shareOnTelegram = (postId: string, trackImageUrl: string, trackTitle: string) => {
-        const telegramUrl = `https://t.me/share/url?url=https://yourwebsite.com/posts/${postId}&text=${trackTitle} Слушайте новые эксклюзивные треки на Sacral Track&photo=${trackImageUrl}&w=600&h=340`;
-        window.open(telegramUrl, '_blank');
-    }; */}
-    
-    //Share modal
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
-    const handleShareClick = () => {
-        setIsShareModalOpen(true);
-      };
-    
-      const handleCloseShareModal = () => {
-        setIsShareModalOpen(false);
-      };
-    
     //Likes
     useEffect(() => { 
         getAllLikesByPost()
@@ -115,60 +92,34 @@ export default function PostMainLikes({ post }: PostMainLikesCompTypes) {
         <>
             <div id={`PostMainLikes-${post?.id}`} className="relative w-full justify-between">
                 <div className="pb-4 text-center flex w-full h-full ">
-
-                        {/* BUY BTN */}
-                        
-                        <div className="flex justify-between w-full">
-
-
-                           {/* <div className="absolute right-0 rounded-[20px] bg-[#272B43] p-4 cursor-pointer">
-                            <FaBuyNLarge size="25"/>
-                            </div>
-                            <span className="text-xs text-gray-800 font-semibold flex-grow">55</span> */}
-
-                            <button 
+                    <div className="flex justify-between w-full">
+                        <button 
                             disabled={hasClickedLike}
-                            onClick={() => likeOrUnlike()} 
-                            className="h-[50px] flex  rounded-xl bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90"
-                            >
+                            onClick={() => likeOrUnlike()}
+                            className="h-[50px] flex p-4 cursor-pointer"
+                        >
                             {!hasClickedLike ? (
-                                <AiFillHeart color={likes?.length > 0 && userLiked ? '#FF0000' : ''} size="18"/>
+                                <AiFillHeart color={likes?.length > 0 && userLiked ? '#FF0000' : 'white'} size="27"/>
                             ) : (
-                                <BiLoaderCircle className="animate-spin" size="16"/>
+                                <BiLoaderCircle className="animate-spin" size="27"/>
                             )}
-                            <span className="text-xs text-white font-semibold 
-                            flex-grow ml-2">
-                            {likes?.length}
+                            <span className="text-xs text-white font-semibold flex-grow ml-2">
+                                {likes?.length}
                             </span>
-                            </button>
-                            
+                        </button>
 
-                            <button 
+                        <button 
                             onClick={() => router.push(`/post/${post?.id}/${post?.profile?.user_id}`)} 
-                            className="flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90"
-                            >
-                            <img src="/images/comments.svg" className="w-[16px] h-[16px]"/>
-                            <span className="text-xs text-white font-semibold flex-grow ml-2">{comments?.length}</span>
-
-                            </button>
-
-                            <button onClick={handleShareClick} className="justify-end flex h-[50px] rounded-xl  bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] p-4 cursor-pointer hover:bg-[#1E1E2C]/90">
-                            <img src="/images/share.svg" className="w-[16px] h-[16px]"/>
-                            {/* <span className="text-xs text-white font-semibold flex-grow ml-2"></span>*/}
-                            </button>
-                           
-                        </div>
-                        </div>
+                            className="flex h-[50px] p-4 cursor-pointer"
+                        >
+                            <img src="/images/comments.svg" className="w-6 h-6" />
+                            <span className="text-xs text-white font-semibold flex-grow ml-2">
+                                {comments?.length}
+                            </span>
+                        </button>
+                    </div>
                 </div>
-
-               <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={handleCloseShareModal}
-                    postId={post.id}
-                    userId={post.user_id}
-                    trackTitle={post.text}
-                    post={post}
-                />
+            </div>
         </>
     )
 }

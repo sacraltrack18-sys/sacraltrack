@@ -9,19 +9,22 @@ const useGetPostById = async (id: string) => {
             id
         );
 
-        const profile = await useGetProfileByUserId(post?.user_id)
+        const profile = await useGetProfileByUserId(post?.user_id);
 
         return {
             id: post?.$id, 
             user_id: post?.user_id,
-            audio_url: post?.audio_url,
-            mp3_url: post?.mp3_url,
-            trackname: post?.trackname,
-            image_url: post?.image_url,
             text: post?.text,
             created_at: post?.created_at,
+            audio_url: post?.audio_url,
+            trackname: post?.trackname,
+            image_url: post?.image_url,
             price: post?.price,
             genre: post?.genre,
+            mp3_url: post?.mp3_url,
+            segments: post?.segments, // Предполагается, что segments также строка
+            m3u8_url: post?.m3u8_url, // URL для HLS стриминга
+            streaming_urls: post?.streaming_urls, // Массив или строка URL-ов для потокового воспроизведения
             profile: {
                 user_id: profile?.user_id,  
                 name: profile?.name,
@@ -29,8 +32,8 @@ const useGetPostById = async (id: string) => {
             }
         } 
     } catch (error) {
-        throw error
+        throw error;
     }
 }
 
-export default useGetPostById
+export default useGetPostById;

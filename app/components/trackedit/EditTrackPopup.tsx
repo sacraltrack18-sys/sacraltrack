@@ -1,129 +1,129 @@
 import React, { useState } from 'react';
 import useUpdatePost from "@/app/hooks/useUpdatePost";
-import { convertWavToMp3 } from '@/app/utils/audioConverter';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { useUser } from "@/app/context/user"
+import { convertWavToMp3, optimizeImage, createM3U8File, segmentAudio } from '@/app/utils/streaming';
+import { useUser } from "@/app/context/user";
 import toast from 'react-hot-toast';
-import Link from 'next/link';
-import { BiLoaderCircle, BiSolidCloudUpload } from "react-icons/bi"
-import { AiOutlineCheckCircle } from "react-icons/ai";
-import { AiOutlineClose } from "react-icons/ai"; 
-import CustomAudioPlayer from '@/app/utils/customPlayer'; 
-
-
-
+import { BiSolidCloudUpload } from "react-icons/bi";
+import { AiOutlineClose } from "react-icons/ai";
+import { BsFillPauseFill, BsFillPlayFill } from "react-icons/bs";
+import { ProcessingStats } from '@/app/types';
 
 interface Post {
     id: string;
-    audioUrl: string; // Keep the camelCase naming consistent
+    audioUrl: string;
     imageUrl: string;
-    caption: string;
     trackname: string;
-    updated_at: string; // Make sure this is required
-    created_at: string; // Ensure this is required
+    updated_at: string;
+    created_at: string;
+    m3u8_url: string;
 }
 
 interface PostWithProfile extends Post {
     profile: {
-        user_id: string;  // User ID in profile
-        name: string;     // User's name
-        image: string;    // URL to user's profile image
+        user_id: string;
+        name: string;
+        image: string;
     };
 }
 
 interface EditTrackPopupProps {
-    postData: PostWithProfile; // Change is from Post to PostWithProfile
-    onUpdate: (data: PostWithProfile | null) => void; 
+    postData: PostWithProfile;
+    onUpdate: (data: PostWithProfile | null) => void;
     onClose: () => void;
 }
 
-
 const EditTrackPopup: React.FC<EditTrackPopupProps> = ({ postData, onUpdate, onClose }) => {
     const contextUser = useUser();
-    const [caption, setCaption] = useState<string>(postData.caption); // Начальная инициализация
+    const [trackname, setTrackname] = useState<string>(postData.trackname);
     const [fileAudio, setAudioFile] = useState<File | null>(null);
     const [imageUrl, setImageUrl] = useState(postData.imageUrl);
-    const [error, setError] = useState<string | null>(null);
-    const [showPopup, setShowPopup] = useState(true);
     const [imageFile, setImageFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState<boolean>(false);
-    const [trackname, setTrackname] = useState<string>(postData.trackname); // Начальная инициализация
-    const [fileDisplayImage, setFileDisplayImage] = useState<string | null>(null); // Для хранения изображения
-    const [trackProgress, setTrackProgress] = useState<number>(0); // Для хранения прогресса загрузки
-
+    const [fileDisplayImage, setFileDisplayImage] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
+    const [processingStats, setProcessingStats] = useState<ProcessingStats>({
+        stage: '',
+        progress: 0,
+        details: ''
+    });
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleFinalUpdate = async () => {
-        if (!contextUser || !contextUser.user) {
-            toast.error('Failed to get user data.');
-            return;
-        }
-
-        setIsUploading(true); // Устанавливаем состояние загрузки в true
-        setTrackProgress(0); // Сбрасываем прогресс
-
+        if (!contextUser?.user) return;
+        
+        setIsProcessing(true);
         try {
-            let mp3File: File | null = null;
-            const ffmpeg = new FFmpeg();
-            await ffmpeg.load();
-
-            if (trackname.trim().length > 30) {
-                toast.error('Type trackname no longer than 30 characters.', { duration: 3000 });
-                return;
-            }
-
-            if (typeof caption !== 'string' || caption.trim().length > 300) {
-                toast.error('Type a track description.', { duration: 3000 });
-                return;
-            }
-
-            if (fileAudio && fileAudio.type === 'audio/wav') {
-                const conversionResult = await convertWavToMp3(ffmpeg, fileAudio);
-                if (typeof conversionResult === 'object' && 'error' in conversionResult) {
-                    const errorMessage = (conversionResult.error as { message?: string }).message || 'Error converting.';
-                    toast.error(errorMessage);
-                    return;
-                }
-                mp3File = new File([conversionResult.mp3Blob], 'track.mp3', { type: 'audio/mp3' });
-            } else {
-                mp3File = fileAudio;
-            }
-
-            // Симуляция загрузки с обновлением прогресса
-            let progressInterval = setInterval(() => {
-                setTrackProgress(prev => {
-                    if (prev < 100) {
-                        return prev + 10; // Увеличиваем прогресс на 10%
-                    } else {
-                        clearInterval(progressInterval);
-                        return 100;
-                    }
+            let optimizedImage = imageFile;
+            if (imageFile) {
+                const optimizedBlob = await optimizeImage(imageFile, (stats) => {
+                    setProcessingStats({
+                        stage: stats.stage,
+                        progress: stats.progress,
+                        details: stats.details || ''
+                    });
                 });
-            }, 500); // Каждые 500 мс обновляем прогресс
+                optimizedImage = new File([optimizedBlob], imageFile.name, {
+                    type: imageFile.type,
+                    lastModified: imageFile.lastModified
+                });
+            }
+
+            let m3u8Url = postData.m3u8_url;
+            let mp3File = null;
+
+            if (fileAudio) {
+                setProcessingStats({
+                    stage: 'Converting WAV to MP3',
+                    progress: 20,
+                    details: 'Processing audio file...'
+                });
+
+                const mp3Result = await convertWavToMp3(fileAudio, (progress) => {
+                    setProcessingStats({
+                        stage: 'Converting WAV to MP3',
+                        progress: 20 + progress * 0.2,
+                        details: `Converting: ${Math.round(progress)}%`
+                    });
+                });
+
+                mp3File = new File([mp3Result], 'track.mp3', { type: 'audio/mp3' });
+
+                const segments = await segmentAudio(mp3File, (progress) => {
+                    setProcessingStats({
+                        stage: 'Creating segments',
+                        progress: 40 + progress * 0.4,
+                        details: `Segmenting: ${Math.round(progress)}%`
+                    });
+                });
+
+                const m3u8Data = await createM3U8File(segments, (progress) => {
+                    setProcessingStats({
+                        stage: 'Creating M3U8',
+                        progress: 80 + progress * 0.2,
+                        details: `Creating playlist: ${Math.round(progress)}%`
+                    });
+                });
+
+                m3u8Url = URL.createObjectURL(new Blob([m3u8Data]));
+            }
 
             await useUpdatePost(
                 postData.id,
                 contextUser.user.id,
-                caption.toString(),
-                trackname.toString(),
+                trackname,
                 fileAudio,
                 mp3File,
-                imageFile,
+                optimizedImage,
+                m3u8Url,
+                setProcessingStats
             );
 
-            
-
-            clearInterval(progressInterval);
-            setTrackProgress(100); // Устанавливаем финальный прогресс в 100
-
             onUpdate(null);
-            toast.success('Track updated successfully!', { duration: 3000 });
+            toast.success('Track updated successfully!');
         } catch (error) {
-            console.error("Ошибка при обновлении поста:", error);
-            const errorMessage = (error as { message?: string }).message || 'Ошибка при обновлении поста. Попробуйте снова.';
-            toast.error(errorMessage);
+            console.error("Error updating track:", error);
+            toast.error('Failed to update track');
         } finally {
-            setIsUploading(false); // Завершаем загрузку, независимо от результата
-            setTrackProgress(0); // Сбрасываем прогресс
+            setIsProcessing(false);
         }
     };
 
@@ -153,171 +153,162 @@ const EditTrackPopup: React.FC<EditTrackPopupProps> = ({ postData, onUpdate, onC
         setImageUrl(postData.imageUrl); // Сброс к начальному изображению
       };
 
-
+    const handlePlayPause = () => {
+        setIsPlaying(!isPlaying);
+    };
       
+    const clearAudio = () => {
+        setAudioFile(null);
+        setIsPlaying(false);
+    };
 
     return (
-        <div>
-            {showPopup && (
-                <div className="fixed z-[990] top-0 left-0 right-0 bottom-0 bg-[#15191F] bg-opacity-80 backdrop-blur-lg flex justify-center items-center">
-                <div className="bg-[#15161A] md:w-[600px] z-[999] relative p-2 rounded-2xl shadow-xl max-w-md w-full ">
-                        <h1 className="text-[15px] font-bold ml-4 mt-2 mb-2">Edit a track</h1>
+        <div className="fixed z-[990] top-0 left-0 right-0 bottom-0 bg-[#15191F] bg-opacity-80 backdrop-blur-lg">
+            <div className="bg-[#15161A] max-w-5xl mx-auto mt-10 p-6 rounded-2xl">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-bold text-white">Edit Track</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">
+                        <AiOutlineClose size={24} />
+                    </button>
+                </div>
 
-                       {/* UPLOAD ARTWORK */}
-                   
-                    <div className="mx-auto mt-5 mb-6 w-full h-[180px] text-center p-1 border-2 border-dashed border-[#1E2136] rounded-2xl hover:bg-[#1E2136] cursor-pointer">
+                {/* Main Content - Two Columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Left Column - Media Upload */}
+                    <div className="space-y-6">
+                        {/* Artwork Upload */}
+                        <div className="bg-[#1E2136] rounded-2xl p-4">
+                            <h3 className="text-lg font-semibold mb-4">Artwork</h3>
+                            <div className="border-2 border-dashed border-gray-600 rounded-xl p-4 text-center">
                         {!fileDisplayImage ? (
-                            <label
-                                htmlFor="fileInputImage"
-                                className="flex flex-col items-center justify-center h-full text-center p-1 cursor-pointer"
-                            >
-                                <p className="mt-2 text-[13px]">Select image to upload</p>
-                                <p className="mt-1.5 text-gray-500 text-[13px]">Or drag and drop a file</p>
-                                <p className="mt-4 text-gray-400 text-sm">JPEG, PNG</p>
-                                <p className="mt-2 text-gray-400 text-[13px]">Up to 5 MB</p>
+                                    <label className="cursor-pointer block">
+                                        <BiSolidCloudUpload size={48} className="mx-auto mb-4 text-gray-400" />
+                                        <p className="text-sm text-gray-300">Click or drag image to upload</p>
+                                        <p className="text-xs text-gray-500 mt-2">JPEG or PNG, up to 5MB</p>
                                 <input 
                                     type="file" 
-                                    id="fileInputImage"
                                     onChange={onChangeImage}
                                     hidden 
-                                    accept=".jpg, .jpeg, .png" 
+                                            accept=".jpg,.jpeg,.png"
                                 />
                             </label>
                         ) : (
-                            <div className="relative flex items-center justify-center h-full p-2 rounded-2xl cursor-pointer">
-                                {isUploading && (
-                                    <div className="absolute flex items-center justify-center z-20 h-full w-full">
-                                        <BiLoaderCircle className="animate-spin" color="#F12B56" size={30} />
+                                    <div className="relative aspect-square">
+                                        <img
+                                            src={fileDisplayImage}
+                                            alt="Preview"
+                                            className="rounded-lg object-cover w-full h-full"
+                                        />
+                                        <button
+                                            onClick={clearImage}
+                                            className="absolute top-2 right-2 bg-black/50 p-2 rounded-full"
+                                        >
+                                            <AiOutlineClose size={16} />
+                                        </button>
                                     </div>
                                 )}
-                                <img
-                                    className="absolute rounded-xl object-cover z-10 w-full h-full"
-                                    src={fileDisplayImage} // Используем URL изображения для отображения
-                                    alt="Selected Image"
-                                />
-                                <div className="absolute -bottom-12 flex items-center justify-between z-50 rounded-xl w-full p-2">
-                                    <div className="flex items-center truncate">
-                                        <AiOutlineCheckCircle size="16" className="min-w-[16px]" />
-                                        <p className="text-[11px] pl-1 truncate">{imageFile?.name}</p>
+                            </div>
+                                </div>
+                                
+                        {/* Audio Upload */}
+                        <div className="bg-[#1E2136] rounded-2xl p-4">
+                            <h3 className="text-lg font-semibold mb-4">Audio</h3>
+                            <div className="border-2 border-dashed border-gray-600 rounded-xl p-4">
+                                {!fileAudio ? (
+                                    <label className="cursor-pointer block text-center">
+                                        <BiSolidCloudUpload size={48} className="mx-auto mb-4 text-gray-400" />
+                                        <p className="text-sm text-gray-300">Click or drag audio to upload</p>
+                                        <p className="text-xs text-gray-500 mt-2">WAV, up to 12 minutes</p>
+                                        <input
+                                            type="file"
+                                            onChange={onChangeAudio}
+                                            hidden
+                                            accept=".wav"
+                                        />
+                                    </label>
+                                ) : (
+                                    <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <button onClick={handlePlayPause}>
+                                                {isPlaying ? (
+                                                        <BsFillPauseFill size={24} />
+                                                ) : (
+                                                        <BsFillPlayFill size={24} />
+                                                )}
+                                                </button>
+                                                <span className="text-sm truncate">{fileAudio.name}</span>
+                                            </div>
+                                            <button onClick={clearAudio}>
+                                                <AiOutlineClose size={20} />
+                                            </button>
+                                        </div>
+                                        <div className="h-1 bg-gray-600 rounded-full">
+                                            <div className="h-full bg-[#20DDBB] rounded-full" style={{ width: '0%' }} />
+                                        </div>
                                     </div>
-                                    <button onClick={clearImage} className="text-[11px] ml-2 font-semibold">
-                                        Change
-                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column - Track Info */}
+                    <div className="space-y-6">
+                        <div className="bg-[#1E2136] rounded-2xl p-4">
+                            <h3 className="text-lg font-semibold mb-4">Track Info</h3>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 mb-2 block">Track Name</label>
+                                    <input
+                                        type="text"
+                                        value={trackname}
+                                        onChange={(e) => setTrackname(e.target.value)}
+                                        maxLength={30}
+                                        className="w-full bg-[#2A184B] border-none rounded-xl p-3 text-white"
+                                        placeholder="Enter track name"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Processing Status */}
+                        {isProcessing && (
+                            <div className="bg-[#1E2136] rounded-2xl p-4">
+                                <h3 className="text-lg font-semibold mb-4">Processing</h3>
+                                <div className="space-y-2">
+                                    <p className="text-sm text-gray-400">{processingStats.stage}</p>
+                                    <div className="h-2 bg-gray-700 rounded-full">
+                                        <div
+                                            className="h-full bg-[#20DDBB] rounded-full transition-all duration-300"
+                                            style={{ width: `${processingStats.progress}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500">{processingStats.details}</p>
                                 </div>
                             </div>
                         )}
-                    </div>
 
-                
-                    {/* UPLOAD A TRACK */}
-                    <div className="mb-6">
-                            <input
-                                type="file"
-                                accept=".wav"
-                                style={{ backgroundColor: '#1E2136' }}
-                                id="audioInput"
-                                onChange={onChangeAudio}
-                                hidden
-                            />
-                            <div className="flex items-center justify-center h-full w-full rounded-2xl">
-                                <label htmlFor="audioInput" className="cursor-pointer w-full h-[60px] bg-[#5A86F8] hover:bg-[#486dcb] rounded-2xl flex items-center justify-center text-[14px] font-bold">
-                                    <p className='mr-8'>Upload a track</p>        {fileAudio && <CustomAudioPlayer src={URL.createObjectURL(fileAudio)} />}
-                                </label>
-                            </div>
-                    
-                        </div>
-
-                        {error && <p className="text-red-500">{error}</p>}
-
-                           {/* Прогресс бар (это место, где вы вставляете код прогресс-бара) 
-                        {isUploading && (
-                            <div className="w-full bg-gray-600 rounded-full h-2 mb-4">
-                                <div
-                                    className={`bg-[#20DDBB] h-full rounded-full`}
-                                    style={{ width: `${trackProgress}%` }} // Устанавливаем ширину прогресс-бара
-                                />
-                            </div>
-                        )} */}
-
-
-                        {/* TRACK NAME */}
-
-                        <input
-                            type="text"
-                            placeholder="trackname"
-                            style={{ backgroundColor: '#1E2136' }}
-                            value={trackname}
-                            maxLength={30} // Optional: limits user input to 30 characters
-                            onChange={(e) => setTrackname(e.target.value)} // Убедитесь, что значение обновляется
-                            className="w-full border bg-[#1A1F2B] border-[#2e3463] rounded-xl p-3 mb-6 text-[14px]"
-                        />
-
-                          {/* DESCRIPTION */}
-
-                        <textarea
-                            placeholder="Description"
-                            value={caption}
-                            maxLength={300}
-                            style={{ backgroundColor: '#1E2136' }}
-                            onChange={(e) => {
-                                setCaption(e.target.value);
-                                console.log("Текущее значение caption:", e.target.value); // Для отладки
-                            }}
-                            className="w-full bg-[#1A1F2B border-gray-300 rounded-xl p-2 mb-6 text-[14px] resize-none"
-
-                        />
-
-                        
-               {/*         <select
-                            value={genre}
-                            style={{ backgroundColor: '#1E2136' }}
-                            onChange={(e) => setGenre(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded mb-4"
-                        >
-                            <option value="">Выбрать жанр</option>
-                            {genres.map((g) => (
-                                <option key={g} value={g}>{g}</option>
-                            ))}
-                        </select>
-                       */}
-
-
-                           {/*  RELEASE */}
-                        <div className="flex justify-between">
-
+                        {/* Action Buttons */}
+                        <div className="flex justify-end gap-4 mt-8">
+                            <button
+                                onClick={onClose}
+                                className="px-6 py-3 rounded-xl bg-gray-600 hover:bg-gray-700 text-white"
+                            >
+                                Cancel
+                            </button>
                         <button
-                            disabled={isUploading} // Disable the button when uploading
                             onClick={handleFinalUpdate}
-                            className="px-10 py-4 mt-4 text-[13px] text-white cursor-pointer bg-[#20DDBB] hover:bg-[#8baea7] rounded-2xl mr-4 flex items-center font-bold justify-center" // Added flex for horizontal alignment
-                        >
-                            {isUploading ? (
-                                <>
-                                    <BiLoaderCircle className="animate-spin mr-2" color="#ffffff" size={25} />
-                                    <span>Uploading...</span> {/* You can change this text as needed */}
-                                </>
-                            ) : (
-                                'Release'
-                            )}
+                                disabled={isProcessing}
+                                className="px-6 py-3 rounded-xl bg-[#20DDBB] hover:bg-[#1ca088] text-white font-medium"
+                            >
+                                {isProcessing ? 'Processing...' : 'Update Track'}
                         </button>
-
-                        <p className="text-[13px] text-[#838383] mt-4">
-                            By clicking the "release" button you automatically agree with the 
-                            <Link href="/terms" className="text-[#018CFD] hover:underline"> Sacral Track Terms of use</Link>
-                        </p>
                         </div>
-
-                        {/* CLOSE BUTTON */}
-                        <button
-                            onClick={() => setShowPopup(false)}
-                            className="text-white px-4 py-2 rounded absolute top-[13px] right-2"
-                        >
-                            <AiOutlineClose size={14} /> {/* Здесь используем иконку закрытия */}
-                        </button>
                     </div>
                 </div>
-            )}
-                    {error && <div className="error-message">{error}</div>} {/* Здесь отображаем только текст ошибки */}
-
+            </div>
         </div>
     );
 };

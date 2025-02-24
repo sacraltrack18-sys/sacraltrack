@@ -37,6 +37,7 @@ export interface Product {
     title: string;
     description: string;
     audio_url: string;
+    m3u8_url: string;
     image_url: string; // Add the image_url property
     cart_items: string[];
     created_at: string;
@@ -109,12 +110,14 @@ export interface Post {
     audio_url: string;
     image_url: string;
     mp3_url: string;
+    m3u8_url: string | null;
     text: string;
     created_at: string;
     trackname: string;
     price: any;
     updated_at: string; // This is the property you are referring to
-
+    segments?: string | null; // Если у вас есть сегменты
+    streaming_urls?: string[]; // Массив стриминговых URL
     genre: string;
     type: string;  // Add the 'type' property to the interface
     name: string;
@@ -130,18 +133,19 @@ export interface PostWithProfile {
     id: string;
     user_id: string;
     audio_url: string;
-    image_url: string;
     mp3_url: string;
-    text: string;
-    price: any;
+    m3u8_url: string;
     trackname: string;
+    image_url: string;
+    text: string;
     created_at: string;
+    price: any;
     genre: string;
     profile: {
         user_id: string;
         name: string;
         image: string;
-    }
+    };
 }
 
 export interface CommentWithProfile {
@@ -228,6 +232,13 @@ export interface ProfileType {
     created_at: string;
 }
 
+
+
+export interface SegmentData {
+    name: string;
+    data: string; // Base64 encoded data
+}
+
 //////////////////////////////////////////////
 //////////////////////////////////////////////
 
@@ -254,8 +265,9 @@ export interface PostPageTypes {
 }
 
 export interface ProfilePageTypes {
-    params: { id: string; };
-
+    params: { 
+        userId: string;  // Исправляем id на userId
+    };
 }
 
 export interface SingleCommentCompTypes {
@@ -298,6 +310,7 @@ export interface PostMainCompTypes {
     image_url: string;
     price: any;
     mp3_url: string;
+    m3u8_url: string;
     text: string;
     trackname: string;
     created_at: string;
@@ -344,4 +357,46 @@ export interface MenuItemTypes {
 
 export interface MenuItemFollowCompTypes {
     user: RandomUsers
+}
+
+export interface SearchResult {
+    id: string;
+    type: 'profile' | 'track';
+    name: string;
+    image: string;
+    user_id: string;
+}
+
+export interface SearchProfileResult extends SearchResult {
+    type: 'profile';
+}
+
+export interface SearchTrackResult extends SearchResult {
+    type: 'track';
+}
+
+// Добавим новые типы
+export interface Purchase {
+  $id?: string;
+  user_id: string;
+  track_id: string;
+  author_id: string;
+  purchase_date: string;
+  amount: string;
+}
+
+export interface RoyaltyTransaction {
+  $id?: string;
+  author_id: string;
+  track_id: string;
+  amount: string;
+  transaction_date: string;
+  purchase_id: string;
+  status: 'pending' | 'withdrawn' | 'completed'; // Добавляем статус
+}
+
+export interface ProcessingStats {
+    stage: string;
+    progress: number;
+    details: string | undefined;
 }

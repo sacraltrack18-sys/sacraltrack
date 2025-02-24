@@ -12,6 +12,7 @@ import { Suspense } from 'react';
 import YandexMetrika from '@/libs/YandexMetrika';
 import Background from '@/app/components/Background'; 
 import { PlayerProvider } from '@/app/context/playerContext'; 
+import GlobalLoader from './components/GlobalLoader'
 
 
 const metadata: Metadata = {
@@ -42,8 +43,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <meta property="og:url" content={metadata.openGraph?.url ? String(metadata.openGraph.url) : ''} />
                 <meta property="og:type" content={(metadata.openGraph as any)?.type ?? ''} />
                 <meta property="og:image" content={metadata.openGraph?.images ? Array.isArray(metadata.openGraph.images) ? metadata.openGraph.images.map((image: any) => image?.url ?? '').join(',') : (metadata.openGraph.images as any)?.url ?? '' : ''} />
+                <script 
+                    async 
+                    src="https://mc.yandex.ru/watch/98093904"
+                    type="text/javascript"
+                />
             </Head>
-            <body className="bg-[#15191F] text-white">
+            <body className="bg-[linear-gradient(60deg,#2E2469,#351E43)] text-white">
+                <GlobalLoader />
                 <Suspense fallback={<></>}>
                     <YandexMetrika />
                 </Suspense>

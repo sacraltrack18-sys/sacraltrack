@@ -2,235 +2,279 @@
 
 import Link from "next/link";
 import PostMainLikes from "./PostMainLikes";
-import React, { useEffect, useRef, useState, useCallback, useContext, memo } from "react";
+import React, { useEffect, useState, memo, useCallback } from "react";
 import useCreateBucketUrl from "../hooks/useCreateBucketUrl";
-import { PostWithProfile, PostMainCompTypes } from "../types";
+import { PostMainCompTypes } from "../types";
 import { usePathname } from "next/navigation";
-import WaveSurfer from "wavesurfer.js";
-import { BsFillStopFill, BsFillPlayFill } from "react-icons/bs";
 import toast from "react-hot-toast";
-import CartContext from "../context/CartContext";
-import { LazyLoadImage } from "react-lazy-load-image-component";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { usePlayerContext } from '@/app/context/playerContext'; // Updated context usage
-import Player from '@/app/components/Player'; // Import the Player component
+import { usePlayerContext } from '@/app/context/playerContext';
+import { AudioPlayer } from '@/app/components/AudioPlayer';
+import Image from 'next/image';
+import { FiShare2 } from 'react-icons/fi';
+import ShareModal from './ShareModal';
+import { useUser } from "@/app/context/user";
+import { useGeneralStore } from "@/app/stores/general";
+import getStripe from '@/libs/stripe';
+import useCheckPurchasedTrack from '@/app/hooks/useCheckPurchasedTrack';
 
-
-interface MyWaveSurfer extends WaveSurfer {
-  destroy: () => void;
+interface Comment {
+    id: string;
+    user: {
+        name: string;
+        image: string;
+    };
+    text: string;
+    created_at: string;
 }
 
+interface PostHeaderProps {
+    profile: {
+        user_id: string;
+        name: string;
+        image: string;
+    };
+    avatarUrl: string;
+    avatarError: boolean;
+    setAvatarError: (error: boolean) => void;
+    text: string;
+    genre: string;
+}
+
+interface PostImageProps {
+    imageUrl: string;
+    imageError: boolean;
+}
+
+const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text, genre }: PostHeaderProps) => (
+    <div className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+            <Link href={`/profile/${profile.user_id}`}>
+                <img
+                    className="w-12 h-12 rounded-full object-cover"
+                    src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
+                    alt={profile.name}
+                    onError={() => setAvatarError(true)}
+                />
+            </Link>
+            <div>
+                <Link href={`/profile/${profile.user_id}`} className="text-white font-medium hover:underline">
+                    {profile.name}
+                </Link>
+                <p className="text-[#818BAC] text-sm">{text}</p>
+            </div>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-[#818BAC] text-sm">{genre}</span>
+        </div>
+    </div>
+));
+
+PostHeader.displayName = 'PostHeader';
+
+const PostImage = memo(({ imageUrl, imageError }: PostImageProps) => (
+    <div className="relative w-full">
+        <div 
+            className="w-full aspect-square bg-cover bg-center relative overflow-hidden"
+            style={{ 
+                backgroundImage: imageError ? 
+                    'linear-gradient(45deg, #2E2469, #351E43)' : 
+                    `url(${imageUrl})`
+            }}
+        >
+            {imageError && <PostImageFallback />}
+        </div>
+    </div>
+));
+
+PostImage.displayName = 'PostImage';
+
+const PostImageFallback = memo(() => (
+    <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+            <Image 
+                src="/images/T-logo.svg" 
+                alt="Default" 
+                width={64}
+                height={64}
+                className="opacity-20"
+            />
+            <div className="mt-4 w-32 h-[1px] bg-white/10"></div>
+            <div className="mt-4 space-y-2">
+                {[...Array(3)].map((_, i) => (
+                    <div 
+                        key={i} 
+                        className="h-1 bg-white/10 rounded"
+                        style={{
+                            width: `${Math.random() * 100 + 100}px`
+                        }}
+                    ></div>
+                ))}
+            </div>
+        </div>
+    </div>
+));
+
+PostImageFallback.displayName = 'PostImageFallback';
 
 const PostMain = memo(({ post }: PostMainCompTypes) => {
-  const pathname = usePathname();
+    const [imageError, setImageError] = useState(false);
+    const [avatarError, setAvatarError] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const m3u8Url = useCreateBucketUrl(post?.m3u8_url);
+    const imageUrl = useCreateBucketUrl(post?.image_url);
+    const avatarUrl = useCreateBucketUrl(post?.profile?.image);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const userContext = useUser();
+    const { setIsLoginOpen } = useGeneralStore();
+    //const { currentAudioId, setCurrentAudioId } = usePlayerContext();
+    const pathname = usePathname();
+    const [isPurchased, setIsPurchased] = useState(false);
+    const { checkIfTrackPurchased } = useCheckPurchasedTrack();
 
-  const { currentAudioId, setCurrentAudioId } = usePlayerContext();
-
- 
-  // Add to cart
-  const { addItemToCart } = useContext(CartContext);
-
-  const addToCartHandler = useCallback(() => {
-    addItemToCart({
-      product: post.id,
-      name: post.text,
-      image: post.image_url,
-      audio: post.mp3_url,
-      user: post.user_id,
-      price: post.price,
-    });
-    console.log("added to cart");
-    toast.success("Added to cart");
-  }, [addItemToCart, post]);
-
-  // PlayPause btn card
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLDivElement>(null); // Keep this for mouseover/mouseout
-
-// Default value for isPlaying
-const [isPlaying, setIsPlaying] = useState(false);
-
-
-useEffect(() => {
-  const handleImageMouseOver = () => {
-    if (isPlaying && imageRef.current) {
-      imageRef.current.style.cursor = "url('/images/pause-icon.svg'), auto";
-    } else if (imageRef.current) {
-      imageRef.current.style.cursor = "url('/images/play-icon.svg'), auto";
-    }
-  };
-
-  const handleImageMouseOut = () => {
-    if (imageRef.current) {
-      imageRef.current.style.cursor = "default";
-    }
-  };
-
-  if (imageRef.current) {
-    imageRef.current.addEventListener('mouseover', handleImageMouseOver);
-    imageRef.current.addEventListener('mouseout', handleImageMouseOut);
-  }
-
-  return () => {
-    if (imageRef.current) {
-      imageRef.current.removeEventListener('mouseover', handleImageMouseOver);
-      imageRef.current.removeEventListener('mouseout', handleImageMouseOut);
-    }
-  };
-}, [isPlaying, imageRef]);
-
-useEffect(() => {
-  if (waveformRef.current) {
-    const handleWaveformMouseEnter = () => {
-      if (imageRef.current) {
-        imageRef.current.style.cursor = "default";
-      }
-    };
-
-    waveformRef.current.addEventListener('mouseenter', handleWaveformMouseEnter);
-
-    return () => {
-      if (waveformRef.current) {
-        waveformRef.current.removeEventListener('mouseenter', handleWaveformMouseEnter);
-      }
-    };
-  }
-}, [imageRef.current]);
-
-
-
-  // WaveSurfer
-//  const [isPlaying, setIsPlaying] = useState(false);
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const [wavesurfer, setWaveSurfer] = useState<MyWaveSurfer | null>(null);
-  
-
-    // Переключение воспроизведения
-    const handlePause = () => {
-      if (currentAudioId === post.id) {
-        setIsPlaying(false);
-        setCurrentAudioId(null); // Остановить аудио
-      } else {
-        setCurrentAudioId(post.id); // Установить ID текущего трека
-        setIsPlaying(true); // Включить воспроизведение
-      }
-    };
-  
     useEffect(() => {
-      // Проверка на смену текущего трека
-      if (currentAudioId === post.id) {
-        setIsPlaying(true); // Если текущий трек соответствует ID поста, включаем
-      } else {
-        setIsPlaying(false); // Если нет, останавливаем
-      }
-    }, [currentAudioId, post.id]);
+        const loadImage = (url: string, setError: (error: boolean) => void) => {
+            if (typeof window !== 'undefined') {
+                const img = new window.Image();
+                img.src = url;
+                img.onerror = () => setError(true);
+                img.onload = () => setError(false);
+            }
+        };
 
-    
-  
-  
-  return (
-    <div
-      id={`PostMain-${post.id}`}
-      ref={imageRef}
-      style={{
-        backgroundImage: `url(${useCreateBucketUrl(post?.image_url)})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-      onClick={(e) => handlePause()}
-      className="relative flex flex-col justify-between p-2 mb-5 
-        object-cover rounded-[20px] h-[500px] overflow-hidden 
-        md:w-[700px] w-full mx-auto"
-    >
-      {post ? (
-        <>
-          <div className="flex justify-between">
-            {/* Profile Image */}
-            <div className="cursor-pointer">
-              <LazyLoadImage
-                className="rounded-[15px] max-h-[50px] w-[50px]"
-                src={useCreateBucketUrl(post?.profile?.image)}
-                alt="Profile"
-                loading="lazy"
-              />
-            </div>
+        if (imageUrl) loadImage(imageUrl, setImageError);
+        if (avatarUrl) loadImage(avatarUrl, setAvatarError);
+    }, [imageUrl, avatarUrl]);
 
-            {/* Name / Trackname */}
-            <div className="bg-[#272B43]/95 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] w-full h-[50px] flex items-between rounded-xl ml-2">
-              <div className="pl-3 w-full px-2">
-                <div className="flex items-center justify-between">
-                  <Link
-                    className="text-[#818BAC] text-[15px]"
-                    href={`/profile/${post.profile.user_id}`}
-                  >
-                    <span className="font-bold hover:underline cursor-pointer">
-                      {post.profile.name}
-                    </span>
-                  </Link>
-                </div>
-                <p className="text-[14px] pb-0.5 break-words md:max-w-[400px] max-w-[300px]">
-                  {post.text}
-                </p>
-              </div>
-            </div>
-          </div>
+    useEffect(() => {
+        const checkPurchaseStatus = async () => {
+            if (userContext?.user) {
+                const purchased = await checkIfTrackPurchased(userContext.user.id, post.id);
+                setIsPurchased(purchased);
+            }
+        };
+        
+        checkPurchaseStatus();
+    }, [userContext?.user, post.id]);
 
-          {/* Genre Tag */}
-          <div className="absolute top-16 left-16 py-1 px-2 bg-[#272B43]/90 shadow-[0px_5px_5px_-10px_rgba(0,0,0,0.5)] flex items-center rounded-lg">
-            <p className="text-[13px] text-[#818BAC] hover:text-white cursor-pointer ">
-              {post.genre}
-            </p>
-          </div>
+    const handlePurchase = async () => {
+        if (!userContext?.user) {
+            setIsLoginOpen(true);
+            return;
+        }
 
-          {/* Audio Controls */}
-          <div className="absolute md:visible hidden wavesurfer-controls z-5 top-[40%] left-[43%] border-color-white border-opacity-20 px-10 py-7 rounded-xl">
-          <button
-            className="w-[40px] h-[40px]"
-            onClick={() => handlePause()}
-          >
-            {isPlaying ? (
-              <BsFillStopFill size={24} />
-            ) : (
-              <BsFillPlayFill size={24} />
-            )}
-          </button>
-          </div>
+        if (isProcessingPayment) return;
+
+        try {
+            setIsProcessingPayment(true);
+
+            const response = await fetch("/api/checkout_sessions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    trackId: post.id,
+                    trackName: post.trackname,
+                    userId: userContext.user.id,
+                    authorId: post.profile.user_id,
+                    image: post.image_url,
+                    audio: post.audio_url
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Payment initialization failed');
+            }
+
+            const data = await response.json();
             
-          
-        <div className="absolute bottom-24 left-0 right-0 z-10 opacity-90">
-          <Player 
-            audioUrl={useCreateBucketUrl(post.mp3_url)} 
-            isPlaying={isPlaying} 
-            onPlay={() => setIsPlaying(true)} // Обновите, если хотите
-            onPause={() => setIsPlaying(false)} // Обновите, если хотите
-          /></div>
+            const stripe = await getStripe();
+            if (!stripe) {
+                throw new Error('Stripe failed to initialize');
+            }
 
-          {/* Interaction Buttons */}
-          <div className="absolute w-full h-[60px] bottom-0 justify-between pr-4">
-            <PostMainLikes post={post} />
-          </div>
+            const { error } = await stripe.redirectToCheckout({
+                sessionId: data.session.id
+            });
 
-          {/* Add to Cart Button */}
-          <div className="absolute right-2 align-middle top-[30%]">
-          <button
-            onClick={addToCartHandler}
-            className="py-12 px-4 bg-[#20DDBB] text-white rounded-t-xl hover:bg-[#21C3A6]"
-          >
-            <img src="/images/cart.svg" alt="sacraltrack cart" />
-          </button>
-          <div className="w-auto flex items-center justify-center py-2 px-2 bg-[#21C3A6] text-white text-size-[12px] rounded-b-xl">
-            ${post.price}
-          </div>
+            if (error) {
+                throw error;
+            }
+
+        } catch (error: any) {
+            console.error('Purchase error:', error);
+            toast.error(error.message || 'Payment failed. Please try again.');
+        } finally {
+            setIsProcessingPayment(false);
+        }
+    };
+
+    // Получаем текущий URL для шаринга
+    const shareUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/post/${post.user_id}/${post.id}`
+        : '';
+
+    return (
+        <div className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto">
+            <PostHeader 
+                profile={post.profile}
+                avatarUrl={avatarUrl}
+                avatarError={avatarError}
+                setAvatarError={setAvatarError}
+                text={post.trackname}
+                genre={post.genre}
+            />
+
+            <PostImage imageUrl={imageUrl} imageError={imageError} />
+
+            <div className="px-4 py-2 w-full">
+                        <AudioPlayer 
+                            m3u8Url={m3u8Url} 
+                            isPlaying={isPlaying} 
+                            onPlay={() => setIsPlaying(true)} 
+                            onPause={() => setIsPlaying(false)} 
+                        />
+                    </div>
+
+            <div className="px-4 py-3 flex justify-between items-center w-full">
+                <div className="flex items-center gap-6">
+                        <PostMainLikes post={post} />
+                    </div>
+
+                <div className="flex items-center gap-4">
+                    {!isPurchased ? (
+                        <button 
+                            onClick={handlePurchase}
+                            disabled={isProcessingPayment}
+                            className="bg-[#20DDBB] text-white px-4 py-2 rounded-lg"
+                        >
+                            {isProcessingPayment ? 'Processing...' : 'Buy Track $2'}
+                        </button>
+                    ) : (
+                        <button className="bg-gray-500 text-white px-4 py-2 rounded-lg">
+                            Purchased
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => setIsShareModalOpen(true)}
+                        className="text-white hover:text-[#20DDBB] transition-colors"
+                    >
+                        <FiShare2 size={24} />
+                    </button>
+                </div>
+            </div>
+
+            <ShareModal 
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                post={post}
+            />
         </div>
-        </>
-        ) : (
-        <div className="flex flex-col justify-between p-2 mt-5 mb-5 object-cover rounded-[20px] h-[500px] overflow-hidden">
-         {/*Skeleton*/}
-      </div>
-      )}
-      </div>
-      );
-      });
+    );
+});
+
+PostMain.displayName = 'PostMain';
 
 export default PostMain;
+

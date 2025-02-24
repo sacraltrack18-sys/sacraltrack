@@ -1,7 +1,7 @@
 "use client"
 {/* COMMENT SECTION HEAD */}
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Comments from "@/app/components/post/Comments"
 import CommentsHeader from "@/app/components/post/CommentsHeader"
 import Link from "next/link"
@@ -13,214 +13,174 @@ import { usePostStore } from "@/app/stores/post"
 import { useLikeStore } from "@/app/stores/like"
 import { useCommentStore } from "@/app/stores/comment"
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
-//import TopNav from "./includes/TopNav"
+import { AudioPlayer } from '@/app/components/AudioPlayer'
+import { usePlayerContext } from '@/app/context/playerContext'
+import Image from 'next/image'
 
-import WaveSurfer from "wavesurfer.js"
-import {
-    BsFillStopFill,
-    BsFillPlayFill,
-    BsSkipForward,
-    BsSkipBackward,
-  } from "react-icons/bs";
 
+const PostImageFallback = () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]">
+        <div className="flex flex-col items-center">
+            <Image 
+                src="/images/T-logo.svg" 
+                alt="Default" 
+                width={64}
+                height={64}
+                className="opacity-20"
+            />
+            <div className="mt-4 w-32 h-[1px] bg-white/10"></div>
+            <div className="mt-4 space-y-2">
+                {[...Array(3)].map((_, i) => (
+                    <div 
+                        key={i} 
+                        className="h-1 bg-white/10 rounded"
+                        style={{
+                            width: `${Math.random() * 100 + 100}px`
+                        }}
+                    ></div>
+                ))}
+            </div>
+        </div>
+    </div>
+)
   
   export default function Post({ params }: PostPageTypes) {
-
-
-   
-
-    let { postById, postsByUser, setPostById, setPostsByUser } = usePostStore()
-    let { setLikesByPost } = useLikeStore()
-    let { setCommentsByPost } = useCommentStore()
-
+    const { postById, setPostById, setPostsByUser } = usePostStore()
+    const { setLikesByPost } = useLikeStore()
+    const { setCommentsByPost } = useCommentStore()
+    const { currentAudioId, setCurrentAudioId } = usePlayerContext()
+    const [imageError, setImageError] = useState(false)
     const router = useRouter()
 
+    const imageUrl = postById?.image_url ? useCreateBucketUrl(postById.image_url) : ''
+    const m3u8Url = postById?.m3u8_url ? useCreateBucketUrl(postById.m3u8_url) : ''
+    const isPlaying = currentAudioId === params.postId
+
     useEffect(() => { 
-        setPostById(params.postId)
-        setCommentsByPost(params.postId) 
-        setLikesByPost(params.postId)
+        const loadData = async () => {
+            try {
+                await Promise.all([
+                    setPostById(params.postId),
+                    setCommentsByPost(params.postId),
+                    setLikesByPost(params.postId),
         setPostsByUser(params.userId) 
-    }, [])
-
-    const loopThroughPostsUp = () => {
-        postsByUser.forEach(post => {
-            if (post.id > params.postId) {
-                router.push(`/post/${post.id}/${params.userId}`)
+                ])
+            } catch (error) {
+                console.error('Error loading data:', error)
             }
-        });
-    }
-
-    const loopThroughPostsDown = () => {
-        postsByUser.forEach(post => {
-            if (post.id < params.postId) {
-                router.push(`/post/${post.id}/${params.userId}`)
-            }
-        });
-    }
-
-
-   
-    {/* WaveSurfer */}
-
-    const [isPlaying, setIsPlaying] = useState(false);
-    const waveformRef = useRef<HTMLDivElement>(null);
-    const [wavesurfer, setWaveSurfer] = useState<WaveSurfer | null>(null);
+        }
+        loadData()
+    }, [params.postId, params.userId])
 
     useEffect(() => {
-        if (waveformRef.current) {
-          const newWaveSurfer = WaveSurfer.create({
-            container: waveformRef.current,
-            waveColor: "#ffffff",
-            progressColor: "#018CFD",
-            dragToSeek: true,
-            width: "47vw",
-            hideScrollbar: true,
-            normalize: true,
-            barGap: 1,
-            height: 40,
-            barHeight: 20,
-            barRadius: 20,
-            barWidth: 4,
-          });
-      
-          if (postById?.mp3_url) {
-            newWaveSurfer.load(useCreateBucketUrl(postById.mp3_url));
-          }
-      
-          newWaveSurfer.on("finish", () => {
-            console.log("Song finished");
-          });
-      
-          newWaveSurfer.on("ready", () => {
-            console.log("Waveform ready");
-          });
-      
-          setWaveSurfer(newWaveSurfer);
+        if (imageUrl) {
+            const img = document.createElement('img')
+            img.src = imageUrl
+            img.onerror = () => setImageError(true)
+            img.onload = () => setImageError(false)
         }
-      
-        return () => {
-          if (wavesurfer) {
-            wavesurfer.destroy();
-          }
-        };
-      }, [postById]);
-
-     {/* WaveSurfer PlayPause */}
-        // Update handlePause function to toggle the state
-        const handlePause = () => {
-            if (wavesurfer) {
-              if (isPlaying) {
-                wavesurfer.stop();
-                setIsPlaying(false);
-              } else {
-                wavesurfer.playPause();
-                setIsPlaying(true);
-              }
-            }
-          };
-          
+    }, [imageUrl])
 
     return (
-        <> 
-            <div className="lg:flex-col w-full h-screen md:flex px-[20px]  items-center justify-between overflow-auto">
-            <div 
-                id="PostPage" 
-                className="lg:flex-col mt-[20px] rounded-2xl items-center w-max-[100%] md:w-[700px]  h-[200px]  bg-black overflow-hidden "
-                style={{ 
-                    backgroundImage: `url(${postById?.image_url ? useCreateBucketUrl(postById.image_url) : ''})`,
-                    backgroundSize: 'cover', 
-                    backgroundPosition: 'center' 
-                }}
-            >
-
-              
-                <div className="lg:w-[full] h-[20vh] md:w-full  relative">
-
-                    {/* Close button */}
-                    <Link
-                     //   href={`/profile/${params?.userId}`}
-                     href={`/`}
-                        className="absolute text-white z-20 m-5 rounded-xl p-1.5 hover:opacity-100 opacity-80"
-                    >
-                        <AiOutlineClose size="18"/>
-                    </Link>
-
-                    {/* SLIDE through posts 
-                    <div >
-                        <button 
-                            onClick={() => loopThroughPostsUp()}
-                            className="absolute z-20 right-4 top-4 flex items-center justify-center rounded-full bg-gray-700 p-1.5 hover:bg-gray-800"
+        <div className="min-h-screen bg-[#1A1A2E] px-5">
+            <div className="max-w-[calc(100vw-40px)] mx-auto py-8">
+                {/* Track Section */}
+                <div className="bg-[#24183D] rounded-2xl overflow-hidden shadow-xl relative">
+                    {/* Track Header */}
+                    <div className="relative h-[300px] md:h-[400px]">
+                        {/* Background Image */}
+                        <div 
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={!imageError ? { 
+                                backgroundImage: `url(${imageUrl})`,
+                            } : undefined}
                         >
-                            <BiChevronUp size="30" color="#FFFFFF"/>
-                        </button>
-
-                        <button  
-                            onClick={() => loopThroughPostsDown()}
-                            className="absolute z-20 right-4 top-20 flex items-center justify-center rounded-full bg-gray-700 p-1.5 hover:bg-gray-800"
-                        >
-                            <BiChevronDown size="30" color="#FFFFFF"/>
-                        </button>
-                    </div> */}
-
-                    
-
-                      {/* audio */}
-
-                    <div className="wavesurfer-controls absolute z-5 top-0 m-[-6px] right-0  px-10 py-7 rounded-xl">
-                    <button onClick={handlePause}>
-                    {isPlaying ? <BsFillStopFill /> : <BsFillPlayFill />}
-                    </button>
+                            {imageError && <PostImageFallback />}
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#24183D]/50 to-[#24183D]" />
                         </div>
 
+                        {/* Close Button - Highest z-index */}
+                        <Link
+                            href="/"
+                            className="absolute top-4 right-4 z-30 p-2 rounded-xl 
+                                     bg-black/30 backdrop-blur-sm text-white 
+                                     hover:bg-[#2E2469] transition-all duration-200"
+                        >
+                            <AiOutlineClose size="20"/>
+                        </Link>
+
+                        {/* Track Info - Moved down by 40px */}
+                        <div className="absolute top-[40px] right-0 z-20">
+                            <ClientOnly>
+                                {postById && <CommentsHeader post={postById} params={params}/>}
+                            </ClientOnly>
+                        </div>
+
+                        {/* Track Info */}
+                        <div className="absolute top-1/3 left-0 right-0 p-6 z-10">
                     <ClientOnly>
-                        {postById?.mp3_url ? (
-                      
-                            <div className="flex overflow-hidden h-[40px] mb-16 w-full">
-                                <div style={{  }}>
-                                    <div ref={waveformRef} className="wavesurfer-container" />
-                                </div>
+                                {postById && (
+                                    <div className="space-y-2">
+                                        <h1 className="text-3xl md:text-4xl font-bold text-white 
+                                                     drop-shadow-lg">
+                                            {postById.trackname}
+                                        </h1>
+                                        <div className="flex items-center gap-3">
+                                            <Link 
+                                                href={`/profile/${postById.profile.user_id}`}
+                                                className="flex items-center gap-2 hover:text-[#20DDBB] 
+                                                         transition-colors bg-black/30 backdrop-blur-sm 
+                                                         rounded-full px-3 py-1"
+                                            >
+                                                <img 
+                                                    src={useCreateBucketUrl(postById.profile.image)}
+                                                    alt={postById.profile.name}
+                                                    className="w-6 h-6 rounded-full"
+                                                />
+                                                <span className="text-white text-sm">
+                                                    {postById.profile.name}
+                                                </span>
+                                            </Link>
+                                            <span className="text-[#20DDBB] text-sm bg-black/30 
+                                                           backdrop-blur-sm rounded-full px-3 py-1">
+                                                {postById.genre}
+                                            </span>
                             </div>
-
-                        ) : null} 
-
-                         <div className="lg:min-w-[480px] z-10 relative">
-                            {postById?.mp3_url ? (
-                                 <div className="flex overflow-hidden h-[40px] mb-16 w-full">
-                                    <div style={{  }}>
-                                        <div ref={waveformRef} className="wavesurfer-container" />
                                     </div>
+                                )}
+                            </ClientOnly>
                                 </div>
                   
-                            ) : null}
+                        {/* Audio Player */}
+                        <div className="absolute bottom-0 left-0 right-0">
+                            <ClientOnly>
+                                {m3u8Url && (
+                                    <div className="px-6 py-4 bg-transparent">
+                                        <AudioPlayer 
+                                            m3u8Url={m3u8Url}
+                                            isPlaying={isPlaying}
+                                            onPlay={() => setCurrentAudioId(params.postId)}
+                                            onPause={() => setCurrentAudioId(null)}
+                                        />
                         </div>
+                                )}
                     </ClientOnly>
-
                 </div>
                 </div>
 
-
-                {/* Comments */}
-
-                <div id="InfoSection" className="absolute top-0 right-2 lg:max-w-[full] rounded-2xl h-[80vh] bg-[#]">
-                    <div className="mt-[20px]" />
-
+                    {/* Comments Section */}
+                    <div className="bg-[#24183D] rounded-b-2xl">
                         <ClientOnly>
-                            {postById ? (
-                                <CommentsHeader post={postById} params={params}/>
-                            ) : null}
+                            {postById && (
+                                <div className="p-6">
+                                    <Comments params={params}/>
+                                </div>
+                            )}
                         </ClientOnly>
-                      
- 
                 </div>
-                <div id="InfoSection" className="relative lg:max-w-[full]  w-max-[100%] md:w-[700px]  rounded-2xl h-[80vh] mt-2 bg-[#] ">
-                  
-
-                    
-                        <Comments params={params}/>
- 
                 </div>
             </div>
-         
-        </>
+        </div>
     )
 }

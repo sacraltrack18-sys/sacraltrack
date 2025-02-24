@@ -15,6 +15,8 @@ import useUpdateProfile from "@/app/hooks/useUpdateProfile";
 import useChangeUserImage from "@/app/hooks/useChangeUserImage";
 import useUpdateProfileImage from "@/app/hooks/useUpdateProfileImage";
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from 'react-hot-toast';
  
 export default function EditProfileOverlay() {
     
@@ -43,18 +45,83 @@ export default function EditProfileOverlay() {
     console.log('NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID:', process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID);
     
 
-    const getUploadedImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const optimizeImage = async (file: File): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target?.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Максимальные размеры для оптимизации
+                    const MAX_WIDTH = 1200;
+                    const MAX_HEIGHT = 1200;
+                    
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Изменяем размер, сохраняя пропорции
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    
+                    // Конвертируем в WebP с высоким качеством
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const optimizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                                    type: "image/webp"
+                                });
+                                // Показываем уведомление об успешной оптимизации
+                                const originalSize = (file.size / 1024).toFixed(2);
+                                const optimizedSize = (blob.size / 1024).toFixed(2);
+                                toast.success(
+                                    `Image optimized successfully!\nOriginal: ${originalSize}KB\nOptimized: ${optimizedSize}KB`,
+                                    { duration: 3000 }
+                                );
+                                resolve(optimizedFile);
+                            } else {
+                                reject(new Error("Failed to optimize image"));
+                            }
+                        },
+                        'image/webp',
+                        0.9
+                    );
+                };
+            };
+        });
+    };
+
+    const getUploadedImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files && event.target.files[0];
         
         if (selectedFile) {
-            console.log('File details:', selectedFile); // Логи свойств файла, включая размер и тип
-            setFile(selectedFile);
-            setUploadedImage(URL.createObjectURL(selectedFile));
-        } else {
+            try {
+                const optimizedFile = await optimizeImage(selectedFile);
+                setFile(optimizedFile);
+                setUploadedImage(URL.createObjectURL(optimizedFile));
+            } catch (error) {
+                console.error('Error optimizing image:', error);
             setFile(null);
             setUploadedImage(null);
         }
     }
+    };
 
     const updateUserInfo = async () => {
         let isError = validate()
@@ -88,12 +155,17 @@ export default function EditProfileOverlay() {
 
             await contextUser.checkUser()
             setCurrentProfile(contextUser?.user?.id)
-            setIsEditProfileOpen(false)
+            
+            // Обновляем локальное состояние изображения
+            setUserImage(newImageId)
+            setUploadedImage(null)
+            setFile(null)
             setIsUpdating(false)
+            toast.success('Profile photo updated successfully!')
         } catch (error) {
             console.log(error)
             setIsUpdating(false)
-            alert(error)
+            toast.error('Failed to update profile photo')
         }
     }
 
@@ -115,192 +187,151 @@ export default function EditProfileOverlay() {
         return isError
     }
 
+    const getProfileImage = () => {
+        if (uploadedImage) return uploadedImage;
+        if (userImage) return useCreateBucketUrl(userImage);
+        return '/images/placeholder-user.jpg';
+    };
+
     return (
-        <>
-            <div 
-                id="EditProfileOverlay" 
-                className="fixed flex justify-center pt-14 md:pt-[105px] z-50 top-0 left-0 w-full h-full bg-black bg-opacity-80 backdrop-blur-lg overflow-auto"
-            >
-                <div 
-                    className={`
-                        relative bg-[#15191F] w-full max-w-[700px] sm:h-[580px] h-[655px] mx-3 p-2 rounded-2xl mb-10
-                        ${!uploadedImage ? 'h-[655px]' : 'h-[580px]'}
-                    `}
-                >
-                    <div className="absolute flex items-center justify-between w-full p-5 left-0 top-0 ">
-                        <h1 className="text-[18px] font-medium">
-                            Edit 
-                        </h1>
+        <AnimatePresence>
+            <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                <motion.div className="relative w-full max-w-[700px] mx-4 bg-[#24183D] rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 border-b border-[#2E2469]">
+                        <h1 className="text-xl font-semibold text-white">Edit Profile</h1>
                         <button 
-                            disabled={isUpdating} 
                             onClick={() => setIsEditProfileOpen(false)} 
-                            className="hover:bg-[#1E2136] p-2 rounded-2xl"
+                            className="p-2 hover:bg-[#2E2469] rounded-xl transition-colors"
                         >
-                            <AiOutlineClose size="16"/>
+                            <AiOutlineClose size={20} className="text-gray-400 hover:text-white" />
                         </button>
                     </div>
-                    {/* UPLOAD IMAGE ----------------------- */}
 
-                    <div className={`h-[calc(500px-200px)] ${!uploadedImage ? 'mt-16' : 'mt-[58px]'}`}>
-
-                        {!uploadedImage ? ( 
-                            <div>
-                                <div 
-                                    id="ProfilePhotoSection" 
-                                    className="flex flex-col sm:h-[118px] h-[145px] px-1.5 py-2 w-full"
-                                >
-                                    <h3 className="font-semibold text-[15px] sm:mb-0 mb-1 text-gray-700 sm:w-[160px] sm:text-left text-center">
-                                        Profile photo
-                                    </h3>
-
-                                    <div className="flex items-center justify-center sm:-mt-6">
-                                        <label htmlFor="image" className="relative cursor-pointer">
-
-                                            <img className="rounded-full" width="95" src={useCreateBucketUrl(userImage)} />
-
-                                            <div className="absolute bottom-0 right-0 rounded-full bg-[#1E2136] shadow-xl  p-1  flex items-center justify-center w-[32px] h-[32px]">
-                                                <BsPencil size="17" className="ml-0.5"/>
-                                            </div>
-                                        </label>
-                                        <input
-                                            className="hidden"
-                                            type="file"
-                                            id="image"
-                                            onChange={getUploadedImage}
-                                            accept="image/png, image/jpeg, image/jpg"
+                    <div className="p-6">
+                        {/* Profile Photo Section */}
+                        <div className="mb-8">
+                            <h3 className="text-gray-400 text-sm mb-4">Profile Photo</h3>
+                            <div className="flex justify-center">
+                                <label className="relative cursor-pointer group">
+                                    <div className="relative w-[100px] h-[100px] rounded-2xl overflow-hidden bg-[#1E2136] transition-transform group-hover:scale-105">
+                                        <img 
+                                            src={getProfileImage()}
+                                            className="w-full h-full object-cover"
+                                            alt="Profile"
+                                            onError={(e) => {
+                                                console.log('Image load error, using placeholder');
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = '/images/placeholder-user.jpg';
+                                                target.onerror = null; // Предотвращаем бесконечный цикл
+                                            }}
                                         />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <BsPencil size={24} className="text-white" />
+                                        </div>
+                                            </div>
+                                        <input
+                                        type="file"
+                                            className="hidden"
+                                            onChange={getUploadedImage}
+                                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                                        />
+                                </label>
                                     </div>
                                 </div>
 
-                                {/* UserName Section */}
-                                <div 
-                                    id="UserNameSection" 
-                                    className="flex flex-col sm:h-[118px]  px-1.5 py-2 mt-1.5  w-full"
-                                >
-                                    <h3 className="font-semibold text-[15px] sm:mb-0 mb-1 text-gray-700 sm:w-[160px] sm:text-left text-center">
-                                        Name
-                                    </h3>
-
-                                    <div className="flex items-center justify-center sm:-mt-6">
-                                        <div className="sm:w-[60%] w-full max-w-md">
-
+                        {/* Name Input */}
+                        <div className="mb-6">
+                            <h3 className="text-gray-400 text-sm mb-2">Name</h3>
                                             <TextInput 
                                                 string={userName}
-                                                placeholder="Username"
+                                placeholder="Your name"
                                                 onUpdate={setUserName}
                                                 inputType="text"
                                                 error={showError('userName')}
-                                            />
-                                            
-                                            <p className={`relative text-[11px] text-gray-500 ${error ? 'mt-1' : 'mt-4'}`}>
-                                                Usernames can only contain letters, numbers, underscores, and periods. 
-                                                Changing your username will also change your profile link.
-                                            </p>
-                                        </div>
-                                    </div>
+                                className="bg-[#2E2469] border-none focus:ring-2 focus:ring-[#20DDBB]"
+                            />
+                        </div>
+
+                        {/* Bio Input */}
+                        <div className="mb-6">
+                            <h3 className="text-gray-400 text-sm mb-2">Bio</h3>
+                            <textarea 
+                                value={userBio}
+                                onChange={(e) => setUserBio(e.target.value)}
+                                maxLength={80}
+                                placeholder="Tell us about yourself..."
+                                className="w-full bg-[#2E2469] text-white rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] resize-none h-32"
+                            />
+                            <p className="text-right text-gray-400 text-sm mt-1">
+                                {userBio.length}/80
+                            </p>
                                 </div>
 
-                                {/* Bio Section */}
-
-                                <div 
-                                    id="UserBioSection" 
-                                    className="flex flex-col sm:h-[120px]  px-1.5 py-2 mt-2 w-full"
+                        {/* Compact Image Cropper */}
+                        <AnimatePresence>
+                            {uploadedImage && (
+                                <motion.div 
+                                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
                                 >
-                                    <h3 className="font-semibold text-[15px] sm:mb-0 mb-1 text-gray-700 sm:w-[160px] sm:text-left text-center">
-                                        Bio
-                                    </h3>
-
-                                    <div className="flex items-center justify-center sm:-mt-6">
-                                        <div className="sm:w-[60%] w-full max-w-md">
-                                            <textarea 
-                                                cols={30}
-                                                rows={4}
-                                                onChange={e => setUserBio(e.target.value)}
-                                                value={userBio || ''}
-                                                maxLength={80}
-                                                className="
-                                                    resize-none
-                                                    w-full
-                                                    bg-[#1E2136]
-                                                    text-white
-                                                    
-                                               
-                                                    rounded-xl
-                                                    py-2.5
-                                                    px-3
-                                                    focus:outline-none
-                                                "
-                                            ></textarea>
-                                            <p className="text-[11px] text-gray-500">{userBio ? userBio.length : 0}/80</p>
+                                    <div className="w-full max-w-md bg-[#24183D] rounded-2xl overflow-hidden">
+                                        <div className="p-3 border-b border-[#2E2469] flex justify-between items-center">
+                                            <h3 className="text-white text-sm">Adjust Photo</h3>
+                                            <button 
+                                                onClick={() => setUploadedImage(null)}
+                                                className="text-gray-400 hover:text-white"
+                                            >
+                                                <AiOutlineClose size={16} />
+                                            </button>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="w-full max-h-[420px] mx-auto bg-black circle-stencil">
+                                        <div className="aspect-square w-full bg-black">
                                 <Cropper
                                     stencilProps={{ aspectRatio: 1 }}
-                                    className="h-[400px]"
+                                                className="h-[300px]"
                                     onChange={(cropper) => setCropper(cropper.getCoordinates())}
                                     src={uploadedImage}
                                 />
                             </div>
-                        )}
-                        
+                                        <div className="p-3 flex justify-end">
+                                            <button
+                                                onClick={cropAndUpdateImage}
+                                                className="px-4 py-1.5 bg-[#20DDBB] text-black text-sm font-medium rounded-xl hover:bg-[#1CB99D] transition-colors"
+                                            >
+                                                {isUpdating ? (
+                                                    <BiLoaderCircle className="animate-spin" />
+                                                ) : (
+                                                    'Apply'
+                                                )}
+                                            </button>
+                                        </div>
                     </div>
-                    
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                    <div 
-                        id="ButtonSection" 
-                        className="absolute p-5 left-0 bottom-0 w-full"
-                    >
-                        {!uploadedImage ? (
-                            <div id="UpdateInfoButtons" className="flex items-center justify-end">
-
+                        {/* Action Buttons */}
+                        <div className="flex justify-end gap-3 mt-8">
                                 <button 
-                                    disabled={isUpdating}
                                     onClick={() => setIsEditProfileOpen(false)}
-                                    className="flex items-center rounded-xl px-3 py-[6px] hover:bg-black hover:text-white"
+                                className="px-4 py-2 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
                                 >
-                                    <span className="px-2 font-medium text-[15px]">Cancel</span>
+                                Cancel
                                 </button>
-
                                 <button 
+                                onClick={updateUserInfo}
                                     disabled={isUpdating}
-                                    onClick={() => updateUserInfo()}
-                                    className="flex items-center bg-[#3E83F7]  hover:bg-[#3461ae]  text-white  rounded-xl ml-3 px-3 py-[6px]"
-                                >
-                                    <span className="mx-4 font-medium text-[15px]">
-                                        {isUpdating ? <BiLoaderCircle color="#ffffff" className="my-1 mx-2.5 animate-spin" /> : "Save" }
-                                    </span>
+                                className="px-6 py-2 bg-[#20DDBB] text-black font-medium rounded-xl hover:bg-[#1CB99D] transition-colors disabled:opacity-50"
+                            >
+                                {isUpdating ? (
+                                    <BiLoaderCircle className="animate-spin" />
+                                ) : (
+                                    'Save Changes'
+                                )}
                                 </button>
-
                             </div>
-                        ) : (
-                            <div id="CropperButtons" className="flex items-center justify-end" >
-
-                             {/*  <button 
-                                    onClick={() => setUploadedImage(null)}
-                                    className="flex items-center rounded-xl px-3 py-[6px] hover:bg-black hover:text-white"
-                                >
-                                    <span className="px-2 font-medium text-[15px]">Cancel</span>
-                                </button> */}
-
-                                <button 
-                                    onClick={() => cropAndUpdateImage()}
-                                    className="flex items-center bg-[#3E83F7] text-white hover:bg-[#3461ae] rounded-xl ml-3 px-3 py-[6px]"
-                                >
-                                    <span className="mx-4 font-medium text-[15px]">
-                                        {isUpdating ? <BiLoaderCircle color="#ffffff" className="my-1 mx-2.5 animate-spin" /> : "Apply" }
-                                    </span>
-                                </button>
-
-                            </div>
-                        )}
                     </div>
-                    
-                </div>
-            </div>
-        </>
-    )
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
 }

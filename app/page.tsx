@@ -1,52 +1,66 @@
 "use client"
 
 import { useEffect } from "react"
-import { useState, useContext } from "react"
-import MainLayout from "./layouts/MainLayout"
 import { usePostStore } from "@/app/stores/post"
 import ClientOnly from "./components/ClientOnly"
 import PostMain from "./components/PostMain"
-import { RecoilRoot } from "recoil";
 import { GenreProvider } from "@/app/context/GenreContext";
-import { GenreContext } from "@/app/context/GenreContext";
 import { useRouter } from "next/navigation";
-import React, { lazy, Suspense } from "react";
+import React, { Suspense } from "react";
 import { useInView } from 'react-intersection-observer';
-
+import MainLayout from "./layouts/MainLayout"
 
 export default function Home() {
-  const { allPosts, setAllPosts, setGenre } = usePostStore();
-  const { selectedGenre } = useContext(GenreContext);
   const router = useRouter();
+  
+  const { 
+    allPosts, 
+    loadMorePosts,
+    setAllPosts, 
+    isLoading, 
+    hasMore,
+    selectedGenre 
+  } = usePostStore();
 
-  // Отфильтровываем посты по выбранному жанру
-  const filteredPosts = allPosts.filter((post) => {
-    return selectedGenre === "all" || (post.genre && post.genre.toLowerCase() === selectedGenre.toLowerCase());
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: '400px',
   });
 
-  // Используем useInView для отслеживания видимости элементов
-  const [ref, inView] = useInView({
-    threshold: 0.5, // Порог видимости элемента (50%)
-    rootMargin: '200px', // Отступ от области видимости
-  });
-
+  // Начальная загрузка
   useEffect(() => {
-    setAllPosts();
-  }, [selectedGenre, setAllPosts]);
+    if (allPosts.length === 0) {
+      setAllPosts();
+    }
+  }, [selectedGenre]); // Добавляем зависимость от жанра
+
+  // Загрузка следующей порции постов при прокрутке
+  useEffect(() => {
+    if (inView && hasMore && !isLoading) {
+      loadMorePosts();
+    }
+  }, [inView, hasMore, isLoading]);
+
+  // Фильтрация постов теперь происходит в store
+  const filteredPosts = allPosts;
 
   return (
     <>
-      <RecoilRoot>
-        <GenreProvider>
-          <MainLayout>
-            <div className="mt-[80px] w-full ml-auto">
-              <ClientOnly>
-                <Suspense fallback={<div>Loading...</div>}>
-                  {filteredPosts.map((post, index) => (
-                    <div ref={index === 0 ? ref : null} key={index}>
+      <GenreProvider>
+        <MainLayout>
+          <div className="mt-[80px] w-full ml-auto">
+            <ClientOnly>
+              <Suspense fallback={<div>Loading...</div>}>
+                {filteredPosts.map((post, index) => {
+                  const uniqueKey = `${post.id}-${index}`; // Создаем уникальный ключ
+                  return (
+                    <div 
+                      key={uniqueKey}
+                      ref={index === filteredPosts.length - 1 ? ref : undefined}
+                    >
                       <PostMain
                         post={post}
-                        router={useRouter()}
+                        router={router}
                         id={post.id}
                         user_id={post.user_id}
                         audio_url={post.audio_url}
@@ -64,13 +78,25 @@ export default function Home() {
                         }}
                       />
                     </div>
-                  ))}
-                </Suspense>
-              </ClientOnly>
-            </div>
-          </MainLayout>
-        </GenreProvider>
-      </RecoilRoot>
+                  );
+                })}
+
+                {isLoading && (
+                  <div className="flex justify-center py-4">
+                    <div className="w-8 h-8 border-t-2 border-[#20DDBB] rounded-full animate-spin"></div>
+                  </div>
+                )}
+
+                {!hasMore && filteredPosts.length > 0 && (
+                  <div className="text-center text-[#818BAC] py-4">
+                    No more tracks to load
+                  </div>
+                )}
+              </Suspense>
+            </ClientOnly>
+          </div>
+        </MainLayout>
+      </GenreProvider>
     </>
   );
 }

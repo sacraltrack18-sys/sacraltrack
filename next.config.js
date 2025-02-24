@@ -13,16 +13,48 @@ const nextConfig = {
             config.resolve.alias = {
               'fluent-ffmpeg': false
             };
-          }
+        }
 
-          config.plugins.push(
+        config.plugins.push(
             new webpack.DefinePlugin({
-              'process.env.FLUENTFFMPEG_COV': false
+                'process.env.FLUENTFFMPEG_COV': false
             })
-          );
+        );
 
         return config;
-    }
+    },
+    // Добавляем заголовки безопасности
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    },
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    }
+                ]
+            }
+        ];
+    },
+    images: {
+        domains: ['cloud.appwrite.io', 'mc.yandex.ru'],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'cloud.appwrite.io',
+                pathname: '/**',
+            }
+        ]
+    },
 };
 
 module.exports = nextConfig;

@@ -1,34 +1,33 @@
 // app/contexts/GenreContext.tsx
-import React, { createContext, useContext, ReactNode } from "react";
-import { useGenreStore } from "@/app/stores/genreStore";
-import { usePostStore } from "@/app/stores/post"; // Убедитесь, что usePostStore обновлен соответствующим образом
+import React, { createContext, useState, useContext } from 'react';
+import { usePostStore } from "@/app/stores/post";
 
-interface GenreContextProps {
-  selectedGenre: string;
-  setSelectedGenre: (genre: string) => void;
+interface GenreContextType {
+    selectedGenre: string;
+    setSelectedGenre: (genre: string) => void;
 }
 
-export const GenreContext = createContext<GenreContextProps>({
-  selectedGenre: "all",
-  setSelectedGenre: () => {},
+export const GenreContext = createContext<GenreContextType>({
+    selectedGenre: 'all',
+    setSelectedGenre: () => {},
 });
 
-interface GenreProviderProps {
-  children: ReactNode;
-}
+export const GenreProvider = ({ children }: { children: React.ReactNode }) => {
+    const [selectedGenre, setSelectedGenre] = useState('all');
+    const { setGenre } = usePostStore();
 
-export const GenreProvider: React.FC<GenreProviderProps> = ({ children }) => {
-  const { selectedGenre, setSelectedGenre } = useGenreStore();
-  const { setGenre } = usePostStore();
+    const handleGenreSelect = (genre: string) => {
+        const normalizedGenre = genre.toLowerCase();
+        setSelectedGenre(normalizedGenre);
+        setGenre(normalizedGenre); // Обновляем жанр в store
+    };
 
-  const handleGenreSelect = (genre: string) => {
-    setSelectedGenre(genre);
-    setGenre(genre);  // Вызов setGenre в постовом хранилище
-  };
-
-  return (
-    <GenreContext.Provider value={{ selectedGenre, setSelectedGenre: handleGenreSelect }}>
-      {children}
-    </GenreContext.Provider>
-  );
+    return (
+        <GenreContext.Provider value={{ 
+            selectedGenre, 
+            setSelectedGenre: handleGenreSelect 
+        }}>
+            {children}
+        </GenreContext.Provider>
+    );
 };

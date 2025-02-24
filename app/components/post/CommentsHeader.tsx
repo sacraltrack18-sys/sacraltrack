@@ -21,24 +21,25 @@ import useCreateLike from "@/app/hooks/useCreateLike"
 import useDeleteLike from "@/app/hooks/useDeleteLike"
 import useDeletePostById from "@/app/hooks/useDeletePostById"
 import { CommentsHeaderCompTypes } from "@/app/types"
+import { FiShare2 } from 'react-icons/fi'
+import { BiPurchaseTag } from 'react-icons/bi'
+import PostMainLikes from "@/app/components/PostMainLikes"
+import ShareModal from "@/app/components/ShareModal"
+import toast from "react-hot-toast"
 
 export default function CommentsHeader({ post, params }: CommentsHeaderCompTypes) {
-
-    let { setLikesByPost, likesByPost } = useLikeStore()
-    let { commentsByPost, setCommentsByPost } = useCommentStore()
-    let { setIsLoginOpen } = useGeneralStore()
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+    const [hasClickedLike, setHasClickedLike] = useState(false)
+    const [userLiked, setUserLiked] = useState(false)
 
     const contextUser = useUser()
-    const router = useRouter()
-    const [hasClickedLike, setHasClickedLike] = useState<boolean>(false)
-    const [isDeleteing, setIsDeleteing] = useState<boolean>(false)
-    const [userLiked, setUserLiked] = useState<boolean>(false)
+    const { likesByPost, setLikesByPost } = useLikeStore()
+    const { setIsLoginOpen } = useGeneralStore()
 
     useEffect(() => { 
-        setCommentsByPost(params?.postId) 
         setLikesByPost(params?.postId)
-    }, [post])
-    useEffect(() => { hasUserLikedPost() }, [likesByPost])
+        hasUserLikedPost()
+    }, [params.postId, likesByPost])
     
     const hasUserLikedPost = () => {
         if (likesByPost.length < 1 || !contextUser?.user?.id) {
@@ -46,147 +47,121 @@ export default function CommentsHeader({ post, params }: CommentsHeaderCompTypes
             return
         }
         let res = useIsLiked(contextUser.user.id, params.postId, likesByPost)
-        setUserLiked(res ? true : false)
+        setUserLiked(res)
     }
 
-    const like = async () => {
-        try {
-            setHasClickedLike(true)
-            await useCreateLike(contextUser?.user?.id || '', params.postId)
-            setLikesByPost(params.postId)
-            setHasClickedLike(false)
-        } catch (error) {
-            console.log(error)
-            alert(error)
-            setHasClickedLike(false)
-        }
-    }
-
-    const unlike = async (id: string) => {
-        try {
-            setHasClickedLike(true)
-            await useDeleteLike(id)
-            setLikesByPost(params.postId)
-            setHasClickedLike(false)
-        } catch (error) {
-            console.log(error)
-            alert(error)
-            setHasClickedLike(false)
-        }
-    }
-
-    const likeOrUnlike = () => {
+    const handleLike = async () => {
         if (!contextUser?.user) return setIsLoginOpen(true)
 
-        let res = useIsLiked(contextUser.user.id, params.postId, likesByPost)
-        if (!res) {
-            like()
-        } else {
-            likesByPost.forEach(like => {
-                if (contextUser?.user?.id && contextUser.user.id == like.user_id && like.post_id == params.postId) {
-                    unlike(like.id) 
-                }
-            })
+        setHasClickedLike(true)
+        try {
+            if (!userLiked) {
+                await useCreateLike(contextUser.user.id, params.postId)
+            } else {
+                const likeToDelete = likesByPost.find(
+                    like => contextUser.user?.id === like.user_id && like.post_id === params.postId
+                )
+                if (likeToDelete) await useDeleteLike(likeToDelete.id)
+            }
+            await setLikesByPost(params.postId)
+            hasUserLikedPost()
+        } catch (error) {
+            console.error(error)
+            toast.error('Failed to process like')
+        } finally {
+            setHasClickedLike(false)
         }
     }
 
-    const deletePost = async () => {
-        let res = confirm('Are you sure you want to delete this post?')
-        if (!res) return
-
-        setIsDeleteing(true)
+    const handlePurchase = async () => {
+        if (!contextUser?.user) return setIsLoginOpen(true)
 
         try {
-            await useDeletePostById(params?.postId, post?.audio_url)
-            router.push(`/profile/${params.userId}`)
-            setIsDeleteing(false)
+            const response = await fetch('/api/checkout_sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trackId: post.id,
+                    trackName: post.text,
+                }),
+            })
+
+            const { session } = await response.json()
+            if (session?.url) {
+                window.location.href = session.url
+            } else {
+                throw new Error('Failed to create checkout session')
+            }
         } catch (error) {
-            console.log(error)
-            setIsDeleteing(false)
-            alert(error)
+            console.error('Error:', error)
+            toast.error('Payment initialization failed')
         }
     }
+
     return (
-        <>  
-        <div className="bg-[#1A2338] py-5 rounded-2xl mt-2 mr-[20px] md:block hidden">
-
-            <div className="flex w-[320px] items-center justify-between px-2 bg-[#1A2338]">
-                <div className="flex items-center">
-                    <Link href={`/profile/${post?.user_id}`}>
-                        {post?.profile.image ? (
-                            <img className="rounded-2xl lg:mx-0 mx-auto" width="50" src={useCreateBucketUrl(post?.profile.image)} />
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-4">
+            {/* Actions Card */}
+            <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-4">
+                <div className="flex items-center gap-6">
+                    {/* Like Button */}
+                    <button 
+                        disabled={hasClickedLike}
+                        onClick={handleLike}
+                        className="flex items-center gap-2 text-white hover:text-[#20DDBB] transition-colors"
+                    >
+                        {hasClickedLike ? (
+                            <BiLoaderCircle className="animate-spin" size={24}/>
                         ) : (
-                            <div className="w-[50x] h-[50px] bg-gray-200 rounded-2xl"></div>
+                            <AiFillHeart 
+                                size={24} 
+                                className={userLiked ? "text-[#20DDBB]" : ""}
+                            />
                         )}
-                    </Link>
-                    <div className="ml-3 pt-0.5">
-
-                        <Link 
-                            href={`/profile/${post?.user_id}`} 
-                            className="relative z-10 text-[15px] font-semibold hover:underline"
-                        >
-                            {post?.profile.name}
-                        </Link>
-
-                        <div className="relative z-0 text-[13px] -mt-5 font-light">
-
-                            <span className="relative -top-[2px] text-[30px] pl-1 pr-0.5 ">.</span>
-                            <span className="font-medium text-[#8F9BB3]">{moment(post?.created_at).calendar()}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                {/*<></>
-                {contextUser?.user?.id == post?.user_id ? (
-                    <div>
-                        {isDeleteing ? (
-                            <BiLoaderCircle className="animate-spin" size="25"/>
-                        ) : (
-                            <button disabled={isDeleteing} onClick={() => deletePost()}>
-                                <BsTrash3 className="cursor-pointer" size="25"/>
-                            </button>
-                        )}
-                    </div>
-                ) : null} */}
-            </div>
-
-            <p className="px-8 mt-4 text-sm">{post?.text}</p>
-
-            <p className="flex item-center gap-2 px-8 mt-6 text-sm font-bold">
-                <ImMusic size="17"/>
-                <span className="text-[#8F9BB3]">Track name</span>
-                {post?.profile.name}
-               
-            </p>
-
-            <div className="flex items-center px-8 mt-8 ">
-                <ClientOnly>
-                    <div className="pb-4 text-center flex items-center">
-                        <button 
-                            disabled={hasClickedLike}
-                            onClick={() => likeOrUnlike()} 
-                            className="rounded-xl bg-[#313451] p-5 cursor-pointer"
-                        >
-                            {!hasClickedLike ? (
-                                <AiFillHeart color={likesByPost.length > 0 && userLiked ? '#ff2626' : ''} size="18"/>
-                            ) : (
-                                <BiLoaderCircle className="animate-spin" size="18"/>
-                            )}
-                        </button>
-                        <span className="text-xs pl-2 pr-4 text-white font-semibold">
+                        <span className="text-sm font-medium">
                             {likesByPost.length}
                         </span>
-                    </div>
-                </ClientOnly>
+                    </button>
 
-                <div className="pb-4 text-center flex items-center">
-                    <div className="rounded-xl bg-[#313451] p-5 cursor-pointer">
-                        <img src="/images/comments.svg" alt="comment" />
-                    </div>
-                    <span className="text-xs pl-2 text-white font-semibold">{commentsByPost?.length}</span>
+                    {/* Purchase Button */}
+                    <button
+                        onClick={handlePurchase}
+                        className="flex items-center gap-2 text-white hover:text-[#20DDBB] transition-colors"
+                    >
+                        <BiPurchaseTag size={24} />
+                        <span className="text-sm font-medium">
+                            {post.price || '1.99'} $
+                        </span>
+                    </button>
+
+                    {/* Share Button */}
+                    <button
+                        onClick={() => setIsShareModalOpen(true)}
+                        className="text-white hover:text-[#20DDBB] transition-colors"
+                    >
+                        <FiShare2 size={24} />
+                    </button>
                 </div>
             </div>
+
+            {/* Track Info Card */}
+            <div className="bg-black/30 backdrop-blur-sm rounded-2xl px-4 py-2">
+                <div className="flex items-center gap-4 text-sm text-white/80">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[#20DDBB]">Released:</span>
+                        <span>{moment(post.created_at).fromNow()}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-[#20DDBB]">Genre:</span>
+                        <span>{post.genre}</span>
+                    </div>
+                </div>
             </div>
-        </>
+
+            <ShareModal 
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                post={post}
+            />
+            </div>
     )
 }
