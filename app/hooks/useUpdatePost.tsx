@@ -35,8 +35,14 @@ export const useUpdatePost = async (
             });
 
             // Конвертируем WAV в MP3
-            const mp3Result = await convertWavToMp3(fileAudio);
-            if (!mp3Result.success) {
+            const mp3Result = await convertWavToMp3(fileAudio, (progress: any) => {
+                onProgress?.({
+                    stage: 'Converting WAV to MP3',
+                    progress: 20 + progress * 0.2,
+                    details: `Converting: ${Math.round(progress)}%`
+                });
+            });
+            if (!(mp3Result as any).success) {
                 throw new Error('Failed to convert audio');
             }
 
@@ -49,53 +55,59 @@ export const useUpdatePost = async (
             audioUrl = audioFile.$id;
 
             // Загружаем MP3
-            const mp3Blob = new Blob([mp3Result.data], { type: 'audio/mp3' });
+            
+            const mp3Blob = new Blob([mp3Result as any], { type: 'audio/mp3' });
             const mp3FileUpload = await storage.createFile(
                 process.env.NEXT_PUBLIC_BUCKET_ID!,
                 ID.unique(),
-                mp3File
+                new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' })
             );
             mp3Url = mp3FileUpload.$id;
-
             onProgress?.({
                 stage: 'Creating segments',
                 progress: 50,
                 details: 'Processing audio segments...'
             });
-
             // Создаем сегменты и M3U8
-            const segments = await createM3U8File(mp3File);
-            
-            onProgress?.({
-                stage: 'Uploading segments',
-                progress: 70,
-                details: 'Uploading audio segments...'
-            });
+            const segments = await createM3U8File(mp3Blob as any);
 
-            // Загружаем сегменты
-            for (let i = 0; i < segments.length; i++) {
-                const segmentFile = new File([segments[i].data], segments[i].name, { type: 'audio/mp4' });
-                await storage.createFile(
-                    process.env.NEXT_PUBLIC_BUCKET_ID!,
-                    ID.unique(),
-                    segmentFile
-                );
+            // Ensure segments is an array before accessing length
+            if (Array.isArray(segments)) {
                 onProgress?.({
                     stage: 'Uploading segments',
-                    progress: 70 + (i / segments.length) * 20,
-                    details: `Uploading segment ${i + 1}/${segments.length}`
+                    progress: 70,
+                    details: 'Uploading audio segments...'
                 });
+
+                // Upload segments
+                for (let i = 0; i < segments.length; i++) {
+                    const segmentData = segments[i].data; // Ensure segment data is correctly accessed
+                    const segmentName = segments[i].name; // Ensure segment name is correctly accessed
+                    const segmentFile = new File([segmentData], segmentName, { type: 'audio/mp4' });
+                    await storage.createFile(
+                        process.env.NEXT_PUBLIC_BUCKET_ID!,
+                        ID.unique(),
+                        segmentFile
+                    );
+
+                    onProgress?.({
+                        stage: 'Uploading segments',
+                        progress: 70 + (i / segments.length) * 20,
+                        details: `Uploading segment ${i + 1}/${segments.length}`
+                    });
+                }
+            } else {
+                throw new Error('Segments creation failed, expected an array.');
             }
 
             // Создаем M3U8 файл
-            const m3u8Content = segments.map((seg, idx) => `#EXTINF:10.0,\nsegment_${idx}.ts`).join('\n');
-            const m3u8Blob = new Blob([m3u8Content], { type: 'application/x-mpegURL' });
-            const m3u8File = new File([m3u8Blob], 'playlist.m3u8', { type: 'application/x-mpegURL' });
+            const m3u8Data = await createM3U8File(segments as any, 
+            );
             
             const m3u8Upload = await storage.createFile(
                 process.env.NEXT_PUBLIC_BUCKET_ID!,
                 ID.unique(),
-                m3u8File
+                m3u8Data
             );
             m3u8Url = m3u8Upload.$id;
         }

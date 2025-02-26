@@ -1,16 +1,15 @@
-import { database } from "@/libs/AppwriteClient"
+import { database } from "@/libs/AppWriteClient"
 
-const useDeleteComment = async (commentId: string) => {
+const useDeleteComment = async (id: string) => {
     try {
         await database.deleteDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COMMENTS_COLLECTION_ID!,
-            commentId
-        )
-        return true
+            String(process.env.NEXT_PUBLIC_DATABASE_ID), 
+            String(process.env.NEXT_PUBLIC_COLLECTION_ID_COMMENT), 
+            id
+        );
     } catch (error) {
         throw error
     }
 }
 
-export default useDeleteComment 
+export default useDeleteComment

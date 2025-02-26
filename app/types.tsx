@@ -266,7 +266,7 @@ export interface PostPageTypes {
 
 export interface ProfilePageTypes {
     params: { 
-        userId: string;  // Исправляем id на userId
+        id: string;  // Ensure 'id' is defined here
     };
 }
 

@@ -25,15 +25,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
         });
     }, [params, currentProfile, userContext]);
     
-    useEffect(() => {
-        console.log('Debug IDs:', {
-            userContextId: userContext?.user?.id,
-            paramsId: params?.id,
-            currentProfileUserId: currentProfile?.user_id,
-            isMatch: userContext?.user?.id === params?.id
-        });
-    }, [userContext?.user?.id, params?.id, currentProfile?.user_id]);
-    
+
     // Получаем URL изображения
     const profileImage = currentProfile?.image 
         ? useCreateBucketUrl(currentProfile.image) // Если есть ID изображения, получаем URL

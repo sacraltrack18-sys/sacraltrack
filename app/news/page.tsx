@@ -24,9 +24,8 @@ export default function News() {
     if (isLoading) {
         return <NewsLayout><p>Loading news...</p></NewsLayout>;
     }
-
     if (error) {
-        return <NewsLayout><p>Error loading news: {error.message}</p></NewsLayout>;
+        return <NewsLayout><p>Error loading news: {error}</p></NewsLayout>;
     }
 
     return (

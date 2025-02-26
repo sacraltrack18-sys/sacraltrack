@@ -10,6 +10,7 @@ const initStripe = () => {
         console.error('Missing STRIPE_SECRET_KEY environment variable');
         throw new Error('Stripe configuration error');
     }
+    console.log('Initializing Stripe with secret key');
     return new Stripe(stripeSecretKey, {
         apiVersion: "2023-10-16",
         typescript: true,
@@ -20,6 +21,7 @@ const initStripe = () => {
 let stripe: Stripe;
 try {
     stripe = initStripe();
+    console.log('Stripe initialized successfully');
 } catch (error) {
     console.error('Failed to initialize Stripe:', error);
 }
@@ -27,6 +29,7 @@ try {
 export async function POST(req: Request) {
     // Проверяем инициализацию Stripe
     if (!stripe) {
+        console.error('Stripe is not initialized');
         return NextResponse.json(
             { success: false, error: "Stripe configuration error" },
             { status: 500 }
@@ -35,24 +38,27 @@ export async function POST(req: Request) {
 
     // Проверка метода запроса
     if (req.method !== 'POST') {
+        console.log('Method not allowed:', req.method);
         return NextResponse.json(
             { success: false, error: 'Method not allowed' },
             { status: 405 }
         );
-  }
+    }
 
-  try {
+    try {
         const body = await req.json();
-        const { trackId, trackName, userId, authorId, image, audio } = body;
+        console.log('Request body:', body);
+        const { trackId, trackName, userId, authorId, image } = body;
 
         if (!trackId || !trackName || !userId || !authorId) {
+            console.error('Missing required parameters');
             return NextResponse.json(
                 { success: false, error: "Missing required parameters" },
                 { status: 400 }
             );
         }
 
-      const session = await stripe.checkout.sessions.create({
+        const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             metadata: {
                 trackId,
@@ -76,6 +82,7 @@ export async function POST(req: Request) {
             cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
         });
 
+        console.log('Checkout session created:', session);
         return NextResponse.json({ success: true, session });
     } catch (error: any) {
         console.error('Checkout session error:', error);
@@ -83,5 +90,5 @@ export async function POST(req: Request) {
             { success: false, error: error.message },
             { status: 500 }
         );
-  }
+    }
 }

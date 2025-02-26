@@ -1,7 +1,7 @@
 import { GetStaticPaths, GetStaticProps } from 'next';
 import Head from 'next/head';
-import { NewsItem } from '@/app/stores/newsStore'; // Import your NewsItem type
-import useGetNewsPostById from '@/app/utils/useGetNewsPostById'; // Import your hook
+import { NewsItem } from '@/app/stores/newsStore'; // Use named import
+import useGetNewsPostById from '@/app/hooks/useGetNewsPostById'; // Import your hook
 
 interface NewsPageProps {
     news: NewsItem | null;
@@ -9,9 +9,9 @@ interface NewsPageProps {
 
 
 export const getStaticPaths: GetStaticPaths = async () => {
-    const newsItems = await useGetNewsPostById(); //Fetch all news items
+    const newsItems = await useGetNewsPostById(); // Fetch all news items
 
-    if (!newsItems) return { paths: [], fallback: 'blocking' }; //Handle null case
+    if (!newsItems || !Array.isArray(newsItems)) return { paths: [], fallback: 'blocking' }; // Handle null or non-array case
 
     const paths = newsItems.map((item) => ({
         params: { slug: item.postid },
@@ -20,9 +20,9 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps<NewsPageProps> = async ({ params }) => {
-    const slug = params?.slug as string; //Type assertion
-    const news = await useGetNewsPostById(slug);
-    return { props: { news } };
+    const slug = params?.slug as string; // Type assertion
+    const news = await useGetNewsPostById(slug); // This should return a single NewsItem or null
+    return { props: { news } }; // This matches the NewsPageProps interface
 };
 
 const NewsPage: React.FC<NewsPageProps> = ({ news }) => {

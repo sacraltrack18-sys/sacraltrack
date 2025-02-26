@@ -225,7 +225,7 @@ useEffect(() => {
             id: post.id,
             audioUrl: post.audio_url,
             imageUrl: post.image_url,
-            caption: post.text,
+            m3u8_url: post.m3u8_url,
             trackname: post.trackname,
             created_at: post.created_at,
             updated_at: post.created_at,

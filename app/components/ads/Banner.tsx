@@ -4,10 +4,11 @@ interface AdBannerProps {
   adKey: string;
   adHeight: number;
   adWidth: number;
+  adFormat: string;
 }
 
 const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!adKey || !containerRef.current) return;
@@ -29,15 +30,23 @@ const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
     scriptSrc.src = `//www.highperformanceformat.com/${adKey}/invoke.js`;
     scriptSrc.async = true; // for better performance
 
-    containerRef.current.appendChild(scriptOptions);
-    containerRef.current.appendChild(scriptSrc);
+    if (containerRef.current) {
+      containerRef.current.appendChild(scriptOptions);
+      containerRef.current.appendChild(scriptSrc);
+    }
 
     // Cleanup function to remove scripts on unmount
     return () => {
-      containerRef.current.removeChild(scriptOptions);
-      containerRef.current.removeChild(scriptSrc);
+      if (containerRef.current) {
+        if (scriptOptions.parentNode) {
+          containerRef.current.removeChild(scriptOptions);
+        }
+        if (scriptSrc.parentNode) {
+          containerRef.current.removeChild(scriptSrc);
+        }
+      }
     };
-  }, [adKey, adHeight, adWidth, containerRef]);
+  }, [adKey, adHeight, adWidth]);
 
   return (
     <div ref={containerRef} style={{ width: `${adWidth}px`, height: `${adHeight}px` }}></div>

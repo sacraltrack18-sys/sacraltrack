@@ -12,8 +12,21 @@ const useGetUserPurchases = () => {
           Query.orderDesc('purchase_date')
         ]
       );
-      
-      return response.documents as Purchase[];
+
+      const purchases = response.documents; // Assuming this is of type Document[]
+
+      // Map to create an array of Purchase
+      const purchaseData: Purchase[] = purchases.map(doc => ({
+        $id: doc.$id, // Ensure to include the $id property
+        user_id: doc.user_id, // Ensure these properties exist in Document
+        track_id: doc.track_id,
+        author_id: doc.author_id,
+        purchase_date: doc.purchase_date,
+        amount: doc.amount,
+        // Add any other properties as needed
+      }));
+
+      return purchaseData; // Now this is of type Purchase[]
     } catch (error) {
       console.error('Error getting user purchases:', error);
       return [];

@@ -83,7 +83,7 @@ export default function Profile({ params }: ProfilePageTypes) {
        
           {showPaidPosts && (
             <div className="mt-4">
-              <PaidPosts userId={params.id} />
+            {/*  <PaidPosts userId={params.id} /> */}
             </div>
           )}
 

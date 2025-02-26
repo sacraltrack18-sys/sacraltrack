@@ -42,9 +42,8 @@ export default function RoyaltyPage() {
         try {
           // Получаем все транзакции роялти автора
           const royalties = await getAuthorRoyalties(userContext.user.id);
-          
           // Считаем общую сумму заработка
-          const totalEarned = royalties.reduce((sum, r) => sum + r.amount, 0);
+          const totalEarned = royalties.reduce((sum, r) => sum + (r.amount as any || 0), 0);
 
           // Группируем транзакции по трекам для определения самого продаваемого
           const trackStats = royalties.reduce((acc, r) => {

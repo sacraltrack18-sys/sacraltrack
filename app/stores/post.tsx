@@ -95,14 +95,10 @@ export const usePostStore = create<PostStore>()(
               created_at: post.created_at,
               price: post.price,
               genre: post.genre,
-              type: "post",
-              name: post.trackname,
-              image: post.image_url,
-              profile: {
-                user_id: post.user_id,
-                name: post.profile?.name || '',
-                image: post.profile?.image || ''
-              }
+              type: "post", // Assuming "post" as the type
+            name: post.trackname, // Assuming "trackname" as the name
+            image: post.image_url, // Assuming "image_url" as the image
+            profile: null, // Set profile to null if it doesn't exist
             }))
           });
         },

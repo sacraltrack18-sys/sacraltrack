@@ -6,14 +6,25 @@ const useRoyalty = () => {
     try {
       const response = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTIES!,
         [
           Query.equal('author_id', authorId),
           Query.orderDesc('transaction_date')
         ]
       );
       
-      return response.documents as RoyaltyTransaction[];
+      const documents = response.documents;
+
+      const royaltyData: RoyaltyTransaction[] = documents.map(doc => ({
+        author_id: doc.author_id,
+        track_id: doc.track_id,
+        amount: doc.amount,
+        transaction_date: doc.transaction_date,
+        purchase_id: doc.purchase_id,
+        status: doc.status,
+      }));
+
+      return royaltyData;
     } catch (error) {
       console.error('Error getting author royalties:', error);
       return [];

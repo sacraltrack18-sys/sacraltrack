@@ -250,7 +250,7 @@ export default function Upload() {
 
             // 3. Создание M3U8 плейлиста (80-100%)
             setAudioProcessingStage('Generating playlist...');
-            const m3u8File = createM3U8File(segments);
+            const m3u8File = createM3U8File(segments.map(segment => URL.createObjectURL(segment)));
             setAudioProcessingProgress(90);
 
             // Сохраняем все обработанные файлы
@@ -451,8 +451,10 @@ export default function Upload() {
         });
 
         // Вычисляем общий размер всех файлов
-        const totalSize = fileAudio.size + imageFile.size + mp3File.size + 
-            segmentFiles.reduce((acc, file) => acc + file.size, 0) + m3u8File.size;
+        const totalSize = fileAudio.size + 
+                        (imageFile ? imageFile.size : 0) +
+                        (Mp3File ? Mp3File.size : 0) +
+                        segmentFiles.reduce((acc, file) => acc + file.size, 0) + m3u8File.size;
 
         // Создаем функцию для обновления прогресса
         const updateProgress = (uploadedSize: number, stage: string) => {
@@ -478,21 +480,19 @@ export default function Upload() {
             segmentFiles,
             m3u8File,
             (progress, stage, estimatedTime) => {
-                setUploadProgress(progress);
-                setUploadStage(stage);
-                setEstimatedTimeLeft(estimatedTime || '');
-            }
-        );
-
-        if (result) {
-            setIsRedirecting(true); // Показываем оверлей
-            toast.success('Track uploaded successfully!');
-            
-            // Задержка перед редиректом
+                if (typeof progress === 'number' && typeof estimatedTime === 'number') {
+                    setUploadProgress(progress);
+                    setUploadStage(stage);
+                    setEstimatedTimeLeft(Math.round(estimatedTime));
+                }
+                setIsRedirecting(true); // Показываем оверлей
+                toast.success('Track uploaded successfully!');
+                
+                // Задержка перед редиректом
         setTimeout(() => {
-                router.push(`/profile/${contextUser.user.id}`);
+                router.push(`/profile/${contextUser.user?.id}`);
             }, 3000);
-            }
+            })
 
     } catch (error) {
         console.error('Error creating post:', error);
@@ -561,9 +561,14 @@ export default function Upload() {
 
             // Функция для обновления прогресса
             const updateUploadProgress = (uploadedSize: number, stage: string) => {
+                if (!fileAudio) {
+                    console.error('fileAudio is null');
+                    return; // Handle the case where fileAudio is null
+                }
+
                 const totalSize = fileAudio.size + 
-                                imageFile.size + 
-                                Mp3File.size + 
+                                (imageFile ? imageFile.size : 0) +
+                                (Mp3File ? Mp3File.size : 0) + 
                                 processedFiles.segments.reduce((acc, seg) => acc + seg.size, 0) +
                                 (processedFiles.m3u8File?.size || 0);
                 

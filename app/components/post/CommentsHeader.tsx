@@ -4,8 +4,6 @@
 
 import Link from "next/link"
 import { AiFillHeart } from "react-icons/ai"
-import { BsChatDots, BsTrash3 } from "react-icons/bs"
-import { ImMusic } from "react-icons/im"
 import moment from "moment"
 import { useUser } from "@/app/context/user"
 import { useEffect, useState } from "react"
@@ -46,8 +44,8 @@ export default function CommentsHeader({ post, params }: CommentsHeaderCompTypes
             setUserLiked(false)
             return
         }
-        let res = useIsLiked(contextUser.user.id, params.postId, likesByPost)
-        setUserLiked(res)
+        const res = useIsLiked(contextUser.user.id, params.postId, likesByPost)
+        setUserLiked(!!res)
     }
 
     const handleLike = async () => {

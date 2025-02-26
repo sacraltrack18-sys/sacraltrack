@@ -67,6 +67,7 @@ export default function Home() {
                         image_url={post.image_url}
                         price={post.price}
                         mp3_url={post.mp3_url}
+                        m3u8_url={post.m3u8_url}
                         text={post.text}
                         trackname={post.trackname}
                         created_at={post.created_at}

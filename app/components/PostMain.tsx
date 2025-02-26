@@ -14,7 +14,7 @@ import { FiShare2 } from 'react-icons/fi';
 import ShareModal from './ShareModal';
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
-import getStripe from '@/libs/stripe';
+import getStripe from '@/libs/getStripe';
 import useCheckPurchasedTrack from '@/app/hooks/useCheckPurchasedTrack';
 
 interface Comment {
@@ -167,6 +167,7 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
 
         try {
             setIsProcessingPayment(true);
+            console.log('Starting purchase process');
 
             const response = await fetch("/api/checkout_sessions", {
                 method: "POST",
@@ -183,15 +184,18 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
                 }),
             });
 
+            console.log('Response from checkout session:', response);
+
             if (!response.ok) {
-                throw new Error('Payment initialization failed');
+                throw new Error('Инициализация платежа не удалась');
             }
 
             const data = await response.json();
+            console.log('Checkout session data:', data);
             
             const stripe = await getStripe();
             if (!stripe) {
-                throw new Error('Stripe failed to initialize');
+                throw new Error('Не удалось инициализировать Stripe');
             }
 
             const { error } = await stripe.redirectToCheckout({
@@ -203,8 +207,8 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
             }
 
         } catch (error: any) {
-            console.error('Purchase error:', error);
-            toast.error(error.message || 'Payment failed. Please try again.');
+            console.error('Ошибка покупки:', error);
+            toast.error(error.message || 'Платеж не удался. Пожалуйста, попробуйте снова.');
         } finally {
             setIsProcessingPayment(false);
         }

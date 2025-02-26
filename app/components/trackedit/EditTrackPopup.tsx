@@ -78,30 +78,26 @@ const EditTrackPopup: React.FC<EditTrackPopupProps> = ({ postData, onUpdate, onC
                 });
 
                 const mp3Result = await convertWavToMp3(fileAudio, (progress) => {
+                    const progressValue = Number(progress);
                     setProcessingStats({
                         stage: 'Converting WAV to MP3',
-                        progress: 20 + progress * 0.2,
-                        details: `Converting: ${Math.round(progress)}%`
+                        progress: 20 + progressValue * 0.2,
+                        details: `Converting: ${Math.round(progressValue)}%`
                     });
                 });
 
                 mp3File = new File([mp3Result], 'track.mp3', { type: 'audio/mp3' });
 
                 const segments = await segmentAudio(mp3File, (progress) => {
+                    const progressValue = Number(progress);
                     setProcessingStats({
                         stage: 'Creating segments',
-                        progress: 40 + progress * 0.4,
-                        details: `Segmenting: ${Math.round(progress)}%`
+                        progress: 40 + progressValue * 0.4,
+                        details: `Segmenting: ${Math.round(progressValue)}%`
                     });
                 });
 
-                const m3u8Data = await createM3U8File(segments, (progress) => {
-                    setProcessingStats({
-                        stage: 'Creating M3U8',
-                        progress: 80 + progress * 0.2,
-                        details: `Creating playlist: ${Math.round(progress)}%`
-                    });
-                });
+                const m3u8Data = await createM3U8File(segments as any);
 
                 m3u8Url = URL.createObjectURL(new Blob([m3u8Data]));
             }

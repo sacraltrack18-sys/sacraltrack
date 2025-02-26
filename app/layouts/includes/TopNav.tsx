@@ -8,7 +8,7 @@ import { useUser } from "@/app/context/user"
 import { useGeneralStore } from "@/app/stores/general"
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
 import { RandomUsers } from "@/app/types"
-import useSearchProfilesByName from "@/app/hooks/useSearchProfilesByName";
+import useSearchProfilesByName from "@/app/hooks/useSearchProfilesByName"
 import { useContext } from "react"
 import { Genre } from "@/app/types";
 import { GenreContext } from "@/app/context/GenreContext";
@@ -22,8 +22,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 
 
-
- 
 
 export default function TopNav({ params }: ProfilePageTypes) {    
     const userContext = useUser()
@@ -72,18 +70,18 @@ export default function TopNav({ params }: ProfilePageTypes) {
                             type: 'profile',
                         name: profile.name,
                         image: profile.image,
-                            user_id: profile.user_id
+                            user_id: profile.id
                         })) || []),
                         ...(trackResults?.map(track => ({
                             id: track.id,
                             type: 'track',
                             name: track.name,
                             image: track.image,
-                            user_id: track.user_id
+                          
                         })) || [])
                     ];
 
-                    setSearchProfiles(formattedResults);
+                    setSearchProfiles(formattedResults as (RandomUsers | Post)[]);
                 } catch (error) {
                     console.error('Search error:', error);
                     setSearchProfiles([]);
