@@ -47,14 +47,47 @@ export default function Login() {
     const handleGoogleLogin = async () => {
         try {
             setLoading(true);
+            const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/success` : 'http://localhost:3000/success';
+            const failureUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/fail` : 'http://localhost:3000/fail';
+
+            if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
+                throw new Error('Appwrite configuration is missing');
+            }
+
+            // Закрываем форму логина перед OAuth
+            setIsLoginOpen(false);
+
+            // Проверяем, существует ли уже сессия
+            try {
+                const session = await account.getSession('current');
+                if (session) {
+                    // Если сессия существует, перенаправляем на главную
+                    window.location.href = '/';
+                    return;
+                }
+            } catch (error) {
+                // Если сессии нет, продолжаем с OAuth
+                console.log('No existing session found');
+            }
+
             await account.createOAuth2Session(
                 'google',
-                'http://localhost:3000/success',
-                'http://localhost:3000/fail'
+                successUrl,
+                failureUrl
             );
-        } catch (error) {
+        } catch (error: any) {
             console.error('Google login error:', error);
-            toast.error('Failed to login with Google');
+            
+            if (error.code === 400) {
+                toast.error('Configuration error. Please check application settings.');
+            } else if (error.code === 401) {
+                toast.error('Authentication error. Please try again.');
+            } else if (error.code === 429) {
+                toast.error('Too many attempts. Please wait a few minutes.');
+            } else {
+                toast.error('Failed to login with Google. Please try again later.');
+            }
+            
             setLoading(false);
         }
     }
@@ -69,11 +102,10 @@ export default function Login() {
             await contextUser.login(email, password);
             setLoading(false);
             setIsLoginOpen(false);
-            toast.success('Welcome back to Sacral Track! 🎵');
         } catch (error) {
             console.error(error);
             setLoading(false);
-            toast.error('Invalid credentials');
+            toast.error('Неверные учетные данные');
         }
     }
 
@@ -82,7 +114,12 @@ export default function Login() {
             setLoading(true);
             await account.createVerification('http://localhost:3000/verify');
             setIsEmailSent(true);
-            toast.success('Verification email sent! Please check your inbox.');
+            toast.success('Verification email sent. Please check your inbox.');
+            
+            // Close form after sending email
+            setTimeout(() => {
+                setIsLoginOpen(false);
+            }, 2000);
         } catch (error) {
             console.error('Email verification error:', error);
             toast.error('Failed to send verification email');
@@ -396,7 +433,7 @@ export default function Login() {
                             <div className="bg-white/20 p-2 rounded-lg">
                                 <FiMail className="text-xl" />
                             </div>
-                            <p>Check your email for verification link!</p>
+                            <p>Check your email for verification!</p>
                         </div>
                     </motion.div>
                 )}

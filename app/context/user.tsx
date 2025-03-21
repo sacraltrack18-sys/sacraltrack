@@ -86,7 +86,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       
       console.log('Creating email session...');
       await account.createEmailSession(email, password);
-      
+
       console.log('Creating user profile...');
       await useCreateProfile(promise?.$id, name, String(process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID), '');
       

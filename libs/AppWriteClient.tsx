@@ -1,8 +1,9 @@
 import { Account, Avatars, Client, Databases, ID, Query, Storage, Permission, Role } from 'appwrite';
 
 // Добавляем логи для проверки переменных окружения
-console.log("[APPWRITE-CONFIG] URL:", process.env.NEXT_PUBLIC_APPWRITE_URL || 'не задано');
-console.log("[APPWRITE-CONFIG] Project ID:", process.env.NEXT_PUBLIC_ENDPOINT || 'не задано');
+console.log("[APPWRITE-CONFIG] Checking environment variables...");
+console.log("[APPWRITE-CONFIG] URL:", process.env.NEXT_PUBLIC_APPWRITE_URL || 'not set');
+console.log("[APPWRITE-CONFIG] Project ID:", process.env.NEXT_PUBLIC_ENDPOINT || 'not set');
 console.log("[APPWRITE-CONFIG] Database ID:", process.env.NEXT_PUBLIC_DATABASE_ID || 'не задано');
 console.log("[APPWRITE-CONFIG] Collection ID (Post):", process.env.NEXT_PUBLIC_COLLECTION_ID_POST || 'не задано');
 
@@ -10,14 +11,21 @@ console.log("[APPWRITE-CONFIG] Collection ID (Post):", process.env.NEXT_PUBLIC_C
 const client = new Client();
 
 try {
-  // Set up client
-  client
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL || '')
-    .setProject(process.env.NEXT_PUBLIC_ENDPOINT || '');
-  
-  console.log("[APPWRITE-CONFIG] Клиент Appwrite успешно инициализирован");
+    if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
+        throw new Error('NEXT_PUBLIC_APPWRITE_URL is not set');
+    }
+    if (!process.env.NEXT_PUBLIC_ENDPOINT) {
+        throw new Error('NEXT_PUBLIC_ENDPOINT is not set');
+    }
+
+    // Set up client
+    client
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL)
+        .setProject(process.env.NEXT_PUBLIC_ENDPOINT);
+    
+    console.log("[APPWRITE-CONFIG] Appwrite client successfully initialized");
 } catch (error) {
-  console.error("[APPWRITE-CONFIG] Ошибка при инициализации клиента Appwrite:", error);
+    console.error("[APPWRITE-CONFIG] Error initializing Appwrite client:", error);
 }
 
 // Initialize services

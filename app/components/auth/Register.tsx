@@ -67,14 +67,54 @@ export default function Register() {
     const handleGoogleRegister = async () => {
         try {
             setLoading(true);
+            
+            // Проверяем наличие необходимых переменных окружения
+            if (!process.env.NEXT_PUBLIC_APP_URL) {
+                throw new Error('APP_URL configuration is missing');
+            }
+            
+            if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
+                throw new Error('APPWRITE_URL configuration is missing');
+            }
+
+            // Закрываем форму регистрации перед редиректом
+            setIsRegisterOpen(false);
+
+            // Формируем URL для перенаправления
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '');
+            const successUrl = `${baseUrl}/success`;
+            const failureUrl = `${baseUrl}/fail`;
+
+            // Проверяем текущую сессию
+            try {
+                const session = await account.getSession('current');
+                if (session) {
+                    await account.deleteSession('current');
+                }
+            } catch (error) {
+                // Если сессии нет, это нормально
+                console.log('No existing session found');
+            }
+
+            // Создаем OAuth сессию
             await account.createOAuth2Session(
                 'google',
-                'http://localhost:3000/success',
-                'http://localhost:3000/fail'
+                successUrl,
+                failureUrl
             );
-        } catch (error) {
+        } catch (error: any) {
             console.error('Google registration error:', error);
-            toast.error('Failed to register with Google');
+            
+            if (error.code === 400) {
+                toast.error('Ошибка конфигурации. Пожалуйста, проверьте настройки приложения.');
+            } else if (error.code === 401) {
+                toast.error('Ошибка аутентификации. Попробуйте еще раз.');
+            } else if (error.code === 429) {
+                toast.error('Слишком много попыток. Подождите несколько минут.');
+            } else {
+                toast.error('Не удалось выполнить вход через Google. Попробуйте позже.');
+            }
+            
             setLoading(false);
         }
     }
@@ -108,14 +148,12 @@ export default function Register() {
             
             await contextUser.register(name, email, password);
             setRegistrationSuccess(true);
-            toast.success('Welcome to Sacral Track! 🎵');
             
             await account.createVerification('http://localhost:3000/verify');
             toast.success('Please check your email to verify your account');
             
-            setTimeout(() => {
-                setIsRegisterOpen(false);
-            }, 2000);
+            // Закрываем форму регистрации сразу после успешной регистрации
+            setIsRegisterOpen(false);
         } catch (error: any) {
             console.error('Registration error:', error);
             setLoading(false);

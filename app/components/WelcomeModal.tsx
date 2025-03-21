@@ -34,13 +34,13 @@ const WelcomeModal = () => {
   ];
 
   useEffect(() => {
-    // Always show the welcome modal at start
-    setIsVisible(true);
-    
     // Check if this is the first visit
     const hasVisited = localStorage.getItem('sacraltrack_welcomed');
     
     if (!hasVisited) {
+      // Show the welcome modal only on first visit
+      setIsVisible(true);
+      
       // Start the feature carousel
       const timer = setTimeout(() => {
         const interval = setInterval(() => {
