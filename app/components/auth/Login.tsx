@@ -5,7 +5,7 @@ import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
 import { BiLoaderCircle } from "react-icons/bi";
 import { FcGoogle } from "react-icons/fc";
-import { FiMail, FiLock, FiX } from "react-icons/fi";
+import { FiMail, FiLock, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 import { BsMusicNoteBeamed } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
@@ -21,6 +21,7 @@ export default function Login() {
     const [error, setError] = useState<ShowErrorObject | null>(null);
     const [isEmailSent, setIsEmailSent] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const showError = (type: string) => {
         if (error && Object.entries(error).length > 0 && error?.type == type) {
@@ -102,7 +103,7 @@ export default function Login() {
 
     return (
         <motion.div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -163,10 +164,55 @@ export default function Login() {
                                         }}
                                     />
                                     <div className="relative w-full h-full rounded-full overflow-hidden border-2 border-[#20DDBB]/30">
+                                        {/* Static placeholder that shows immediately */}
                                         <img 
+                                            src="/images/placeholder-avatar.svg" 
+                                            alt="Placeholder"
+                                            className="absolute inset-0 w-full h-full object-contain p-2"
+                                        />
+                                        
+                                        {/* Animated placeholder */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/20 via-[#8A2BE2]/20 to-[#20DDBB]/20">
+                                            <motion.div
+                                                className="absolute inset-0"
+                                                animate={{
+                                                    background: [
+                                                        "linear-gradient(0deg, rgba(32,221,187,0.2) 0%, rgba(138,43,226,0.2) 100%)",
+                                                        "linear-gradient(360deg, rgba(32,221,187,0.2) 0%, rgba(138,43,226,0.2) 100%)"
+                                                    ]
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    repeatType: "reverse",
+                                                    ease: "linear"
+                                                }}
+                                            />
+                                            <motion.div
+                                                className="absolute inset-0 flex items-center justify-center"
+                                                animate={{ rotate: 360 }}
+                                                transition={{
+                                                    duration: 8,
+                                                    repeat: Infinity,
+                                                    ease: "linear"
+                                                }}
+                                            >
+                                                <div className="w-12 h-12 border-t-2 border-[#20DDBB]/40 rounded-full" />
+                                            </motion.div>
+                                        </div>
+                                        
+                                        {/* Logo (if exists) */}
+                                        <motion.img 
                                             src="/logo.png" 
                                             alt="Sacral Track"
-                                            className="w-full h-full object-cover"
+                                            className="relative z-10 w-full h-full object-cover"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -222,12 +268,12 @@ export default function Login() {
                                     string={password}
                                     placeholder="Password"
                                     onUpdate={setPassword}
-                                    inputType="password"
+                                    inputType={showPassword ? "text" : "password"}
                                     error={showError('password')}
                                     className={`
                                         w-full bg-[#14151F]/60 border-2 
                                         ${error?.type === 'password' ? 'border-red-500' : 'border-[#2A2B3F]'} 
-                                        rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
+                                        rounded-xl p-4 pl-12 pr-12 text-white placeholder-[#818BAC]/50
                                         focus:border-[#20DDBB] focus:bg-[#14151F]/80
                                         transition-all duration-300
                                         group-hover:border-[#20DDBB]/50
@@ -237,6 +283,17 @@ export default function Login() {
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
                                     <FiLock className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818BAC] hover:text-[#20DDBB] transition-colors duration-300"
+                                >
+                                    {showPassword ? (
+                                        <FiEyeOff className="text-xl" />
+                                    ) : (
+                                        <FiEye className="text-xl" />
+                                    )}
+                                </button>
                             </div>
                         </motion.div>
 

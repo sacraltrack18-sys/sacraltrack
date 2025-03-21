@@ -1,12 +1,24 @@
 import { Account, Avatars, Client, Databases, ID, Query, Storage, Permission, Role } from 'appwrite';
 
+// Добавляем логи для проверки переменных окружения
+console.log("[APPWRITE-CONFIG] URL:", process.env.NEXT_PUBLIC_APPWRITE_URL || 'не задано');
+console.log("[APPWRITE-CONFIG] Project ID:", process.env.NEXT_PUBLIC_ENDPOINT || 'не задано');
+console.log("[APPWRITE-CONFIG] Database ID:", process.env.NEXT_PUBLIC_DATABASE_ID || 'не задано');
+console.log("[APPWRITE-CONFIG] Collection ID (Post):", process.env.NEXT_PUBLIC_COLLECTION_ID_POST || 'не задано');
+
 // Initialize Appwrite client
 const client = new Client();
 
-// Set up client
-client
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL || '')
-  .setProject(process.env.NEXT_PUBLIC_ENDPOINT || '');
+try {
+  // Set up client
+  client
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL || '')
+    .setProject(process.env.NEXT_PUBLIC_ENDPOINT || '');
+  
+  console.log("[APPWRITE-CONFIG] Клиент Appwrite успешно инициализирован");
+} catch (error) {
+  console.error("[APPWRITE-CONFIG] Ошибка при инициализации клиента Appwrite:", error);
+}
 
 // Initialize services
 const account = new Account(client);
@@ -24,6 +36,7 @@ export const checkAppwriteConfig = () => {
     projectId: process.env.NEXT_PUBLIC_ENDPOINT || 'не задано',
     databaseId: process.env.NEXT_PUBLIC_DATABASE_ID || 'не задано',
     profileCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE || 'не задано',
+    postCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_POST || 'не задано',
     friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || 'не задано'
   };
   
@@ -31,12 +44,21 @@ export const checkAppwriteConfig = () => {
     .filter(([_, value]) => value === 'не задано')
     .map(([key]) => key);
   
+  console.log("[APPWRITE-CONFIG] Результаты проверки конфигурации:", {
+    config,
+    isValid: missingVars.length === 0,
+    missingVars
+  });
+  
   return {
     config,
     isValid: missingVars.length === 0,
     missingVars
   };
 };
+
+// Проверяем конфигурацию при импорте
+checkAppwriteConfig();
 
 
 

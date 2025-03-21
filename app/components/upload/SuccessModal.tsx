@@ -1,6 +1,7 @@
 import React from 'react';
 import { BsCheckCircleFill } from 'react-icons/bs';
 import Link from 'next/link';
+import { useUser } from '@/app/context/user';
 
 interface SuccessModalProps {
     isOpen: boolean;
@@ -9,6 +10,10 @@ interface SuccessModalProps {
 }
 
 const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, trackId }) => {
+    // Get the user context to access the user ID
+    const userContext = useUser();
+    const userId = userContext?.user?.id;
+    
     if (!isOpen) return null;
 
     return (
@@ -33,7 +38,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, trackId })
                 {/* Action buttons */}
                 <div className="flex flex-col gap-3">
                     <Link
-                        href="/profile"
+                        href={userId ? `/profile/${userId}` : "/profile"}
                         className="w-full py-3 px-4 bg-gradient-to-r from-[#20DDBB] to-[#018CFD]
                                  rounded-xl text-white text-center font-medium
                                  transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]

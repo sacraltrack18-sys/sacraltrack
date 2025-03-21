@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background gradient -->
+    <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#20DDBB;stop-opacity:0.1" />
+            <stop offset="50%" style="stop-color:#8A2BE2;stop-opacity:0.1" />
+            <stop offset="100%" style="stop-color:#20DDBB;stop-opacity:0.1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="98" fill="url(#grad1)" stroke="#20DDBB" stroke-width="2" stroke-opacity="0.3"/>
+    
+    <!-- Stylized music note -->
+    <path d="M100 60C100 60 120 70 120 100C120 115 110 125 100 125C90 125 80 115 80 105C80 95 90 85 100 85"
+          stroke="#20DDBB" stroke-width="4" stroke-opacity="0.5" stroke-linecap="round" fill="none"/>
+    <circle cx="80" cy="105" r="8" fill="#20DDBB" fill-opacity="0.5"/>
+    
+    <!-- Decorative circles -->
+    <circle cx="140" cy="80" r="4" fill="#8A2BE2" fill-opacity="0.3"/>
+    <circle cx="60" cy="120" r="4" fill="#8A2BE2" fill-opacity="0.3"/>
+    <circle cx="130" cy="140" r="4" fill="#8A2BE2" fill-opacity="0.3"/>
+</svg> 

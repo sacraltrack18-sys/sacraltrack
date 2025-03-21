@@ -5,7 +5,7 @@ import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
 import { BiLoaderCircle } from "react-icons/bi";
 import { FcGoogle } from "react-icons/fc";
-import { FiMail, FiUser, FiLock, FiX } from "react-icons/fi";
+import { FiMail, FiUser, FiLock, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 import { BsMusicNoteBeamed } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
@@ -30,6 +30,9 @@ export default function Register() {
     const [confirmPassword, setConfirmPassword] = useState<string>('');
     const [error, setError] = useState<ShowErrorObject | null>(null);
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [lastAttemptTime, setLastAttemptTime] = useState<number>(0);
 
     const showError = (type: string) => {
         if (error && Object.entries(error).length > 0 && error?.type == type) {
@@ -81,9 +84,29 @@ export default function Register() {
         if (isError) return;
         if (!contextUser) return;
 
+        // Check if enough time has passed since the last attempt
+        const now = Date.now();
+        const timeSinceLastAttempt = now - lastAttemptTime;
+        const requiredDelay = 5000; // 5 seconds delay between attempts
+
+        if (timeSinceLastAttempt < requiredDelay) {
+            const remainingTime = Math.ceil((requiredDelay - timeSinceLastAttempt) / 1000);
+            toast.error(`Please wait ${remainingTime} seconds before trying again`, {
+                duration: 3000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #EF4444'
+                }
+            });
+            return;
+        }
+
         try {
             setLoading(true);
-            await contextUser.register(email, password, name);
+            setLastAttemptTime(now);
+            
+            await contextUser.register(name, email, password);
             setRegistrationSuccess(true);
             toast.success('Welcome to Sacral Track! 🎵');
             
@@ -93,10 +116,78 @@ export default function Register() {
             setTimeout(() => {
                 setIsRegisterOpen(false);
             }, 2000);
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error('Registration error:', error);
             setLoading(false);
-            toast.error('Registration failed. Please try again.');
+            
+            // Handle rate limit error specifically
+            if (error.message.includes('rate limit') || error.message.includes('too many attempts')) {
+                toast.error('Too many registration attempts. Please try again in a few minutes.', {
+                    duration: 5000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #EF4444'
+                    }
+                });
+                return;
+            }
+
+            // Handle session exists error
+            if (error.message.includes('log out before creating')) {
+                toast.error('Please log out of your current account before registering a new one', {
+                    duration: 5000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #EF4444'
+                    }
+                });
+
+                // Add a logout button to the toast
+                toast((t) => (
+                    <div className="flex items-center gap-4">
+                        <span>Already logged in.</span>
+                        <button
+                            onClick={async () => {
+                                await contextUser.logout();
+                                toast.dismiss(t.id);
+                                // Try registration again after logout
+                                register();
+                            }}
+                            className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1CB99A] transition-colors"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                ), {
+                    duration: 10000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #20DDBB'
+                    }
+                });
+                return;
+            }
+            
+            // Display the specific error message from the user context
+            const errorMessage = error.message || 'Registration failed. Please try again.';
+            toast.error(errorMessage, {
+                duration: 5000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #EF4444'
+                }
+            });
+
+            // Set appropriate field error if we can identify it
+            if (errorMessage.includes('email')) {
+                setError({ type: 'email', message: errorMessage });
+            } else if (errorMessage.includes('password')) {
+                setError({ type: 'password', message: errorMessage });
+            }
         }
     }
 
@@ -112,7 +203,7 @@ export default function Register() {
 
     return (
         <motion.div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -173,10 +264,55 @@ export default function Register() {
                                         }}
                                     />
                                     <div className="relative w-full h-full rounded-full overflow-hidden border-2 border-[#20DDBB]/30">
+                                        {/* Static placeholder that shows immediately */}
                                         <img 
+                                            src="/images/placeholder-avatar.svg" 
+                                            alt="Placeholder"
+                                            className="absolute inset-0 w-full h-full object-contain p-2"
+                                        />
+                                        
+                                        {/* Animated placeholder */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/20 via-[#8A2BE2]/20 to-[#20DDBB]/20">
+                                            <motion.div
+                                                className="absolute inset-0"
+                                                animate={{
+                                                    background: [
+                                                        "linear-gradient(0deg, rgba(32,221,187,0.2) 0%, rgba(138,43,226,0.2) 100%)",
+                                                        "linear-gradient(360deg, rgba(32,221,187,0.2) 0%, rgba(138,43,226,0.2) 100%)"
+                                                    ]
+                                                }}
+                                                transition={{
+                                                    duration: 3,
+                                                    repeat: Infinity,
+                                                    repeatType: "reverse",
+                                                    ease: "linear"
+                                                }}
+                                            />
+                                            <motion.div
+                                                className="absolute inset-0 flex items-center justify-center"
+                                                animate={{ rotate: 360 }}
+                                                transition={{
+                                                    duration: 8,
+                                                    repeat: Infinity,
+                                                    ease: "linear"
+                                                }}
+                                            >
+                                                <div className="w-12 h-12 border-t-2 border-[#20DDBB]/40 rounded-full" />
+                                            </motion.div>
+                                        </div>
+                                        
+                                        {/* Logo (if exists) */}
+                                        <motion.img 
                                             src="/logo.png" 
                                             alt="Sacral Track"
-                                            className="w-full h-full object-cover"
+                                            className="relative z-10 w-full h-full object-cover"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -252,12 +388,12 @@ export default function Register() {
                                     string={password}
                                     placeholder="Password"
                                     onUpdate={setPassword}
-                                    inputType="password"
+                                    inputType={showPassword ? "text" : "password"}
                                     error={showError('password')}
                                     className={`
                                         w-full bg-[#14151F]/60 border-2 
                                         ${error?.type === 'password' ? 'border-red-500' : 'border-[#2A2B3F]'} 
-                                        rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
+                                        rounded-xl p-4 pl-12 pr-12 text-white placeholder-[#818BAC]/50
                                         focus:border-[#20DDBB] focus:bg-[#14151F]/80
                                         transition-all duration-300
                                         group-hover:border-[#20DDBB]/50
@@ -266,6 +402,17 @@ export default function Register() {
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
                                     <FiLock className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818BAC] hover:text-[#20DDBB] transition-colors duration-300"
+                                >
+                                    {showPassword ? (
+                                        <FiEyeOff className="text-xl" />
+                                    ) : (
+                                        <FiEye className="text-xl" />
+                                    )}
+                                </button>
                             </div>
 
                             <div className="relative group">
@@ -273,12 +420,12 @@ export default function Register() {
                                     string={confirmPassword}
                                     placeholder="Confirm Password"
                                     onUpdate={setConfirmPassword}
-                                    inputType="password"
+                                    inputType={showConfirmPassword ? "text" : "password"}
                                     error={showError('confirmPassword')}
                                     className={`
                                         w-full bg-[#14151F]/60 border-2 
                                         ${error?.type === 'confirmPassword' ? 'border-red-500' : 'border-[#2A2B3F]'} 
-                                        rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
+                                        rounded-xl p-4 pl-12 pr-12 text-white placeholder-[#818BAC]/50
                                         focus:border-[#20DDBB] focus:bg-[#14151F]/80
                                         transition-all duration-300
                                         group-hover:border-[#20DDBB]/50
@@ -287,6 +434,17 @@ export default function Register() {
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
                                     <FiLock className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818BAC] hover:text-[#20DDBB] transition-colors duration-300"
+                                >
+                                    {showConfirmPassword ? (
+                                        <FiEyeOff className="text-xl" />
+                                    ) : (
+                                        <FiEye className="text-xl" />
+                                    )}
+                                </button>
                             </div>
                         </motion.div>
 

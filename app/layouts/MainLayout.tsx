@@ -20,12 +20,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     const { setIsLoginOpen } = useGeneralStore();
 
-    useEffect(() => {
-        if (!userContext?.user) {
-            router.push('/');
-        }
-    }, [userContext?.user, router]);
-
     return (
 		<>
 			<TopNav params={{ id: userContext?.user?.id as string }} />

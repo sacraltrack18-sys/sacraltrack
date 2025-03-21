@@ -60,24 +60,70 @@ export const usePostStore = create<PostStore>()(
             hasMore: true,
             allPosts: genre === 'all' 
               ? result 
-              : result.filter(post => post.genre?.toLowerCase() === genre.toLowerCase())
+              : result.filter((post: PostWithProfile) => post.genre?.toLowerCase() === genre.toLowerCase())
           }));
         },
 
         setAllPosts: async () => {
-          const result = await useGetAllPosts();
-          const { selectedGenre } = get();
-          const filteredPosts = selectedGenre === 'all' 
-            ? result.slice(0, 5)
-            : result
-                .filter(post => post.genre?.toLowerCase() === selectedGenre)
-                .slice(0, 5);
-
-          set({ 
-            allPosts: filteredPosts,
-            hasMore: result.length > 5,
-            page: 2
-          });
+          console.log("[DEBUG] Starting post loading");
+          set({ isLoading: true });
+          
+          try {
+            const result = await useGetAllPosts();
+            
+            if (!result) {
+              console.error("[DEBUG] Empty result received from useGetAllPosts");
+              set({ 
+                isLoading: false,
+                allPosts: []
+              });
+              return;
+            }
+            
+            console.log("[DEBUG] Data received from Appwrite:", result);
+            console.log("[DEBUG] Number of posts in result:", result?.length || 0);
+            
+            const { selectedGenre, page } = get();
+            console.log("[DEBUG] Current genre:", selectedGenre, "Current page:", page);
+            
+            // Filter posts by selected genre
+            const filteredPosts = selectedGenre === 'all' 
+              ? result 
+              : result.filter((post: PostWithProfile) => post.genre?.toLowerCase() === selectedGenre.toLowerCase());
+            
+            console.log("[DEBUG] Posts after genre filtering:", filteredPosts?.length || 0);
+            
+            // For first load, show first 5 posts
+            if (page <= 1) {
+              const postsToShow = filteredPosts.slice(0, 5);
+              console.log("[DEBUG] Loading first posts. Displaying:", postsToShow?.length || 0);
+              
+              set({ 
+                allPosts: postsToShow,
+                hasMore: filteredPosts.length > 5,
+                page: 2,
+                isLoading: false
+              });
+            } else {
+              // For subsequent updates, maintain current scroll position
+              const currentlyLoadedCount = Math.max((page - 1) * 5, 5); // Ensure at least 5 posts
+              const postsToShow = filteredPosts.slice(0, currentlyLoadedCount);
+              console.log("[DEBUG] Updating existing posts. Displaying:", postsToShow?.length || 0);
+              
+              set({ 
+                allPosts: postsToShow,
+                hasMore: filteredPosts.length > currentlyLoadedCount,
+                isLoading: false
+              });
+            }
+          } catch (error) {
+            console.error('[DEBUG] Error loading posts:', error);
+            set({ 
+              isLoading: false,
+              // Don't reset allPosts to an empty array if data was previously loaded
+              ...(get().allPosts.length === 0 ? { allPosts: [] } : {})
+            });
+          }
         },
         
         setPostsByUser: async (userId: string) => {
@@ -123,7 +169,7 @@ export const usePostStore = create<PostStore>()(
         
             // Filter the allPosts array to only include tracks that match the query
             const filteredPosts = allPosts
-              .filter((post) => post.trackname && post.trackname.toLowerCase().includes(query.toLowerCase()))
+              .filter((post: PostWithProfile) => post.trackname && post.trackname.toLowerCase().includes(query.toLowerCase()))
               .map((post) => ({
                 id: post.id,
                 name: post.trackname,
@@ -142,29 +188,58 @@ export const usePostStore = create<PostStore>()(
         setPage: (page: number) => set({ page }),
 
         loadMorePosts: async () => {
+          console.log("[DEBUG] Loading more posts...");
+          const { page, selectedGenre, allPosts, isLoading } = get();
+          
+          // Prevent multiple simultaneous loading requests
+          if (isLoading) {
+            console.log("[DEBUG] Already loading posts, skipping...");
+            return;
+          }
+          
           try {
             set({ isLoading: true });
-            const result = await useGetAllPosts();
-            const { page, selectedGenre } = get();
             
+            const result = await useGetAllPosts();
+            if (!result || result.length === 0) {
+              console.log("[DEBUG] No posts received from API");
+              set({ hasMore: false, isLoading: false });
+              return;
+            }
+            
+            // Filter by genre if needed
             const filteredPosts = selectedGenre === 'all' 
               ? result 
-              : result.filter(post => post.genre?.toLowerCase() === selectedGenre);
-
-            const startIndex = (page - 1) * 5;
-            const newPosts = filteredPosts.slice(startIndex, startIndex + 5);
-
-            if (newPosts.length < 5 || startIndex + 5 >= filteredPosts.length) {
-              set({ hasMore: false });
+              : result.filter((post: PostWithProfile) => post.genre?.toLowerCase() === selectedGenre.toLowerCase());
+            
+            // Calculate the correct slice for pagination
+            const currentCount = allPosts.length;
+            const postsPerPage = 5;
+            const nextPosts = filteredPosts.slice(currentCount, currentCount + postsPerPage);
+            
+            console.log("[DEBUG] Current posts count:", currentCount);
+            console.log("[DEBUG] New posts to add:", nextPosts.length);
+            console.log("[DEBUG] Total available posts:", filteredPosts.length);
+            
+            // Check if we've reached the end
+            const hasMorePosts = currentCount + postsPerPage < filteredPosts.length;
+            
+            // Only update if we have new posts to add
+            if (nextPosts.length > 0) {
+              set((state) => ({
+                allPosts: [...state.allPosts, ...nextPosts],
+                page: state.page + 1,
+                hasMore: hasMorePosts,
+                isLoading: false
+              }));
+            } else {
+              set({ 
+                hasMore: false,
+                isLoading: false
+              });
             }
-
-            set((state) => ({
-              allPosts: [...state.allPosts, ...newPosts],
-              page: state.page + 1,
-            }));
           } catch (error) {
-            console.error('Error loading more posts:', error);
-          } finally {
+            console.error('[DEBUG] Error loading more posts:', error);
             set({ isLoading: false });
           }
         },
@@ -172,6 +247,21 @@ export const usePostStore = create<PostStore>()(
       {
         name: "post-store",
         storage: createJSONStorage(() => localStorage),
+        partialize: (state) => ({
+          // Only persist these specific states
+          allPosts: state.allPosts,
+          postsByUser: state.postsByUser,
+          postById: state.postById,
+          page: state.page,
+          hasMore: state.hasMore,
+          // Explicitly NOT persisting selectedGenre so it resets to "all" on refresh
+        }),
+        onRehydrateStorage: () => (state) => {
+          // Force selectedGenre to "all" after rehydration
+          if (state) {
+            state.selectedGenre = "all";
+          }
+        },
       }
     )
   )

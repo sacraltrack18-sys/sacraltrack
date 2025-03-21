@@ -51,12 +51,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <UserProvider>
                         <CartProvider>
                             <Toaster 
-                                position="top-right"
+                                position="top-center"
+                                containerStyle={{
+                                    zIndex: 10000000
+                                }}
                                 toastOptions={{
                                     duration: 3000,
                                     style: {
                                         background: '#272B43',
                                         color: '#fff',
+                                        zIndex: 10000000
                                     },
                                     success: {
                                         iconTheme: {
