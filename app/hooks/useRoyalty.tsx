@@ -6,7 +6,7 @@ const useRoyalty = () => {
     try {
       const response = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTIES!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
         [
           Query.equal('author_id', authorId),
           Query.orderDesc('transaction_date')

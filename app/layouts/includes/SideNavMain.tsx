@@ -16,7 +16,7 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
     const router = useRouter()
     const pathname = usePathname()
 
-    let { setCurrentProfile, currentProfile } = useProfileStore()
+    let { setCurrentProfile, currentProfile } = useProfileStore() as any
     let { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore()
 
     useEffect(() => {

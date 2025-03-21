@@ -1,33 +1,32 @@
-import { TextInputCompTypes } from "../types"
+import { ChangeEventHandler, FocusEventHandler } from "react";
 
-export default function TextInput({ string, inputType, placeholder, error, onUpdate }: TextInputCompTypes) {
+interface TextInputProps {
+    string: string;
+    placeholder?: string;
+    inputType?: string;
+    error?: string;
+    onUpdate: (value: string) => void;
+    className?: string;
+}
 
-  return (
-    <>
-        <input 
-            placeholder={placeholder}
-            className="
-                block
-                w-full
-                bg-[#272B43]
-                text-[white]
-                text-[13px]
-
-                rounded-2xl
-                py-4
-                px-3
-                focus:outline-none
-                focus:bg-[#2b2f4b]
-            " 
-            value={string || ''}
-            onChange={(event) => onUpdate(event.target.value)}
+export default function TextInput({ string, placeholder, inputType = "text", error, onUpdate, className }: TextInputProps) {
+    return (
+        <input
             type={inputType}
-            autoComplete="off"
+            value={string}
+            placeholder={placeholder}
+            className={`
+                ${className}
+                bg-[#14151F]/60 
+                text-white 
+                placeholder-[#818BAC]/50
+                focus:outline-none
+                focus:ring-0
+                focus:border-[#20DDBB]
+                transition-all
+                duration-300
+            `}
+            onChange={(e) => onUpdate(e.target.value)}
         />
-
-        <div className="text-[#F44747] text-[12px] font-semibold mt-2">
-            {error ? (error) : null}
-        </div>
-    </>
-  )
+    );
 }

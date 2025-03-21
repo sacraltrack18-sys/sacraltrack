@@ -1,60 +1,52 @@
 /** @type {import('next').NextConfig} */
-const webpack = require('webpack');
-
 const nextConfig = {
-    webpack: (config, { isServer }) => {
-        // Добавляем правило для обработки бинарного модуля canvas.node
-        config.module.rules.push({ test: /\.node$/, use: 'raw-loader' });
-
-        // Исключаем canvas из обработки Next.js в браузере
-        if (!isServer) config.externals.push('canvas');
-
-        if (!isServer) {
-            config.resolve.alias = {
-              'fluent-ffmpeg': false
-            };
-        }
-
-        config.plugins.push(
-            new webpack.DefinePlugin({
-                'process.env.FLUENTFFMPEG_COV': false
-            })
-        );
-
-        return config;
-    },
-    // Добавляем заголовки безопасности
-    async headers() {
-        return [
-            {
-                source: '/:path*',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'credentialless'
-                    },
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    },
-                    {
-                        key: 'Cross-Origin-Resource-Policy',
-                        value: 'cross-origin'
-                    }
-                ]
-            }
-        ];
-    },
     images: {
-        domains: ['cloud.appwrite.io', 'mc.yandex.ru'],
+        domains: ['localhost', 'sacraltrack.space', 'cloud.appwrite.io'],
         remotePatterns: [
             {
                 protocol: 'https',
+                hostname: '**',
+            },
+            {
+                protocol: 'http',
+                hostname: '**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'sacraltrack.space',
+            },
+            {
+                protocol: 'https',
+                hostname: '*.netlify.app',
+            },
+            {
+                protocol: 'https',
                 hostname: 'cloud.appwrite.io',
-                pathname: '/**',
+            }
+        ],
+        unoptimized: process.env.NODE_ENV === 'development'
+    },
+    async headers() {
+        return [
+            {
+                source: '/(.*)',
+                headers: [
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: 'https://sacraltrack.space, https://cloud.appwrite.io, https://*.netlify.app'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, PUT, DELETE, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization'
+                    }
+                ]
             }
         ]
-    },
+    }
 };
 
 module.exports = nextConfig;

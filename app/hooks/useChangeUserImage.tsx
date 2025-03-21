@@ -4,48 +4,57 @@ import Image from "image-js";
 const useChangeUserImage = async (file: File, cropper: any, currentImage: string) => {
     let audioId = Math.random().toString(36).slice(2, 22);
 
-    const x = cropper.left;
-    const y = cropper.top;
-    const width = cropper.width;
-    const height = cropper.height;
-
-    console.log('useChangeUserImage called with:', { file, cropper, currentImage });
-
     try {
         const response = await fetch(URL.createObjectURL(file));
         const imageBuffer = await response.arrayBuffer();
         
-        console.log('Loaded image buffer:', imageBuffer);
-
+        // Load the image
         const image = await Image.load(imageBuffer);
         
-        console.log('Loaded image:', image);
-
-        const croppedImage = image.crop({ x, y, width, height });
+        // Размер для хранения - сохраняем пропорции и не обрезаем изображение
+        const MAX_DIMENSION = 400; // Максимальный размер любой из сторон
+        let width = image.width;
+        let height = image.height;
         
-        console.log('Cropped image:', croppedImage);
-
-        const resizedImage = croppedImage.resize({ width: 200, height: 200 });
+        // Уменьшаем размер изображения, сохраняя пропорции
+        if (width > height) {
+            if (width > MAX_DIMENSION) {
+                height = (height * MAX_DIMENSION) / width;
+                width = MAX_DIMENSION;
+            }
+        } else {
+            if (height > MAX_DIMENSION) {
+                width = (width * MAX_DIMENSION) / height;
+                height = MAX_DIMENSION;
+            }
+        }
         
-        console.log('Resized image:', resizedImage);
-
+        // Масштабируем изображение
+        const resizedImage = image.resize({ width: Math.round(width), height: Math.round(height) });
+        
+        // Конвертируем в blob для загрузки
         const blob = await resizedImage.toBlob();
-        
-        console.log('Blob:', blob);
-
         const arrayBuffer = await blob.arrayBuffer();
         const finalFile = new File([arrayBuffer], file.name, { type: blob.type });
 
-        console.log('Final file to upload:', finalFile);
+        // Загружаем файл
+        const result = await storage.createFile(
+            String(process.env.NEXT_PUBLIC_BUCKET_ID), 
+            audioId, 
+            finalFile
+        );
 
-        const result = await storage.createFile(String(process.env.NEXT_PUBLIC_BUCKET_ID), audioId, finalFile);
-
-        console.log('File uploaded, ID:', result?.$id);
-
-        // if current image is not default image delete
-        if (currentImage !== String(process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID)) {
-            await storage.deleteFile(String(process.env.NEXT_PUBLIC_BUCKET_ID), currentImage);
-            console.log('Old file deleted:', currentImage);
+        // Удаляем старое изображение
+        if (currentImage && 
+            currentImage !== String(process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID) &&
+            currentImage !== "undefined" && 
+            currentImage !== "null") {
+            try {
+                await storage.deleteFile(String(process.env.NEXT_PUBLIC_BUCKET_ID), currentImage);
+            } catch (error) {
+                console.warn('Failed to delete old image:', error);
+                // Продолжаем даже если не удалось удалить старое изображение
+            }
         }
 
         return result?.$id;

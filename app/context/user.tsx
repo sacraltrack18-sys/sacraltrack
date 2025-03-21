@@ -15,14 +15,33 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const checkUser = async () => {
     try {
+      console.log('Checking user session...');
       const currentSession = await account.getSession("current");
-      if (!currentSession) return
+      console.log('Current session:', currentSession);
+      
+      if (!currentSession) {
+        console.log('No current session found');
+        return;
+      }
 
-      const promise = await account.get() as any
-      const profile = await useGetProfileByUserId(promise?.$id)
+      console.log('Getting user account...');
+      const promise = await account.get() as any;
+      console.log('User account:', promise);
+      
+      console.log('Getting user profile...');
+      const profile = await useGetProfileByUserId(promise?.$id);
+      console.log('User profile:', profile);
 
-      setUser({ id: promise?.$id, name: promise?.name,  bio: profile?.bio, image: profile?.image });
+      const userData = { 
+        id: promise?.$id, 
+        name: promise?.name,  
+        bio: profile?.bio, 
+        image: profile?.image 
+      };
+      console.log('Setting user data:', userData);
+      setUser(userData);
     } catch (error) {
+      console.error('Error in checkUser:', error);
       setUser(null);
     }
   };

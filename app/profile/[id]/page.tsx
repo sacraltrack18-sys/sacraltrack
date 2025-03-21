@@ -5,7 +5,7 @@ import ProfileLayout from "@/app/layouts/ProfileLayout";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useUser } from "@/app/context/user";
 import ClientOnly from "@/app/components/ClientOnly";
-import { ProfilePageTypes } from "@/app/types";
+import { ProfilePageTypes, ProfileStore } from "@/app/types";
 import { usePostStore } from "@/app/stores/post";
 import { useProfileStore } from "@/app/stores/profile";
 import { useGeneralStore } from "@/app/stores/general";
@@ -22,7 +22,7 @@ export default function Profile({ params }: ProfilePageTypes) {
 
   const contextUser = useUser()
   const { postsByUser, setPostsByUser } = usePostStore()
-  const { setCurrentProfile, currentProfile } = useProfileStore()
+  const { setCurrentProfile, currentProfile } = useProfileStore() as ProfileStore
   const { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore()
 
   const { showPaidPosts, hidePostUser } = useDownloadsStore();

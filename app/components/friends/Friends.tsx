@@ -9,7 +9,7 @@ import PostUser from "@/app/components/profile/PostUser"
 import MainLayout from "@/app/layouts/MainLayout"
 import { BsPencil } from "react-icons/bs"
 
-import { ProfilePageTypes, User } from "@/app/types"
+import { ProfilePageTypes } from "@/app/types"
 
 interface Friend {
   id: string;

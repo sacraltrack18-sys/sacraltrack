@@ -256,7 +256,10 @@ export interface CommentsHeaderCompTypes {
 
 
 export interface CommentsCompTypes {
-    params: { userId: string; postId: string; };
+    params: { 
+        userId: string; 
+        postId: string; 
+    };
 }
 
 export interface PostPageTypes {

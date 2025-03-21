@@ -19,6 +19,23 @@ export interface Post {
     // Add other properties as needed
 }
 
+export interface User {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+    created_at?: string;
+}
+
+export interface Profile {
+    user_id: string;
+    name: string;
+    image: string;
+    created_at?: string;
+    genre?: string;
+    bio?: string;
+}
+
 export interface PostWithProfile extends Post {
     m3u8_url: string | null;
     updated_at: string; // Add any additional properties
@@ -45,4 +62,39 @@ export interface RoyaltyTransaction {
     purchase_id: string;
     status: string;
     // Add other properties as needed
+}
+
+export interface PostMainCompTypes {
+    post: {
+        id: string;
+        user_id: string;
+        trackname: string;
+        description?: string;
+        genre: string;
+        image_url: string;
+        audio_url: string;
+        m3u8_url: string;
+        profile: {
+            user_id: string;
+            name: string;
+            image: string;
+        };
+    };
+}
+
+export interface ProfilePageTypes {
+    user: User;
+    profile: Profile;
+    isOwnProfile: boolean;
+}
+
+export interface CommentWithProfile {
+    id: string;
+    text: string;
+    created_at: string;
+    profile: {
+        user_id: string;
+        name: string;
+        image: string;
+    };
 } 

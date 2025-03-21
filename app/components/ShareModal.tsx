@@ -8,8 +8,8 @@ import { PostWithProfile } from '@/app/types';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
 
 interface ShareModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+    isOpen: boolean;
+    onClose: () => void;
     post: PostWithProfile;
 }
 
@@ -22,10 +22,16 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
         : '';
 
     const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-            toast.success('Link copied to clipboard!');
-    } catch (err) {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success('Link copied!', {
+                icon: '🔗',
+                style: {
+                    background: '#20DDBB',
+                    color: '#000',
+                }
+            });
+        } catch (err) {
             toast.error('Failed to copy link');
         }
     };
@@ -33,119 +39,160 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
     const shareLinks = [
         {
             name: 'Telegram',
-            icon: <FaTelegramPlane size={20} />,
+            icon: <FaTelegramPlane size={24} />,
             href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(
-                `🎵 ${post.trackname}\n👤 ${post.profile.name}\n🎧 ${post.genre}\n\nListen on Sacral Track`
+                `🎵 ${post.trackname}\n👤 ${post.profile.name}\n🎧 Listen on Sacral Track`
             )}`
         },
         {
             name: 'VK',
-            icon: <FaVk size={20} />,
+            icon: <FaVk size={24} />,
             href: `https://vk.com/share.php?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(
                 `${post.trackname} by ${post.profile.name}`
             )}&description=${encodeURIComponent(
-                `Genre: ${post.genre}\nListen on Sacral Track`
+                `Listen on Sacral Track`
             )}&image=${encodeURIComponent(imageUrl || '')}`
         }
     ];
 
-  return (
-        <AnimatePresence>
+    return (
+        <AnimatePresence mode="wait">
             {isOpen && (
                 <>
+                    {/* Backdrop with blur effect */}
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                        animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
+                        exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                        transition={{ duration: 0.3 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/50 z-50"
+                        className="fixed inset-0 bg-black/40 z-[100]"
+                        style={{ backdropFilter: 'blur(8px)' }}
                     />
+
+                    {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.75, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 0 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.75, y: 20 }}
-                        transition={{ type: "spring", duration: 0.5 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
-                                 bg-[#24183D] rounded-2xl p-6 shadow-xl z-50 w-[90%] max-w-md"
+                        exit={{ opacity: 0, scale: 0.95, y: 0 }}
+                        transition={{ 
+                            type: "spring",
+                            damping: 25,
+                            stiffness: 300
+                        }}
+                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                                 bg-[#24183D]/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8
+                                 shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10
+                                 z-[101] w-[95%] sm:w-[90%] max-w-md mx-auto
+                                 max-h-[90vh] overflow-y-auto
+                                 flex flex-col"
                     >
-                        {/* Track Info */}
-                        <div className="flex items-start gap-4 mb-6 p-4 bg-[#2E2469] rounded-xl">
-                            <img 
+                        {/* Close button */}
+                        <motion.button
+                            whileHover={{ scale: 1.1, rotate: 90 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={onClose}
+                            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-white/60 hover:text-white
+                                     transition-colors w-8 h-8 flex items-center justify-center
+                                     rounded-full bg-white/5 hover:bg-white/10 z-10"
+                        >
+                            ✕
+                        </motion.button>
+
+                        {/* Track Info Card */}
+                        <motion.div 
+                            initial={{ y: 10, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.1 }}
+                            className="flex items-start gap-4 mb-6 sm:mb-8 p-3 sm:p-4 
+                                     bg-white/5 rounded-2xl border border-white/5
+                                     hover:border-[#20DDBB]/20 transition-all duration-300"
+                        >
+                            <motion.img 
+                                whileHover={{ scale: 1.05 }}
                                 src={imageUrl || '/images/placeholder-track.jpg'} 
                                 alt={post.trackname}
-                                className="w-20 h-20 rounded-lg object-cover"
+                                className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover ring-2 ring-white/10"
                             />
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-white font-medium text-lg truncate">
+                                <h3 className="text-white font-medium text-lg sm:text-xl truncate mb-2">
                                     {post.trackname}
                                 </h3>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center gap-2">
                                     <img 
                                         src={avatarUrl || '/images/placeholder-user.jpg'} 
                                         alt={post.profile.name}
-                                        className="w-4 h-4 rounded-full"
+                                        className="w-5 h-5 rounded-full ring-1 ring-white/20"
                                     />
-                                    <p className="text-[#818BAC] text-sm truncate">
+                                    <p className="text-[#818BAC] truncate text-sm sm:text-base">
                                         {post.profile.name}
                                     </p>
                                 </div>
-                                <p className="text-[#20DDBB] text-sm mt-1">
-                                    {post.genre}
-                                </p>
                             </div>
-                        </div>
+                        </motion.div>
 
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-white text-lg font-medium">Share Track</h3>
-                            <button 
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-white transition-colors"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="flex gap-4 mb-6">
-                            {shareLinks.map((link) => (
+                        {/* Share buttons */}
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                            {shareLinks.map((link, index) => (
                                 <motion.a
                                     key={link.name}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 + index * 0.1 }}
                                     href={link.href}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="flex-1 flex flex-col items-center gap-2 p-4 
-                                             bg-[#2E2469] rounded-xl text-white hover:bg-[#20DDBB] 
-                                             hover:text-black transition-all duration-200"
+                                    className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-4 
+                                             bg-white/5 rounded-2xl border border-white/5
+                                             hover:border-[#20DDBB]/20 hover:bg-[#20DDBB]/5
+                                             transition-all duration-300 group"
                                 >
-                                    {link.icon}
-                                    <span className="text-sm">{link.name}</span>
+                                    <motion.div
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="text-white/70 group-hover:text-[#20DDBB] transition-colors"
+                                    >
+                                        {link.icon}
+                                    </motion.div>
+                                    <span className="text-xs sm:text-sm text-white/70 group-hover:text-white transition-colors">
+                                        {link.name}
+                                    </span>
                                 </motion.a>
                             ))}
                         </div>
 
-                        <div className="relative">
-              <input
-                type="text"
-                value={shareUrl}
-                readOnly
-                                className="w-full px-4 py-3 bg-[#2E2469] text-white rounded-xl 
-                                         focus:outline-none focus:ring-2 focus:ring-[#20DDBB]"
-              />
-              <button
+                        {/* Copy link section */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="relative mt-auto"
+                        >
+                            <input
+                                type="text"
+                                value={shareUrl}
+                                readOnly
+                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 text-white/70 rounded-xl
+                                         border border-white/5 focus:outline-none focus:border-[#20DDBB]/30
+                                         transition-all duration-300 text-sm sm:text-base"
+                            />
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={handleCopy}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 
-                                         p-2 hover:bg-[#20DDBB] rounded-lg 
-                                         text-white hover:text-black transition-all duration-200"
+                                         p-1.5 sm:p-2 hover:bg-[#20DDBB] rounded-lg
+                                         text-white/70 hover:text-black transition-all duration-300
+                                         bg-white/5"
                             >
-                                <FiCopy size={20} />
-              </button>
-            </div>
+                                <FiCopy size={18} className="sm:w-5 sm:h-5" />
+                            </motion.button>
+                        </motion.div>
                     </motion.div>
                 </>
             )}
         </AnimatePresence>
-  );
+    );
 };
 
 export default ShareModal;

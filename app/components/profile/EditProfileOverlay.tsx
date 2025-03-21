@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Cropper } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css'
 import TextInput from "../TextInput";
@@ -17,35 +17,116 @@ import useUpdateProfileImage from "@/app/hooks/useUpdateProfileImage";
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-hot-toast';
- 
-export default function EditProfileOverlay() {
-    
-    let { currentProfile, setCurrentProfile } = useProfileStore()
-    let { setIsEditProfileOpen } = useGeneralStore()
+import { IoClose, IoCamera, IoImageOutline, IoCloudUploadOutline, IoCheckmarkCircle } from "react-icons/io5";
 
-    const contextUser = useUser()
-    const router = useRouter()
+const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+        opacity: 1,
+        transition: { duration: 0.3 }
+    },
+};
 
-    const [file, setFile] = useState<File | null>(null);
-    const [cropper, setCropper] = useState<CropperDimensions | null>(null);
-    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-    const [userImage, setUserImage] = useState<string | ''>('');
-    const [userName, setUserName] = useState<string | ''>('');
-    const [userBio, setUserBio] = useState<string | ''>('');
+const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { 
+        opacity: 1, 
+        scale: 1,
+        y: 0,
+        transition: {
+            type: "spring",
+            stiffness: 300,
+            damping: 25
+        }
+    }
+};
+
+const inputVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: (i: number) => ({
+        opacity: 1,
+        x: 0,
+        transition: {
+            delay: i * 0.1,
+            duration: 0.5,
+            ease: "easeOut"
+        }
+    })
+};
+
+// Custom success toast for profile updates
+const SuccessToast = ({ message }: { message: string }) => (
+    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#1A2338]/90 to-[#24183D]/90 backdrop-blur-md rounded-xl border border-green-500/30 shadow-lg">
+        <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+            <IoCheckmarkCircle className="text-green-400" size={20} />
+        </div>
+        <p className="text-white font-medium">{message}</p>
+    </div>
+);
+
+// Специальный тост с аватаром пользователя
+const ProfileUpdatedToast = ({ userName, avatarUrl }: { userName: string, avatarUrl: string }) => (
+    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#1A2338]/90 to-[#24183D]/90 backdrop-blur-md rounded-xl border border-[#20DDBB]/30 shadow-lg">
+        <div className="relative">
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#20DDBB]/50">
+                <img 
+                    src={avatarUrl} 
+                    alt={userName}
+                    className="w-full h-full object-contain bg-[#1A1E36]" 
+                />
+            </div>
+            <div className="absolute -bottom-1 -right-1 bg-green-500/80 p-1 rounded-full">
+                <IoCheckmarkCircle size={14} className="text-white" />
+            </div>
+        </div>
+        <div>
+            <p className="text-white font-medium">Profile Updated!</p>
+            <p className="text-white/70 text-sm">{userName}'s profile has been updated</p>
+        </div>
+    </div>
+);
+
+const EditProfileOverlay = () => {
+    const { setIsEditProfileOpen } = useGeneralStore();
+    const { currentProfile, setCurrentProfile } = useProfileStore() as unknown as {
+      currentProfile: { id: string; user_id: string; name: string; image: string; bio: string } | null;
+      setCurrentProfile: (userId: string) => void;
+    };
+    const [name, setName] = useState(currentProfile?.name || '');
+    const [bio, setBio] = useState(currentProfile?.bio || '');
+    const [image, setImage] = useState<string>(currentProfile?.image || '');
+    const [imagePreview, setImagePreview] = useState<string>('');
     const [isUpdating, setIsUpdating] = useState(false);
-    const [error, setError] = useState<ShowErrorObject | null>(null)
+    const [error, setError] = useState<ShowErrorObject | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imageLoading, setImageLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [showPreview, setShowPreview] = useState(false);
+    const [imageUploaded, setImageUploaded] = useState(false);
+
+    const contextUser = useUser();
+    const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        setUserName(currentProfile?.name || '')
-        setUserBio(currentProfile?.bio || '')
-        setUserImage(currentProfile?.image || '')
-    }, [])
+        setName(currentProfile?.name || '')
+        setBio(currentProfile?.bio || '')
+        setImage(currentProfile?.image || '')
+    }, [currentProfile])
 
-    console.log('Initial user image:', currentProfile?.image);
-    console.log('NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID:', process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID);
-    
+    // Simulate progress for better user experience
+    useEffect(() => {
+        if (imageLoading && uploadProgress < 95) {
+            const interval = setInterval(() => {
+                setUploadProgress(prev => Math.min(prev + 5, 95));
+            }, 150);
+            return () => clearInterval(interval);
+        }
+    }, [imageLoading, uploadProgress]);
 
     const optimizeImage = async (file: File): Promise<File> => {
+        setImageLoading(true);
+        setUploadProgress(0);
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -87,15 +168,12 @@ export default function EditProfileOverlay() {
                                 const optimizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
                                     type: "image/webp"
                                 });
-                                // Показываем уведомление об успешной оптимизации
-                                const originalSize = (file.size / 1024).toFixed(2);
-                                const optimizedSize = (blob.size / 1024).toFixed(2);
-                                toast.success(
-                                    `Image optimized successfully!\nOriginal: ${originalSize}KB\nOptimized: ${optimizedSize}KB`,
-                                    { duration: 3000 }
-                                );
+                                setUploadProgress(100);
+                                setImageLoading(false);
+                                setImageUploaded(true);
                                 resolve(optimizedFile);
                             } else {
+                                setImageLoading(false);
                                 reject(new Error("Failed to optimize image"));
                             }
                         },
@@ -107,80 +185,94 @@ export default function EditProfileOverlay() {
         });
     };
 
-    const getUploadedImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = event.target.files && event.target.files[0];
-        
-        if (selectedFile) {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const selectedFile = e.target.files[0];
             try {
+                setShowPreview(true);
                 const optimizedFile = await optimizeImage(selectedFile);
-                setFile(optimizedFile);
-                setUploadedImage(URL.createObjectURL(optimizedFile));
+                const imageUrl = URL.createObjectURL(optimizedFile);
+                setImagePreview(imageUrl);
+                setImageFile(optimizedFile);
+                
+                // Покажем красивое уведомление об успешной оптимизации
+                const originalSize = (selectedFile.size / 1024).toFixed(2);
+                const optimizedSize = (optimizedFile.size / 1024).toFixed(2);
+                const sizeReduction = (100 - (parseFloat(optimizedSize) * 100 / parseFloat(originalSize))).toFixed(1);
+                
+                toast.custom((t) => (
+                    <SuccessToast message={`Image optimized! Reduced by ${sizeReduction}%`} />
+                ), { duration: 3000 });
+                
             } catch (error) {
                 console.error('Error optimizing image:', error);
-            setFile(null);
-            setUploadedImage(null);
+                setImage('');
+                setImagePreview('');
+                setImageFile(null);
+                setShowPreview(false);
+                toast.error('Failed to process image. Please try another one.');
+            }
         }
-    }
     };
 
-    const updateUserInfo = async () => {
-        let isError = validate()
-        if (isError) return
-        if (!contextUser?.user) return
+    const handleSave = async () => {
+        if (validate()) return;
         
         try {
-            setIsUpdating(true)
-            await useUpdateProfile(currentProfile?.id || '', userName, userBio)
-            setCurrentProfile(contextUser?.user?.id)
-            setIsEditProfileOpen(false)
-            router.refresh()
+            setIsUpdating(true);
             
-        } catch (error) {
-            console.log(error)
-        }
-    }
-
-    const cropAndUpdateImage = async () => {
-        let isError = validate()
-        if (isError) return
-        if (!contextUser?.user) return
-
-        try {
-            if (!file) return alert('You have no file')
-            if (!cropper) return alert('You have no file')
-            setIsUpdating(true)
-
-            const newImageId = await useChangeUserImage(file, cropper, userImage)
-            await useUpdateProfileImage(currentProfile?.id || '', newImageId)
-
-            await contextUser.checkUser()
-            setCurrentProfile(contextUser?.user?.id)
+            // First update profile info
+            await useUpdateProfile(currentProfile?.id || '', name, bio);
             
-            // Обновляем локальное состояние изображения
-            setUserImage(newImageId)
-            setUploadedImage(null)
-            setFile(null)
-            setIsUpdating(false)
-            toast.success('Profile photo updated successfully!')
+            // Then update image if new one was selected
+            let finalImageUrl = useCreateBucketUrl(image);
+            
+            if (imageFile) {
+                const newImageId = await useChangeUserImage(imageFile, { 
+                    left: 0, 
+                    top: 0, 
+                    width: 0, 
+                    height: 0 
+                }, currentProfile?.image || '');
+                
+                await useUpdateProfileImage(currentProfile?.id || '', newImageId);
+                setImage(newImageId);
+                finalImageUrl = useCreateBucketUrl(newImageId);
+                setImagePreview('');
+                setImageFile(null);
+                setShowPreview(false);
+                setImageUploaded(false);
+            }
+            
+            setIsUpdating(false);
+            
+            toast.custom((t) => (
+                <ProfileUpdatedToast userName={name} avatarUrl={finalImageUrl} />
+            ), { duration: 3000 });
+            
+            // Update the profile in the store
+            setCurrentProfile(contextUser?.user?.id || '');
+            setIsEditProfileOpen(false);
+            
+            // We need to refresh the router to reflect changes
+            router.refresh();
         } catch (error) {
-            console.log(error)
-            setIsUpdating(false)
-            toast.error('Failed to update profile photo')
+            console.error('Error updating profile:', error);
+            setIsUpdating(false);
+            toast.error('Failed to update profile');
         }
-    }
+    };
 
     const showError = (type: string) => {
-        if (error && Object.entries(error).length > 0 && error?.type == type) {
-            return error.message
-        }
-        return ''
-    }
+        if (error && error.type === type) return error.message;
+        return '';
+    };
 
     const validate = () => {
         setError(null)
         let isError = false
 
-        if (!userName) {
+        if (!name) {
             setError({ type: 'userName', message: 'A Username is required'})
             isError = true
         } 
@@ -188,150 +280,160 @@ export default function EditProfileOverlay() {
     }
 
     const getProfileImage = () => {
-        if (uploadedImage) return uploadedImage;
-        if (userImage) return useCreateBucketUrl(userImage);
+        if (imagePreview) return imagePreview;
+        if (image && image !== process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID) {
+            const imageUrl = useCreateBucketUrl(image);
+            return imageUrl;
+        }
         return '/images/placeholder-user.jpg';
     };
 
     return (
-        <AnimatePresence>
-            <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                <motion.div className="relative w-full max-w-[700px] mx-4 bg-[#24183D] rounded-2xl shadow-2xl overflow-hidden">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-6 border-b border-[#2E2469]">
-                        <h1 className="text-xl font-semibold text-white">Edit Profile</h1>
-                        <button 
-                            onClick={() => setIsEditProfileOpen(false)} 
-                            className="p-2 hover:bg-[#2E2469] rounded-xl transition-colors"
+        <motion.div 
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            className="fixed inset-0 z-50 bg-[#120B20]/80 backdrop-blur-sm flex items-center justify-center px-4"
+        >
+            <motion.div 
+                variants={modalVariants}
+                initial="hidden"
+                animate="visible"
+                className="relative w-full max-w-[500px] rounded-2xl overflow-hidden"
+            >
+                <div className="relative bg-gradient-to-br from-[#24183D]/90 to-[#1A1E36]/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
+                    {/* Header with glass effect */}
+                    <div className="relative px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-md">
+                        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">Edit Profile</h2>
+                        <motion.button 
+                            whileHover={{ scale: 1.1, rotate: 90 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setIsEditProfileOpen(false)}
+                            className="absolute top-4 right-4 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                         >
-                            <AiOutlineClose size={20} className="text-gray-400 hover:text-white" />
-                        </button>
+                            <IoClose size={20} className="text-white" />
+                        </motion.button>
                     </div>
 
-                    <div className="p-6">
-                        {/* Profile Photo Section */}
-                        <div className="mb-8">
-                            <h3 className="text-gray-400 text-sm mb-4">Profile Photo</h3>
-                            <div className="flex justify-center">
-                                <label className="relative cursor-pointer group">
-                                    <div className="relative w-[100px] h-[100px] rounded-2xl overflow-hidden bg-[#1E2136] transition-transform group-hover:scale-105">
-                                        <img 
-                                            src={getProfileImage()}
-                                            className="w-full h-full object-cover"
-                                            alt="Profile"
-                                            onError={(e) => {
-                                                console.log('Image load error, using placeholder');
-                                                const target = e.target as HTMLImageElement;
-                                                target.src = '/images/placeholder-user.jpg';
-                                                target.onerror = null; // Предотвращаем бесконечный цикл
-                                            }}
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <BsPencil size={24} className="text-white" />
-                                        </div>
-                                            </div>
-                                        <input
-                                        type="file"
-                                            className="hidden"
-                                            onChange={getUploadedImage}
-                                        accept="image/png, image/jpeg, image/jpg, image/webp"
-                                        />
-                                </label>
-                                    </div>
-                                </div>
-
-                        {/* Name Input */}
-                        <div className="mb-6">
-                            <h3 className="text-gray-400 text-sm mb-2">Name</h3>
-                                            <TextInput 
-                                                string={userName}
-                                placeholder="Your name"
-                                                onUpdate={setUserName}
-                                                inputType="text"
-                                                error={showError('userName')}
-                                className="bg-[#2E2469] border-none focus:ring-2 focus:ring-[#20DDBB]"
-                            />
-                        </div>
-
-                        {/* Bio Input */}
-                        <div className="mb-6">
-                            <h3 className="text-gray-400 text-sm mb-2">Bio</h3>
-                            <textarea 
-                                value={userBio}
-                                onChange={(e) => setUserBio(e.target.value)}
-                                maxLength={80}
-                                placeholder="Tell us about yourself..."
-                                className="w-full bg-[#2E2469] text-white rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] resize-none h-32"
-                            />
-                            <p className="text-right text-gray-400 text-sm mt-1">
-                                {userBio.length}/80
-                            </p>
-                                </div>
-
-                        {/* Compact Image Cropper */}
-                        <AnimatePresence>
-                            {uploadedImage && (
+                    <div className="max-h-[80vh] overflow-y-auto">
+                        <div className="p-6 space-y-6">
+                            {/* Profile Image Section */}
+                            <div className="sm:flex sm:gap-8 items-start">
                                 <motion.div 
-                                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    className="relative w-40 h-40 rounded-2xl overflow-hidden group 
+                                        ring-2 ring-white/10 hover:ring-[#20DDBB]/50 transition-all duration-300
+                                        shadow-[0_0_15px_rgba(32,221,187,0.15)] flex items-center justify-center bg-[#1A1E36]/70"
                                 >
-                                    <div className="w-full max-w-md bg-[#24183D] rounded-2xl overflow-hidden">
-                                        <div className="p-3 border-b border-[#2E2469] flex justify-between items-center">
-                                            <h3 className="text-white text-sm">Adjust Photo</h3>
-                                            <button 
-                                                onClick={() => setUploadedImage(null)}
-                                                className="text-gray-400 hover:text-white"
-                                            >
-                                                <AiOutlineClose size={16} />
-                                            </button>
-                                        </div>
-                                        <div className="aspect-square w-full bg-black">
-                                <Cropper
-                                    stencilProps={{ aspectRatio: 1 }}
-                                                className="h-[300px]"
-                                    onChange={(cropper) => setCropper(cropper.getCoordinates())}
-                                    src={uploadedImage}
-                                />
-                            </div>
-                                        <div className="p-3 flex justify-end">
-                                            <button
-                                                onClick={cropAndUpdateImage}
-                                                className="px-4 py-1.5 bg-[#20DDBB] text-black text-sm font-medium rounded-xl hover:bg-[#1CB99D] transition-colors"
-                                            >
-                                                {isUpdating ? (
-                                                    <BiLoaderCircle className="animate-spin" />
-                                                ) : (
-                                                    'Apply'
-                                                )}
-                                            </button>
-                                        </div>
-                    </div>
+                                    <motion.img 
+                                        initial={{ scale: 1 }}
+                                        whileHover={{ scale: 1.05 }}
+                                        src={getProfileImage()}
+                                        alt="Profile"
+                                        className="max-w-full max-h-full object-contain"
+                                    />
+                                    <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 
+                                        opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer
+                                        backdrop-blur-sm">
+                                        <input 
+                                            ref={fileInputRef}
+                                            type="file" 
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                            className="hidden"
+                                        />
+                                        <motion.div
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            className="w-12 h-12 rounded-full bg-[#20DDBB]/20 flex items-center justify-center mb-2"
+                                        >
+                                            <IoCloudUploadOutline size={24} className="text-[#20DDBB]" />
+                                        </motion.div>
+                                        <span className="text-white text-sm font-medium">Upload new image</span>
+                                    </label>
                                 </motion.div>
-                            )}
-                        </AnimatePresence>
 
-                        {/* Action Buttons */}
-                        <div className="flex justify-end gap-3 mt-8">
-                                <button 
-                                    onClick={() => setIsEditProfileOpen(false)}
-                                className="px-4 py-2 text-white hover:bg-[#2E2469] rounded-xl transition-colors"
-                                >
-                                Cancel
-                                </button>
-                                <button 
-                                onClick={updateUserInfo}
-                                    disabled={isUpdating}
-                                className="px-6 py-2 bg-[#20DDBB] text-black font-medium rounded-xl hover:bg-[#1CB99D] transition-colors disabled:opacity-50"
-                            >
-                                {isUpdating ? (
-                                    <BiLoaderCircle className="animate-spin" />
-                                ) : (
-                                    'Save Changes'
-                                )}
-                                </button>
+                                {/* Form Fields */}
+                                <div className="flex-1 space-y-6">
+                                    <motion.div 
+                                        variants={inputVariants}
+                                        custom={0}
+                                        initial="hidden"
+                                        animate="visible"
+                                    >
+                                        <label className="block text-white/90 mb-2 font-medium">Username</label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="w-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl 
+                                                px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#20DDBB]/50
+                                                hover:border-white/20 transition-all duration-300"
+                                            placeholder="Your name"
+                                        />
+                                        {showError('userName') && (
+                                            <p className="text-red-400 text-sm mt-1">{showError('userName')}</p>
+                                        )}
+                                    </motion.div>
+
+                                    <motion.div
+                                        variants={inputVariants}
+                                        custom={1}
+                                        initial="hidden"
+                                        animate="visible"
+                                    >
+                                        <label className="block text-white/90 mb-2 font-medium">Bio</label>
+                                        <textarea
+                                            value={bio}
+                                            onChange={(e) => setBio(e.target.value)}
+                                            className="w-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl 
+                                                px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#20DDBB]/50
+                                                hover:border-white/20 transition-all duration-300 min-h-[100px] resize-none"
+                                            placeholder="Tell about yourself"
+                                        />
+                                    </motion.div>
+
+                                    <p className="mt-3 text-sm text-white/60 flex items-center gap-1.5">
+                                        <IoCamera size={14} className="text-[#20DDBB]" /> 
+                                        <span>Your image will be preserved in its original format</span>
+                                    </p>
+                                </div>
                             </div>
+
+                            {/* Save Button */}
+                            <motion.div 
+                                variants={inputVariants}
+                                custom={2}
+                                initial="hidden"
+                                animate="visible"
+                                className="sticky bottom-0 left-0 right-0 pt-4"
+                            >
+                                <motion.button
+                                    whileHover={{ scale: 1.02, boxShadow: "0 0 25px rgba(32,221,187,0.3)" }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={handleSave}
+                                    disabled={isUpdating}
+                                    className="w-full bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 
+                                        text-black font-medium py-3 rounded-xl transition-all duration-300
+                                        hover:shadow-[0_0_20px_rgba(32,221,187,0.3)]
+                                        disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isUpdating ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                            <span>Saving profile...</span>
+                                        </div>
+                                    ) : 'Save Changes'}
+                                </motion.button>
+                            </motion.div>
+                        </div>
                     </div>
-                </motion.div>
+                </div>
             </motion.div>
-        </AnimatePresence>
+        </motion.div>
     );
-}
+};
+
+export default EditProfileOverlay;

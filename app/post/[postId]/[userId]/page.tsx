@@ -16,6 +16,9 @@ import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
 import { AudioPlayer } from '@/app/components/AudioPlayer'
 import { usePlayerContext } from '@/app/context/playerContext'
 import Image from 'next/image'
+import { FaHeart, FaMusic } from 'react-icons/fa'
+import { IoMusicalNotes } from 'react-icons/io5'
+import moment from 'moment'
 
 
 const PostImageFallback = () => (
@@ -43,11 +46,19 @@ const PostImageFallback = () => (
         </div>
     </div>
 )
-  
-  export default function Post({ params }: PostPageTypes) {
+
+const StatsCard = ({ icon, value, label }: { icon: React.ReactNode, value: string | number, label: string }) => (
+    <div className="flex items-center gap-2 glass-effect rounded-xl px-3 py-2 hover-lift">
+        <div className="animate-glow">{icon}</div>
+        <span className="text-white font-medium">{value}</span>
+        <span className="gradient-text text-sm">{label}</span>
+    </div>
+)
+
+export default function Post({ params }: PostPageTypes) {
     const { postById, setPostById, setPostsByUser } = usePostStore()
-    const { setLikesByPost } = useLikeStore()
-    const { setCommentsByPost } = useCommentStore()
+    const { setLikesByPost, likesByPost } = useLikeStore()
+    const { setCommentsByPost, commentsByPost } = useCommentStore()
     const { currentAudioId, setCurrentAudioId } = usePlayerContext()
     const [imageError, setImageError] = useState(false)
     const router = useRouter()
@@ -82,103 +93,129 @@ const PostImageFallback = () => (
     }, [imageUrl])
 
     return (
-        <div className="min-h-screen bg-[#1A1A2E] px-5">
-            <div className="max-w-[calc(100vw-40px)] mx-auto py-8">
+        <div className="min-h-screen bg-[#1A1A2E] px-5 py-6">
+            <div className="max-w-[1200px] mx-auto">
                 {/* Track Section */}
-                <div className="bg-[#24183D] rounded-2xl overflow-hidden shadow-xl relative">
+                <div className="bg-[#24183D] rounded-2xl overflow-hidden shadow-xl relative animate-scaleIn">
                     {/* Track Header */}
                     <div className="relative h-[300px] md:h-[400px]">
-                        {/* Background Image */}
+                        {/* Background Image with Gradient Overlay */}
                         <div 
-                            className="absolute inset-0 bg-cover bg-center"
+                            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 hover:scale-105"
                             style={!imageError ? { 
                                 backgroundImage: `url(${imageUrl})`,
                             } : undefined}
                         >
                             {imageError && <PostImageFallback />}
-                            {/* Gradient Overlay */}
+                            {/* Gradient Overlays */}
                             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#24183D]/50 to-[#24183D]" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#24183D]/30 via-transparent to-[#24183D]/30" />
                         </div>
 
-                        {/* Close Button - Highest z-index */}
+                        {/* Close Button */}
                         <Link
                             href="/"
-                            className="absolute top-4 right-4 z-30 p-2 rounded-xl 
-                                     bg-black/30 backdrop-blur-sm text-white 
-                                     hover:bg-[#2E2469] transition-all duration-200"
+                            className="absolute top-6 right-6 z-30 p-2.5 rounded-xl 
+                                     glass-effect text-white hover-lift
+                                     hover:text-[#20DDBB] transition-all duration-200"
                         >
-                            <AiOutlineClose size="20"/>
+                            <AiOutlineClose size="24"/>
                         </Link>
 
-                        {/* Track Info - Moved down by 40px */}
-                        <div className="absolute top-[40px] right-0 z-20">
-                            <ClientOnly>
-                                {postById && <CommentsHeader post={postById} params={params}/>}
-                            </ClientOnly>
-                        </div>
-
                         {/* Track Info */}
-                        <div className="absolute top-1/3 left-0 right-0 p-6 z-10">
-                    <ClientOnly>
+                        <div className="absolute bottom-0 left-0 right-0 p-8 z-10">
+                            <ClientOnly>
                                 {postById && (
-                                    <div className="space-y-2">
-                                        <h1 className="text-3xl md:text-4xl font-bold text-white 
-                                                     drop-shadow-lg">
+                                    <div className="space-y-6 animate-fadeInUp">
+                                        <h1 className="text-4xl md:text-5xl font-bold gradient-text 
+                                                     drop-shadow-lg tracking-tight animate-floatY">
                                             {postById.trackname}
                                         </h1>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-4">
                                             <Link 
                                                 href={`/profile/${postById.profile.user_id}`}
-                                                className="flex items-center gap-2 hover:text-[#20DDBB] 
-                                                         transition-colors bg-black/30 backdrop-blur-sm 
-                                                         rounded-full px-3 py-1"
+                                                className="flex items-center gap-3 glass-effect
+                                                         hover:text-[#20DDBB] transition-all 
+                                                         rounded-full px-5 py-2.5 group hover-lift"
                                             >
                                                 <img 
                                                     src={useCreateBucketUrl(postById.profile.image)}
                                                     alt={postById.profile.name}
-                                                    className="w-6 h-6 rounded-full"
+                                                    className="w-10 h-10 rounded-full ring-2 ring-[#20DDBB] 
+                                                             group-hover:ring-white transition-all animate-glow"
                                                 />
-                                                <span className="text-white text-sm">
+                                                <span className="text-white text-lg font-medium">
                                                     {postById.profile.name}
                                                 </span>
                                             </Link>
-                                            <span className="text-[#20DDBB] text-sm bg-black/30 
-                                                           backdrop-blur-sm rounded-full px-3 py-1">
-                                                {postById.genre}
-                                            </span>
-                            </div>
+                                            <div className="flex items-center gap-2 px-5 py-2.5 
+                                                          glass-effect rounded-full hover-lift">
+                                                <span className="gradient-text">Released:</span>
+                                                <span className="text-white">
+                                                    {moment(postById.created_at).format('MMMM D, YYYY')}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-5 py-2.5 
+                                                          glass-effect rounded-full hover-lift">
+                                                <span className="gradient-text">Genre:</span>
+                                                <span className="text-white">{postById.genre}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </ClientOnly>
-                                </div>
-                  
-                        {/* Audio Player */}
-                        <div className="absolute bottom-0 left-0 right-0">
-                            <ClientOnly>
-                                {m3u8Url && (
-                                    <div className="px-6 py-4 bg-transparent">
+                        </div>
+                    </div>
+
+                    {/* Audio Player */}
+                    <div className="relative z-20 -mt-8 animate-fadeInUp animation-delay-200">
+                        <ClientOnly>
+                            {m3u8Url && (
+                                <div className="px-8 mb-6">
+                                    <div className="glass-effect rounded-xl p-5 shadow-lg hover-lift">
                                         <AudioPlayer 
                                             m3u8Url={m3u8Url}
                                             isPlaying={isPlaying}
                                             onPlay={() => setCurrentAudioId(params.postId)}
                                             onPause={() => setCurrentAudioId(null)}
                                         />
-                        </div>
-                                )}
-                    </ClientOnly>
-                </div>
-                </div>
-
-                    {/* Comments Section */}
-                    <div className="bg-[#24183D] rounded-b-2xl">
-                        <ClientOnly>
-                            {postById && (
-                                <div className="p-6">
-                                    <Comments params={params}/>
+                                    </div>
                                 </div>
                             )}
                         </ClientOnly>
-                </div>
+                    </div>
+
+                    {/* Stats Section */}
+                    <div className="px-8 py-6 flex flex-wrap gap-4 animate-fadeInUp animation-delay-200 border-t border-[#2E2469]/30">
+                        <StatsCard 
+                            icon={<FaHeart className="text-[#FF69B4]" size={24} />}
+                            value={likesByPost.length}
+                            label="Likes"
+                        />
+                        <StatsCard 
+                            icon={<FaMusic className="text-[#20DDBB]" size={24} />}
+                            value={postById?.price || '1.99'}
+                            label="USD"
+                        />
+                        <StatsCard 
+                            icon={<IoMusicalNotes className="text-[#FFD700]" size={24} />}
+                            value={postById?.genre || 'Music'}
+                            label="Genre"
+                        />
+                    </div>
+
+                    {/* Comments Section */}
+                    <div className="border-t border-[#2E2469]/30">
+                        <div className="bg-[#24183D] rounded-b-2xl animate-fadeInUp animation-delay-200">
+                            <ClientOnly>
+                                {postById && (
+                                    <div className="p-8">
+                                        <Comments params={params}/>
+                                    </div>
+                                )}
+                            </ClientOnly>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

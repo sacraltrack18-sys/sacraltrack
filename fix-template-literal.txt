@@ -1,0 +1,1 @@
+Ошибка в файле app/upload/page.tsx строка 790: незавершенный шаблонный литерал toast.loading(` - нужно закрыть его: toast.loading(`Загрузка сегментов: ${progress}%`, { id: toastId });

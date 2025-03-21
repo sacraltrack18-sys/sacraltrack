@@ -1,3 +1,5 @@
+"use client";
+
 // components/Background.tsx
 
 import React, { useEffect } from 'react';

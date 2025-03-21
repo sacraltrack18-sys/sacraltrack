@@ -14,7 +14,7 @@ export default function MenuItemFollow({ user }: MenuItemFollowCompTypes) {
                 <img 
                     className="rounded-full lg:mx-0 mx-auto" 
                     width="35" 
-                    src={useCreateBucketUrl(user?.image)}
+                    src={user?.image ? useCreateBucketUrl(user.image) : '/images/placeholder-user.jpg'}
                 />
                 <div className="lg:pl-2.5 lg:block hidden">
                     <div className="flex items-center">

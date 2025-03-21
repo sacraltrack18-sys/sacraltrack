@@ -6,7 +6,7 @@ import  Link from "next/link";
 
 const UserProfileCard = ({ profile }: UserProfileCompTypes) => {
     const userProfileImageUrl = useCreateBucketUrl(profile.image);
-    const { setCurrentProfile } = useProfileStore();
+    const { setCurrentProfile } = useProfileStore() as any;
 
     useEffect(() => {
         setCurrentProfile(profile.user_id);

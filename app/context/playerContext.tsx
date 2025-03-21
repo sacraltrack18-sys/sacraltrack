@@ -1,5 +1,8 @@
+"use client";
+
 // PlayerContext.tsx
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import toast from "react-hot-toast";
 
 // Define the type for the current track
 export type CurrentTrackType = {
@@ -18,6 +21,7 @@ export type PlayerContextType = {
   setCurrentAudioId: (id: string | null) => void;
   setCurrentTrack: (track: CurrentTrackType) => void;
   togglePlayPause: () => void;
+  stopAllPlayback: () => void;
 };
 
 // Create the context
@@ -29,7 +33,32 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentTrack, setCurrentTrack] = useState<CurrentTrackType>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
+  // Toggle play/pause state
   const togglePlayPause = () => setIsPlaying(prev => !prev);
+  
+  // Stop all playback
+  const stopAllPlayback = () => {
+    setIsPlaying(false);
+  };
+
+  // When changing tracks, automatically start playing
+  useEffect(() => {
+    if (currentAudioId) {
+      // Small delay to ensure audio is ready
+      const timer = setTimeout(() => {
+        setIsPlaying(true);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentAudioId]);
+  
+  // Clean up audio when context is unmounted
+  useEffect(() => {
+    return () => {
+      stopAllPlayback();
+    };
+  }, []);
 
   return (
     <PlayerContext.Provider value={{ 
@@ -38,7 +67,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       currentTrack, 
       isPlaying, 
       setCurrentTrack, 
-      togglePlayPause 
+      togglePlayPause,
+      stopAllPlayback 
     }}>
       {children}
     </PlayerContext.Provider>
