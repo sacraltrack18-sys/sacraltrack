@@ -98,7 +98,8 @@ const PostLikes = ({ post }: PostLikesProps) => {
     }, [isCurrentTrack, isPlaying, post, m3u8Url, imageUrl, setCurrentTrack, togglePlayPause]);
 
     // Переход на страницу комментариев
-    const navigateToComments = () => {
+    const navigateToComments = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent event from bubbling up to parent elements
         router.push(`/post/${post.$id}/${post.user_id}`);
     };
 

@@ -5,11 +5,15 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
 import { FiAlertCircle } from "react-icons/fi";
+import { clearUserCache } from '@/app/utils/cacheUtils';
 
 export default function GoogleAuthFail() {
     const router = useRouter();
 
     useEffect(() => {
+        // Очистка кэша данных в случае неудачной аутентификации
+        clearUserCache();
+        
         // Перенаправление на главную через 3 секунды
         const timer = setTimeout(() => {
             router.push('/');

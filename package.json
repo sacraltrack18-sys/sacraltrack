@@ -25,6 +25,7 @@
     "autoprefixer": "10.4.15",
     "axios": "^1.6.8",
     "bcryptjs": "^3.0.2",
+    "canvas-confetti": "^1.9.3",
     "date-fns": "^4.1.0",
     "eslint": "^9.22.0",
     "ethers": "^6.13.5",
@@ -64,6 +65,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.5.4",

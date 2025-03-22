@@ -1,5 +1,7 @@
-import { NextRequest } from 'next/server';
-import sharp from 'sharp';
+import { NextRequest, NextResponse } from 'next/server';
+
+// Configure the route to use Node.js runtime
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -7,35 +9,25 @@ export async function POST(request: NextRequest) {
         const file = formData.get('image') as File;
 
         if (!file) {
-            return new Response(JSON.stringify({ error: 'No file provided' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            return NextResponse.json(
+                { error: 'No file provided' },
+                { status: 400 }
+            );
         }
 
-        const buffer = Buffer.from(await file.arrayBuffer());
+        // Convert file to base64 directly without using sharp
+        const buffer = await file.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
         
-        // Оптимизируем изображение
-        const optimizedBuffer = await sharp(buffer)
-            .resize(800, null, { // максимальная ширина 800px, высота пропорциональная
-                withoutEnlargement: true,
-                fit: 'inside'
-            })
-            .jpeg({ quality: 80 }) // конвертируем в JPEG с качеством 80%
-            .toBuffer();
-
-        return new Response(JSON.stringify({
-            data: optimizedBuffer.toString('base64'),
-            type: 'image/jpeg'
-        }), {
-            headers: { 'Content-Type': 'application/json' }
+        return NextResponse.json({
+            data: base64,
+            type: file.type || 'image/jpeg'
         });
-
     } catch (error) {
-        console.error('Image optimization error:', error);
-        return new Response(
-            JSON.stringify({ error: 'Failed to optimize image' }), 
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        console.error('Image processing error:', error);
+        return NextResponse.json(
+            { error: 'Failed to process image' }, 
+            { status: 500 }
         );
     }
 } 

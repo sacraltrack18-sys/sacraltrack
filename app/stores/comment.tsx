@@ -4,23 +4,39 @@ import { CommentWithProfile } from '../types';
 import useGetCommentsByPostId from '../hooks/useGetCommentsByPostId';
   
 interface CommentStore {
-    commentsByPost: CommentWithProfile[]
-    setCommentsByPost: (postId: string) => void;
+    commentsByPostMap: Record<string, CommentWithProfile[]>;
+    commentsByPost: CommentWithProfile[]; // Keep for backward compatibility
+    setCommentsByPost: (postId: string) => Promise<CommentWithProfile[]>;
+    getCommentsByPostId: (postId: string) => CommentWithProfile[];
 }
 
 export const useCommentStore = create<CommentStore>()( 
     devtools(
         persist(
-            (set) => ({
-                commentsByPost: [],
+            (set, get) => ({
+                commentsByPostMap: {},
+                commentsByPost: [], // Keep for backward compatibility
 
                 setCommentsByPost: async (postId: string) => {
-                    const result = await useGetCommentsByPostId(postId)
-                    set({ commentsByPost: result });
+                    const result = await useGetCommentsByPostId(postId);
+                    
+                    set((state) => ({
+                        commentsByPostMap: {
+                            ...state.commentsByPostMap,
+                            [postId]: result
+                        },
+                        commentsByPost: result // Keep backward compatibility
+                    }));
+                    
+                    return result;
+                },
+                
+                getCommentsByPostId: (postId: string) => {
+                    return get().commentsByPostMap[postId] || [];
                 },
             }),
             { 
-                name: 'store', 
+                name: 'comment-store', 
                 storage: createJSONStorage(() => localStorage) 
             }
         )

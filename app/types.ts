@@ -143,20 +143,27 @@ export interface PostMainLikesCompTypes {
 
 export interface ProfileStore {
   currentProfile: {
-    id: string;
+    $id: string;
     user_id: string;
     name: string;
+    username: string;
     image: string;
     bio: string;
+    stats: {
+      totalLikes: number;
+      totalFollowers: number;
+      averageRating: number;
+      totalRatings: number;
+    };
   } | null;
   profiles: any[];
   loading: boolean;
   error: string | null;
-  setCurrentProfile: (userId: string) => void;
-  getAllProfiles?: (page: number) => Promise<any[]>;
-  searchProfiles?: (query: string) => Promise<any[]>;
-  getProfileById?: (userId: string) => Promise<any | null>;
-  updateProfile?: (userId: string, data: any) => Promise<void>;
+  setCurrentProfile: (userId: string) => Promise<void>;
+  getAllProfiles: (page: number) => Promise<any[]>;
+  searchProfiles: (query: string) => Promise<any[]>;
+  getProfileById: (userId: string) => Promise<any | null>;
+  updateProfile: (userId: string, data: any) => Promise<void>;
 }
 
 export interface RoyaltyPayment {

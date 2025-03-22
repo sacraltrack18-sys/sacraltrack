@@ -5,11 +5,15 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
 import { BsMusicNoteBeamed } from "react-icons/bs";
+import { clearUserCache } from '@/app/utils/cacheUtils';
 
 export default function GoogleAuthSuccess() {
     const router = useRouter();
 
     useEffect(() => {
+        // Очистка кэша данных предыдущего пользователя
+        clearUserCache();
+        
         // Перенаправление на главную через 3 секунды
         const timer = setTimeout(() => {
             router.push('/');

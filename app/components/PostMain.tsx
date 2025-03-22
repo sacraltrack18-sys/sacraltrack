@@ -308,7 +308,7 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
     const { setIsLoginOpen } = useGeneralStore();
     const { currentAudioId, setCurrentAudioId, isPlaying: globalIsPlaying, togglePlayPause } = usePlayerContext();
     const { checkIfTrackPurchased } = useCheckPurchasedTrack();
-    const { commentsByPost, setCommentsByPost } = useCommentStore();
+    const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
     const cardRef = useRef<HTMLDivElement>(null);
     
     // Calculate URLs only once when post changes
@@ -522,7 +522,7 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
             <PostImage 
                 imageUrl={imageUrlRef.current} 
                 imageError={imageError} 
-                comments={commentsByPost}
+                comments={post?.id ? getCommentsByPostId(post.id) : []}
                 isPlaying={isPlaying}
                 onTogglePlay={handleTogglePlay}
                 post={post}

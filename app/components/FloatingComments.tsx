@@ -16,7 +16,7 @@ interface CommentWithProfile {
 
 interface FloatingCommentsProps {
     comments: CommentWithProfile[]
-    onClick?: () => void
+    onClick?: (e: React.MouseEvent) => void
 }
 
 const FloatingComment = ({ comment, index }: { comment: CommentWithProfile; index: number }) => (
@@ -75,8 +75,14 @@ export default function FloatingComments({ comments, onClick }: FloatingComments
         return () => clearInterval(interval)
     }, [comments])
 
+    const handleClick = (e: React.MouseEvent) => {
+        // Stop propagation to prevent the event from reaching the play button
+        e.stopPropagation();
+        if (onClick) onClick(e);
+    };
+
     return (
-        <div className={`absolute inset-0 ${onClick ? 'cursor-pointer' : 'pointer-events-none'}`} onClick={onClick}>
+        <div className={`absolute inset-0 ${onClick ? 'cursor-pointer' : 'pointer-events-none'}`} onClick={handleClick}>
             {visibleComments.map((comment, index) => (
                 <FloatingComment 
                     key={`${comment.id}-${index}`}

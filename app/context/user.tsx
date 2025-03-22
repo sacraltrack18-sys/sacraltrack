@@ -6,6 +6,7 @@ import { User, UserContextTypes } from '../types';
 import { useRouter } from 'next/navigation';
 import useGetProfileByUserId from '../hooks/useGetProfileByUserId';
 import useCreateProfile from '../hooks/useCreateProfile';
+import { clearUserCache } from '../utils/cacheUtils';
 
 const UserContext = createContext<UserContextTypes | null>(null);
 
@@ -132,6 +133,10 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       await account.createEmailSession(email, password);
+      
+      // Очистка кэша данных, связанных с предыдущим пользователем
+      clearUserCache();
+      
       checkUser();
     } catch (error) {
       console.error(error);
@@ -142,7 +147,11 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     try {
       await account.deleteSession('current');
       setUser(null);
-      router.refresh()
+      
+      // Очистка кэша данных, связанных с пользователем
+      clearUserCache();
+      
+      router.refresh();
     } catch (error) {
       console.error(error);
     }

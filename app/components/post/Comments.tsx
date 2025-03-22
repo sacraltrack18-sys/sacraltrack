@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { CommentsCompTypes } from "@/app/types"
+import { CommentsCompTypes, CommentWithProfile } from "@/app/types"
 import { BiLoaderCircle } from "react-icons/bi"
 import { useUser } from "@/app/context/user"
 import { useGeneralStore } from "@/app/stores/general"
@@ -29,7 +29,10 @@ export default function Comments({ params }: CommentsCompTypes) {
     
     const userContext = useUser()
     const { setIsLoginOpen } = useGeneralStore()
-    const { commentsByPost, setCommentsByPost } = useCommentStore()
+    const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore()
+    
+    // Local state for comments for this specific post
+    const [postComments, setPostComments] = useState<CommentWithProfile[]>([])
 
     const musicEmojis = [
         { icon: <FaMusic className="text-[#20DDBB]" />, text: "🎵" },
@@ -40,7 +43,12 @@ export default function Comments({ params }: CommentsCompTypes) {
     ]
 
     useEffect(() => {
-        setCommentsByPost(params.postId)
+        const loadComments = async () => {
+            await setCommentsByPost(params.postId)
+            setPostComments(getCommentsByPostId(params.postId))
+        }
+        
+        loadComments()
     }, [params.postId])
 
     const addComment = async () => {
@@ -55,6 +63,8 @@ export default function Comments({ params }: CommentsCompTypes) {
                 replyTo ? `@${replyTo.name} ${comment}` : comment
             )
             await setCommentsByPost(params.postId)
+            // Update local comments state
+            setPostComments(getCommentsByPostId(params.postId))
             setComment('')
             setReplyTo(null)
             toast.success('Comment added!')
@@ -77,6 +87,8 @@ export default function Comments({ params }: CommentsCompTypes) {
             setIsDeleting(commentId)
             await useDeleteComment(commentId)
             await setCommentsByPost(params.postId)
+            // Update local comments state
+            setPostComments(getCommentsByPostId(params.postId))
             toast.success('Comment deleted')
         } catch (error) {
             console.error(error)
@@ -115,7 +127,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                 style={{ maxHeight: 'calc(80vh - 180px)' }}
             >
                 <div className="p-4 space-y-4">
-                    {commentsByPost.map((comment) => (
+                    {postComments.map((comment) => (
                         <div key={comment.id} className="flex gap-3 group animate-fadeIn">
                             <Link href={`/profile/${comment.profile.user_id}`}>
                                 <img 

@@ -24,7 +24,7 @@ import PostLikes from "@/app/components/profile/PostLikes";
 export default function ProfileLayout({ children, params }: { children: React.ReactNode, params: { params: { id: string } } }) {
     const pathname = usePathname()
 	const contextUser = useUser();   
-    const { currentProfile } = useProfileStore() as ProfileStore;
+    const { currentProfile } = useProfileStore();
     const { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore();
     const { showPurchases, toggleShowPurchases } = useDownloadsStore();
     const { likedPosts, isLoading: likedLoading, showLikedTracks, setShowLikedTracks, fetchLikedPosts } = useLikedStore();

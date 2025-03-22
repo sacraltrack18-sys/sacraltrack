@@ -82,7 +82,7 @@ export default function Register() {
 
             // Формируем URL для перенаправления
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '');
-            const successUrl = `${baseUrl}/success`;
+            const successUrl = `${baseUrl}/auth/google/success`;
             const failureUrl = `${baseUrl}/fail`;
 
             // Проверяем текущую сессию

@@ -19,17 +19,17 @@ export default function SingleComment({ comment, params }: SingleCommentCompType
     };
 
     const contextUser = useUser()
-    let { setCommentsByPost } = useCommentStore()
+    let { setCommentsByPost, getCommentsByPostId } = useCommentStore()
     const [isDeleting, setIsDeleting] = useState(false)
 
     const deleteThisComment = async () => {
-        let res = confirm("Are you sure you weant to delete this comment?")
+        let res = confirm("Are you sure you want to delete this comment?")
         if (!res) return
 
         try {
             setIsDeleting(true)
             await useDeleteComment(comment?.id)
-            setCommentsByPost(params?.postId)
+            await setCommentsByPost(params?.postId)
             setIsDeleting(false)
         } catch (error) {
             console.log(error)

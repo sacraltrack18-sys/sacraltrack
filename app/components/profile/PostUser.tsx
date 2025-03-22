@@ -370,7 +370,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
   const { recordInteraction, getUserDeviceInfo, getGeographicInfo } = useTrackInteraction();
   const isOwner = contextUser?.user?.id === post?.user_id;
 
-  const { commentsByPost, setCommentsByPost } = useCommentStore();
+  const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
   const { setIsLoginOpen } = useGeneralStore();
 
   useEffect(() => {
@@ -463,7 +463,10 @@ useEffect(() => {
     return format(date, "d MMMM yyyy", { locale: ru });
   };
 
-  const handleComments = () => {
+  const handleComments = (e: React.MouseEvent) => {
+    // Add stopPropagation to prevent the event from bubbling up to parent elements (like the play button)
+    if (e) e.stopPropagation();
+    
     if (!contextUser?.user) {
       setIsLoginOpen(true);
       return;
@@ -644,7 +647,7 @@ useEffect(() => {
                 </motion.div>
 
                 <FloatingComments 
-                  comments={commentsByPost}
+                  comments={post?.id ? getCommentsByPostId(post.id) : []}
                   onClick={handleComments}
                 />
               </>

@@ -47,7 +47,7 @@ export default function Login() {
     const handleGoogleLogin = async () => {
         try {
             setLoading(true);
-            const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/success` : 'http://localhost:3000/success';
+            const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/google/success` : 'http://localhost:3000/auth/google/success';
             const failureUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/fail` : 'http://localhost:3000/fail';
 
             if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {

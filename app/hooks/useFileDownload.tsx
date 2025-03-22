@@ -32,7 +32,7 @@ const useFileDownload = ({ bucketId, fileId }: UseFileDownloadProps) => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading file:', error);
-      toast.error('Ошибка при скачивании файла');
+      toast.error('Error downloading file');
       setError(error as Error);
     } finally {
       setIsLoading(false);

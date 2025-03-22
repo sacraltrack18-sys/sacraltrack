@@ -5,7 +5,7 @@ import { useUser } from "@/app/context/user"
 import ClientOnly from "@/app/components/ClientOnly"
 import { useGeneralStore } from "@/app/stores/general"
 import { useRouter } from "next/navigation"
-import { ProfilePageTypes, User } from "@/app/types"
+import { ProfilePageTypes } from "@/app/types"
 import { useProfileStore } from "@/app/stores/profile"
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
 
@@ -16,7 +16,7 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
     const router = useRouter()
     const pathname = usePathname()
 
-    let { setCurrentProfile, currentProfile } = useProfileStore() as any
+    let { setCurrentProfile, currentProfile } = useProfileStore()
     let { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore()
 
     useEffect(() => {
@@ -52,7 +52,7 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
 
 
                             <ClientOnly>
-                                {(currentProfile as User)?.name ? (
+                                {currentProfile?.name ? (
                                     <div>
                                         <p className="text-[14px] ml-6 font-bold truncate">{currentProfile?.name}</p>
                                     </div>

@@ -38,6 +38,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
    const [showSearch, setShowSearch] = useState(false);
    const [searchQuery, setSearchQuery] = useState("");
    const searchInputRef = useRef<HTMLInputElement>(null);
+   let { setCurrentProfile, currentProfile } = useProfileStore();
 
     // Debounce function
         function debounce(func: Function, wait: number) {
@@ -113,7 +114,6 @@ export default function TopNav({ params }: ProfilePageTypes) {
 
             let [showMenu, setShowMenu] = useState<boolean>(false)
             let { isEditProfileOpen, setIsLoginOpen, setIsEditProfileOpen } = useGeneralStore()
-            let { setCurrentProfile, currentProfile } = useProfileStore() as any
             let menuRef = useRef<HTMLDivElement>(null)
             let buttonRef = useRef<HTMLButtonElement>(null)
 

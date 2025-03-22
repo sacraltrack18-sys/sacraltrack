@@ -22,7 +22,7 @@ export default function Profile({ params }: ProfilePageTypes) {
 
   const contextUser = useUser()
   const { postsByUser, setPostsByUser } = usePostStore()
-  const { setCurrentProfile, currentProfile } = useProfileStore() as ProfileStore
+  const { setCurrentProfile, currentProfile } = useProfileStore()
   const { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore()
 
   const { showPaidPosts, hidePostUser } = useDownloadsStore();

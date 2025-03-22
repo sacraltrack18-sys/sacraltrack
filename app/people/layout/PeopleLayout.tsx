@@ -18,8 +18,27 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
     }, [userContext?.user, router]);
 
     return (
-        <>
+        <div className="min-h-screen bg-gradient-to-b from-[#0F111A] via-[#171923] to-[#0F111A]">
             <TopNav params={{ id: userContext?.user?.id as string }} />
+            
+            {/* Decorative header with gradient overlay */}
+            <div className="relative h-32 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#171923] to-transparent"></div>
+                <div className="container mx-auto h-full flex items-end px-4">
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-4xl font-bold text-white pb-6"
+                    >
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+                            People
+                        </span>
+                    </motion.h1>
+                </div>
+            </div>
+            
             <div className="flex mx-auto w-full px-0">
                 <div className="flex justify-center w-full px-0">
                     <motion.div
@@ -28,10 +47,21 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
                         transition={{ duration: 0.5 }}
                         className="w-full max-w-7xl mx-auto px-4 py-8"
                     >
+                        {/* Floating notification indicator */}
+                        <div className="fixed bottom-6 right-6 z-10">
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                            >
+                                <NotificationBell />
+                            </motion.div>
+                        </div>
+                        
                         {children}
                     </motion.div>
                 </div>
             </div>
-        </>
+        </div>
     );
 } 

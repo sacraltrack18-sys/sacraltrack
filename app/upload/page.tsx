@@ -16,10 +16,9 @@ import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
 import ImageUploader from '../components/upload/ImageUploader';
 import GenreSelector from '../components/upload/GenreSelector';
-import UploadProgress from '../components/upload/UploadProgress';
-import ProcessingProgress from '../components/upload/ProcessingProgress';
 import SuccessModal from '../components/upload/SuccessModal';
 import RequirementsTooltip from '../components/upload/RequirementsTooltip';
+import UploadProgress from '../components/upload/UploadProgress';
 
 // Copyright notification component
 interface CopyrightNotificationProps {
@@ -75,203 +74,6 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
   );
 };
 
-// Add a new AdvancedProgressBar component
-const AdvancedProgressBar = ({ 
-  isProcessing, 
-  stage, 
-  progress, 
-  onCancel 
-}: { 
-  isProcessing: boolean; 
-  stage: string; 
-  progress: number; 
-  onCancel: () => void;
-}) => {
-  console.log("AdvancedProgressBar render:", { isProcessing, stage, progress });
-  
-  // The upload stages in order
-  const stages = [
-    "Uploading WAV",
-    "Converting to MP3",
-    "Segmenting audio",
-    "Preparing segments",
-    "Uploading segments",
-    "Creating playlist",
-    "Uploading main audio",
-    "Uploading cover image",
-    "Uploading MP3 version",
-    "Finalizing upload"
-  ];
-
-  // Map the current stage to index in the stages array
-  const getCurrentStageIndex = () => {
-    if (!stage) return -1;
-    
-    const stageIndex = stages.findIndex(s => 
-      stage.toLowerCase().includes(s.toLowerCase())
-    );
-    console.log("Current stage index:", stageIndex, "for stage:", stage);
-    return stageIndex !== -1 ? stageIndex : stages.length - 1;
-  };
-
-  const currentStageIndex = getCurrentStageIndex();
-  
-  // Calculate overall progress based on stages completed and current progress
-  const calculateOverallProgress = () => {
-    if (currentStageIndex === -1) return 0;
-    
-    const stageWidth = 100 / stages.length;
-    const completedStagesProgress = currentStageIndex * stageWidth;
-    const currentStageProgress = progress * (stageWidth / 100);
-    
-    const overallProgress = completedStagesProgress + currentStageProgress;
-    console.log("Overall progress calculation:", { 
-      stageWidth, 
-      completedStagesProgress, 
-      currentStageProgress, 
-      overallProgress 
-    });
-    
-    return overallProgress;
-  };
-  
-  const overallProgress = calculateOverallProgress();
-
-  // Only show if processing
-  if (!isProcessing) {
-    console.log("AdvancedProgressBar not displaying because isProcessing is false");
-    return null;
-  }
-
-  console.log("AdvancedProgressBar is displaying with overall progress:", Math.round(overallProgress) + "%");
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50">
-      <div className="w-[90%] max-w-3xl bg-gradient-to-b from-[#1F1239] to-[#150C28] rounded-2xl shadow-2xl border border-[#20DDBB]/20 p-8 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#20DDBB]/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#018CFD]/10 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="relative z-10">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-1">Uploading Track</h3>
-              <p className="text-[#20DDBB]">{Math.round(overallProgress)}% complete</p>
-            </div>
-            <button 
-              onClick={onCancel}
-              className="bg-white/10 hover:bg-white/20 text-white/80 hover:text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 mr-2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Cancel
-            </button>
-          </div>
-          
-          {/* Main progress bar */}
-          <div className="mb-8">
-            <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden relative">
-              {/* Glow effect */}
-              <div className="absolute inset-y-0 left-0 w-full h-full bg-gradient-to-r from-[#20DDBB]/0 via-[#20DDBB]/30 to-[#018CFD]/0 animate-pulse opacity-50"></div>
-              
-              {/* Progress fill */}
-              <div 
-                className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full relative transition-all duration-500 ease-out"
-                style={{ width: `${overallProgress}%` }}
-              >
-                {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-              </div>
-              
-              {/* Progress marker */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white rounded-full shadow-lg shadow-[#20DDBB]/40 transform -translate-x-1/2 transition-all duration-500 ease-out"
-                style={{ left: `${overallProgress}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Stages timeline */}
-          <div className="relative">
-            <div className="absolute top-4 left-0 w-full h-0.5 bg-white/10"></div>
-            <div className="flex justify-between mb-10">
-              {stages.map((s, index) => {
-                // Determine status: completed, current, or upcoming
-                const isCompleted = index < currentStageIndex;
-                const isCurrent = index === currentStageIndex;
-                const isUpcoming = index > currentStageIndex;
-                
-                return (
-                  <div key={index} className="relative flex flex-col items-center" style={{ width: `${100 / stages.length}%` }}>
-                    {/* Stage marker */}
-                    <div 
-                      className={`w-4 h-4 rounded-full transition-all duration-300 z-10 transform ${
-                        isCompleted ? 'bg-[#20DDBB] scale-100' : 
-                        isCurrent ? 'bg-white shadow-lg shadow-[#20DDBB]/50 scale-125' : 
-                        'bg-white/20 scale-90'
-                      }`}
-                    >
-                      {/* Pulse effect for current stage */}
-                      {isCurrent && (
-                        <div className="absolute inset-0 rounded-full bg-white/50 animate-ping"></div>
-                      )}
-                    </div>
-                    
-                    {/* Stage name */}
-                    <div 
-                      className={`absolute top-6 text-xs font-medium transition-all ${
-                        isCompleted ? 'text-[#20DDBB]/80' : 
-                        isCurrent ? 'text-white' : 
-                        'text-white/40'
-                      }`}
-                      style={{ 
-                        transform: `translateX(-50%) scale(${isCurrent ? '1' : '0.9'})`,
-                        maxWidth: '100px',
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {s}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Current stage details */}
-          <div className="bg-white/5 rounded-xl p-6 border border-white/5">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="text-lg font-medium text-white">{stage}</h4>
-              <span className="text-[#20DDBB] font-bold">{Math.round(progress)}%</span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            
-            {/* Estimated remaining time would go here */}
-            <div className="mt-4 text-sm text-white/60 flex items-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 mr-2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Processing... Please don't close your browser
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function Upload() {
     const router = useRouter();
     const user  = useUser();
@@ -321,7 +123,7 @@ export default function Upload() {
     useEffect(() => {
         if (!createPostHook?.createPost || !createPostHook?.createSegmentFile) {
             console.error('Функции createPost или createSegmentFile недоступны');
-            toast.error('Ошибка инициализации загрузки. Пожалуйста, обновите страницу');
+            toast.error('Initialization error. Please refresh the page');
         }
     }, [createPostHook]);
 
@@ -527,6 +329,25 @@ export default function Upload() {
                 processingProgress: 0
             });
 
+            // Check file size (not more than 200 MB)
+            const fileSizeInMB = fileAudio.size / (1024 * 1024);
+            if (fileSizeInMB > 200) {
+                toast.error('File size must not exceed 200 MB', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
+                setIsProcessing(false);
+                return;
+            }
+
             // Проверка длительности аудио (не более 12 минут)
             if (audioDuration > 12 * 60) {
                 toast.error('Track duration must not exceed 12 minutes', {
@@ -580,7 +401,7 @@ export default function Upload() {
             // Set initial stage
             setProcessingStage('Uploading WAV');
             setProcessingProgress(0);
-            toast.loading(`Загрузка WAV: 0%`, { id: toastId });
+            toast.loading(`Uploading WAV: 0%`, { id: toastId });
 
             // Track upload progress using XMLHttpRequest
             const xhr = new XMLHttpRequest();
@@ -592,29 +413,29 @@ export default function Upload() {
                 if (event.lengthComputable) {
                     const percentage = Math.round((event.loaded / event.total) * 100);
                     setProcessingProgress(percentage);
-                    toast.loading(`Загрузка WAV: ${percentage}%`, { id: toastId });
+                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
                     console.log(`WAV upload progress: ${percentage}%`);
                 }
             };
             
             xhr.onerror = () => {
-                console.error('Сетевая ошибка при загрузке файла');
-                toast.error('Сетевая ошибка при загрузке файла', { id: toastId });
+                console.error('Network error while uploading file');
+                toast.error('Network error while uploading file', { id: toastId });
                 setIsProcessing(false);
                 setUploadController(null);
             };
             
             xhr.onabort = () => {
-                console.log('Загрузка отменена пользователем');
-                toast.error('Загрузка отменена пользователем', { id: 'cancel-toast' });
+                console.log('Upload canceled by user');
+                toast.error('Upload canceled by user', { id: 'cancel-toast' });
                 setIsProcessing(false);
                 setUploadController(null);
             };
             
             xhr.onload = async () => {
                 if (xhr.status !== 200) {
-                    console.error('Ошибка сервера:', xhr.status, xhr.statusText);
-                    toast.error(`Ошибка сервера: ${xhr.statusText || 'неизвестная ошибка'}`, { id: toastId });
+                    console.error(`Server error: ${xhr.statusText || 'unknown error'}`, { id: toastId });
+                    toast.error(`Server error: ${xhr.statusText || 'unknown error'}`, { id: toastId });
                     setIsProcessing(false);
                     setUploadController(null);
                     return;
@@ -623,7 +444,7 @@ export default function Upload() {
                 try {
                     // Set progress to 100% when upload is complete
                     setProcessingProgress(100);
-                    toast.loading(`Загрузка WAV: 100%`, { id: toastId });
+                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
                     
                     // Now handle the SSE response
                     const response = new Response(xhr.response, {
@@ -642,8 +463,8 @@ export default function Upload() {
                     // Continue with the rest of the processing...
                     await handleSSEProcessing(reader, decoder, toastId);
                 } catch (error) {
-                    console.error('Ошибка обработки ответа:', error);
-                    toast.error('Ошибка обработки ответа сервера', { id: toastId });
+                    console.error('Error processing server response', { id: toastId });
+                    toast.error('Error processing server response', { id: toastId });
                     setIsProcessing(false);
                     setUploadController(null);
                 }
@@ -1143,19 +964,14 @@ export default function Upload() {
         <div className="min-h-screen bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white">
             {/* Enhanced progress visualization with stages and percentages - moved to top level for better visibility */}
             {/* Disable the progress bar as requested */}
-            {/* {isProcessing && (
-                <AdvancedProgressBar
-                    isProcessing={isProcessing}
+            {isProcessing && (
+                <UploadProgress
+                    isUploading={isProcessing}
                     stage={processingStage}
                     progress={processingProgress}
-                    onCancel={() => {
-                        console.log("Cancel clicked");
-                        setIsProcessing(false);
-                        setProcessingStage('');
-                        setProcessingProgress(0);
-                    }}
+                    onCancel={handleCancelUpload}
                 />
-            )} */}
+            )}
             
             {/* Use original TopNav from layouts/includes */}
             <TopNav params={{id: ''}} />
@@ -1262,7 +1078,7 @@ export default function Upload() {
                                             </li>
                                             <li className="flex items-center">
                                                 <span className="mr-2 text-[#20DDBB]">✓</span>
-                                                Up to 100 MB
+                                                Up to 200 MB
                                             </li>
                                             <li className="flex items-center mt-2">
                                                 <span className="mr-2 text-blue-400">ℹ</span>

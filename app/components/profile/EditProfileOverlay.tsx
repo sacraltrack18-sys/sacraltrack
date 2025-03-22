@@ -87,18 +87,18 @@ const ProfileUpdatedToast = ({ userName, avatarUrl }: { userName: string, avatar
 );
 
 const EditProfileOverlay = () => {
-    const { setIsEditProfileOpen } = useGeneralStore();
-    const { currentProfile, setCurrentProfile } = useProfileStore() as unknown as {
-      currentProfile: { id: string; user_id: string; name: string; image: string; bio: string } | null;
-      setCurrentProfile: (userId: string) => void;
-    };
-    const [name, setName] = useState(currentProfile?.name || '');
-    const [bio, setBio] = useState(currentProfile?.bio || '');
-    const [image, setImage] = useState<string>(currentProfile?.image || '');
-    const [imagePreview, setImagePreview] = useState<string>('');
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [error, setError] = useState<ShowErrorObject | null>(null);
-    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [name, setName] = useState('');
+    const [bio, setBio] = useState('');
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [file, setFile] = useState<File | null>(null);
+    const [error, setError] = useState<ShowErrorObject>({ type: '', message: '' });
+    const [isLoading, setIsLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [cropperDimensions, setCropperDimensions] = useState<CropperDimensions | null>(null);
+    
+    const { currentProfile, setCurrentProfile } = useProfileStore();
+    const { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore();
+    const [image, setImage] = useState(currentProfile?.image || '');
     const [imageLoading, setImageLoading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [showPreview, setShowPreview] = useState(false);
@@ -193,7 +193,7 @@ const EditProfileOverlay = () => {
                 const optimizedFile = await optimizeImage(selectedFile);
                 const imageUrl = URL.createObjectURL(optimizedFile);
                 setImagePreview(imageUrl);
-                setImageFile(optimizedFile);
+                setFile(optimizedFile);
                 
                 // Покажем красивое уведомление об успешной оптимизации
                 const originalSize = (selectedFile.size / 1024).toFixed(2);
@@ -208,7 +208,7 @@ const EditProfileOverlay = () => {
                 console.error('Error optimizing image:', error);
                 setImage('');
                 setImagePreview('');
-                setImageFile(null);
+                setFile(null);
                 setShowPreview(false);
                 toast.error('Failed to process image. Please try another one.');
             }
@@ -219,32 +219,32 @@ const EditProfileOverlay = () => {
         if (validate()) return;
         
         try {
-            setIsUpdating(true);
+            setIsLoading(true);
             
             // First update profile info
-            await useUpdateProfile(currentProfile?.id || '', name, bio);
+            await useUpdateProfile(currentProfile?.$id || '', name, bio);
             
             // Then update image if new one was selected
             let finalImageUrl = useCreateBucketUrl(image);
             
-            if (imageFile) {
-                const newImageId = await useChangeUserImage(imageFile, { 
+            if (file) {
+                const newImageId = await useChangeUserImage(file, { 
                     left: 0, 
                     top: 0, 
                     width: 0, 
                     height: 0 
                 }, currentProfile?.image || '');
                 
-                await useUpdateProfileImage(currentProfile?.id || '', newImageId);
+                await useUpdateProfileImage(currentProfile?.$id || '', newImageId);
                 setImage(newImageId);
                 finalImageUrl = useCreateBucketUrl(newImageId);
                 setImagePreview('');
-                setImageFile(null);
+                setFile(null);
                 setShowPreview(false);
                 setImageUploaded(false);
             }
             
-            setIsUpdating(false);
+            setIsLoading(false);
             
             toast.custom((t) => (
                 <ProfileUpdatedToast userName={name} avatarUrl={finalImageUrl} />
@@ -258,7 +258,7 @@ const EditProfileOverlay = () => {
             router.refresh();
         } catch (error) {
             console.error('Error updating profile:', error);
-            setIsUpdating(false);
+            setIsLoading(false);
             toast.error('Failed to update profile');
         }
     };
@@ -269,7 +269,7 @@ const EditProfileOverlay = () => {
     };
 
     const validate = () => {
-        setError(null)
+        setError({ type: '', message: '' })
         let isError = false
 
         if (!name) {
@@ -414,13 +414,13 @@ const EditProfileOverlay = () => {
                                     whileHover={{ scale: 1.02, boxShadow: "0 0 25px rgba(32,221,187,0.3)" }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={handleSave}
-                                    disabled={isUpdating}
+                                    disabled={isLoading}
                                     className="w-full bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 
                                         text-black font-medium py-3 rounded-xl transition-all duration-300
                                         hover:shadow-[0_0_20px_rgba(32,221,187,0.3)]
                                         disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isUpdating ? (
+                                    {isLoading ? (
                                         <div className="flex items-center justify-center gap-2">
                                             <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                                             <span>Saving profile...</span>

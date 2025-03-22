@@ -15,8 +15,8 @@ async function validateFile(file: File): Promise<{ isValid: boolean; error?: str
     if (!file.type.includes('wav')) {
         return { isValid: false, error: 'File must be in WAV format' };
     }
-    if (file.size > 100 * 1024 * 1024) { // 100MB
-        return { isValid: false, error: 'File size must not exceed 100MB' };
+    if (file.size > 200 * 1024 * 1024) { // 200MB
+        return { isValid: false, error: 'File size must not exceed 200MB' };
     }
     return { isValid: true };
 }
