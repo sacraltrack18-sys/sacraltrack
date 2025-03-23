@@ -7,7 +7,7 @@ import { useGeneralStore } from "@/app/stores/general"
 import { useRouter } from "next/navigation"
 import { ProfilePageTypes } from "@/app/types"
 import { useProfileStore } from "@/app/stores/profile"
-import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
+import createBucketUrl from "@/app/hooks/useCreateBucketUrl"
 
 
 
@@ -44,9 +44,12 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
                         <ClientOnly>
                                 {currentProfile ? (
                                     <img className="md:absolute bottom-0 left-0 md:mt-[5px] w-[80px] md:w-full md:max-h-[240px] object-cover rounded-2xl" 
-                                    src={useCreateBucketUrl(currentProfile.image)} style={{ boxShadow: '0px 10px 10px -10px rgba(0, 0, 0, 0.3)' }} />
+                                    src={currentProfile.image && currentProfile.image.trim() 
+                                        ? createBucketUrl(currentProfile.image, 'user') 
+                                        : '/images/placeholders/user-placeholder.svg'} 
+                                    style={{ boxShadow: '0px 10px 10px -10px rgba(0, 0, 0, 0.3)' }} />
                                 ) : (
-                                    <img src="/images/user.svg" className="min-w-full max-h-[300px] rounded-xl" />
+                                    <img src="/images/placeholders/user-placeholder.svg" className="min-w-full max-h-[300px] rounded-xl" />
                                 )}
                             </ClientOnly>
 

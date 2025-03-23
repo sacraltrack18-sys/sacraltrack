@@ -6,7 +6,7 @@ import { BsThreeDotsVertical } from "react-icons/bs"
 import { useEffect, useState, useRef, useCallback } from "react" 
 import { useUser } from "@/app/context/user"
 import { useGeneralStore } from "@/app/stores/general"
-import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
+import createBucketUrl from "@/app/hooks/useCreateBucketUrl"
 import { RandomUsers, Genre, Post, ProfilePageTypes, User, ProfileStore } from "@/app/types"
 import useSearchProfilesByName from "@/app/hooks/useSearchProfilesByName"
 import { useContext } from "react"
@@ -19,10 +19,6 @@ import TutorialGuide, { TutorialStep } from '@/app/components/TutorialGuide'
 import NotificationBell from "@/app/components/notifications/NotificationBell"
 import useNotifications from "@/app/hooks/useNotifications"
 import { toast } from "react-hot-toast"
-
-
-
-
 
 export default function TopNav({ params }: ProfilePageTypes) {    
     const userContext = useUser()
@@ -328,6 +324,31 @@ export default function TopNav({ params }: ProfilePageTypes) {
         // Обработка клика по уведомлению
     };
 
+    const getProfileImageUrl = (imageId: string) => {
+        if (!imageId || imageId.trim() === '') {
+            return '/images/placeholders/user-placeholder.svg';
+        }
+        try {
+            return createBucketUrl(imageId, 'user');
+        } catch (error) {
+            console.error('Error in getProfileImageUrl:', error);
+            return '/images/placeholders/user-placeholder.svg';
+        }
+    };
+
+    const getSearchResultImageUrl = (imageId: string) => {
+        if (!imageId || imageId.trim() === '') {
+            return '/images/placeholders/default-placeholder.svg';
+        }
+        try {
+            const type = imageId.startsWith('track_') ? 'track' : 'default';
+            return createBucketUrl(imageId, type);
+        } catch (error) {
+            console.error('Error in getSearchResultImageUrl:', error);
+            return '/images/placeholders/default-placeholder.svg';
+        }
+    };
+
     return (
         <>  
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-50 flex items-center h-[60px] right-0 left-0 border-b border-white/10">
@@ -406,7 +427,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                                              cursor-pointer transition-colors"
                                                 >
                                                     <img
-                                                        src={useCreateBucketUrl(result.image) || '/images/placeholder.jpg'}
+                                                        src={getSearchResultImageUrl(result.image)}
                                                         alt={result.name}
                                                         className="w-10 h-10 rounded-full object-cover"
                                                     />
@@ -461,7 +482,11 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                     >
                                         <img 
                                             className="w-full h-full object-cover"
-                                            src={useCreateBucketUrl(userContext?.user?.image || '')}
+                                            src={userContext?.user?.image 
+                                                ? getProfileImageUrl(userContext.user.image)
+                                                : '/images/placeholders/user-placeholder.svg'
+                                            } 
+                                            alt={userContext?.user?.name || 'User avatar'}
                                         />
                                     </motion.div>
                                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#20DDBB] rounded-full 
@@ -507,8 +532,8 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                                             <img 
                                                                 className="w-full h-full object-cover"
                                                                 src={userContext?.user?.image 
-                                                                    ? useCreateBucketUrl(userContext.user.image)
-                                                                    : '/images/placeholder-user.jpg'
+                                                                    ? getProfileImageUrl(userContext.user.image)
+                                                                    : '/images/placeholders/user-placeholder.svg'
                                                                 } 
                                                                 alt={userContext?.user?.name || 'User avatar'}
                                                             />

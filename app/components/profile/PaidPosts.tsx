@@ -82,9 +82,13 @@ const PaidPosts: React.FC<PaidPostsProps> = ({ userId, posts }) => {
   
 
   {/* Download Wav */}
-      const handleDownload = async (post: Post) => {
+      const handleDownload = async (post: PaidPostData) => {
         setIsLoading(true);
         try {
+          if (!post.audio_url) {
+            throw new Error("Audio URL is not available for this post");
+          }
+          
           const result = await storage.getFileDownload(
             process.env.NEXT_PUBLIC_BUCKET_ID!,
             post.audio_url
@@ -93,7 +97,7 @@ const PaidPosts: React.FC<PaidPostsProps> = ({ userId, posts }) => {
           // Создаем ссылку для скачивания файла
           const downloadLink = document.createElement('a');
           downloadLink.href = result.href;
-          downloadLink.setAttribute('download', post.trackname);
+          downloadLink.setAttribute('download', post.trackname || 'audio-track');
           document.body.appendChild(downloadLink);
           downloadLink.click();
           downloadLink.remove();

@@ -102,9 +102,8 @@ export const useFriends = () => {
             createdAt: friend.createdAt,
             updatedAt: friend.updatedAt,
             friendProfile: friendProfile.documents[0] ? {
-              name: friendProfile.documents[0].name || friendProfile.documents[0].username,
+              name: friendProfile.documents[0].name || 'User',
               image: friendProfile.documents[0].image || '/images/placeholder-user.jpg',
-              username: friendProfile.documents[0].username,
               totalLikes: userStats.documents[0]?.totalLikes || 0,
               averageRating: userStats.documents[0]?.averageRating || 0
             } : undefined
@@ -129,9 +128,8 @@ export const useFriends = () => {
             createdAt: friend.createdAt,
             updatedAt: friend.updatedAt,
             friendProfile: friendProfile.documents[0] ? {
-              name: friendProfile.documents[0].name || friendProfile.documents[0].username,
+              name: friendProfile.documents[0].name || 'User',
               image: friendProfile.documents[0].image || '/images/placeholder-user.jpg',
-              username: friendProfile.documents[0].username
             } : undefined
           } as Friend;
         })

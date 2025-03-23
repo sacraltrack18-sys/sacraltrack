@@ -12,17 +12,39 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { BsSearch } from "react-icons/bs";
 import NotificationBell from "../components/notifications/NotificationBell";
+import EnhancedUserProfileCard from "../components/EnhancedUserProfileCard";
+import { useProfileStore } from "@/app/stores/profile";
+import AuthObserver from "@/app/components/AuthObserver";
+
+// Локальный интерфейс для карточки профиля
+interface ProfileCardProps {
+  user_id: string;
+  name: string;
+  image: string;
+  created_at?: string;
+  genre?: string;
+  bio?: string;
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const userContext = useUser();   
     const router = useRouter();
+    const { currentProfile, setCurrentProfile } = useProfileStore();
 
     const { setIsLoginOpen } = useGeneralStore();
+    
+    // Загружаем профиль, если пользователь авторизован
+    useEffect(() => {
+        if (userContext?.user?.id && !currentProfile) {
+            setCurrentProfile(userContext.user.id);
+        }
+    }, [userContext?.user?.id, currentProfile, setCurrentProfile]);
 
     return (
 		<>
 			<TopNav params={{ id: userContext?.user?.id as string }} />
+            <AuthObserver />
 
 		<div className="flex mx-auto w-full px-0">
 			
@@ -33,6 +55,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 transition={{ duration: 0.5 }}
                       className="w-full"
             >
+                {/* Профильная карточка для десктопа и iPad */}
+                {userContext?.user && currentProfile && (
+                  <div className="pt-[80px] mb-6 px-3">
+                    <EnhancedUserProfileCard profile={{
+                      user_id: userContext.user.id,
+                      name: currentProfile.name || 'User',
+                      image: currentProfile.image || '',
+                      created_at: currentProfile.created_at || new Date().toISOString(),
+                      genre: currentProfile.genre || '',
+                      bio: currentProfile.bio || ''
+                    } as ProfileCardProps} />
+                  </div>
+                )}
 				{/*<SideNavMain />*/}
 				{/*<MainComponentsFilter />*/}
 				</motion.div>
@@ -80,6 +115,4 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 		</div>
 		</>
     )
-}
-
-
+} 

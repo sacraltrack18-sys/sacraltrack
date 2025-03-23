@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useUser } from "@/app/context/user";
 import { useFriendStore } from "@/app/stores/friendStore";
-import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
+import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { motion, AnimatePresence } from "framer-motion";
 import { BsPersonPlus, BsPersonCheck, BsPersonX } from "react-icons/bs";
 import { IoMdMusicalNotes } from "react-icons/io";
@@ -30,7 +30,10 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
   const [friendCount, setFriendCount] = useState(0);
   const { friends, pendingRequests, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend } = useFriendStore();
   
-  const userProfileImageUrl = useCreateBucketUrl(profile.image);
+  // Get the profile image URL (handle both undefined and empty string cases)
+  const userProfileImageUrl = profile.image && profile.image.trim() 
+    ? createBucketUrl(profile.image, 'user') 
+    : '/images/placeholders/user-placeholder.svg';
   
   const isFriend = friends.some(friend => friend.friend_id === profile.user_id);
   const pendingRequest = pendingRequests.find(
@@ -38,10 +41,23 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
   );
 
   useEffect(() => {
-    // Получаем количество друзей для конкретного пользователя
+    // Get friend count for this user
     const userFriends = friends.filter(friend => friend.friend_id === profile.user_id);
     setFriendCount(userFriends.length);
   }, [friends, profile.user_id]);
+
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleHoverStart = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handleHoverEnd = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+  }, []);
 
   const handleFriendAction = async () => {
     if (!contextUser?.user) {
@@ -132,16 +148,16 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.02 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
+      onHoverStart={handleHoverStart}
+      onHoverEnd={handleHoverEnd}
     >
       <Link href={`/profile/${profile.user_id}`}>
         <div className="relative w-full h-[200px] overflow-hidden">
           <motion.img
-            src={imageError ? '/images/placeholder-user.jpg' : userProfileImageUrl}
+            src={imageError ? '/images/placeholders/user-placeholder.svg' : userProfileImageUrl}
             alt={profile.name}
             className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             initial={{ scale: 1 }}
             whileHover={{ scale: 1.1 }}
             transition={{ duration: 0.3 }}

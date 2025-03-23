@@ -8,6 +8,7 @@ interface DownloadsStore {
   toggleHidePostUser: () => void;
   showPurchases: boolean;
   toggleShowPurchases: () => void;
+  setShowPurchases: (value: boolean) => void;
 }
 
 const useDownloadsStore = create<DownloadsStore>((set) => ({
@@ -21,6 +22,7 @@ const useDownloadsStore = create<DownloadsStore>((set) => ({
   activatePaidPosts: () => set({ showPaidPosts: true, hidePostUser: true }),
   toggleHidePostUser: () => set((state) => ({ hidePostUser: !state.hidePostUser })),
   toggleShowPurchases: () => set((state) => ({ showPurchases: !state.showPurchases })),
+  setShowPurchases: (value: boolean) => set({ showPurchases: value }),
 }));
 
 export default useDownloadsStore;

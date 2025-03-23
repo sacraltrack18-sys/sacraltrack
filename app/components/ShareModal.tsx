@@ -6,6 +6,8 @@ import { FaTelegramPlane, FaVk } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { PostWithProfile } from '@/app/types';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -13,13 +15,29 @@ interface ShareModalProps {
     post: PostWithProfile;
 }
 
+// Модальное окно для поделиться треком
 const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
     const imageUrl = useCreateBucketUrl(post?.image_url);
     const avatarUrl = useCreateBucketUrl(post?.profile?.image);
+    const [isMounted, setIsMounted] = useState(false);
 
     const shareUrl = typeof window !== 'undefined' 
         ? `${window.location.origin}/post/${post.user_id}/${post.id}`
         : '';
+
+    useEffect(() => {
+        setIsMounted(true);
+        
+        // Фиксирование body для предотвращения скролла под модальным окном
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+        
+        return () => {
+            setIsMounted(false);
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
 
     const handleCopy = async () => {
         try {
@@ -55,10 +73,26 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
         }
     ];
 
-    return (
+    // Если компонент не смонтирован или нет доступа к window, не рендерим ничего
+    if (!isMounted || typeof window === 'undefined') return null;
+
+    // Рендерим модальное окно через портал прямо в body
+    return createPortal(
         <AnimatePresence mode="wait">
             {isOpen && (
-                <>
+                <div className="modal-wrapper" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100vw',
+                    height: '100vh',
+                    zIndex: 9999
+                }}>
                     {/* Backdrop with blur effect */}
                     <motion.div
                         initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
@@ -66,8 +100,16 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                         exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                         transition={{ duration: 0.3 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/40 z-[100]"
-                        style={{ backdropFilter: 'blur(8px)' }}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                            backdropFilter: 'blur(8px)',
+                            zIndex: 1000
+                        }}
                     />
 
                     {/* Modal */}
@@ -80,12 +122,22 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                             damping: 25,
                             stiffness: 300
                         }}
-                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                                 bg-[#24183D]/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8
-                                 shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10
-                                 z-[101] w-[95%] sm:w-[90%] max-w-md mx-auto
-                                 max-h-[90vh] overflow-y-auto
-                                 flex flex-col"
+                        style={{
+                            position: 'relative',
+                            zIndex: 1001,
+                            backgroundColor: 'rgba(36, 24, 61, 0.6)',
+                            backdropFilter: 'blur(16px)',
+                            borderRadius: '24px',
+                            padding: '24px',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.37)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            width: '95%',
+                            maxWidth: '420px',
+                            maxHeight: '90vh',
+                            overflow: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
                     >
                         {/* Close button */}
                         <motion.button
@@ -110,7 +162,7 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                         >
                             <motion.img 
                                 whileHover={{ scale: 1.05 }}
-                                src={imageUrl || '/images/placeholder-track.jpg'} 
+                                src={imageUrl || '/images/placeholders/track-placeholder.svg'} 
                                 alt={post.trackname}
                                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover ring-2 ring-white/10"
                             />
@@ -120,7 +172,7 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                                 </h3>
                                 <div className="flex items-center gap-2">
                                     <img 
-                                        src={avatarUrl || '/images/placeholder-user.jpg'} 
+                                        src={avatarUrl || '/images/placeholders/user-placeholder.svg'} 
                                         alt={post.profile.name}
                                         className="w-5 h-5 rounded-full ring-1 ring-white/20"
                                     />
@@ -189,9 +241,10 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                             </motion.button>
                         </motion.div>
                     </motion.div>
-                </>
+                </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 

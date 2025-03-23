@@ -46,7 +46,7 @@ const useChangeUserImage = async (file: File, cropper: any, currentImage: string
 
         // Удаляем старое изображение
         if (currentImage && 
-            currentImage !== String(process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID) &&
+            !currentImage.includes('/images/placeholders/') &&
             currentImage !== "undefined" && 
             currentImage !== "null") {
             try {

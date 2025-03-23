@@ -21,22 +21,10 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
         <div className="min-h-screen bg-gradient-to-b from-[#0F111A] via-[#171923] to-[#0F111A]">
             <TopNav params={{ id: userContext?.user?.id as string }} />
             
-            {/* Decorative header with gradient overlay */}
-            <div className="relative h-32 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 overflow-hidden">
+            {/* Декоративное фоновое оформление без заголовка */}
+            <div className="relative h-16 bg-gradient-to-r from-purple-900/20 to-indigo-900/20 overflow-hidden">
                 <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10"></div>
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#171923] to-transparent"></div>
-                <div className="container mx-auto h-full flex items-end px-4">
-                    <motion.h1 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="text-4xl font-bold text-white pb-6"
-                    >
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
-                            People
-                        </span>
-                    </motion.h1>
-                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#171923] to-transparent"></div>
             </div>
             
             <div className="flex mx-auto w-full px-0">

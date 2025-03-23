@@ -13,7 +13,9 @@ import { AudioPlayer } from '@/app/components/AudioPlayer';
 import Image from 'next/image';
 import { FiShare2 } from 'react-icons/fi';
 import { HiMusicNote } from 'react-icons/hi';
-import { FaPlay, FaPause } from 'react-icons/fa';
+import { FaPlay, FaPause, FaFire, FaStar, FaTrophy } from 'react-icons/fa';
+import { AiFillFire, AiFillStar } from 'react-icons/ai';
+import { BsStars } from 'react-icons/bs';
 import ShareModal from './ShareModal';
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
@@ -22,6 +24,7 @@ import { useCommentStore } from "@/app/stores/comment";
 import FloatingComments from '@/app/components/FloatingComments';
 import { CommentWithProfile } from "@/app/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { PiFireFill } from 'react-icons/pi';
 
 // Toast styles
 const successToast = (message: string) => toast.success(message, {
@@ -78,6 +81,9 @@ interface PostImageProps {
     isPlaying: boolean;
     onTogglePlay: () => void;
     post: any;
+    onReact?: (reactionType: string) => void;
+    reactions?: Record<string, number>;
+    currentReaction?: string | null;
 }
 
 // Sound wave animation component
@@ -141,7 +147,17 @@ const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text
 
 PostHeader.displayName = 'PostHeader';
 
-const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePlay, post }: PostImageProps) => (
+const PostImage = memo(({ 
+    imageUrl, 
+    imageError, 
+    comments, 
+    isPlaying, 
+    onTogglePlay, 
+    post,
+    onReact,
+    reactions = {},
+    currentReaction
+}: PostImageProps) => (
     <div className="relative w-full group">
         <div 
             className="w-full aspect-square bg-cover bg-center relative overflow-hidden transition-transform duration-300"
@@ -173,6 +189,16 @@ const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePla
                     )}
                 </div>
             </button>
+            
+            {/* Reactions Panel */}
+            {onReact && <PostImageReactions post={post} onReact={onReact} reactions={reactions} />}
+            
+            {/* Current Reaction Effect */}
+            <AnimatePresence>
+                {currentReaction && (
+                    <ReactionEffect type={currentReaction} />
+                )}
+            </AnimatePresence>
             
             {/* Audio waves when playing */}
             <AnimatePresence>
@@ -289,6 +315,145 @@ const PostMainSkeleton = memo(() => (
 
 PostMainSkeleton.displayName = 'PostMainSkeleton';
 
+// Добавляем интерфейс для типа реакции
+interface ReactionType {
+    id: string;
+    icon: JSX.Element;
+    color: string;
+    label: string;
+    animation: {
+        initial: any;
+        animate: any;
+    };
+}
+
+// Добавляем интерфейс для реакций на изображении
+interface PostImageReactionsProps {
+    post: any;
+    onReact: (reactionType: string) => void;
+    reactions: Record<string, number>;
+}
+
+// Создаем компонент для отображения анимированных реакций
+const PostImageReactions = memo(({ post, onReact, reactions = {} }: PostImageReactionsProps) => {
+    const reactionTypes: ReactionType[] = [
+        {
+            id: 'fire',
+            icon: <div className="fire-icon-3d">
+                    <PiFireFill size={38} className="text-transparent fire-gradient" />
+                  </div>,
+            color: 'text-orange-500',
+            label: 'Огонь',
+            animation: {
+                initial: { scale: 0.8, opacity: 0, rotateY: -30 },
+                animate: { scale: 1, opacity: 1, rotateY: 0 }
+            }
+        }
+    ];
+
+    return (
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex flex-col space-y-3 z-10">
+            {reactionTypes.map((reaction) => (
+                <motion.button
+                    key={reaction.id}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center 
+                              transition-all group shadow-lg`}
+                    onClick={() => onReact(reaction.id)}
+                    whileHover={{ 
+                        scale: 1.15, 
+                        rotateY: 20
+                    }}
+                    whileTap={{ scale: 0.9, rotateY: -20 }}
+                    initial={reaction.animation.initial}
+                    animate={reaction.animation.animate}
+                    transition={{ 
+                        type: 'spring', 
+                        stiffness: 400, 
+                        damping: 17,
+                        mass: 1.5
+                    }}
+                    style={{
+                        perspective: '800px',
+                        transformStyle: 'preserve-3d',
+                        backfaceVisibility: 'hidden'
+                    }}
+                >
+                    {reaction.icon}
+                </motion.button>
+            ))}
+        </div>
+    );
+});
+
+PostImageReactions.displayName = 'PostImageReactions';
+
+// Компонент для отображения эффектов реакций
+const ReactionEffect = memo(({ type }: { type: string }) => {
+    const renderEffect = () => {
+        switch (type) {
+            case 'fire':
+                return (
+                    <motion.div 
+                        className="absolute inset-0 overflow-hidden pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        {[...Array(25)].map((_, i) => (
+                            <motion.div 
+                                key={i}
+                                className="absolute"
+                                initial={{ 
+                                    x: `${Math.random() * 100}%`, 
+                                    y: '100%', 
+                                    opacity: 0.8,
+                                    scale: 0.5 + Math.random() * 0.5,
+                                    rotate: Math.random() * 30 - 15,
+                                    rotateY: Math.random() * 180,
+                                    rotateX: Math.random() * 45
+                                }}
+                                animate={{ 
+                                    y: `${Math.random() * -120}%`,
+                                    x: `${Math.random() * 100}%`, 
+                                    opacity: 0,
+                                    scale: [0.5 + Math.random() * 0.5, 1.2, 0],
+                                    rotate: [Math.random() * 30 - 15, Math.random() * 60 - 30],
+                                    rotateY: [Math.random() * 180, Math.random() * 360],
+                                    rotateX: [Math.random() * 45, Math.random() * 90],
+                                    transition: { 
+                                        duration: 1.2 + Math.random() * 0.8, 
+                                        repeat: 0,
+                                        ease: 'easeOut'
+                                    }
+                                }}
+                                style={{
+                                    filter: 'drop-shadow(0 0 10px rgba(255, 87, 34, 0.8))',
+                                    zIndex: Math.floor(Math.random() * 10),
+                                    perspective: '800px',
+                                    transformStyle: 'preserve-3d'
+                                }}
+                            >
+                                <div className="fire-icon-3d">
+                                    <PiFireFill 
+                                        size={15 + Math.random() * 35} 
+                                        className="text-transparent fire-gradient" 
+                                    />
+                                </div>
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    return renderEffect();
+});
+
+ReactionEffect.displayName = 'ReactionEffect';
+
 const PostMain = memo(({ post }: PostMainCompTypes) => {
     const [imageError, setImageError] = useState(false);
     const [avatarError, setAvatarError] = useState(false);
@@ -310,6 +475,12 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
     const { checkIfTrackPurchased } = useCheckPurchasedTrack();
     const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
     const cardRef = useRef<HTMLDivElement>(null);
+    
+    // Добавляем состояния для реакций
+    const [reactions, setReactions] = useState<Record<string, number>>({
+        fire: 0
+    });
+    const [currentReaction, setCurrentReaction] = useState<string | null>(null);
     
     // Calculate URLs only once when post changes
     useEffect(() => {
@@ -415,6 +586,26 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
         return () => {
             observer.disconnect();
         };
+    }, []);
+
+    // Функция для обработки реакций
+    const handleReaction = useCallback((reactionType: string) => {
+        // Увеличиваем счетчик реакции
+        setReactions(prev => ({
+            ...prev,
+            [reactionType]: prev[reactionType] + 1
+        }));
+        
+        // Показываем анимацию реакции
+        setCurrentReaction(reactionType);
+        
+        // Убираем анимацию через 1.5 секунды
+        setTimeout(() => {
+            setCurrentReaction(null);
+        }, 1500);
+        
+        // Тут можно добавить логику сохранения реакции на сервер
+        // например вызов API для сохранения реакции
     }, []);
 
     // Early return if no post
@@ -526,6 +717,9 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
                 isPlaying={isPlaying}
                 onTogglePlay={handleTogglePlay}
                 post={post}
+                onReact={handleReaction}
+                reactions={reactions}
+                currentReaction={currentReaction}
             />
 
             <div className="px-4 py-2 w-full">

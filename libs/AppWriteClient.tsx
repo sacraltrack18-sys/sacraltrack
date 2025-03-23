@@ -6,6 +6,7 @@ console.log("[APPWRITE-CONFIG] URL:", process.env.NEXT_PUBLIC_APPWRITE_URL || 'n
 console.log("[APPWRITE-CONFIG] Project ID:", process.env.NEXT_PUBLIC_ENDPOINT || 'not set');
 console.log("[APPWRITE-CONFIG] Database ID:", process.env.NEXT_PUBLIC_DATABASE_ID || 'не задано');
 console.log("[APPWRITE-CONFIG] Collection ID (Post):", process.env.NEXT_PUBLIC_COLLECTION_ID_POST || 'не задано');
+console.log("[APPWRITE-CONFIG] Bucket ID:", process.env.NEXT_PUBLIC_BUCKET_ID || 'не задано');
 
 // Initialize Appwrite client
 const client = new Client();
@@ -45,7 +46,8 @@ export const checkAppwriteConfig = () => {
     databaseId: process.env.NEXT_PUBLIC_DATABASE_ID || 'не задано',
     profileCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE || 'не задано',
     postCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_POST || 'не задано',
-    friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || 'не задано'
+    friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || 'не задано',
+    bucketId: process.env.NEXT_PUBLIC_BUCKET_ID || 'не задано'
   };
   
   const missingVars = Object.entries(config)

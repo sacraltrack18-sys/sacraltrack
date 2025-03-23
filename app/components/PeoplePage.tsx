@@ -8,6 +8,7 @@ import { useUser } from '@/app/context/user';
 import { checkAppwriteConfig } from '@/libs/AppWriteClient';
 import Image from 'next/image';
 import Link from 'next/link';
+import TopRankingUsers from '@/app/components/profile/TopRankingUsers';
 import { 
   StarIcon, 
   UserPlusIcon, 
@@ -27,7 +28,7 @@ interface UserCardProps {
         $id: string;
         user_id: string;
         name: string;
-        username: string;
+        username?: string;
         image: string;
         bio: string;
         stats: {
@@ -97,6 +98,9 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
     const [rating, setRating] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [imageError, setImageError] = useState(false);
+
+    // Add fallback for username
+    const displayUsername = user.username || user.name;
 
     const handleRateSubmit = () => {
         onRateUser(user.user_id, rating);
@@ -182,7 +186,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                             ★{user.stats.averageRating.toFixed(1)}
                                         </span>
                                     </h3>
-                                    <p className="text-purple-400 font-medium truncate">@{user.username}</p>
+                                    <p className="text-purple-400 font-medium truncate">@{displayUsername}</p>
                                     
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="bg-purple-500/10 text-purple-400 text-xs px-2 py-0.5 rounded-full">
@@ -319,83 +323,6 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
-    );
-};
-
-const RankingCard: React.FC<{ users: any[] }> = ({ users }) => {
-    // Make sure we have an array before sorting
-    const userArray = Array.isArray(users) ? users : [];
-    
-    // Sort users by rating
-    const topUsers = [...userArray]
-        .sort((a, b) => (b.stats?.averageRating || 0) - (a.stats?.averageRating || 0))
-        .slice(0, 5);
-    
-    const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-
-    const handleImageError = (userId: string) => {
-        setImageErrors(prev => ({
-            ...prev,
-            [userId]: true
-        }));
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-[#1E2136] to-[#2A2D45] rounded-xl p-6 shadow-xl border border-purple-900/20"
-        >
-            <h2 className="text-xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500 flex items-center">
-                <StarIcon className="w-5 h-5 mr-2 text-yellow-400" />
-                Top Rated Users
-            </h2>
-            
-            <div className="space-y-3">
-                {topUsers.length > 0 ? (
-                    topUsers.map((user, index) => (
-                        <Link href={`/profile/${user.user_id}`} key={user.user_id || index}>
-                            <motion.div 
-                                className="flex items-center space-x-3 p-3 rounded-xl hover:bg-[#252742] transition-all duration-300 cursor-pointer"
-                                whileHover={{ 
-                                    x: 5, 
-                                    backgroundColor: "rgba(94, 84, 158, 0.1)",
-                                    transition: { duration: 0.2 }
-                                }}
-                            >
-                                <div className="w-8 h-8 flex items-center justify-center text-lg font-semibold bg-purple-500/10 text-purple-400 rounded-full">
-                                    #{index + 1}
-                                </div>
-                                
-                                <div className="relative w-10 h-10 flex-shrink-0">
-                                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-purple-500/30 to-pink-500/30 opacity-75 blur-[1px]"></div>
-                                    <Image
-                                        src={imageErrors[user.user_id] ? '/images/placeholder-user.jpg' : (user.image || '/images/placeholder-avatar.svg')}
-                                        alt={user.name || 'User'}
-                                        fill
-                                        className="rounded-full object-cover ring-1 ring-purple-500/50"
-                                        onError={() => handleImageError(user.user_id)}
-                                    />
-                                </div>
-                                
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400">{user.name || 'User'}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-yellow-400 text-sm">★ {user.stats?.averageRating?.toFixed(1) || '0.0'}</span> 
-                                        <span className="w-1 h-1 bg-gray-500 rounded-full"></span>
-                                        <span className="text-xs text-gray-400">{user.stats?.totalFollowers || 0} followers</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </Link>
-                    ))
-                ) : (
-                    <div className="bg-[#1A1C2E] rounded-xl p-6 text-center">
-                        <p className="text-gray-400">No users to display</p>
-                    </div>
-                )}
-            </div>
         </motion.div>
     );
 };
@@ -842,7 +769,7 @@ export default function PeoplePage() {
                 
                 {/* Sidebar */}
                 <div className="lg:col-span-1 space-y-6">
-                    <RankingCard users={profiles} />
+                    <TopRankingUsers />
                     
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}

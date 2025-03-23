@@ -1,10 +1,25 @@
-
 import { database, Query } from "@/libs/AppWriteClient";
 
 export type PaidPostData = {
   user_id: string;
   id: string;
   cart_items: string[];
+  audio_url?: string;
+  mp3_url?: string;
+  trackname?: string;
+  image_url?: string;
+  text?: string;
+  created_at?: string;
+  price?: number;
+  genre?: string;
+  likes?: number;
+  comments?: number;
+  profile?: {
+    id?: string;
+    user_id?: string;
+    name?: string;
+    image?: string;
+  };
 };
 const useGetPaidPostByUserId = async (userId: string): Promise<PaidPostData[]> => {
   try {

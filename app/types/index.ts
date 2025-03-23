@@ -97,4 +97,12 @@ export interface CommentWithProfile {
         name: string;
         image: string;
     };
+}
+
+export interface UserContextTypes {
+  user: User | null;
+  login: (email: string, password: string) => Promise<any>;
+  logout: () => Promise<any>;
+  register: (name: string, email: string, password: string) => Promise<any>;
+  checkUser: () => Promise<any>;
 } 

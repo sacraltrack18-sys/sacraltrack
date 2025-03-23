@@ -132,8 +132,8 @@ export default function Comments({ params }: CommentsCompTypes) {
                             <Link href={`/profile/${comment.profile.user_id}`}>
                                 <img 
                                     className="w-10 h-10 rounded-full object-cover ring-2 ring-[#2E2469] hover:ring-[#20DDBB] transition-all"
-                                    src={useCreateBucketUrl(comment.profile.image) || '/images/placeholder-user.jpg'}
-                                    alt={comment.profile.name}
+                                    src={useCreateBucketUrl(comment.profile.image) || '/images/placeholders/user-placeholder.svg'}
+                                    alt={comment.profile.name || 'User'}
                                 />
                             </Link>
                             <div className="flex-1">
@@ -208,9 +208,9 @@ export default function Comments({ params }: CommentsCompTypes) {
                 >
                     {userContext?.user?.id && (
                         <img 
-                            className="w-8 h-8 rounded-full object-cover ring-2 ring-[#2E2469]"
-                            src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholder-user.jpg'}
-                            alt="Your avatar"
+                            className="w-8 h-8 rounded-full object-cover"
+                            src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholders/user-placeholder.svg'}
+                            alt="Your profile"
                         />
                     )}
                     <div className="flex-1 relative">

@@ -22,6 +22,8 @@ export default function Login() {
     const [isEmailSent, setIsEmailSent] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [resetEmailSent, setResetEmailSent] = useState(false);
 
     const showError = (type: string) => {
         if (error && Object.entries(error).length > 0 && error?.type == type) {
@@ -127,6 +129,71 @@ export default function Login() {
             setLoading(false);
         }
     }
+
+    const sendPasswordRecovery = async () => {
+        if (!email) {
+            setError({ type: 'email', message: 'Please enter your email address' });
+            return;
+        }
+
+        try {
+            setLoading(true);
+            
+            // Формируем URL для сброса пароля
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+                ? process.env.NEXT_PUBLIC_APP_URL 
+                : 'http://localhost:3000';
+            const resetUrl = `${baseUrl}/reset-password`;
+            
+            // Отправляем запрос на восстановление пароля через Appwrite
+            await account.createRecovery(email, resetUrl);
+            
+            // Показываем уведомление об успешной отправке
+            toast.success('Password reset instructions have been sent to your email', {
+                duration: 5000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #20DDBB'
+                }
+            });
+            
+            // Обновляем состояние
+            setResetEmailSent(true);
+            setShowForgotPassword(false);
+            
+        } catch (error: any) {
+            console.error('Password recovery error:', error);
+            
+            // Определяем сообщение об ошибке
+            let errorMessage = 'Failed to send recovery email';
+            
+            if (error.code === 429) {
+                errorMessage = 'Too many attempts. Please try again later.';
+            } else if (error.code === 400) {
+                errorMessage = 'Please enter a valid email address.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            // Показываем ошибку
+            toast.error(errorMessage, {
+                duration: 5000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #EF4444'
+                }
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleForgotPassword = () => {
+        setShowForgotPassword(!showForgotPassword);
+        setError(null);
+    };
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) {
@@ -278,60 +345,131 @@ export default function Login() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
                         >
-                            <div className="relative group">
-                                <TextInput 
-                                    string={email}
-                                    placeholder="Email"
-                                    onUpdate={setEmail}
-                                    inputType="email"
-                                    error={showError('email')}
-                                    className={`
-                                        w-full bg-[#14151F]/60 border-2 
-                                        ${error?.type === 'email' ? 'border-red-500' : 'border-[#2A2B3F]'} 
-                                        rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
-                                        focus:border-[#20DDBB] focus:bg-[#14151F]/80
-                                        transition-all duration-300
-                                        group-hover:border-[#20DDBB]/50
-                                        outline-none
-                                    `}
-                                />
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <FiMail className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
-                                </div>
-                            </div>
+                            {showForgotPassword ? (
+                                <>
+                                    <div className="text-center mb-4">
+                                        <h2 className="text-xl font-semibold text-white mb-2">Reset Password</h2>
+                                        <p className="text-[#818BAC] text-sm">
+                                            Enter your email address and we'll send you instructions to reset your password
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="relative group">
+                                        <TextInput 
+                                            string={email}
+                                            placeholder="Email"
+                                            onUpdate={setEmail}
+                                            inputType="email"
+                                            error={showError('email')}
+                                            className={`
+                                                w-full bg-[#14151F]/60 border-2 
+                                                ${error?.type === 'email' ? 'border-red-500' : 'border-[#2A2B3F]'} 
+                                                rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
+                                                focus:border-[#20DDBB] focus:bg-[#14151F]/80
+                                                transition-all duration-300
+                                                group-hover:border-[#20DDBB]/50
+                                            `}
+                                        />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <FiMail className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-3 mt-6">
+                                        <button 
+                                            onClick={toggleForgotPassword}
+                                            className="flex-1 py-3 px-4 border border-[#2A2B3F] text-[#818BAC] rounded-xl 
+                                            hover:bg-[#2A2B3F]/50 hover:text-white transition-colors duration-300"
+                                            disabled={loading}
+                                        >
+                                            Back to Login
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={sendPasswordRecovery}
+                                            className="
+                                                flex-1 bg-gradient-to-r from-[#20DDBB] to-[#8A2BE2] 
+                                                text-white py-3 px-4 rounded-xl font-medium
+                                                relative overflow-hidden group
+                                            "
+                                            disabled={loading}
+                                        >
+                                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                                            <div className="relative flex items-center justify-center">
+                                                {loading ? (
+                                                    <BiLoaderCircle className="animate-spin text-xl" />
+                                                ) : (
+                                                    <span>Send Reset Link</span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="relative group">
+                                        <TextInput 
+                                            string={email}
+                                            placeholder="Email"
+                                            onUpdate={setEmail}
+                                            inputType="email"
+                                            error={showError('email')}
+                                            className={`
+                                                w-full bg-[#14151F]/60 border-2 
+                                                ${error?.type === 'email' ? 'border-red-500' : 'border-[#2A2B3F]'} 
+                                                rounded-xl p-4 pl-12 text-white placeholder-[#818BAC]/50
+                                                focus:border-[#20DDBB] focus:bg-[#14151F]/80
+                                                transition-all duration-300
+                                                group-hover:border-[#20DDBB]/50
+                                            `}
+                                        />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <FiMail className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
+                                        </div>
+                                    </div>
 
-                            <div className="relative group">
-                                <TextInput 
-                                    string={password}
-                                    placeholder="Password"
-                                    onUpdate={setPassword}
-                                    inputType={showPassword ? "text" : "password"}
-                                    error={showError('password')}
-                                    className={`
-                                        w-full bg-[#14151F]/60 border-2 
-                                        ${error?.type === 'password' ? 'border-red-500' : 'border-[#2A2B3F]'} 
-                                        rounded-xl p-4 pl-12 pr-12 text-white placeholder-[#818BAC]/50
-                                        focus:border-[#20DDBB] focus:bg-[#14151F]/80
-                                        transition-all duration-300
-                                        group-hover:border-[#20DDBB]/50
-                                        outline-none
-                                    `}
-                                />
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <FiLock className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818BAC] hover:text-[#20DDBB] transition-colors duration-300"
-                                >
-                                    {showPassword ? (
-                                        <FiEyeOff className="text-xl" />
-                                    ) : (
-                                        <FiEye className="text-xl" />
-                                    )}
-                                </button>
-                            </div>
+                                    <div className="relative group">
+                                        <TextInput 
+                                            string={password}
+                                            placeholder="Password"
+                                            onUpdate={setPassword}
+                                            inputType={showPassword ? "text" : "password"}
+                                            error={showError('password')}
+                                            className={`
+                                                w-full bg-[#14151F]/60 border-2 
+                                                ${error?.type === 'password' ? 'border-red-500' : 'border-[#2A2B3F]'} 
+                                                rounded-xl p-4 pl-12 pr-12 text-white placeholder-[#818BAC]/50
+                                                focus:border-[#20DDBB] focus:bg-[#14151F]/80
+                                                transition-all duration-300
+                                                group-hover:border-[#20DDBB]/50
+                                            `}
+                                        />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <FiLock className="text-[#818BAC] group-hover:text-[#20DDBB] transition-colors duration-300" />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818BAC] hover:text-[#20DDBB] transition-colors duration-300"
+                                        >
+                                            {showPassword ? (
+                                                <FiEyeOff className="text-xl" />
+                                            ) : (
+                                                <FiEye className="text-xl" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                        <button 
+                                            onClick={toggleForgotPassword}
+                                            className="text-[#20DDBB] hover:text-[#8A2BE2] text-sm transition-colors duration-300"
+                                        >
+                                            Forgot password?
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
 
                         <motion.div 
@@ -340,83 +478,89 @@ export default function Login() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
                         >
-                            <button 
-                                disabled={loading}
-                                onClick={login}
-                                className="
-                                    relative w-full bg-gradient-to-r from-[#20DDBB] to-[#8A2BE2] 
-                                    text-white py-4 rounded-xl font-semibold
-                                    overflow-hidden group
-                                "
-                            >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                <div className="relative flex items-center justify-center gap-2">
-                                    {loading ? (
-                                        <BiLoaderCircle className="animate-spin text-2xl" />
-                                    ) : (
-                                        <>
-                                            <span>Log in</span>
-                                            <motion.div
-                                                animate={{ x: [0, 5, 0] }}
-                                                transition={{ duration: 1, repeat: Infinity }}
-                                            >
-                                                →
-                                            </motion.div>
-                                        </>
-                                    )}
-                                </div>
-                            </button>
+                            {!showForgotPassword && (
+                                <>
+                                    <button 
+                                        disabled={loading}
+                                        onClick={login}
+                                        className="
+                                            relative w-full bg-gradient-to-r from-[#20DDBB] to-[#8A2BE2] 
+                                            text-white py-4 rounded-xl font-semibold
+                                            overflow-hidden group
+                                        "
+                                    >
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                        <div className="relative flex items-center justify-center gap-2">
+                                            {loading ? (
+                                                <BiLoaderCircle className="animate-spin text-2xl" />
+                                            ) : (
+                                                <>
+                                                    <span>Log In</span>
+                                                    <motion.div
+                                                        animate={{ x: [0, 5, 0] }}
+                                                        transition={{ duration: 1, repeat: Infinity }}
+                                                    >
+                                                        →
+                                                    </motion.div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </button>
 
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-[#2A2B3F]"></div>
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 text-[#818BAC] bg-[#1E1F2E]">Or continue with</span>
-                                </div>
-                            </div>
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <div className="w-full border-t border-[#2A2B3F]"></div>
+                                        </div>
+                                        <div className="relative flex justify-center text-sm">
+                                            <span className="px-2 text-[#818BAC] bg-[#1E1F2E]">Or continue with</span>
+                                        </div>
+                                    </div>
 
-                            <div className="grid grid-cols-1 gap-3">
-                                <button 
-                                    onClick={handleGoogleLogin}
-                                    disabled={loading}
-                                    className="
-                                        flex items-center justify-center gap-3 px-4 py-3
-                                        bg-[#14151F]/60 hover:bg-[#14151F]/80
-                                        text-white rounded-xl font-medium
-                                        border-2 border-[#2A2B3F] hover:border-[#20DDBB]/50
-                                        transition-all duration-300
-                                    "
-                                >
-                                    <FcGoogle className="text-xl" />
-                                    <span>Google</span>
-                                </button>
-                            </div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <button 
+                                            onClick={handleGoogleLogin}
+                                            disabled={loading}
+                                            className="
+                                                flex items-center justify-center gap-3 px-4 py-3
+                                                bg-[#14151F]/60 hover:bg-[#14151F]/80
+                                                text-white rounded-xl font-medium
+                                                border-2 border-[#2A2B3F] hover:border-[#20DDBB]/50
+                                                transition-all duration-300
+                                            "
+                                        >
+                                            <FcGoogle className="text-xl" />
+                                            <span>Google</span>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
 
-                        <motion.div 
-                            className="mt-6 text-center space-y-3"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.6 }}
-                        >
-                            <button 
-                                onClick={sendVerificationEmail}
-                                className="text-[#20DDBB] hover:text-[#8A2BE2] transition-colors duration-300 text-sm font-medium"
+                        {!showForgotPassword && (
+                            <motion.div 
+                                className="mt-6 text-center space-y-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.6 }}
                             >
-                                Need to verify your email?
-                            </button>
-
-                            <p className="text-[#818BAC] text-sm">
-                                Don't have an account?{' '}
                                 <button 
-                                    onClick={switchToRegister}
-                                    className="text-[#20DDBB] hover:text-[#8A2BE2] transition-colors duration-300 font-medium"
+                                    onClick={sendVerificationEmail}
+                                    className="text-[#20DDBB] hover:text-[#8A2BE2] transition-colors duration-300 text-sm font-medium"
                                 >
-                                    Sign up
+                                    Need to verify your email?
                                 </button>
-                            </p>
-                        </motion.div>
+
+                                <p className="text-[#818BAC] text-sm">
+                                    Don't have an account?{' '}
+                                    <button 
+                                        onClick={switchToRegister}
+                                        className="text-[#20DDBB] hover:text-[#8A2BE2] transition-colors duration-300 font-medium"
+                                    >
+                                        Sign up
+                                    </button>
+                                </p>
+                            </motion.div>
+                        )}
                     </div>
                 </motion.div>
             </motion.div>

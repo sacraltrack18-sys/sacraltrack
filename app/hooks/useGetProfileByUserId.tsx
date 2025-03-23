@@ -10,7 +10,7 @@ const useGetProfileByUserId = async (userId: string) => {
                 id: null,
                 user_id: null,
                 name: 'Unknown User',
-                image: '/images/placeholder-avatar.svg',
+                image: '/images/placeholders/user-placeholder.svg',
                 bio: ''
             };
         }
@@ -31,17 +31,30 @@ const useGetProfileByUserId = async (userId: string) => {
                 id: null,
                 user_id: userId,
                 name: 'Unknown User',
-                image: '/images/placeholder-avatar.svg',
+                image: '/images/placeholders/user-placeholder.svg',
                 bio: ''
             };
         }
 
+        const doc = documents[0];
         return {
-            id: documents[0]?.$id,
-            user_id: documents[0]?.user_id,
-            name: documents[0]?.name || 'Unknown User',
-            image: documents[0]?.image || '/images/placeholder-avatar.svg',
-            bio: documents[0]?.bio || ''
+            id: doc?.$id,
+            user_id: doc?.user_id,
+            name: doc?.name || 'Unknown User',
+            image: doc?.image || '/images/placeholders/user-placeholder.svg',
+            bio: doc?.bio || '',
+            genre: doc?.genre,
+            location: doc?.location,
+            website: doc?.website,
+            role: doc?.role,
+            social_links: doc?.social_links,
+            total_likes: doc?.total_likes,
+            total_followers: doc?.total_followers,
+            average_rating: doc?.average_rating,
+            total_ratings: doc?.total_ratings,
+            display_name: doc?.display_name,
+            banner_image: doc?.banner_image,
+            verified: doc?.verified === "true"
         };
     } catch (error) {
         console.error(`[DEBUG-HOOK] Error fetching profile for user ID ${userId}:`, error);
@@ -50,7 +63,7 @@ const useGetProfileByUserId = async (userId: string) => {
             id: null,
             user_id: userId,
             name: 'Unknown User',
-            image: '/images/placeholder-avatar.svg',
+            image: '/images/placeholders/user-placeholder.svg',
             bio: ''
         };
     }

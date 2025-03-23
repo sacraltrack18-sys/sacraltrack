@@ -32,7 +32,6 @@ interface UserProfile {
   $id: string;
   user_id: string;
   name: string;
-  username: string;
   image: string;
   bio?: string;
   stats?: UserStats;
@@ -234,9 +233,8 @@ export const useUserRating = () => {
           return {
             $id: profile.$id || '',
             user_id: profile.user_id || '',
-            name: profile.name || profile.username || 'User',
-            username: profile.username || 'user',
-            image: profile.image || '/images/placeholder-user.jpg',
+            name: profile.name || 'User',
+            image: profile.image || '/images/placeholders/user-placeholder.svg',
             bio: profile.bio || '',
             stats: stats.documents[0] || {
               totalLikes: 0,
@@ -287,9 +285,8 @@ export const useUserRating = () => {
           return {
             $id: profile.$id || '',
             user_id: profile.user_id || '',
-            name: profile.name || profile.username || 'User',
-            username: profile.username || 'user',
-            image: profile.image || '/images/placeholder-user.jpg',
+            name: profile.name || 'User',
+            image: profile.image || '/images/placeholders/user-placeholder.svg',
             bio: profile.bio || '',
             stats: stats.documents[0] || {
               totalLikes: 0,

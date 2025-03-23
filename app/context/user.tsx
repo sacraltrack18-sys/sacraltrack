@@ -8,6 +8,25 @@ import useGetProfileByUserId from '../hooks/useGetProfileByUserId';
 import useCreateProfile from '../hooks/useCreateProfile';
 import { clearUserCache } from '../utils/cacheUtils';
 
+// Custom event for authentication state changes
+export const AUTH_STATE_CHANGE_EVENT = 'auth_state_change';
+
+// Function to dispatch authentication state change event
+export const dispatchAuthStateChange = (userData: User | null) => {
+  // Обновляем временную метку кэша для сброса URL изображений
+  if (typeof window !== 'undefined') {
+    const timestamp = Date.now();
+    window.localStorage.setItem('cache_timestamp', timestamp.toString());
+  }
+  
+  // Создаем и отправляем пользовательское событие
+  const event = new CustomEvent(AUTH_STATE_CHANGE_EVENT, { 
+    detail: { user: userData }
+  });
+  window.dispatchEvent(event);
+  console.log('Auth state change event dispatched:', userData ? 'User logged in' : 'User logged out');
+};
+
 const UserContext = createContext<UserContextTypes | null>(null);
 
 const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -17,17 +36,55 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const checkUser = async () => {
     try {
       console.log('Checking user session...');
-      const currentSession = await account.getSession("current");
-      console.log('Current session:', currentSession);
+      
+      // Проверяем наличие существующей сессии, но делаем try-catch для обработки ошибок авторизации
+      let currentSession = null;
+      
+      try {
+        currentSession = await account.getSession("current");
+        console.log('Current session:', currentSession);
+      } catch (sessionError: any) {
+        console.log('Error getting current session:', sessionError?.message);
+        
+        // Если ошибка связана с отсутствием прав доступа (guests missing scope),
+        // это нормально для неавторизованных пользователей
+        if (sessionError?.message?.includes('missing scope')) {
+          console.log('User not authenticated, missing required scope');
+          setUser(null);
+          dispatchAuthStateChange(null);
+          return null;
+        }
+      }
       
       if (!currentSession) {
         console.log('No current session found');
-        return;
+        if (user) {
+          setUser(null);
+          dispatchAuthStateChange(null);
+        }
+        return null;
       }
 
       console.log('Getting user account...');
-      const promise = await account.get() as any;
-      console.log('User account:', promise);
+      
+      // Если сессия существует, пробуем получить данные аккаунта
+      let promise;
+      try {
+        promise = await account.get() as any;
+        console.log('User account:', promise);
+      } catch (accountError: any) {
+        console.error('Error getting user account:', accountError?.message);
+        
+        // Если ошибка связана с отсутствием прав доступа
+        if (accountError?.message?.includes('missing scope')) {
+          console.log('Failed to get account due to missing scope');
+          setUser(null);
+          dispatchAuthStateChange(null);
+          return null;
+        }
+        
+        throw accountError;
+      }
       
       console.log('Getting user profile...');
       const profile = await useGetProfileByUserId(promise?.$id);
@@ -41,13 +98,33 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       };
       console.log('Setting user data:', userData);
       setUser(userData);
+      
+      // Dispatch auth state change event with new user data
+      dispatchAuthStateChange(userData);
+      
+      // Force router refresh to update all components
+      router.refresh();
+      
+      return userData;
     } catch (error) {
       console.error('Error in checkUser:', error);
       setUser(null);
+      dispatchAuthStateChange(null);
+      return null;
     }
   };
 
-  useEffect(() => { checkUser() }, []);
+  useEffect(() => { 
+    // Check user on component mount
+    checkUser();
+    
+    // Set up an interval to periodically check user session
+    const authCheckInterval = setInterval(() => {
+      checkUser();
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(authCheckInterval);
+  }, []);
 
   const register = async (name: string, email: string, password: string) => {
     try {
@@ -69,34 +146,94 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw new Error('Password must be at least 8 characters long');
       }
 
-      // Check for and delete any existing session
-      try {
-        const currentSession = await account.getSession('current');
-        if (currentSession) {
-          console.log('Found existing session, deleting it...');
-          await account.deleteSession('current');
-          console.log('Existing session deleted');
-        }
-      } catch (sessionError) {
-        // If there's no session or error getting/deleting it, we can proceed
-        console.log('No existing session found or error checking session');
-      }
+      // Проверяем соединение с Appwrite API и валидность переменных окружения
+      console.log('[DEBUG] Checking Appwrite connection and environment variables');
+      console.log('[DEBUG] NEXT_PUBLIC_APPWRITE_URL:', process.env.NEXT_PUBLIC_APPWRITE_URL);
+      console.log('[DEBUG] NEXT_PUBLIC_ENDPOINT:', process.env.NEXT_PUBLIC_ENDPOINT);
+      console.log('[DEBUG] NEXT_PUBLIC_DATABASE_ID:', process.env.NEXT_PUBLIC_DATABASE_ID);
+      console.log('[DEBUG] NEXT_PUBLIC_COLLECTION_ID_PROFILE:', process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE);
+
+      // Не проверяем существующую сессию здесь, так как это вызывает ошибку guests missing scope
       
       console.log('Creating user account...');
-      const promise = await account.create(ID.unique(), email, password, name);
+      const userId = ID.unique();
+      const promise = await account.create(userId, email, password, name);
+      console.log('[DEBUG] Account created successfully:', promise?.$id);
       
       console.log('Creating email session...');
-      await account.createEmailSession(email, password);
+      const session = await account.createEmailSession(email, password);
+      console.log('[DEBUG] Email session created successfully:', session.$id);
 
       console.log('Creating user profile...');
-      await useCreateProfile(promise?.$id, name, String(process.env.NEXT_PUBLIC_PLACEHOLDER_DEAFULT_IMAGE_ID), '');
+      try {
+        // Используем SVG изображение вместо ID в хранилище
+        const profileImagePath = '/images/placeholders/user-placeholder.svg';
+        
+        // Проверяем переменные окружения перед созданием профиля
+        if (!process.env.NEXT_PUBLIC_DATABASE_ID || !process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE) {
+          console.error('[DEBUG] Missing environment variables:',
+            !process.env.NEXT_PUBLIC_DATABASE_ID ? 'NEXT_PUBLIC_DATABASE_ID' : '',
+            !process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE ? 'NEXT_PUBLIC_COLLECTION_ID_PROFILE' : ''
+          );
+          throw new Error('Missing required environment variables for profile creation');
+        }
+        
+        // Проверяем валидность userId
+        if (!userId || typeof userId !== 'string') {
+          console.error('[DEBUG] Invalid userId:', userId);
+          throw new Error('Invalid user ID for profile creation');
+        }
+        
+        // Выводим дополнительную информацию
+        console.log('[DEBUG] Creating profile with image path:', profileImagePath);
+        console.log('[DEBUG] Database ID:', process.env.NEXT_PUBLIC_DATABASE_ID);
+        console.log('[DEBUG] Collection ID:', process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE);
+        
+        const profileResult = await useCreateProfile(userId, name, profileImagePath, '');
+        console.log('[DEBUG] Profile created successfully:', profileResult);
+        console.log('[DEBUG] Profile created successfully for user:', userId);
+      } catch (profileError: any) {
+        console.error('[DEBUG] Error creating profile:', profileError);
+        console.error('[DEBUG] Error details:', {
+          code: profileError.code,
+          message: profileError.message,
+          type: profileError.type,
+          response: profileError.response
+        });
+        
+        // Если профиль не удалось создать, удаляем аккаунт чтобы не оставлять "осиротевший" аккаунт
+        try {
+          await account.deleteSession('current');
+          console.log('[DEBUG] Session deleted after profile creation failed');
+        } catch (deleteError) {
+          console.error('[DEBUG] Error deleting session after profile creation failed:', deleteError);
+        }
+        
+        throw new Error('Failed to create user profile. Please try again later.');
+      }
       
       console.log('Checking user status...');
-      await checkUser();
+      const userData = await checkUser();
+      console.log('[DEBUG] User data after checkUser:', userData);
+      
+      // Force router refresh
+      router.refresh();
       
       console.log('Registration completed successfully');
+      return userData;
     } catch (error: any) {
       console.error('Registration error details:', error);
+      
+      // Более подробное логирование
+      if (error.response) {
+        console.error('[DEBUG] Full error response:', error.response);
+      }
+      
+      console.error('[DEBUG] Error details:', {
+        code: error.code,
+        message: error.message,
+        type: error.type
+      });
       
       // Handle specific AppWrite error codes
       if (error.code === 429 || (error.message && error.message.toLowerCase().includes('rate limit'))) {
@@ -115,6 +252,8 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw new Error('Please log out before creating a new account.');
       } else if (error.code === 503) {
         throw new Error('Service temporarily unavailable. Please try again later.');
+      } else if (error.code === 'undefined_endpoint') {
+        throw new Error('API endpoint is not configured correctly. Please contact support.');
       }
       
       // Log the full error for debugging
@@ -126,20 +265,27 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       });
       
       // Generic error message as fallback
-      throw new Error('Registration failed. Please try again later.');
+      throw new Error('Registration failed. Please try again later. ' + error.message);
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
-      await account.createEmailSession(email, password);
-      
-      // Очистка кэша данных, связанных с предыдущим пользователем
+      // Clear previous user cache before login
       clearUserCache();
       
-      checkUser();
+      await account.createEmailSession(email, password);
+      
+      // Check user and update UI
+      const userData = await checkUser();
+      
+      // Force router refresh
+      router.refresh();
+      
+      return userData;
     } catch (error) {
       console.error(error);
+      return null;
     }
   };
 
@@ -148,9 +294,13 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       await account.deleteSession('current');
       setUser(null);
       
-      // Очистка кэша данных, связанных с пользователем
+      // Dispatch auth state change with null user
+      dispatchAuthStateChange(null);
+      
+      // Clear user data cache
       clearUserCache();
       
+      // Force router refresh
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -158,8 +308,13 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   return (
-      <UserContext.Provider value={{ user, register, login, logout, checkUser,       id: user?.id || null, // Add the 'id' property
-      }}>
+      <UserContext.Provider value={{ 
+          user, 
+          register, 
+          login, 
+          logout, 
+          checkUser 
+      } as unknown as UserContextTypes}>
           {children}
       </UserContext.Provider>
   );

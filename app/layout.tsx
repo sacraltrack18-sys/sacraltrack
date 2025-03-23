@@ -46,6 +46,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/*    <YandexMetrika /> */}
                 </Suspense>
                 <Background />
+                
+                {/* SVG для градиентов иконок */}
+                <svg width="0" height="0" className="absolute">
+                    <defs>
+                        <linearGradient id="fire-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#ff8a00" />
+                            <stop offset="30%" stopColor="#ff5e00" />
+                            <stop offset="60%" stopColor="#ff3d00" />
+                            <stop offset="100%" stopColor="#ff5e00" />
+                            <animate attributeName="x1" from="0%" to="100%" dur="4s" repeatCount="indefinite" />
+                            <animate attributeName="y1" from="0%" to="100%" dur="5s" repeatCount="indefinite" />
+                            <animate attributeName="x2" from="100%" to="0%" dur="4s" repeatCount="indefinite" />
+                            <animate attributeName="y2" from="100%" to="0%" dur="5s" repeatCount="indefinite" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+
                 <GlobalProvider>
                 <PlayerProvider>
                     <UserProvider>

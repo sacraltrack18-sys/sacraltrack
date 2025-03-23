@@ -501,7 +501,7 @@ useEffect(() => {
               <Link href={`/profile/${post.user_id}`}>
                 <div className="flex items-center gap-3">
                   <img 
-                    src={useCreateBucketUrl(post?.profile?.image) || '/images/placeholder-user.jpg'}
+                    src={useCreateBucketUrl(post?.profile?.image) || '/images/placeholders/user-placeholder.svg'}
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>

@@ -9,6 +9,7 @@ import { Models } from 'appwrite';
 import { AudioPlayer } from '@/app/components/AudioPlayer';
 import { toast } from 'react-hot-toast';
 import { TbLoader } from 'react-icons/tb';
+import EmptyPurchasesSkeleton from './EmptyPurchasesSkeleton';
 
 interface TrackData {
   $id: string;
@@ -49,6 +50,9 @@ export default function PurchasedTracks() {
   const { currentAudioId, setCurrentAudioId } = usePlayerContext();
   const [isPlaying, setIsPlaying] = useState<{ [key: string]: boolean }>({});
   const [downloadingFiles, setDownloadingFiles] = useState<{ [key: string]: string }>({});
+  
+  // Проверяем, просматривает ли пользователь свой собственный профиль
+  const isOwner = Boolean(userContext?.user);
 
   const fetchPurchasedTracks = async (currentPage: number) => {
     if (!userContext?.user?.id) return;
@@ -196,6 +200,7 @@ export default function PurchasedTracks() {
     }
   };
 
+  // Показываем скелетон во время загрузки
   if (loading && purchases.length === 0) {
     return (
       <div className="w-full max-w-[1500px] mx-auto py-6">
@@ -248,18 +253,23 @@ export default function PurchasedTracks() {
       </div>
     );
   }
+  
+  // Показываем скелетон пустого состояния, когда загрузка завершена, но покупок нет
+  if (!loading && purchases.length === 0) {
+    return <EmptyPurchasesSkeleton isOwner={isOwner} />;
+  }
 
   return (
     <div className="w-full max-w-[1500px] mx-auto py-6">
-    <div className="grid gap-4">
-      {purchases.map((purchase) => (
+      <div className="grid gap-4">
+        {purchases.map((purchase) => (
           purchase.track ? (
             <div key={purchase.$id} className="bg-[#1E2136] rounded-2xl overflow-hidden w-full max-w-[450px] mx-auto">
               <div className="p-4">
                 <div className="flex items-center gap-3">
                   <img
                     className="w-12 h-12 rounded-full object-cover"
-                    src={purchase.track?.profile?.image ? useCreateBucketUrl(purchase.track.profile.image) : '/images/placeholder-user.jpg'}
+                    src={purchase.track?.profile?.image ? useCreateBucketUrl(purchase.track.profile.image) : '/images/placeholders/user-placeholder.svg'}
                     alt={purchase.track?.profile?.name || 'Artist'}
                   />
                   <div>
@@ -293,7 +303,7 @@ export default function PurchasedTracks() {
               </div>
 
               <div className="p-4 flex justify-between items-center">
-          <div>
+                <div>
                   <p className="text-[#818BAC] text-sm">
                     Purchased on {new Date(purchase.purchase_date).toLocaleDateString()}
                   </p>
@@ -303,7 +313,7 @@ export default function PurchasedTracks() {
                   <p className="text-[#818BAC] text-sm">
                     Genre: {purchase.track?.genre || 'Unknown Genre'}
                   </p>
-          </div>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => purchase.track?.mp3_url && handleDownloadFormat(purchase.track_id, purchase.track.mp3_url, purchase.track.trackname || 'track', 'mp3')}

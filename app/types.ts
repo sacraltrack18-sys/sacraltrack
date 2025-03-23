@@ -146,7 +146,6 @@ export interface ProfileStore {
     $id: string;
     user_id: string;
     name: string;
-    username: string;
     image: string;
     bio: string;
     stats: {
@@ -204,12 +203,42 @@ export interface FriendStore {
   clearNotifications: () => void;
 }
 
+export interface SocialLinks {
+  twitter?: string;
+  instagram?: string;
+  soundcloud?: string;
+  youtube?: string;
+  telegram?: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
   name: string;
   image: string;
   bio: string;
+  genre?: string;
+  location?: string;
+  website?: string;
+  role?: string;
+  verified?: boolean;
+  social_links?: SocialLinks;
+  total_likes?: string;
+  total_followers?: string;
+  average_rating?: string;
+  total_ratings?: string;
+  stats?: string;
+  display_name?: string;
+  is_public?: string;
+  account_type?: string;
+  featured_track_id?: string;
+  settings?: string[];
+  banner_image?: string;
+  joined_date?: string;
+  last_active?: string;
+  preferred_languages?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
 export interface UserProfileCompTypes {
@@ -301,5 +330,36 @@ export interface PostPageTypes {
   params: {
     postId: string;
     userId: string;
+  };
+}
+
+export interface ProfileType {
+  id: string;
+  user_id: string;
+  image_url: string;
+  created_at: string;
+  name?: string;
+  image?: string;
+  bio?: string;
+  stats?: any;
+  $id?: string;
+  $stats?: any;
+  joined_date?: string;
+  location?: string;
+  genre?: string;
+  website?: string;
+  verified?: boolean;
+  followers_count?: number;
+  tracks_count?: number;
+  likes_count?: number;
+  post_count?: number;
+  role?: string;
+  social_links?: {
+    twitter?: string;
+    instagram?: string;
+    soundcloud?: string;
+    youtube?: string;
+    spotify?: string;
+    telegram?: string;
   };
 } 
