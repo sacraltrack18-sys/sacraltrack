@@ -52,12 +52,12 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
         const now = new Date();
         const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
         
-        if (diff < 60) return 'только что';
-        if (diff < 3600) return `${Math.floor(diff / 60)} мин. назад`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)} ч. назад`;
-        if (diff < 604800) return `${Math.floor(diff / 86400)} д. назад`;
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
+        if (diff < 604800) return `${Math.floor(diff / 86400)} d ago`;
         
-        return date.toLocaleDateString('ru-RU', { 
+        return date.toLocaleDateString('en-US', { 
             day: 'numeric', 
             month: 'short'
         });
@@ -137,7 +137,7 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                         id: `like_${lastLiked.$id}`,
                         type: 'track',
                         title: lastLiked.title || 'Unnamed Track',
-                        subtitle: 'Вы лайкнули этот трек',
+                        subtitle: 'You liked this track',
                         timestamp: new Date(lastLiked.$createdAt || Date.now()),
                         image: lastLiked.image || '',
                         link: `/post/${lastLiked.$id}`
@@ -156,12 +156,12 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                         console.error('Error fetching friend profile:', error);
                     }
                     
-                    activities.push({
-                        id: `friend_${lastFriend.id}`,
-                        type: 'friend',
+                        activities.push({
+                            id: `friend_${lastFriend.id}`,
+                            type: 'friend',
                         title: friendProfile?.name || `Friend ${lastFriend.friendId}`,
-                        subtitle: isOwner ? 'Ваш новый друг' : 'Новый друг пользователя',
-                        timestamp: new Date(lastFriend.createdAt),
+                        subtitle: isOwner ? 'Your new friend' : 'User\'s new friend',
+                            timestamp: new Date(lastFriend.createdAt),
                         image: friendProfile?.image || '',
                         link: `/profile/${lastFriend.friendId}`,
                         user: {
@@ -180,7 +180,7 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                         id: `track_${lastPost.id}`,
                         type: 'track',
                         title: lastPost.trackname || 'Unnamed Track',
-                        subtitle: 'Добавил(а) новый трек',
+                        subtitle: 'Added new track',
                         timestamp: new Date(lastPost.created_at || Date.now()),
                         image: lastPost.image_url || lastPost.image || '',
                         link: `/track/${lastPost.id}`,
@@ -192,11 +192,7 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                     });
                 }
                 
-                // Добавляем демо-данные, если реальных активностей мало
-                if (activities.length < 3) {
-                    const demoActivities = generateDemoActivities(3 - activities.length, isOwner);
-                    activities.push(...demoActivities);
-                }
+                // Если реальных активностей нет, оставляем пустой массив вместо демо-данных
                 
                 // Сортируем активности по дате, новые сверху
                 const sortedActivities = activities.sort((a, b) => 
@@ -214,145 +210,150 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
         loadActivity();
     }, [userId, isOwner]);
     
-    // Генерация демо-данных для предпросмотра
-    const generateDemoActivities = (count: number, isOwner: boolean): ActivityItem[] => {
-        const now = new Date();
-        const activities: ActivityItem[] = [];
-        
-        const types = ['track', 'friend', 'visitor'] as const;
-        const names = ['Alex Smith', 'Maria Garcia', 'John Doe', 'Emma Wilson'];
-        const trackNames = ['Summer Vibes', 'Night City', 'Chill Mix', 'Deep House'];
-        
-        for (let i = 0; i < count; i++) {
-            const type = types[Math.floor(Math.random() * types.length)];
-            const time = new Date(now.getTime() - Math.random() * 604800000); // Случайное время за последнюю неделю
-            
-            if (type === 'track') {
-                const trackName = trackNames[Math.floor(Math.random() * trackNames.length)];
-                activities.push({
-                    id: `demo_track_${i}`,
-                    type: 'track',
-                    title: trackName,
-                    subtitle: isOwner ? 'Вы лайкнули этот трек' : 'Пользователь лайкнул этот трек',
-                    timestamp: time,
-                    link: '#',
-                });
-            } else if (type === 'friend') {
-                const name = names[Math.floor(Math.random() * names.length)];
-                activities.push({
-                    id: `demo_friend_${i}`,
-                    type: 'friend',
-                    title: name,
-                    subtitle: isOwner ? 'Ваш новый друг' : 'Новый друг пользователя',
-                    timestamp: time,
-                    link: '#',
-                });
-            } else {
-                const name = names[Math.floor(Math.random() * names.length)];
-                activities.push({
-                    id: `demo_visitor_${i}`,
-                    type: 'visitor',
-                    title: name,
-                    subtitle: isOwner ? 'Посетил ваш профиль' : 'Посетил профиль пользователя',
-                    timestamp: time,
-                    link: '#',
-                });
-            }
-        }
-        
-        return activities;
-    };
+    // Получение статистики для рейтинг-карточки
+    const { friends: friendsList } = useFriendsStore();
+    const { postsByUser: tracks } = usePostStore();
+    const { likedPosts: likes } = useLikedStore();
     
-    const RankingInfo = () => {
+    // Расчет рейтинга
+    const [rank, setRank] = useState({ name: 'Novice', color: 'from-gray-400 to-gray-500', score: 0 });
+    
+    useEffect(() => {
         // Расчет простого рейтинга на основе количества друзей, треков и лайков
-        const friendsScore = friends.length * 10;
-        const tracksScore = postsByUser?.length * 15 || 0;
-        const likesScore = likedPosts?.length * 5 || 0;
+        const friendsScore = friendsList.length * 10;
+        const tracksScore = tracks?.length * 15 || 0;
+        const likesScore = likes?.length * 5 || 0;
         
         const totalScore = friendsScore + tracksScore + likesScore;
         
         // Определение ранга на основе общего счета
-        let rank = 'Новичок';
+        let rankName = 'Novice';
         let color = 'from-gray-400 to-gray-500';
         
         if (totalScore >= 500) {
-            rank = 'Легенда';
+            rankName = 'Legend';
             color = 'from-purple-400 to-pink-500';
         } else if (totalScore >= 300) {
-            rank = 'Мастер';
+            rankName = 'Master';
             color = 'from-blue-400 to-purple-500';
         } else if (totalScore >= 150) {
-            rank = 'Продвинутый';
+            rankName = 'Advanced';
             color = 'from-cyan-400 to-blue-500';
         } else if (totalScore >= 50) {
-            rank = 'Опытный';
+            rankName = 'Experienced';
             color = 'from-green-400 to-teal-500';
         }
         
-        return (
-            <div className="bg-[#1A1C2E]/50 rounded-xl p-4 mb-4">
-                <h3 className="text-white font-bold mb-2">Рейтинг</h3>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className={`text-transparent bg-clip-text bg-gradient-to-r ${color} font-bold text-lg`}>
-                            {rank}
-                        </p>
-                        <p className="text-gray-400 text-xs">Счет: {totalScore}</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-full flex items-center justify-center bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20">
-                        <span className="text-white font-bold">{totalScore}</span>
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400">Друзья</p>
-                        <p className="text-white">{friends.length}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400">Треки</p>
-                        <p className="text-white">{postsByUser?.length || 0}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400">Лайки</p>
-                        <p className="text-white">{likedPosts?.length || 0}</p>
-                    </div>
-                </div>
-            </div>
-        );
+        setRank({ name: rankName, color, score: totalScore });
+    }, [friendsList.length, tracks, likes]);
+    
+    // Форматирование времени
+    const formatTime = (date: Date) => {
+        const now = new Date();
+        const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+        
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
+        if (diff < 604800) return `${Math.floor(diff / 86400)} d ago`;
+        
+        return date.toLocaleDateString('en-US', { 
+            day: 'numeric', 
+            month: 'short'
+        });
     };
     
-    return (
-        <div className="w-full h-full">
-            {/* Блок с рейтингом пользователя */}
-            <RankingInfo />
+    // Skeleton loader for activities
+    const ActivitySkeleton = () => (
+        <>
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#1A1C2E]/50 animate-pulse">
+                    <div className="h-12 w-12 rounded-lg bg-[#1E2136]"></div>
+                    <div className="flex-1">
+                        <div className="h-4 w-2/3 bg-[#1E2136] rounded"></div>
+                        <div className="h-3 w-1/2 bg-[#1E2136] rounded mt-2"></div>
+                    </div>
+                    <div className="h-3 w-16 bg-[#1E2136] rounded"></div>
+                </div>
+            ))}
+        </>
+    );
+        
+        return (
+        <div className="sticky top-24 space-y-6">
+            {/* Rating Card */}
+            <motion.div 
+                className="glass-card rounded-xl p-5 bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 border border-white/10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+            >
+                <h3 className="text-lg font-medium text-white mb-3">Rating</h3>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <p className={`text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${rank.color}`}>
+                            {rank.name}
+                        </p>
+                        <p className="text-sm text-gray-400">Score: {rank.score}</p>
+                    </div>
+                    <div className="flex gap-6 mt-2">
+                    <div className="text-center">
+                            <p className="text-lg font-bold text-white">{friendsList.length || '0'}</p>
+                            <p className="text-xs text-gray-400">Friends</p>
+                    </div>
+                    <div className="text-center">
+                            <p className="text-lg font-bold text-white">{tracks?.length || '0'}</p>
+                            <p className="text-xs text-gray-400">Tracks</p>
+                    </div>
+                    <div className="text-center">
+                            <p className="text-lg font-bold text-white">{likes?.length || '0'}</p>
+                            <p className="text-xs text-gray-400">Likes</p>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
             
-            {/* Заголовок раздела активности */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold">Последняя активность</h3>
-                {isOwner && (
-                    <Link href="#" className="text-xs text-[#20DDBB] hover:underline">
-                        История
-                    </Link>
-                )}
+            {/* Activity History */}
+            <motion.div
+                className="glass-card rounded-xl p-5 bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 border border-white/10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-white">Recent Activity</h3>
+                    <button className="text-sm text-[#20DDBB] hover:text-[#20DDBB]/80 transition">
+                        History
+                    </button>
             </div>
             
-            {/* Список активностей */}
-            {isLoading ? (
                 <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-16 rounded-xl bg-[#1A1C2E]/30 animate-pulse" />
-                    ))}
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    <AnimatePresence>
-                        {activityItems.map(item => (
+                    {isLoading ? (
+                        <ActivitySkeleton />
+                    ) : activityItems.length > 0 ? (
+                        activityItems.map((item) => (
                             <ActivityCard key={item.id} item={item} />
-                        ))}
-                    </AnimatePresence>
+                        ))
+                    ) : (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="py-6 text-center"
+                        >
+                            <div className="text-[#A6B1D0] text-sm">
+                                <p>No recent activity</p>
+                                <p className="mt-2 text-xs">Activity will appear here</p>
+                            </div>
+                        </motion.div>
+                    )}
                 </div>
-            )}
+            </motion.div>
+            
+            <style jsx global>{`
+                .glass-card {
+                    backdrop-filter: blur(8px);
+                    box-shadow: 0 0 15px rgba(32, 221, 187, 0.1);
+                }
+            `}</style>
         </div>
     );
 };

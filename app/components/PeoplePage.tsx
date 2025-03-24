@@ -21,7 +21,8 @@ import {
   ChevronDownIcon
 } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
-import { database } from '@/libs/AppWriteClient';
+import { database, Query } from '@/libs/AppWriteClient';
+import { ID } from 'appwrite';
 
 interface UserCardProps {
     user: {
@@ -96,27 +97,36 @@ const UserCardSkeleton = () => (
 const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemoveFriend, onRateUser }) => {
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [rating, setRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [imageError, setImageError] = useState(false);
-
+    
     // Add fallback for username
     const displayUsername = user.username || user.name;
-
+    
     const handleRateSubmit = () => {
         onRateUser(user.user_id, rating);
         setShowRatingModal(false);
         toast.success('Rating submitted successfully!');
     };
-
-    // Get rating color based on value
+    
+    // Улучшенная функция для получения цвета на основе рейтинга
     const getRatingColor = (rating: number) => {
+        if (rating >= 4.5) return 'from-yellow-400 to-yellow-600';
+        if (rating >= 3.5) return 'from-green-400 to-green-600';
+        if (rating >= 2.5) return 'from-blue-400 to-blue-600';
+        if (rating >= 1.5) return 'from-orange-400 to-orange-600';
+        return 'from-red-400 to-red-600';
+    };
+    
+    const getRatingStarColor = (rating: number) => {
         if (rating >= 4.5) return 'text-yellow-400';
         if (rating >= 3.5) return 'text-green-500';
         if (rating >= 2.5) return 'text-blue-500';
         if (rating >= 1.5) return 'text-orange-500';
         return 'text-red-500';
     };
-
+    
     return (
         <motion.div
             className="bg-gradient-to-br from-[#1E2136] to-[#252742] h-full rounded-2xl overflow-hidden shadow-lg group border border-transparent hover:border-purple-500/20 transition-all duration-300"
@@ -125,7 +135,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
             onHoverEnd={() => setIsHovered(false)}
         >
             <div className="p-6 relative">
-                {/* Glowing effect on hover */}
+                {/* Улучшенный эффект свечения при наведении */}
                 <motion.div 
                     className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity"
                     animate={{ 
@@ -136,7 +146,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                 />
                 
                 <div className="relative">
-                    {/* Clickable area for profile navigation */}
+                    {/* Область для навигации по профилю */}
                     <Link href={`/profile/${user.user_id}`}>
                         <div className="cursor-pointer group-hover:scale-[1.01] transition-transform">
                             <div className="flex items-center gap-5">
@@ -148,7 +158,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                     }}
                                     transition={{ duration: 0.3 }}
                                 >
-                                    {/* Animated gradient ring */}
+                                    {/* Анимированное градиентное кольцо */}
                                     <motion.div 
                                         className="absolute -inset-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 blur-sm opacity-50"
                                         animate={{ 
@@ -163,14 +173,14 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                     
                                     <div className="absolute inset-0 rounded-full overflow-hidden">
                                         <Image
-                                            src={imageError ? '/images/placeholder-user.jpg' : (user.image || '/images/placeholder-avatar.svg')}
+                                            src={imageError ? '/images/placeholders/user-placeholder.svg' : (user.image || '/images/placeholders/user-placeholder.svg')}
                                             alt={user.name}
                                             fill
                                             className="rounded-full object-cover ring-2 ring-purple-500/50 shadow-lg"
                                             onError={() => setImageError(true)}
                                         />
                                         
-                                        {/* Overlay on hover */}
+                                        {/* Наложение при наведении */}
                                         <motion.div 
                                             className="absolute inset-0 bg-gradient-to-t from-purple-600/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
                                             initial={{ opacity: 0 }}
@@ -180,12 +190,20 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                 </motion.div>
                                 
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors truncate">
-                                        {user.name}
-                                        <span className={`ml-2 text-base ${getRatingColor(user.stats.averageRating)}`}>
-                                            ★{user.stats.averageRating.toFixed(1)}
-                                        </span>
-                                    </h3>
+                                    <div className="flex items-center">
+                                        <h3 className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors truncate">
+                                            {user.name}
+                                        </h3>
+                                        
+                                        {/* Улучшенный рейтинг - градиентные звезды */}
+                                        <div className="ml-2 flex items-center">
+                                            <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRatingColor(user.stats.averageRating)} text-white`}>
+                                                <StarIcon className="w-3 h-3 mr-1" />
+                                                {user.stats.averageRating.toFixed(1)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <p className="text-purple-400 font-medium truncate">@{displayUsername}</p>
                                     
                                     <div className="flex items-center gap-2 mt-1">
@@ -203,24 +221,43 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                 {user.bio || "No bio available."}
                             </div>
 
-                            <div className="mt-4 grid grid-cols-3 gap-3 text-center bg-[#1A1C2E] p-3 rounded-lg transition-colors">
-                                <div className="flex flex-col">
-                                    <p className="text-xl font-bold text-white">{user.stats.totalLikes}</p>
+                            {/* Улучшенная статистика с анимацией при наведении */}
+                            <div className="mt-4 grid grid-cols-3 gap-3 text-center bg-[#1A1C2E] p-3 rounded-lg transition-colors group-hover:bg-[#1A1C2E]/80">
+                                <motion.div 
+                                    className="flex flex-col"
+                                    whileHover={{ scale: 1.05 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                >
+                                    <p className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-[#20DDBB] group-hover:to-[#0A947B]">
+                                        {user.stats.totalLikes}
+                                    </p>
                                     <p className="text-xs text-gray-400 uppercase tracking-wider">Likes</p>
-                                </div>
-                                <div className="flex flex-col border-x border-gray-800">
-                                    <p className="text-xl font-bold text-white">{user.stats.totalFollowers}</p>
+                                </motion.div>
+                                <motion.div 
+                                    className="flex flex-col border-x border-gray-800"
+                                    whileHover={{ scale: 1.05 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                >
+                                    <p className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400">
+                                        {user.stats.totalFollowers}
+                                    </p>
                                     <p className="text-xs text-gray-400 uppercase tracking-wider">Followers</p>
-                                </div>
-                                <div className="flex flex-col">
-                                    <p className="text-xl font-bold text-white">{user.stats.totalRatings}</p>
+                                </motion.div>
+                                <motion.div 
+                                    className="flex flex-col"
+                                    whileHover={{ scale: 1.05 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                >
+                                    <p className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-yellow-400 group-hover:to-orange-400">
+                                        {user.stats.totalRatings}
+                                    </p>
                                     <p className="text-xs text-gray-400 uppercase tracking-wider">Ratings</p>
-                                </div>
+                                </motion.div>
                             </div>
                         </div>
                     </Link>
 
-                    {/* Button actions are separate to avoid triggering the link */}
+                    {/* Кнопки действий отделены, чтобы не активировать ссылку */}
                     <div className="mt-6 flex space-x-3" onClick={(e) => e.stopPropagation()}>
                         <motion.button
                             whileHover={{ scale: 1.03 }}
@@ -229,7 +266,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-xl transition-colors ${
                                 isFriend 
                                     ? 'bg-red-600/80 text-white hover:bg-red-700' 
-                                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                                    : 'bg-gradient-to-r from-[#20DDBB] to-[#0A947B] text-white hover:from-[#1CC9A8] hover:to-[#097E68]'
                             }`}
                         >
                             {isFriend ? (
@@ -248,75 +285,81 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={() => setShowRatingModal(true)}
-                            className="flex-1 flex items-center justify-center px-4 py-2.5 bg-[#1A1C2E] text-white rounded-xl hover:bg-[#24263A] transition-colors"
+                            className="flex-1 flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#1A1C2E] text-white hover:bg-[#2A2D42] transition-colors"
                         >
-                            <StarIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                            <StarIcon className="w-5 h-5 mr-2 text-yellow-500" />
                             Rate
                         </motion.button>
                     </div>
                 </div>
             </div>
-
+            
+            {/* Улучшенный модал для оценки */}
             <AnimatePresence>
                 {showRatingModal && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) setShowRatingModal(false);
-                        }}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center"
+                        onClick={() => setShowRatingModal(false)}
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-gradient-to-br from-[#1E2136] to-[#2A2D45] p-6 rounded-xl max-w-md w-full mx-4 shadow-2xl border border-purple-500/20"
+                            className="bg-gradient-to-br from-[#252742] to-[#1E2136] rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl border border-purple-500/20"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-white">Rate {user.name}</h3>
-                                <button 
-                                    onClick={() => setShowRatingModal(false)}
-                                    className="text-gray-400 hover:text-white p-1"
-                                >
-                                    <XMarkIcon className="w-5 h-5" />
-                                </button>
-                            </div>
+                            <h3 className="text-xl font-bold text-white mb-6">Rate {user.name}</h3>
                             
-                            <div className="flex justify-center space-x-3 mb-8">
+                            <div className="flex justify-center mb-8">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                     <motion.button
                                         key={star}
                                         whileHover={{ scale: 1.2 }}
                                         whileTap={{ scale: 0.9 }}
+                                        className={`text-4xl mx-1 transition-all duration-200 ${
+                                            star <= (hoverRating || rating) 
+                                                ? 'text-yellow-500 drop-shadow-lg' 
+                                                : 'text-gray-600'
+                                        }`}
                                         onClick={() => setRating(star)}
-                                        className={`text-3xl ${star <= rating ? 'text-yellow-400' : 'text-gray-500'}`}
+                                        onMouseEnter={() => setHoverRating(star)}
+                                        onMouseLeave={() => setHoverRating(0)}
                                     >
                                         ★
                                     </motion.button>
                                 ))}
                             </div>
                             
-                            <p className="text-center text-gray-300 mb-6">
-                                {rating === 0 && "Select a rating"}
-                                {rating === 1 && "Poor - Needs significant improvement"}
-                                {rating === 2 && "Fair - Below average"}
-                                {rating === 3 && "Good - Average quality"}
-                                {rating === 4 && "Great - Above average"}
-                                {rating === 5 && "Excellent - Outstanding quality"}
-                            </p>
+                            <div className="text-center mb-6">
+                                <p className="text-[#A6B1D0]">
+                                    {rating === 0 ? 'Select your rating' : `You've selected ${rating} star${rating !== 1 ? 's' : ''}`}
+                                </p>
+                            </div>
                             
-                            <div className="flex justify-end">
+                            <div className="flex space-x-4">
                                 <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={handleRateSubmit}
-                                    disabled={rating === 0}
-                                    className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                    whileHover={{ scale: 1.03 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    className="flex-1 py-3 rounded-xl bg-[#1A1C2E] text-white hover:bg-[#2A2D42] transition-colors"
+                                    onClick={() => setShowRatingModal(false)}
                                 >
-                                    Submit Rating
+                                    Cancel
+                                </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.03 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    className={`flex-1 py-3 rounded-xl transition-colors ${
+                                        rating > 0 
+                                            ? 'bg-gradient-to-r from-[#20DDBB] to-[#0A947B] text-white' 
+                                            : 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                                    }`}
+                                    onClick={rating > 0 ? handleRateSubmit : undefined}
+                                    disabled={rating === 0}
+                                >
+                                    Submit
                                 </motion.button>
                             </div>
                         </motion.div>
@@ -377,418 +420,512 @@ const FilterDropdown = ({
     );
 };
 
+// Улучшенная панель рейтинга топ-пользователей
+const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="bg-gradient-to-br from-[#1E2136] to-[#252742] rounded-2xl overflow-hidden shadow-lg border border-purple-900/10"
+        >
+            <div className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="text-[#20DDBB]">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white">Top Users</h2>
+                </div>
+                
+                <div className="space-y-4">
+                    {users.map((user, index) => (
+                        <Link key={user.user_id} href={`/profile/${user.user_id}`}>
+                            <motion.div 
+                                className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                                whileHover={{ x: 5 }}
+                            >
+                                <div className="w-6 flex justify-center">
+                                    {index < 3 ? (
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                            index === 0 ? 'bg-yellow-500' : 
+                                            index === 1 ? 'bg-gray-300' : 
+                                            'bg-amber-700'
+                                        }`}>
+                                            <span className="text-xs font-bold text-[#1E2136]">{index + 1}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 font-bold">{index + 1}</span>
+                                    )}
+                                </div>
+                                
+                                <div className="relative w-10 h-10">
+                                    <Image 
+                                        src={user.image || '/images/placeholders/user-placeholder.svg'} 
+                                        alt={user.name}
+                                        fill
+                                        className="rounded-full object-cover"
+                                    />
+                                </div>
+                                
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white font-medium truncate">{user.name}</p>
+                                    <p className="text-[#A6B1D0] text-xs truncate">@{user.username || `user_${user.user_id.slice(-5)}`}</p>
+                                </div>
+                                
+                                <div className="flex items-center gap-1 bg-[#1A1C2E] px-2 py-1 rounded-lg">
+                                    <StarIcon className="w-4 h-4 text-yellow-500" />
+                                    <span className="text-white text-sm font-medium">{user.stats.averageRating.toFixed(1)}</span>
+                                </div>
+                            </motion.div>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 export default function PeoplePage() {
-    const [searchQuery, setSearchQuery] = useState('');
+    const [profiles, setProfiles] = useState<any[]>([]);
+    const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
+    const [topRankedUsers, setTopRankedUsers] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
+    const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('name');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [filterBy, setFilterBy] = useState('all');
     const [error, setError] = useState<string | null>(null);
-    const [configError, setConfigError] = useState<string | null>(null);
-    const [sortBy, setSortBy] = useState('latest');
-    const [filterFriends, setFilterFriends] = useState('all');
-    const [isSearching, setIsSearching] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
     
+    const { friends, loadFriends, addFriend, removeFriend } = useFriendsStore();
     const user = useUser();
-    const { addFriend, removeFriend, friends, loadFriends } = useFriendsStore();
-    const { profiles, loading, getAllProfiles, searchProfiles } = useProfileStore();
-
-    useEffect(() => {
-        // Check Appwrite configuration
-        const appwriteConfig = checkAppwriteConfig();
-        console.log('Appwrite configuration check result:', appwriteConfig);
-        
-        if (!appwriteConfig.isValid) {
-            const errorMsg = `Appwrite configuration error: Missing ${appwriteConfig.missingVars.join(', ')}`;
-            console.error(errorMsg);
-            setConfigError(errorMsg);
-            toast.error('Configuration error detected. Check console for details.');
-            return;
-        }
-        
-        const initializeData = async () => {
-            try {
-                console.log('Initializing data in PeoplePage');
-                await Promise.all([loadUsers(), loadFriends()]);
-            } catch (error) {
-                console.error('Error initializing data:', error);
-                setError('Failed to initialize data. Please try refreshing the page.');
-            }
-        };
-
-        initializeData();
-    }, []);
-
-    useEffect(() => {
-        if (page > 1 && !configError) {
-            loadUsers();
-        }
-    }, [page, configError]);
-
+    
+    // Toggle sort direction
+    const toggleSortDirection = () => {
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    };
+    
+    // Загрузка пользователей
     const loadUsers = async () => {
-        if (configError) return;
-        
         try {
-            console.log('Loading users, page:', page);
+            setIsLoading(true);
             
-            if (!process.env.NEXT_PUBLIC_DATABASE_ID || !process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE) {
-                console.error('Missing environment variables required to load profiles');
-                toast.error('Configuration error: Missing environment variables');
-                return;
-            }
+            const response = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                [Query.limit(20)]
+            );
             
-            console.log('Вызываем getAllProfiles с параметром page =', page);
-            const profiles = await getAllProfiles(page);
-            console.log(`Loaded ${profiles.length} profiles`);
-            
-            if (profiles.length === 0) {
-                console.warn('No profiles were loaded. Checking database connection and collection...');
-                try {
-                    const response = await database.listDocuments(
-                        process.env.NEXT_PUBLIC_DATABASE_ID,
-                        process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
-                        []
-                    );
-                    console.log('Raw database response:', response);
-                    console.log(`Total documents in collection: ${response.total}`);
-                } catch (dbError) {
-                    console.error('Database connection error:', dbError);
+            const loadedProfiles = response.documents.map(doc => ({
+                $id: doc.$id,
+                user_id: doc.user_id,
+                name: doc.name || 'Unknown User',
+                username: doc.username,
+                image: doc.image,
+                bio: doc.bio || '',
+                stats: {
+                    totalLikes: doc.stats?.totalLikes || 0,
+                    totalFollowers: doc.stats?.totalFollowers || 0,
+                    averageRating: doc.stats?.averageRating || 0,
+                    totalRatings: doc.stats?.totalRatings || 0
                 }
-            }
+            }));
             
-            return profiles;
+            setProfiles(loadedProfiles);
+            setFilteredProfiles(loadedProfiles);
         } catch (error) {
-            console.error('Error loading profiles:', error);
-            setError('Failed to load profiles. Please try again.');
-            return [];
+            console.error('Error loading users:', error);
+            setError('Failed to load users. Please try again later.');
+        } finally {
+            setIsLoading(false);
         }
     };
-
+    
+    // Обработка поиска
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
+        
         if (!searchQuery.trim()) {
-            loadUsers();
+            setFilteredProfiles(profiles);
             return;
         }
         
-        setIsSearching(true);
+        const filtered = profiles.filter(profile => 
+            profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (profile.username && profile.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (profile.bio && profile.bio.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+        
+        setFilteredProfiles(filtered);
+    };
+    
+    // Проверка, является ли пользователь другом
+    const isFriend = (userId: string) => {
+        return friends.some(friend => 
+            (friend.userId === userId && friend.status === 'accepted') || 
+            (friend.friendId === userId && friend.status === 'accepted')
+        );
+    };
+    
+    // Рейтинг пользователя
+    const handleRateUser = async (userId: string, rating: number) => {
+        if (!user?.user?.id) {
+            toast.error('You need to be logged in to rate users');
+            return;
+        }
+        
         try {
-            await searchProfiles(searchQuery);
-        } finally {
-            setIsSearching(false);
+            // Здесь должна быть логика для сохранения рейтинга
+            await database.createDocument(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_RATINGS!,
+                ID.unique(),
+                {
+                    user_id: user.user.id,
+                    rated_user_id: userId,
+                    rating: rating,
+                    created_at: new Date().toISOString()
+                }
+            );
+            
+            toast.success('Rating submitted successfully!');
+            
+            // Перезагружаем данные
+            await loadUsers();
+            await loadTopUsers();
+        } catch (error) {
+            console.error('Error rating user:', error);
+            toast.error('Failed to submit rating');
         }
     };
-
+    
+    // Загрузка дополнительных профилей
+    const loadMoreProfiles = async () => {
+        try {
+            setIsLoadingMore(true);
+            const nextPage = page + 1;
+            
+            const response = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                [
+                    Query.limit(20),
+                    Query.offset((nextPage - 1) * 20)
+                ]
+            );
+            
+            const newProfiles = response.documents.map(doc => ({
+                $id: doc.$id,
+                user_id: doc.user_id,
+                name: doc.name || 'Unknown User',
+                username: doc.username,
+                image: doc.image,
+                bio: doc.bio || '',
+                stats: {
+                    totalLikes: doc.stats?.totalLikes || 0,
+                    totalFollowers: doc.stats?.totalFollowers || 0,
+                    averageRating: doc.stats?.averageRating || 0,
+                    totalRatings: doc.stats?.totalRatings || 0
+                }
+            }));
+            
+            if (newProfiles.length === 0) {
+                setHasMoreProfiles(false);
+            } else {
+                setPage(nextPage);
+                setProfiles(prevProfiles => [...prevProfiles, ...newProfiles]);
+                sortAndFilterProfiles([...profiles, ...newProfiles]);
+            }
+        } catch (error) {
+            console.error('Error loading more profiles:', error);
+            toast.error('Failed to load more profiles');
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
+    
+    // Сортировка и фильтрация профилей
+    const sortAndFilterProfiles = (profilesToFilter = profiles) => {
+        let result = [...profilesToFilter];
+        
+        // Фильтрация
+        if (filterBy === 'friends') {
+            result = result.filter(profile => isFriend(profile.user_id));
+        } else if (filterBy === 'new') {
+            // Предполагаем, что в профиле есть поле createdAt
+            result = result.sort((a, b) => 
+                new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+        }
+        
+        // Сортировка
+        if (sortBy === 'name') {
+            result.sort((a, b) => {
+                const nameA = a.name.toLowerCase();
+                const nameB = b.name.toLowerCase();
+                return sortDirection === 'asc' 
+                    ? nameA.localeCompare(nameB) 
+                    : nameB.localeCompare(nameA);
+            });
+        } else if (sortBy === 'rating') {
+            result.sort((a, b) => {
+                const ratingA = a.stats.averageRating;
+                const ratingB = b.stats.averageRating;
+                return sortDirection === 'asc' 
+                    ? ratingA - ratingB 
+                    : ratingB - ratingA;
+            });
+        } else if (sortBy === 'followers') {
+            result.sort((a, b) => {
+                const followersA = a.stats.totalFollowers;
+                const followersB = b.stats.totalFollowers;
+                return sortDirection === 'asc' 
+                    ? followersA - followersB 
+                    : followersB - followersA;
+            });
+        }
+        
+        setFilteredProfiles(result);
+    };
+    
+    // Загрузка рейтинга топ-пользователей с использованием реальных данных
+    const loadTopUsers = async () => {
+        try {
+            // Здесь мы делаем запрос на получение топ-пользователей с сортировкой по рейтингу
+            const response = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                [
+                    Query.orderDesc('stats.averageRating'),
+                    Query.limit(10)
+                ]
+            );
+            
+            // Преобразуем данные для отображения
+            const topUsers = response.documents.map(doc => ({
+                $id: doc.$id,
+                user_id: doc.user_id,
+                name: doc.name,
+                username: doc.username,
+                image: doc.image,
+                bio: doc.bio || '',
+                stats: {
+                    totalLikes: doc.stats?.totalLikes || 0,
+                    totalFollowers: doc.stats?.totalFollowers || 0,
+                    averageRating: doc.stats?.averageRating || 0,
+                    totalRatings: doc.stats?.totalRatings || 0
+                }
+            }));
+            
+            setTopRankedUsers(topUsers);
+        } catch (error) {
+            console.error('Error loading top users:', error);
+        }
+    };
+    
+    // Обработка добавления друга с корректной обработкой запросов
     const handleAddFriend = async (userId: string) => {
+        if (!user?.user?.id) {
+            toast.error('You need to be logged in to add friends');
+            return;
+        }
+        
         try {
             await addFriend(userId);
-            toast.success('Friend added successfully!');
+            toast.success('Friend request sent!');
+            
+            // Обновляем состояние, чтобы отобразить изменения в UI
+            await loadFriends();
         } catch (error) {
-            toast.error('Failed to add friend. Please try again.');
+            console.error('Error adding friend:', error);
+            toast.error('Failed to send friend request');
         }
     };
-
+    
+    // Обработка удаления друга
     const handleRemoveFriend = async (userId: string) => {
+        if (!user?.user?.id) {
+            toast.error('You need to be logged in to remove friends');
+            return;
+        }
+        
         try {
             await removeFriend(userId);
-            toast.success('Friend removed successfully!');
-        } catch (error) {
-            toast.error('Failed to remove friend. Please try again.');
-        }
-    };
-
-    const handleRateUser = async (userId: string, rating: number) => {
-        try {
-            // Add logic here to rate the user
-            console.log(`Rating user ${userId} with ${rating} stars`);
-            toast.success('Rating submitted successfully!');
-        } catch (error) {
-            toast.error('Failed to submit rating. Please try again.');
-        }
-    };
-
-    const isFriend = (userId: string) => {
-        return friends.some(friend => friend.friendId === userId);
-    };
-
-    // Filter and sort profiles
-    const filteredProfiles = useMemo(() => {
-        if (!profiles || profiles.length === 0) return [];
-        
-        let result = [...profiles];
-        
-        // Apply friend filter
-        if (filterFriends === 'friends') {
-            result = result.filter(profile => isFriend(profile.user_id));
-        } else if (filterFriends === 'non-friends') {
-            result = result.filter(profile => !isFriend(profile.user_id));
-        }
-        
-        // Apply sorting
-        if (sortBy === 'latest') {
-            // Already sorted by creation date in the API
-        } else if (sortBy === 'rating-high') {
-            result.sort((a, b) => (b.stats?.averageRating || 0) - (a.stats?.averageRating || 0));
-        } else if (sortBy === 'rating-low') {
-            result.sort((a, b) => (a.stats?.averageRating || 0) - (b.stats?.averageRating || 0));
-        } else if (sortBy === 'followers') {
-            result.sort((a, b) => (b.stats?.totalFollowers || 0) - (a.stats?.totalFollowers || 0));
-        } else if (sortBy === 'alphabetical') {
-            result.sort((a, b) => a.name.localeCompare(b.name));
-        }
-        
-        return result;
-    }, [profiles, sortBy, filterFriends, friends]);
-
-    const loadMoreProfiles = () => {
-        setPage(prevPage => prevPage + 1);
-    };
-
-    const sortOptions = [
-        { value: 'latest', label: 'Latest' },
-        { value: 'rating-high', label: 'Highest Rating' },
-        { value: 'rating-low', label: 'Lowest Rating' },
-        { value: 'followers', label: 'Most Followers' },
-        { value: 'alphabetical', label: 'A to Z' },
-    ];
-
-    const filterOptions = [
-        { value: 'all', label: 'All Users' },
-        { value: 'friends', label: 'Friends Only' },
-        { value: 'non-friends', label: 'Non-Friends' },
-    ];
-
-    return (
-        <div className="min-h-screen">
-            {/* Error messages */}
-            {error && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-500 bg-opacity-20 border border-red-500 text-white p-4 rounded-lg mb-6"
-                >
-                    <p>{error}</p>
-                </motion.div>
-            )}
+            toast.success('Friend removed!');
             
-            {/* Search and filter section */}
-            <div className="mb-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        <h1 className="text-4xl font-bold text-white">
-                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-                                People
-                            </span>
-                        </h1>
-                        <p className="text-gray-400 mt-1">Connect with users from all around the world</p>
-                    </motion.div>
-                    
-                    <form onSubmit={handleSearch} className="flex-1 max-w-md">
-                        <div className="relative">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.2 }}
-                                className="flex items-center"
-                            >
-                                <div className="relative flex-1">
-                                    <input
-                                        type="text"
-                                        placeholder="Search people..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full px-4 py-3 pl-12 pr-16 rounded-xl bg-[#1A1C2E] border border-[#2A2B3F] focus:border-purple-500 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-                                    />
-                                    <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                </div>
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    type="submit"
-                                    className="ml-2 bg-gradient-to-r from-purple-600 to-purple-800 text-white p-3 rounded-xl hover:opacity-90 transition-opacity"
-                                    disabled={isSearching}
-                                >
-                                    {isSearching ? (
-                                        <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    ) : (
-                                        <span>Search</span>
-                                    )}
-                                </motion.button>
-                                
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    type="button"
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className="ml-2 p-3 bg-[#1A1C2E] border border-[#2A2B3F] text-white rounded-xl hover:bg-[#252742] transition-colors"
-                                >
-                                    <AdjustmentsHorizontalIcon className="w-5 h-5" />
-                                </motion.button>
-                            </motion.div>
-                        </div>
-                    </form>
+            // Обновляем состояние, чтобы отобразить изменения в UI
+            await loadFriends();
+        } catch (error) {
+            console.error('Error removing friend:', error);
+            toast.error('Failed to remove friend');
+        }
+    };
+    
+    // Инициализация данных
+    useEffect(() => {
+        const initializeData = async () => {
+            setIsLoading(true);
+            try {
+                await loadFriends();
+                await loadUsers();
+                await loadTopUsers();
+            } catch (error) {
+                console.error('Error initializing data:', error);
+                setError('Failed to load data. Please try again later.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        if (user?.user?.id) {
+            initializeData();
+        }
+    }, [user?.user?.id]);
+    
+    // Обновление отображаемых профилей при изменении фильтров
+    useEffect(() => {
+        sortAndFilterProfiles();
+    }, [profiles, sortBy, sortDirection, filterBy, friends]);
+    
+    return (
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
+                <div>
+                    <h1 className="text-4xl font-bold text-white mb-2">People</h1>
+                    <p className="text-[#A6B1D0]">Connect with users from all around the world</p>
                 </div>
                 
-                {/* Filters */}
-                <AnimatePresence>
-                    {showFilters && (
-                        <motion.div 
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden bg-[#1A1C2E] rounded-xl p-4 md:p-6 mb-6 border border-[#2A2B3F]"
-                        >
-                            <div className="flex flex-wrap gap-4">
-                                <div className="flex-1 min-w-[200px]">
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">Sort By</label>
-                                    <div className="relative">
-                                        <select 
-                                            value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value)}
-                                            className="block w-full px-4 py-2.5 bg-[#252742] border border-[#383B5A] rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-                                        >
-                                            {sortOptions.map(option => (
-                                                <option key={option.value} value={option.value}>{option.label}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                                
-                                <div className="flex-1 min-w-[200px]">
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">Filter By</label>
-                                    <div className="relative">
-                                        <select 
-                                            value={filterFriends}
-                                            onChange={(e) => setFilterFriends(e.target.value)}
-                                            className="block w-full px-4 py-2.5 bg-[#252742] border border-[#383B5A] rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-                                        >
-                                            {filterOptions.map(option => (
-                                                <option key={option.value} value={option.value}>{option.label}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <form onSubmit={handleSearch} className="w-full md:w-auto flex gap-2">
+                    <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search people..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-[#1A1C2E] text-white border border-purple-900/20 rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent"
+                        />
+                    </div>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="submit"
+                        className="bg-gradient-to-r from-[#20DDBB] to-[#0A947B] text-white font-medium py-2 px-6 rounded-xl hover:from-[#1CC9A8] hover:to-[#097E68] transition-all duration-300"
+                    >
+                        Search
+                    </motion.button>
+                </form>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Users grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-3">
-                    {loading && page === 1 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {[1, 2, 3, 4, 5, 6].map(i => <UserCardSkeleton key={i} />)}
+                    {/* Фильтры и результаты поиска */}
+                    <div className="bg-[#1A1C2E]/50 p-4 rounded-xl mb-6 flex flex-wrap items-center gap-4">
+                        <div className="flex items-center">
+                            <AdjustmentsHorizontalIcon className="h-5 w-5 text-[#A6B1D0] mr-2" />
+                            <span className="text-[#A6B1D0] hidden sm:inline">Filters:</span>
                         </div>
-                    ) : filteredProfiles.length > 0 ? (
-                        <>
-                            <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ staggerChildren: 0.1 }}
-                                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-                            >
-                                {filteredProfiles.map((profile, index) => (
-                                    <motion.div
-                                        key={profile.$id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                    >
-                                        <UserCard
-                                            user={profile}
-                                            isFriend={isFriend(profile.user_id)}
-                                            onAddFriend={handleAddFriend}
-                                            onRemoveFriend={handleRemoveFriend}
-                                            onRateUser={handleRateUser}
-                                        />
-                                    </motion.div>
-                                ))}
-                            </motion.div>
+                        
+                        <div className="flex flex-wrap gap-3">
+                            <FilterDropdown 
+                                options={[
+                                    { value: 'name', label: 'Name' },
+                                    { value: 'rating', label: 'Rating' },
+                                    { value: 'followers', label: 'Followers' }
+                                ]}
+                                value={sortBy}
+                                onChange={setSortBy}
+                                label="Sort by"
+                            />
                             
-                            {/* Load more button */}
-                            {!isSearching && (
-                                <div className="mt-8 text-center">
-                                    <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={loadMoreProfiles}
-                                        disabled={loading}
-                                        className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl inline-flex items-center space-x-2 disabled:opacity-50 transition-colors shadow-lg"
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                Loading more users...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Load More Users</span>
-                                                <ArrowDownIcon className="w-4 h-4 ml-2" />
-                                            </>
-                                        )}
-                                    </motion.button>
+                            <FilterDropdown 
+                                options={[
+                                    { value: 'all', label: 'All' },
+                                    { value: 'friends', label: 'Friends' },
+                                    { value: 'new', label: 'New users' }
+                                ]}
+                                value={filterBy}
+                                onChange={setFilterBy}
+                                label="Show"
+                            />
+                            
+                            <button
+                                onClick={toggleSortDirection}
+                                className="flex items-center justify-center bg-[#252742] hover:bg-[#323652] text-white p-2 rounded-lg transition-colors"
+                            >
+                                {sortDirection === 'asc' ? (
+                                    <ArrowUpIcon className="w-5 h-5" />
+                                ) : (
+                                    <ArrowDownIcon className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Сетка пользователей */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {isLoading ? (
+                            Array.from({ length: 6 }).map((_, index) => (
+                                <UserCardSkeleton key={index} />
+                            ))
+                        ) : filteredProfiles.length > 0 ? (
+                            filteredProfiles.map(profile => (
+                                <UserCard
+                                    key={profile.$id}
+                                    user={profile}
+                                    isFriend={isFriend(profile.user_id)}
+                                    onAddFriend={handleAddFriend}
+                                    onRemoveFriend={handleRemoveFriend}
+                                    onRateUser={handleRateUser}
+                                />
+                            ))
+                        ) : (
+                            <div className="col-span-full flex flex-col items-center justify-center p-12 text-center">
+                                <div className="text-gray-400 mb-4 text-6xl">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
                                 </div>
-                            )}
-                        </>
-                    ) : (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-gradient-to-r from-[#1E2136] to-[#252742] rounded-xl p-8 text-center shadow-xl"
-                        >
-                            <div className="w-16 h-16 mx-auto mb-4 bg-purple-500/10 rounded-full flex items-center justify-center">
-                                <XMarkIcon className="w-8 h-8 text-purple-400" />
+                                <p className="text-gray-400 text-xl mb-4">No users found</p>
+                                <p className="text-gray-500 max-w-md">Try changing your search or filters to find people to connect with.</p>
                             </div>
-                            <p className="text-gray-300 mb-4 text-lg">No users found</p>
-                            {searchQuery && (
-                                <button
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        loadUsers();
-                                    }}
-                                    className="text-purple-400 hover:text-purple-300 underline transition-colors"
-                                >
-                                    Clear search and try again
-                                </button>
-                            )}
-                        </motion.div>
+                        )}
+                    </div>
+                    
+                    {/* Кнопка "Загрузить еще" */}
+                    {!isLoading && filteredProfiles.length > 0 && hasMoreProfiles && (
+                        <div className="mt-8 text-center">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={loadMoreProfiles}
+                                className="bg-[#1A1C2E] hover:bg-[#252742] text-white font-medium py-3 px-8 rounded-xl transition-colors inline-flex items-center"
+                            >
+                                {isLoadingMore ? (
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : null}
+                                Load more
+                            </motion.button>
+                        </div>
                     )}
                 </div>
                 
-                {/* Sidebar */}
-                <div className="lg:col-span-1 space-y-6">
-                    <TopRankingUsers />
-                    
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-gradient-to-br from-[#1E2136] to-[#2A2D45] rounded-xl p-6 shadow-xl border border-purple-900/20"
-                    >
-                        <h2 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500">Quick Stats</h2>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center p-4 bg-[#1A1C2E] rounded-xl hover:bg-[#252742] transition-colors">
-                                <span className="text-gray-300">Total Users</span>
-                                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-500">{profiles.length}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-4 bg-[#1A1C2E] rounded-xl hover:bg-[#252742] transition-colors">
-                                <span className="text-gray-300">Your Friends</span>
-                                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-500">{friends.length}</span>
-                            </div>
-                        </div>
-                    </motion.div>
+                {/* Боковая панель с топ-пользователями */}
+                <div className="lg:col-span-1">
+                    {isLoading ? (
+                        <div className="bg-gradient-to-br from-[#1E2136] to-[#252742] rounded-2xl overflow-hidden shadow-lg border border-purple-900/10 animate-pulse h-96"></div>
+                    ) : (
+                        <TopRankingUsersPanel users={topRankedUsers} />
+                    )}
                 </div>
             </div>
         </div>

@@ -71,7 +71,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto mt-[90px] px-4 md:px-8">
+		<div className="w-full mx-auto mt-[60px] px-4 md:px-8">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -160,7 +160,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#20DDBB]"></div>
                                         </div>
                                     ) : hasUserReleases || (postsByUser && postsByUser.length > 0) ? (
-                                        <div className="flex justify-center mt-[20px]">
+                                        <div className="flex justify-center">
                                             <div className="max-w-full flex flex-wrap justify-center gap-8 py-4">
                                                 {children}
                                             </div>
@@ -193,12 +193,13 @@ export default function ProfileLayout({ children, params }: { children: React.Re
         >
             <div className="max-w-screen-xl mx-auto">
                 <div className="flex items-center justify-between p-4">
+                    {/* Профиль пользователя - видимый только на мобильных */}
                     <div className="flex items-center gap-4">
                         <motion.div 
                             whileHover={{ scale: 1.05 }}
                             className={`relative w-12 h-12 rounded-xl overflow-hidden ring-2 ring-[#20DDBB]/30 
                                      group transition-all duration-300 hover:ring-[#20DDBB]/50
-                                     shadow-[0_0_15px_rgba(32,221,187,0.15)] ${isProfileOwner ? 'cursor-pointer' : ''}`}
+                                     shadow-[0_0_15px_rgba(32,221,187,0.15)] md:hidden ${isProfileOwner ? 'cursor-pointer' : ''}`}
                             onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
                         >
                         <img 
@@ -207,7 +208,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                             />
                         </motion.div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col md:hidden">
                             <motion.h1 
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -216,6 +217,20 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                             >
                                 {currentProfile?.name || 'User Name'}
                             </motion.h1>
+                            
+                            {/* Кнопка Edit Profile в полупрозрачном округлом табике под именем пользователя */}
+                            {isProfileOwner && (
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setIsEditProfileOpen(true)}
+                                    className="self-start mt-1 px-3 py-1 text-xs font-medium rounded-full 
+                                              bg-white/10 backdrop-blur-sm text-[#20DDBB] border border-[#20DDBB]/20
+                                              hover:bg-[#20DDBB]/20 transition-all duration-300 shadow-[0_0_10px_rgba(32,221,187,0.15)]"
+                                >
+                                    Edit Profile
+                                </motion.button>
+                            )}
                         </div>
                     </div>
 

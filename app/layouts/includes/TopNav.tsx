@@ -19,6 +19,8 @@ import TutorialGuide, { TutorialStep } from '@/app/components/TutorialGuide'
 import NotificationBell from "@/app/components/notifications/NotificationBell"
 import useNotifications from "@/app/hooks/useNotifications"
 import { toast } from "react-hot-toast"
+import VibeUploader from "@/app/components/vibe/VibeUploader"
+import { SparklesIcon } from "@heroicons/react/24/outline"
 
 export default function TopNav({ params }: ProfilePageTypes) {    
     const userContext = useUser()
@@ -26,6 +28,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
     const pathname = usePathname()
     const [isVideoMode, setIsAudioMode] = useState(false);
     const languageMenuRef = useRef<HTMLDivElement>(null);
+    const [showVibeUploader, setShowVibeUploader] = useState(false);
 
     {/*SEARCH*/}
    
@@ -143,6 +146,11 @@ export default function TopNav({ params }: ProfilePageTypes) {
             const goToPeople = () => {
                 if (!userContext?.user) return setIsLoginOpen(true);
                 router.push("/people");
+            };
+
+            const openVibeUploader = () => {
+                if (!userContext?.user) return setIsLoginOpen(true);
+                setShowVibeUploader(true);
             };
 
      /* Genres */
@@ -456,6 +464,16 @@ export default function TopNav({ params }: ProfilePageTypes) {
                             <span className="ml-2 font-medium text-[13px] hidden md:inline">RELEASE</span>
                     </button>
 
+                    {/* VIBE Button */}
+                    <button 
+                        id="vibe-button"
+                        onClick={() => openVibeUploader()}
+                        className="flex items-center rounded-2xl py-[6px] px-2 md:px-[15px]"
+                    >
+                        <SparklesIcon className="w-[24px] h-[24px] text-purple-400" />
+                        <span className="ml-2 font-medium text-[13px] hidden md:inline">VIBE</span>
+                    </button>
+
                     {/* Notification Bell */}
                         <NotificationBell />
 
@@ -736,6 +754,19 @@ export default function TopNav({ params }: ProfilePageTypes) {
                 isFirstVisit={showReleaseTooltip}
                 onComplete={handleTutorialComplete}
             />
+
+            {/* Vibe uploader modal */}
+            <AnimatePresence>
+                {showVibeUploader && (
+                    <VibeUploader 
+                        onClose={() => setShowVibeUploader(false)} 
+                        onSuccess={() => {
+                            setShowVibeUploader(false);
+                            toast.success('Your vibe has been posted!');
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </>
     )
 }

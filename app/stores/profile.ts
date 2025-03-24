@@ -432,7 +432,6 @@ export const useProfileStore = create<ProfileStore>()(
                         if (data.featured_track_id) updateData.featured_track_id = data.featured_track_id;
                         if (data.preferred_languages) updateData.preferred_languages = data.preferred_languages;
                         if (data.settings) updateData.settings = data.settings;
-                        if (data.stats) updateData.stats = data.stats;
                         if (data.social_links) updateData.social_links = data.social_links;
                         if (data.stats) {
                             if (data.stats.totalLikes !== undefined) updateData.total_likes = data.stats.totalLikes.toString();

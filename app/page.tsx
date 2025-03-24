@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from "react"
 import { usePostStore } from "@/app/stores/post"
+import { useVibeStore } from "@/app/stores/vibeStore"
 import ClientOnly from "./components/ClientOnly"
 import PostMain from "./components/PostMain"
+import VibeCard from "./components/vibe/VibeCard"
 import { GenreProvider } from "@/app/context/GenreContext";
 import { useRouter } from "next/navigation";
 import React, { Suspense } from "react";
@@ -11,6 +13,13 @@ import { useInView } from 'react-intersection-observer';
 import MainLayout from "./layouts/MainLayout"
 import { AnimatePresence } from 'framer-motion';
 import { motion } from 'framer-motion';
+
+// Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
+interface FeedItem {
+  type: 'post' | 'vibe';
+  data: any;
+  created_at: string;
+}
 
 export default function Home() {
   const router = useRouter();
@@ -23,10 +32,23 @@ export default function Home() {
     allPosts, 
     loadMorePosts,
     setAllPosts, 
-    isLoading, 
-    hasMore,
+    isLoading: isLoadingPosts, 
+    hasMore: hasMorePosts,
     selectedGenre 
   } = usePostStore();
+
+  const {
+    allVibePosts,
+    fetchAllVibes,
+    loadMoreVibes,
+    isLoadingVibes,
+    hasMore: hasMoreVibes
+  } = useVibeStore();
+
+  // Объединенный стейт для ленты
+  const [combinedFeed, setCombinedFeed] = useState<FeedItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   // Улучшенные настройки IntersectionObserver
   const { ref, inView } = useInView({
@@ -35,12 +57,47 @@ export default function Home() {
     triggerOnce: false, // Позволяем триггеру срабатывать multiple times
   });
 
+  // Загрузка комбинированной ленты
+  useEffect(() => {
+    const combineFeed = () => {
+      // Преобразуем посты и VIBE посты в единый формат
+      const postItems: FeedItem[] = allPosts.map(post => ({
+        type: 'post',
+        data: post,
+        created_at: post.created_at
+      }));
+      
+      const vibeItems: FeedItem[] = allVibePosts.map(vibe => ({
+        type: 'vibe',
+        data: vibe,
+        created_at: vibe.created_at
+      }));
+      
+      // Объединяем и сортируем по дате создания (новые сверху)
+      const combined = [...postItems, ...vibeItems].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setCombinedFeed(combined);
+      setHasMore(hasMorePosts || hasMoreVibes);
+    };
+    
+    combineFeed();
+  }, [allPosts, allVibePosts, hasMorePosts, hasMoreVibes]);
+
   // Initial load
   useEffect(() => {
-    console.log("[DEBUG-PAGE] Initial posts loading, selected genre:", selectedGenre);
-    setAllPosts();
-    refreshCountRef.current = 0;
-    setAutoRefreshEnabled(true);
+    console.log("[DEBUG-PAGE] Initial content loading, selected genre:", selectedGenre);
+    setIsLoading(true);
+    
+    Promise.all([
+      setAllPosts(),
+      fetchAllVibes()
+    ]).finally(() => {
+      setIsLoading(false);
+      refreshCountRef.current = 0;
+      setAutoRefreshEnabled(true);
+    });
   }, [selectedGenre]);
 
   // Auto-refresh logic
@@ -54,8 +111,14 @@ export default function Home() {
         return;
       }
       
-      setAllPosts();
-      refreshCountRef.current += 1;
+      setIsLoading(true);
+      Promise.all([
+        setAllPosts(),
+        fetchAllVibes()
+      ]).finally(() => {
+        setIsLoading(false);
+        refreshCountRef.current += 1;
+      });
     }, refreshInterval);
     
     return () => clearInterval(intervalId);
@@ -64,25 +127,34 @@ export default function Home() {
   // Improved scroll loading logic
   useEffect(() => {
     const handleLoadMore = async () => {
-      if (inView && hasMore && !isLoading) {
-        console.log("[DEBUG-PAGE] Loading more posts...");
-        await loadMorePosts();
+      if (inView && hasMore && !isLoading && !isLoadingPosts && !isLoadingVibes) {
+        console.log("[DEBUG-PAGE] Loading more content...");
+        setIsLoading(true);
+        
+        try {
+          // Загружаем больше контента из обоих источников
+          await Promise.all([
+            hasMorePosts ? loadMorePosts() : Promise.resolve(),
+            hasMoreVibes ? loadMoreVibes() : Promise.resolve()
+          ]);
+        } catch (error) {
+          console.error("Error loading more content:", error);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
 
     handleLoadMore();
-  }, [inView, hasMore, isLoading]);
-
-  // Filtering is done in the store
-  const filteredPosts = allPosts;
+  }, [inView, hasMore, isLoading, hasMorePosts, hasMoreVibes, isLoadingPosts, isLoadingVibes]);
 
   return (
     <>
       <GenreProvider>
         <MainLayout>
           <div className="mt-[80px] w-full ml-auto">
-            {/* Auto-refresh info */}
-            {!autoRefreshEnabled && (
+            {/* Auto-refresh info - now hidden */}
+            {false && !autoRefreshEnabled && (
               <div className="text-center text-[#20DDBB] text-sm py-2 mb-4 bg-[#1E2136] rounded-md mx-4">
                 Auto-refresh completed {MAX_AUTO_REFRESHES} time{MAX_AUTO_REFRESHES !== 1 ? 's' : ''} and disabled. 
                 <button 
@@ -107,55 +179,76 @@ export default function Home() {
                   <div className="w-8 h-8 border-t-2 border-[#20DDBB] rounded-full animate-spin"></div>
                 </motion.div>
               }>
-                {/* No posts message */}
-                {filteredPosts.length === 0 && !isLoading && (
+                {/* No content message */}
+                {combinedFeed.length === 0 && !isLoading && (
                   <div className="text-center text-[#818BAC] py-4">
-                    No posts found. Check the developer console logs.
+                    No content found. Check the developer console logs.
                   </div>
                 )}
                 
-                {/* Posts list */}
+                {/* Combined feed list */}
                 <AnimatePresence mode="popLayout">
-                  {filteredPosts.map((post, index) => {
-                    const uniqueKey = `${post.id}-${index}`;
-                    const profile = post.profile || {
-                      user_id: "unknown",
-                      name: "Unknown user",
-                      image: "https://placehold.co/300x300?text=User"
-                    };
+                  {combinedFeed.map((item, index) => {
+                    const uniqueKey = `${item.type}-${item.data.id}-${index}`;
                     
-                    return (
-                      <motion.div 
-                        key={uniqueKey}
-                        ref={index === filteredPosts.length - 1 ? ref : undefined}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                      >
-                        <PostMain
-                          post={post}
-                          router={router}
-                          id={post.id}
-                          user_id={post.user_id}
-                          audio_url={post.audio_url}
-                          image_url={post.image_url}
-                          price={post.price}
-                          mp3_url={post.mp3_url}
-                          m3u8_url={post.m3u8_url}
-                          text={post.text}
-                          trackname={post.trackname || "Untitled"}
-                          created_at={post.created_at}
-                          genre={post.genre}
-                          profile={{
-                            user_id: profile.user_id,
-                            name: profile.name || "Unknown user",
-                            image: profile.image || "https://placehold.co/300x300?text=User"
-                          }}
-                        />
-                      </motion.div>
-                    );
+                    if (item.type === 'post') {
+                      const post = item.data;
+                      const profile = post.profile || {
+                        user_id: "unknown",
+                        name: "Unknown user",
+                        image: "https://placehold.co/300x300?text=User"
+                      };
+                      
+                      return (
+                        <motion.div 
+                          key={uniqueKey}
+                          ref={index === combinedFeed.length - 1 ? ref : undefined}
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                        >
+                          <PostMain
+                            post={post}
+                            router={router}
+                            id={post.id}
+                            user_id={post.user_id}
+                            audio_url={post.audio_url}
+                            image_url={post.image_url}
+                            price={post.price}
+                            mp3_url={post.mp3_url}
+                            m3u8_url={post.m3u8_url}
+                            text={post.text}
+                            trackname={post.trackname || "Untitled"}
+                            created_at={post.created_at}
+                            genre={post.genre}
+                            profile={{
+                              user_id: profile.user_id,
+                              name: profile.name || "Unknown user",
+                              image: profile.image || "https://placehold.co/300x300?text=User"
+                            }}
+                          />
+                        </motion.div>
+                      );
+                    } else { // Vibe post
+                      const vibe = item.data;
+                      
+                      return (
+                        <motion.div 
+                          key={uniqueKey}
+                          ref={index === combinedFeed.length - 1 ? ref : undefined}
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          className="mb-6 px-4"
+                        >
+                          <VibeCard vibe={vibe} />
+                        </motion.div>
+                      );
+                    }
                   })}
                 </AnimatePresence>
 
@@ -178,12 +271,12 @@ export default function Home() {
                         <img src="/images/T-logo.svg" alt="Logo" className="w-8 h-8 opacity-50" />
                       </div>
                     </div>
-                    <p className="text-[#818BAC] text-sm animate-pulse">Loading more tracks...</p>
+                    <p className="text-[#818BAC] text-sm animate-pulse">Loading more content...</p>
                   </motion.div>
                 )}
 
                 {/* End of list indicator */}
-                {!hasMore && filteredPosts.length > 0 && (
+                {!hasMore && combinedFeed.length > 0 && (
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

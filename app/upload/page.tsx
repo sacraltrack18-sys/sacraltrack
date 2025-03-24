@@ -76,7 +76,8 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
 
 export default function Upload() {
     const router = useRouter();
-    const user  = useUser();
+    const userContext = useUser();
+    const user = userContext?.user;
     const createPostHook = useCreatePost();
     
     // File states
@@ -1110,7 +1111,7 @@ export default function Upload() {
                             <div>
                                 <div className="w-full px-4 py-3 rounded-xl bg-[#2A184B]/50 border border-[#20DDBB]/10
                                             text-white flex items-center">
-                                    <span>{user?.user?.name || "Unknown Artist"}</span>
+                                    <span>{user?.name || "Unknown Artist"}</span>
                                     <div className="ml-2 text-[#20DDBB] bg-[#20DDBB]/10 px-2 py-0.5 rounded text-xs">
                                         Verified
                                     </div>

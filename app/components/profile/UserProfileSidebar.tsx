@@ -72,7 +72,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const bio = getProfileProperty('bio', '');
   const hasStats = !!(getProfileProperty('stats', null) || getProfileProperty('$stats', null));
 
-  console.log('UserProfileSidebar получил профиль:', 
+  console.log('UserProfileSidebar received profile:', 
     profile ? JSON.stringify({
       id: profileId,
       user_id: userId,
@@ -92,7 +92,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const { friends, loadFriends } = useFriendsStore();
   const { postsByUser } = usePostStore();
   const { likedPosts } = useLikedStore();
-  const [rank, setRank] = useState({ name: 'Новичок', color: 'from-gray-400 to-gray-500', score: 0 });
+  const [rank, setRank] = useState({ name: 'Beginner', color: 'from-gray-400 to-gray-500', score: 0 });
   
   // Check if the current user is the profile owner
   const isOwner = contextUser?.user?.id === userId;
@@ -197,44 +197,44 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
     );
   };
 
-  // Расчет рейтинга
+  // Rating calculation
   useEffect(() => {
-    // Расчет простого рейтинга на основе количества друзей, треков и лайков
+    // Simple rating calculation based on number of friends, tracks and likes
     const friendsScore = friends.length * 10;
     const tracksScore = postsByUser?.length * 15 || 0;
     const likesScore = likedPosts?.length * 5 || 0;
     
     const totalScore = friendsScore + tracksScore + likesScore;
     
-    // Определение ранга на основе общего счета
-    let rankName = 'Новичок';
+    // Determining rank based on total score
+    let rankName = 'Beginner';
     let color = 'from-gray-400 to-gray-500';
     
     if (totalScore >= 500) {
-      rankName = 'Легенда';
+      rankName = 'Legend';
       color = 'from-purple-400 to-pink-500';
     } else if (totalScore >= 300) {
-      rankName = 'Мастер';
+      rankName = 'Master';
       color = 'from-blue-400 to-purple-500';
     } else if (totalScore >= 150) {
-      rankName = 'Продвинутый';
+      rankName = 'Advanced';
       color = 'from-cyan-400 to-blue-500';
     } else if (totalScore >= 50) {
-      rankName = 'Опытный';
+      rankName = 'Experienced';
       color = 'from-green-400 to-teal-500';
     }
     
     setRank({ name: rankName, color, score: totalScore });
   }, [friends.length, postsByUser, likedPosts]);
   
-  // Загружаем друзей для расчета рейтинга
+  // Load friends for rating calculation
   useEffect(() => {
     if (userId) {
       loadFriends();
     }
   }, [userId, loadFriends]);
 
-  // Получаем статистику из профиля
+  // Get stats from profile
   const getStats = () => {
     const stats = getProfileProperty('stats', {}) as any;
     
@@ -250,7 +250,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="sticky top-24 w-full max-w-[300px] rounded-2xl overflow-hidden"
+      className="sticky top-[90px] w-full max-w-[350px] rounded-2xl overflow-hidden z-10"
     >
       <div className="glass-profile-card bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_25px_rgba(32,221,187,0.15)] rounded-2xl overflow-hidden">
         {/* Profile Image Section - Clickable for owners */}
@@ -258,6 +258,31 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           className={`relative w-full aspect-square overflow-hidden group ${isOwner ? 'cursor-pointer' : ''}`}
           onClick={isOwner ? handleOpenProfileEditor : undefined}
         >
+          {/* Adding rating directly on the profile image */}
+          <motion.div 
+            className="absolute top-3 left-3 z-20 glass-rating px-2 py-1 rounded-full flex items-center gap-1"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <motion.div 
+              className={`h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color} text-xs font-bold`}
+              animate={{ 
+                scale: [1, 1.1, 1],
+              }}
+              transition={{ 
+                duration: 1.5, 
+                repeat: Infinity, 
+                repeatType: "reverse"
+              }}
+            >
+              {rank.score}
+            </motion.div>
+            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rank.color} text-xs font-bold`}>
+              {rank.name}
+            </span>
+          </motion.div>
+
           <motion.div
             className="absolute inset-0 bg-gradient-to-b from-[#20DDBB]/0 to-[#20DDBB]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
             whileHover={{ opacity: 1 }}
@@ -322,7 +347,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 </>
               ) : isOwner ? (
                 <span className="italic text-white/70 hover:text-[#20DDBB] transition-colors">
-                  Укажите ваше имя
+                  Enter your name
                 </span>
               ) : (
                 'Artist Name'
@@ -365,7 +390,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             </motion.div>
           )}
           
-          {/* Жанр музыки - всегда отображается */}
+          {/* Genre - always displayed */}
           <div 
             className={`flex items-center gap-2 group ${isOwner ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
             onClick={isOwner ? handleOpenProfileEditor : undefined}
@@ -383,7 +408,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 <span>{getProfileProperty('genre', '')}</span>
               ) : isOwner ? (
                 <span className="italic text-[#20DDBB]/50 hover:text-[#20DDBB]/70 transition-colors">
-                  Укажите жанр вашей музыки
+                  Specify your music genre
                 </span>
               ) : null}
               {isOwner && hoveredElement === 'genre' && (
@@ -410,38 +435,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             </motion.div>
           )}
           
-          {/* Рейтинг */}
-          <div className="mt-4 flex justify-center">
-            <motion.div 
-              className="px-4 py-2 rounded-xl bg-[#1A1C2E] flex items-center gap-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <motion.div 
-                className={`h-7 w-7 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color}`}
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0] 
-                }}
-                transition={{ 
-                  duration: 2, 
-                  repeat: Infinity, 
-                  repeatType: "reverse",
-                  delay: Math.random() * 2
-                }}
-              >
-                {rank.score}
-              </motion.div>
-              <div>
-                <p className={`text-transparent bg-clip-text bg-gradient-to-r ${rank.color} font-bold text-sm`}>
-                  {rank.name}
-                </p>
-              </div>
-            </motion.div>
-          </div>
-          
-          {/* Биография - всегда отображается */}
+          {/* Biography - always displayed */}
           <div 
             className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''}`}
             onClick={isOwner ? handleOpenProfileEditor : undefined}
@@ -458,11 +452,11 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 bio
               ) : isOwner ? (
                 <span className="italic text-[#A6B1D0]/50 hover:text-[#20DDBB]/70 transition-colors">
-                  Оставьте здесь свою мысль или расскажите о себе...
+                  Share your thoughts or tell about yourself...
                 </span>
               ) : (
                 <span className="italic text-[#A6B1D0]/50">
-                  Пользователь еще не добавил информацию о себе
+                  User has not added any information yet
                 </span>
               )}
               {isOwner && hoveredElement === 'bio' && (
@@ -479,7 +473,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           </div>
           
           <div className="space-y-3">
-            {/* Местоположение - всегда отображается для владельца */}
+            {/* Location - always displayed for owner */}
             <div 
               className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''} ${!getProfileProperty('location', null) && !isOwner ? 'hidden' : ''}`}
               onClick={isOwner ? handleOpenProfileEditor : undefined}
@@ -497,7 +491,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                   <span>{getProfileProperty('location', '')}</span>
                 ) : isOwner ? (
                   <span className="italic text-[#A6B1D0]/50 hover:text-white/70 transition-colors">
-                    Добавьте ваше местоположение
+                    Add your location
                   </span>
                 ) : null}
                 {isOwner && hoveredElement === 'location' && (
@@ -512,7 +506,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               </motion.div>
             </div>
             
-            {/* Веб-сайт - всегда отображается для владельца */}
+            {/* Website - always displayed for owner */}
             <div
               className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''} ${!getProfileProperty('website', null) && !isOwner ? 'hidden' : ''}`}
               onClick={isOwner ? handleOpenProfileEditor : undefined}
@@ -541,7 +535,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                   )
                 ) : isOwner ? (
                   <span className="italic text-[#A6B1D0]/50 hover:text-white/70 transition-colors">
-                    Добавьте ссылку на ваш сайт
+                    Add a link to your website
                   </span>
                 ) : null}
                 {isOwner && hoveredElement === 'website' && (
@@ -582,6 +576,13 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           z-index: -1;
           background: radial-gradient(circle at top right, rgba(32,221,187,0.1), transparent 70%);
           pointer-events: none;
+        }
+        
+        .glass-rating {
+          background: rgba(26, 30, 54, 0.7);
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 0 10px rgba(32, 221, 187, 0.2);
         }
       `}</style>
     </motion.div>

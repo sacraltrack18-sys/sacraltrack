@@ -8,11 +8,14 @@ import { Models } from 'appwrite';
 interface Notification {
   id: string;
   user_id: string;
-  type: 'sale' | 'royalty' | 'withdrawal' | 'welcome' | 'release' | 'purchase' | 'terms';
+  type: 'sale' | 'royalty' | 'withdrawal' | 'welcome' | 'release' | 'purchase' | 'terms' | 'friend_request' | 'friend_accepted';
   title: string;
   message: string;
   amount?: string;
   track_id?: string;
+  sender_id?: string;
+  action_url?: string;
+  related_document_id?: string;
   created_at: string;
   read: boolean;
 }
@@ -22,6 +25,8 @@ interface NotificationData {
   message: string;
   amount?: string;
   track_id?: string;
+  action_url?: string;
+  related_document_id?: string;
 }
 
 export const NOTIFICATION_MESSAGES = {
@@ -52,6 +57,14 @@ export const NOTIFICATION_MESSAGES = {
   withdrawal: (amount: string) => ({
     title: "Withdrawal Successful! 🎉",
     message: `Your withdrawal of ${amount} has been processed and sent to your account.`
+  }),
+  friend_request: (senderName: string) => ({
+    title: "New Friend Request! 👋",
+    message: `${senderName} sent you a friend request. Check your profile to respond.`
+  }),
+  friend_accepted: (acceptorName: string) => ({
+    title: "Friend Request Accepted! 🎉",
+    message: `${acceptorName} accepted your friend request. You are now connected!`
   })
 };
 
@@ -72,6 +85,11 @@ const useNotifications = () => {
       track_id?: string;
       trackName?: string;
       buyerName?: string;
+      senderName?: string;
+      acceptorName?: string;
+      sender_id?: string;
+      action_url?: string;
+      related_document_id?: string;
     }
   ) => {
     try {
@@ -98,6 +116,12 @@ const useNotifications = () => {
           break;
         case 'withdrawal':
           notificationData = NOTIFICATION_MESSAGES.withdrawal(data.amount || '0');
+          break;
+        case 'friend_request':
+          notificationData = NOTIFICATION_MESSAGES.friend_request(data.senderName || 'Unknown Sender');
+          break;
+        case 'friend_accepted':
+          notificationData = NOTIFICATION_MESSAGES.friend_accepted(data.acceptorName || 'Unknown Acceptor');
           break;
         default:
           notificationData = {
@@ -126,6 +150,9 @@ const useNotifications = () => {
           message: notificationData.message,
           amount: data.amount,
           track_id: data.track_id,
+          sender_id: data.sender_id,
+          action_url: data.action_url,
+          related_document_id: data.related_document_id,
           created_at: new Date().toISOString(),
           read: false
         }
@@ -166,6 +193,9 @@ const useNotifications = () => {
         message: doc.message,
         amount: doc.amount,
         track_id: doc.track_id,
+        sender_id: doc.sender_id,
+        action_url: doc.action_url,
+        related_document_id: doc.related_document_id,
         created_at: doc.created_at,
         read: doc.read
       })) as Notification[];

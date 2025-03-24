@@ -8,6 +8,9 @@ import { BsPersonPlus, BsPersonCheck, BsPersonX } from "react-icons/bs";
 import { IoMdMusicalNotes } from "react-icons/io";
 import { FaUserFriends } from "react-icons/fa";
 import { toast } from "react-hot-toast";
+import { useFriendsStore } from "@/app/stores/friends";
+import { usePostStore } from "@/app/stores/post";
+import { useLikedStore } from "@/app/stores/likedStore";
 
 interface Profile {
   user_id: string;
@@ -86,6 +89,41 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
     }
   };
 
+  // Расчет рейтинга
+  const { friends: friendsList } = useFriendsStore();
+  const { postsByUser: tracks } = usePostStore();
+  const { likedPosts: likes } = useLikedStore();
+  const [rank, setRank] = useState({ name: 'Novice', color: 'from-gray-400 to-gray-500', score: 0 });
+  
+  useEffect(() => {
+    // Расчет простого рейтинга на основе количества друзей, треков и лайков
+    const friendsScore = friendsList.length * 10;
+    const tracksScore = tracks?.length * 15 || 0;
+    const likesScore = likes?.length * 5 || 0;
+    
+    const totalScore = friendsScore + tracksScore + likesScore;
+    
+    // Определение ранга на основе общего счета
+    let rankName = 'Novice';
+    let color = 'from-gray-400 to-gray-500';
+    
+    if (totalScore >= 500) {
+      rankName = 'Legend';
+      color = 'from-purple-400 to-pink-500';
+    } else if (totalScore >= 300) {
+      rankName = 'Master';
+      color = 'from-blue-400 to-purple-500';
+    } else if (totalScore >= 150) {
+      rankName = 'Advanced';
+      color = 'from-cyan-400 to-blue-500';
+    } else if (totalScore >= 50) {
+      rankName = 'Experienced';
+      color = 'from-green-400 to-teal-500';
+    }
+    
+    setRank({ name: rankName, color, score: totalScore });
+  }, [friendsList.length, tracks, likes]);
+
   const getFriendActionButton = () => {
     if (contextUser?.user?.id === profile.user_id) return null;
 
@@ -153,6 +191,31 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
     >
       <Link href={`/profile/${profile.user_id}`}>
         <div className="relative w-full h-[200px] overflow-hidden">
+          {/* Добавляем рейтинг на изображение профиля */}
+          <motion.div 
+            className="absolute top-3 left-3 z-20 glass-rating px-2 py-1 rounded-full flex items-center gap-1"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <motion.div 
+              className={`h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color} text-xs font-bold`}
+              animate={{ 
+                scale: [1, 1.1, 1],
+              }}
+              transition={{ 
+                duration: 1.5, 
+                repeat: Infinity, 
+                repeatType: "reverse"
+              }}
+            >
+              {rank.score}
+            </motion.div>
+            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rank.color} text-xs font-bold`}>
+              {rank.name}
+            </span>
+          </motion.div>
+          
           <motion.img
             src={imageError ? '/images/placeholders/user-placeholder.svg' : userProfileImageUrl}
             alt={profile.name}
@@ -220,8 +283,17 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
           </motion.p>
         )}
       </div>
+      
+      <style jsx global>{`
+        .glass-rating {
+          background: rgba(26, 30, 54, 0.7);
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 0 10px rgba(32, 221, 187, 0.2);
+        }
+      `}</style>
     </motion.div>
   );
 };
 
-export default EnhancedUserProfileCard; 
+export default EnhancedUserProfileCard;

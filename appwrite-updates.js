@@ -37,7 +37,7 @@ async function updateProfileRating(userId, newRating) {
     // Получить текущий профиль
     const profile = await database.getDocument(
       process.env.NEXT_PUBLIC_DATABASE_ID,
-      process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILES,
+      process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
       userId
     );
     
@@ -49,7 +49,7 @@ async function updateProfileRating(userId, newRating) {
     // Обновить профиль с новым рейтингом
     await database.updateDocument(
       process.env.NEXT_PUBLIC_DATABASE_ID,
-      process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILES,
+      process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
       userId,
       {
         rating: newAverageRating,

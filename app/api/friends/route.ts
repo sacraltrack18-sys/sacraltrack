@@ -29,7 +29,7 @@ export async function GET(req: Request) {
         // Get friend profile
         const profileResponse = await database.getDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILES!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
           friendId
         );
         

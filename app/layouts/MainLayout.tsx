@@ -12,11 +12,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { BsSearch } from "react-icons/bs";
 import NotificationBell from "../components/notifications/NotificationBell";
-import EnhancedUserProfileCard from "../components/EnhancedUserProfileCard";
+import UserProfileSidebar from "../components/profile/UserProfileSidebar";
 import { useProfileStore } from "@/app/stores/profile";
 import AuthObserver from "@/app/components/AuthObserver";
+import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 
-// Локальный интерфейс для карточки профиля
+// Local interface for profile card
 interface ProfileCardProps {
   user_id: string;
   name: string;
@@ -32,9 +33,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const router = useRouter();
     const { currentProfile, setCurrentProfile } = useProfileStore();
 
-    const { setIsLoginOpen } = useGeneralStore();
+    const { setIsLoginOpen, setIsEditProfileOpen } = useGeneralStore();
     
-    // Загружаем профиль, если пользователь авторизован
+    // Load profile if user is authenticated
     useEffect(() => {
         if (userContext?.user?.id && !currentProfile) {
             setCurrentProfile(userContext.user.id);
@@ -48,24 +49,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
 		<div className="flex mx-auto w-full px-0">
 			
-			<div className="hidden md:flex w-[300px]">
+			<div className="hidden md:flex w-[350px] relative">
 			<motion.div
                 initial={{ opacity: 0, x: -100 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
-                      className="w-full"
+                className="w-full sticky top-0 h-screen"
             >
-                {/* Профильная карточка для десктопа и iPad */}
+                {/* Profile card for desktop and iPad */}
                 {userContext?.user && currentProfile && (
                   <div className="pt-[80px] mb-6 px-3">
-                    <EnhancedUserProfileCard profile={{
-                      user_id: userContext.user.id,
-                      name: currentProfile.name || 'User',
-                      image: currentProfile.image || '',
-                      created_at: currentProfile.created_at || new Date().toISOString(),
-                      genre: currentProfile.genre || '',
-                      bio: currentProfile.bio || ''
-                    } as ProfileCardProps} />
+                    <UserProfileSidebar profile={currentProfile} />
                   </div>
                 )}
 				{/*<SideNavMain />*/}
