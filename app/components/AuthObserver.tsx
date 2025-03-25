@@ -27,6 +27,16 @@ const AuthObserver = () => {
   // Function to update cache timestamp
   const updateCacheTimestamp = () => {
     if (typeof window !== 'undefined') {
+      // Снижаем частоту обновления кеша, проверяя, прошло ли не менее 5 минут с последнего обновления
+      const lastUpdate = parseInt(window.localStorage.getItem('cache_timestamp') || '0');
+      const now = Date.now();
+      const timeDiff = now - lastUpdate;
+      
+      // Пропускаем обновление, если прошло менее 5 минут (300000 мс)
+      if (lastUpdate && timeDiff < 300000) {
+        return;
+      }
+      
       const timestamp = Date.now();
       window.localStorage.setItem('cache_timestamp', timestamp.toString());
       // Additional event for Safari and other browsers that need explicit cache invalidation
@@ -34,26 +44,37 @@ const AuthObserver = () => {
         detail: { timestamp }
       });
       window.dispatchEvent(event);
-      console.log('Cache timestamp updated:', timestamp);
+      
+      // В production только важные логи
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Cache timestamp updated:', timestamp);
+      }
     }
   };
 
-  // Throttled router refresh function to prevent excessive updates
   const throttledRefresh = () => {
-    // If already refreshing or it's been less than 2 seconds since last refresh, skip
-    if (refreshingRef.current || Date.now() - lastUpdateTimeRef.current < 2000) {
+    // Проверяем, не обновлялся ли роутер недавно
+    const now = Date.now();
+    if (now - lastUpdateTimeRef.current < 5000 || refreshingRef.current) {
       return;
     }
     
+    // Устанавливаем флаг обновления
     refreshingRef.current = true;
-    lastUpdateTimeRef.current = Date.now();
+    lastUpdateTimeRef.current = now;
     
-    // Use setTimeout to ensure we don't call router.refresh() too frequently
+    // В production только важные логи
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Refreshing router...');
+    }
+    
+    // Обновляем роутер
+    router.refresh();
+    
+    // Сбрасываем флаг через 1 секунду
     setTimeout(() => {
-      router.refresh();
       refreshingRef.current = false;
-      console.log('Router refreshed');
-    }, 100);
+    }, 1000);
   };
 
   // Listen for authentication state changes
@@ -71,21 +92,30 @@ const AuthObserver = () => {
         if (lastAuthChangeRef.current && 
             ((authEventSignature.startsWith('login-') && lastAuthChangeRef.current.startsWith('login-')) ||
             (authEventSignature.startsWith('logout-') && lastAuthChangeRef.current.startsWith('logout-')))) {
-          console.log('Ignoring duplicate auth event');
+          // В production только важные логи
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Ignoring duplicate auth event');
+          }
           return;
         }
         
         // Store this event signature
         lastAuthChangeRef.current = authEventSignature;
         
-        console.log('Auth state change detected:', userData ? 'Logged in' : 'Logged out');
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Auth state change detected:', userData ? 'Logged in' : 'Logged out');
+        }
         
         // Clear all user caches when auth state changes
         clearUserCache();
         
         // Only update profile if user data changed
         if (userData && (!currentProfile || currentProfile.user_id !== userData.id)) {
-          console.log('Setting current profile from auth change');
+          // В production только важные логи
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Setting current profile from auth change');
+          }
           setCurrentProfile(userData.id);
         }
         

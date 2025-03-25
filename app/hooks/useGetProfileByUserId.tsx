@@ -1,11 +1,19 @@
 import { database, Query } from "@/libs/AppWriteClient"
 
+// Объект для кеширования профилей
+const profileCache: Record<string, { data: any, timestamp: number }> = {};
+
 const useGetProfileByUserId = async (userId: string) => {
     try {
-        console.log(`[DEBUG-HOOK] Fetching profile for user ID: ${userId}`);
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[DEBUG-HOOK] Fetching profile for user ID: ${userId}`);
+        }
         
         if (!userId) {
-            console.warn('[DEBUG-HOOK] No userId provided');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('[DEBUG-HOOK] No userId provided');
+            }
             return {
                 id: null,
                 user_id: null,
@@ -13,6 +21,17 @@ const useGetProfileByUserId = async (userId: string) => {
                 image: '/images/placeholders/user-placeholder.svg',
                 bio: ''
             };
+        }
+
+        // Проверяем наличие кеша и его свежесть (не старше 5 минут)
+        const cacheEntry = profileCache[userId];
+        const now = Date.now();
+        if (cacheEntry && (now - cacheEntry.timestamp < 5 * 60 * 1000)) {
+            // В production только важные логи
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[DEBUG-HOOK] Using cached profile for user ID: ${userId}`);
+            }
+            return cacheEntry.data;
         }
 
         const response = await database.listDocuments(
@@ -26,18 +45,26 @@ const useGetProfileByUserId = async (userId: string) => {
         const documents = response.documents;
         
         if (!documents || documents.length === 0) {
-            console.warn(`[DEBUG-HOOK] No profile found for user ID: ${userId}`);
-            return {
+            if (process.env.NODE_ENV === 'development') {
+                console.warn(`[DEBUG-HOOK] No profile found for user ID: ${userId}`);
+            }
+            
+            const defaultProfile = {
                 id: null,
                 user_id: userId,
                 name: 'Unknown User',
                 image: '/images/placeholders/user-placeholder.svg',
                 bio: ''
             };
+            
+            // Кешируем даже дефолтный профиль, чтобы не делать лишние запросы
+            profileCache[userId] = { data: defaultProfile, timestamp: now };
+            
+            return defaultProfile;
         }
 
         const doc = documents[0];
-        return {
+        const profileData = {
             id: doc?.$id,
             user_id: doc?.user_id,
             name: doc?.name || 'Unknown User',
@@ -56,6 +83,11 @@ const useGetProfileByUserId = async (userId: string) => {
             banner_image: doc?.banner_image,
             verified: doc?.verified === "true"
         };
+        
+        // Сохраняем профиль в кеш
+        profileCache[userId] = { data: profileData, timestamp: now };
+        
+        return profileData;
     } catch (error) {
         console.error(`[DEBUG-HOOK] Error fetching profile for user ID ${userId}:`, error);
         // Return default profile instead of throwing error

@@ -10,14 +10,27 @@ export interface WithdrawalRequest extends Models.Document {
   userId: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
-  method: 'bank_transfer' | 'paypal';
+  method: 'bank_transfer' | 'paypal' | 'card' | 'crypto';
   bankDetails?: {
     bankName: string;
     accountNumber: string;
     holderName: string;
-  };
+  } | string;
+  cardDetails?: {
+    card_number?: string;
+    cardNumber?: string;
+    expiry_date?: string;
+    expiry?: string;
+    card_holder?: string;
+    holderName?: string;
+    cvv?: string;
+  } | string;
   paypalEmail?: string;
+  cryptoAddress?: string;
+  cryptoNetwork?: string;
   createdAt: string;
+  withdrawal_method?: string;
+  withdrawal_details?: any;
 }
 
 export const useWithdrawalManagement = () => {

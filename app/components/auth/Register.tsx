@@ -292,11 +292,10 @@ export default function Register() {
                                     <motion.div
                                         className="absolute inset-0 bg-[#20DDBB]/20 rounded-full blur-xl"
                                         animate={{ 
-                                            scale: [1, 1.2, 1],
                                             opacity: [0.5, 0.8, 0.5]
                                         }}
                                         transition={{ 
-                                            duration: 2,
+                                            duration: 4,
                                             repeat: Infinity,
                                             repeatType: "reverse"
                                         }}
@@ -330,7 +329,7 @@ export default function Register() {
                                                 className="absolute inset-0 flex items-center justify-center"
                                                 animate={{ rotate: 360 }}
                                                 transition={{
-                                                    duration: 8,
+                                                    duration: 15,
                                                     repeat: Infinity,
                                                     ease: "linear"
                                                 }}

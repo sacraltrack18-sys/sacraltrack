@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BsCheck2Circle, BsXCircle, BsCashStack, BsBank2, BsPaypal } from 'react-icons/bs';
+import { BsCheck2Circle, BsXCircle, BsCashStack, BsBank2, BsPaypal, BsCreditCard } from 'react-icons/bs';
+import { FaBitcoin } from 'react-icons/fa';
+import { SiVisa } from 'react-icons/si';
 import { useWithdrawalManagement, WithdrawalRequest } from '@/app/hooks/useWithdrawalManagement';
 import { toast } from 'react-hot-toast';
 import { ID } from 'appwrite';
@@ -107,24 +109,108 @@ const getDocumentId = (withdrawal: WithdrawalRequest): string => {
 // Helper function to extract bank details regardless of format
 const getBankDetails = (withdrawal: WithdrawalRequest) => {
   try {
-    // If bankDetails is a string, try to parse it as JSON
-    if (typeof withdrawal.bankDetails === 'string') {
-      try {
-        // Try to parse it as JSON
-        const parsed = JSON.parse(withdrawal.bankDetails);
-        return parsed;
-      } catch (e) {
-        console.error('Failed to parse bank details string:', e);
-        // Return an object with null values as fallback
-        return { bankName: null, accountNumber: null, holderName: null };
+    // Handle bank transfer details
+    if (withdrawal.method === 'bank_transfer' || withdrawal.withdrawal_method === 'bank_transfer') {
+      let parsedBankDetails: any = {};
+      
+      if (withdrawal.bankDetails) {
+        try {
+          parsedBankDetails = typeof withdrawal.bankDetails === 'string' 
+            ? JSON.parse(withdrawal.bankDetails)
+            : withdrawal.bankDetails;
+            
+          console.log('Bank details:', parsedBankDetails); // Debug log
+        } catch (e) {
+          console.error('Failed to parse bank details:', e);
+        }
       }
+
+      return {
+        bankName: parsedBankDetails?.bank_name || null,
+        accountNumber: parsedBankDetails?.account_number || null,
+        holderName: parsedBankDetails?.account_holder || null,
+        swiftBic: parsedBankDetails?.swift_bic || null,
+        bankAddress: parsedBankDetails?.bank_address || null,
+        iban: parsedBankDetails?.iban || null,
+        routingNumber: parsedBankDetails?.routing_number || null
+      };
     }
     
-    // If bankDetails is already an object, return it
-    return withdrawal.bankDetails;
+    // Handle card details
+    if (withdrawal.method === 'card' || withdrawal.withdrawal_method === 'card') {
+      let parsedCardDetails: any = {};
+      
+      if (withdrawal.cardDetails) {
+        // If cardDetails is a string, try to parse it as JSON
+        if (typeof withdrawal.cardDetails === 'string') {
+          try {
+            parsedCardDetails = JSON.parse(withdrawal.cardDetails);
+          } catch (e) {
+            console.error('Failed to parse card details string:', e);
+            // Try to parse withdrawal_details as fallback
+            if (withdrawal.withdrawal_details) {
+              try {
+                const details = typeof withdrawal.withdrawal_details === 'string'
+                  ? JSON.parse(withdrawal.withdrawal_details)
+                  : withdrawal.withdrawal_details;
+                if (details.visa_card) {
+                  parsedCardDetails = details.visa_card;
+                }
+              } catch (e) {
+                console.error('Failed to parse withdrawal_details:', e);
+              }
+            }
+          }
+        } else {
+          // If it's already an object, use it directly
+          parsedCardDetails = withdrawal.cardDetails;
+        }
+      } else if (withdrawal.withdrawal_details) {
+        // Try withdrawal_details if cardDetails is not available
+        try {
+          const details = typeof withdrawal.withdrawal_details === 'string'
+            ? JSON.parse(withdrawal.withdrawal_details)
+            : withdrawal.withdrawal_details;
+          if (details.visa_card) {
+            parsedCardDetails = details.visa_card;
+          }
+      } catch (e) {
+          console.error('Failed to parse withdrawal_details:', e);
+        }
+      }
+      
+      return {
+        cardNumber: parsedCardDetails.card_number || parsedCardDetails.cardNumber || null,
+        cardExpiry: parsedCardDetails.expiry_date || parsedCardDetails.expiry || null,
+        cardHolder: parsedCardDetails.card_holder || parsedCardDetails.holderName || null,
+        cardCVV: parsedCardDetails.cvv || null,
+        cardType: 'Visa'
+      };
+    }
+    
+    // Return default empty values if no details found
+    return {
+      bankName: null,
+      accountNumber: null,
+      holderName: null,
+      cardNumber: null,
+      cardExpiry: null,
+      cardHolder: null,
+      cardCVV: null,
+      cardType: null
+    };
   } catch (error) {
-    console.error('Error processing bank details:', error);
-    return { bankName: null, accountNumber: null, holderName: null };
+    console.error('Error processing payment details:', error);
+    return {
+      bankName: null,
+      accountNumber: null,
+      holderName: null,
+      cardNumber: null,
+      cardExpiry: null,
+      cardHolder: null,
+      cardCVV: null,
+      cardType: null
+    };
   }
 };
 
@@ -281,6 +367,9 @@ export default function ManagerDashboard() {
 
   const handleProcess = async (withdrawalId: string, userId: string, status: 'approved' | 'rejected') => {
     try {
+      // Show processing toast
+      const loadingToast = toast.loading(`Processing ${status} request...`);
+      
       // First try to fetch fresh user data before processing
       let userData: {name: string, email: string};
       try {
@@ -322,12 +411,24 @@ export default function ManagerDashboard() {
       const success = await processWithRetry();
       
       if (success) {
-        toast.success(`Withdrawal ${status} successfully`);
+        // Dismiss loading toast and show success toast
+        toast.dismiss(loadingToast);
+        toast.success(
+          status === 'approved' 
+            ? 'Withdrawal request approved successfully!' 
+            : 'Withdrawal request rejected successfully!',
+          { duration: 4000 }
+        );
+        
+        // Refresh the withdrawals list
         await loadWithdrawals();
       }
     } catch (error) {
       console.error(`Failed to ${status} withdrawal:`, error);
-      toast.error(`Failed to ${status} withdrawal. Please try again.`);
+      toast.error(
+        `Failed to ${status} withdrawal. ${error instanceof Error ? error.message : 'Please try again.'}`,
+        { duration: 5000 }
+      );
     }
   };
 
@@ -407,10 +508,18 @@ export default function ManagerDashboard() {
                     <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
                       withdrawal.method === 'bank_transfer' 
                         ? 'bg-gradient-to-br from-blue-500/30 to-blue-600/20 text-blue-400' 
+                        : (withdrawal.method as string) === 'card'
+                        ? 'bg-gradient-to-br from-yellow-500/30 to-yellow-600/20 text-yellow-400' 
+                        : (withdrawal.method as string) === 'crypto'
+                        ? 'bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-400'
                         : 'bg-gradient-to-br from-[#20DDBB]/30 to-[#15a88c]/20 text-[#20DDBB]'
                     }`}>
                       {withdrawal.method === 'bank_transfer' 
                         ? <BsBank2 size={28} />
+                        : (withdrawal.method as string) === 'card'
+                        ? <SiVisa size={28} />
+                        : (withdrawal.method as string) === 'crypto'
+                        ? <FaBitcoin size={28} />
                         : <BsPaypal size={28} />
                       }
                     </div>
@@ -426,6 +535,13 @@ export default function ManagerDashboard() {
                           'text-yellow-400 bg-yellow-500/20 border border-yellow-500/30'
                         }`}>
                           {withdrawal.status.toUpperCase()}
+                        </span>
+                        <span className="bg-gray-700/50 text-gray-300 text-xs px-2 py-1 rounded-md">
+                          {withdrawal.method === 'bank_transfer' ? 'Bank Transfer' : 
+                           (withdrawal.method as string) === 'card' ? 'Visa Card' :
+                           (withdrawal.method as string) === 'crypto' ? 'Crypto' :
+                           withdrawal.method === 'paypal' ? 'PayPal' : 
+                           withdrawal.method}
                         </span>
                       </div>
                       
@@ -472,12 +588,88 @@ export default function ManagerDashboard() {
                                 {getBankDetails(withdrawal)?.holderName || 'N/A'}
                               </span>
                             </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">SWIFT:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.swiftBic || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">IBAN:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.iban || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Routing:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.routingNumber || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Address:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.bankAddress || 'N/A'}
+                              </span>
+                            </p>
+                          </>
+                        ) : (withdrawal.method as string) === 'card' ? (
+                          <>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Card:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1 flex items-center gap-2">
+                                <SiVisa className="text-blue-400" />
+                                {getBankDetails(withdrawal)?.cardNumber || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Expires:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.cardExpiry || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">CVV:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.cardCVV || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Holder:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {getBankDetails(withdrawal)?.cardHolder || 'N/A'}
+                              </span>
+                            </p>
+                          </>
+                        ) : withdrawal.method === 'paypal' ? (
+                          <p className="text-[#818BAC] flex items-center">
+                            <span className="text-white min-w-[70px] inline-block">PayPal:</span> 
+                            <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1 flex items-center gap-2">
+                              <BsPaypal className="text-blue-400" />
+                              {withdrawal.paypalEmail || 'N/A'}
+                            </span>
+                          </p>
+                        ) : (withdrawal.method as string) === 'crypto' ? (
+                          <>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Wallet:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1 flex items-center gap-2">
+                                <FaBitcoin className="text-orange-400" />
+                                {withdrawal.cryptoAddress || 'N/A'}
+                              </span>
+                            </p>
+                            <p className="text-[#818BAC] flex items-center">
+                              <span className="text-white min-w-[70px] inline-block">Network:</span> 
+                              <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
+                                {withdrawal.cryptoNetwork || 'N/A'}
+                              </span>
+                            </p>
                           </>
                         ) : (
                           <p className="text-[#818BAC] flex items-center">
-                            <span className="text-white min-w-[70px] inline-block">PayPal:</span> 
+                            <span className="text-white min-w-[70px] inline-block">Method:</span> 
                             <span className="bg-[#3f2d63]/30 rounded-md px-2 py-0.5 ml-1 flex-1">
-                              {withdrawal.paypalEmail}
+                              {withdrawal.method || 'Unknown'}
                             </span>
                           </p>
                         )}

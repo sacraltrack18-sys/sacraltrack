@@ -84,22 +84,18 @@ const WelcomeModal = () => {
                 className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/5 blur-3xl"
                 animate={{ 
                   rotate: 360,
-                  scale: [1, 1.2, 1],
                 }} 
                 transition={{
-                  rotate: { duration: 20, repeat: Infinity, ease: "linear" },
-                  scale: { duration: 8, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }
+                  rotate: { duration: 30, repeat: Infinity, ease: "linear" }
                 }}
               />
               <motion.div 
                 className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-r from-[#8B5CF6]/20 to-[#8B5CF6]/5 blur-3xl"
                 animate={{ 
                   rotate: -360,
-                  scale: [1, 1.2, 1],
                 }} 
                 transition={{
-                  rotate: { duration: 25, repeat: Infinity, ease: "linear" },
-                  scale: { duration: 10, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 1 }
+                  rotate: { duration: 35, repeat: Infinity, ease: "linear" }
                 }}
               />
             </div>

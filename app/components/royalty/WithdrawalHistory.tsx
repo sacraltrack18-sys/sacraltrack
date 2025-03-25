@@ -6,6 +6,7 @@ import { Fragment } from 'react';
 import { FaHistory, FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
+import TransactionStatusBadge from '../ui/TransactionStatusBadge';
 
 interface WithdrawalHistoryProps {
   withdrawals: Array<{
@@ -51,18 +52,15 @@ export default function WithdrawalHistory({ withdrawals }: WithdrawalHistoryProp
     setIsOpen(true);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <FaCheckCircle className="text-green-500 text-xl" />;
-      case 'pending':
-        return <FaClock className="text-yellow-500 text-xl" />;
-      case 'failed':
-        return <FaTimesCircle className="text-red-500 text-xl" />;
-      default:
-        return null;
-    }
-  };
+  // Помощники для определения статуса вывода
+  const isApprovedStatus = (status: string) => 
+    ['approved', 'completed', 'success', 'successful'].includes(status.toLowerCase());
+  
+  const isRejectedStatus = (status: string) => 
+    ['rejected', 'failed', 'declined', 'error', 'cancelled'].includes(status.toLowerCase());
+
+  const isPendingStatus = (status: string) => 
+    ['pending', 'processing', 'in_progress', 'waiting'].includes(status.toLowerCase());
 
   const getMethodDetails = (withdrawal: WithdrawalHistoryProps['withdrawals'][0]) => {
     const { withdrawal_details, withdrawal_method } = withdrawal;
@@ -146,14 +144,13 @@ export default function WithdrawalHistory({ withdrawals }: WithdrawalHistoryProp
                           animate={{ opacity: 1, y: 0 }}
                           key={withdrawal.id}
                           className={`bg-[#1A2338]/80 backdrop-blur-sm rounded-lg p-4 transition-all hover:shadow-md border-l-4 ${
-                            withdrawal.status === 'completed' ? 'border-l-green-500' : 
-                            withdrawal.status === 'pending' ? 'border-l-yellow-500' : 
-                            'border-l-red-500'
+                            isApprovedStatus(withdrawal.status) ? 'border-l-emerald-500/70' : 
+                            isPendingStatus(withdrawal.status) ? 'border-l-amber-500/70' : 
+                            'border-l-red-500/70'
                           } border border-[#3f2d63]/30`}
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center space-x-3">
-                              {getStatusIcon(withdrawal.status)}
                               <span className="font-semibold text-white">
                                 ${parseFloat(withdrawal.amount).toFixed(2)} {withdrawal.currency}
                               </span>
@@ -176,13 +173,13 @@ export default function WithdrawalHistory({ withdrawals }: WithdrawalHistoryProp
                               <p>Net amount: ${(parseFloat(withdrawal.amount) - parseFloat(withdrawal.processing_fee)).toFixed(2)}</p>
                             </div>
                             
-                            <span className={`self-end inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${withdrawal.status === 'completed' ? 'bg-green-500/20 text-green-400' : ''}
-                              ${withdrawal.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : ''}
-                              ${withdrawal.status === 'failed' ? 'bg-red-500/20 text-red-400' : ''}
-                            `}>
-                              {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
-                            </span>
+                            <TransactionStatusBadge 
+                              status={withdrawal.status}
+                              size="sm"
+                              withAnimation={true}
+                              withIcon={true}
+                              className="self-end"
+                            />
                           </div>
                         </motion.div>
                       ))

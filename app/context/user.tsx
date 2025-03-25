@@ -32,46 +32,77 @@ const UserContext = createContext<UserContextTypes | null>(null);
 const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null);
+  const checkingRef = React.useRef<boolean>(false);
 
   const checkUser = async () => {
+    // Добавляем дебаунсинг с помощью ref переменной
+    if (checkingRef.current) {
+      return null;
+    }
+    
+    checkingRef.current = true;
+    setTimeout(() => { checkingRef.current = false }, 1000); // Защита от частых вызовов
+    
     try {
-      console.log('Checking user session...');
-      
-      // Проверяем наличие существующей сессии, но делаем try-catch для обработки ошибок авторизации
-      let currentSession = null;
-      
+      // Заменяем прямое использование cookies() на проверку через account API
       try {
-        currentSession = await account.getSession("current");
-        console.log('Current session:', currentSession);
-      } catch (sessionError: any) {
-        console.log('Error getting current session:', sessionError?.message);
+        // Проверяем наличие существующей сессии
+        const currentSession = await account.getSession('current');
         
-        // Если ошибка связана с отсутствием прав доступа (guests missing scope),
-        // это нормально для неавторизованных пользователей
-        if (sessionError?.message?.includes('missing scope')) {
-          console.log('User not authenticated, missing required scope');
+        // Если нет активной сессии
+        if (!currentSession) {
           setUser(null);
           dispatchAuthStateChange(null);
           return null;
         }
-      }
-      
-      if (!currentSession) {
-        console.log('No current session found');
-        if (user) {
+      } catch (sessionError: any) {
+        // Если возникла ошибка при проверке сессии, скорее всего пользователь не авторизован
+        console.error('Error checking session:', sessionError?.message);
           setUser(null);
           dispatchAuthStateChange(null);
-        }
         return null;
       }
 
-      console.log('Getting user account...');
-      
-      // Если сессия существует, пробуем получить данные аккаунта
-      let promise;
       try {
-        promise = await account.get() as any;
+        const promise = await account.get() as any;
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
         console.log('User account:', promise);
+        }
+
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Getting user profile...');
+        }
+        
+        const profile = await useGetProfileByUserId(promise?.$id);
+        
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
+          console.log('User profile:', profile);
+        }
+
+        const userData = { 
+          id: promise?.$id, 
+          name: promise?.name,  
+          bio: profile?.bio, 
+          image: profile?.image 
+        };
+        
+        // В production только важные логи
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Setting user data:', userData);
+        }
+        
+        setUser(userData);
+        
+        // Dispatch auth state change event with new user data
+        dispatchAuthStateChange(userData);
+        
+        // Force router refresh to update all components
+        router.refresh();
+        
+        return userData;
       } catch (accountError: any) {
         console.error('Error getting user account:', accountError?.message);
         
@@ -85,27 +116,6 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         
         throw accountError;
       }
-      
-      console.log('Getting user profile...');
-      const profile = await useGetProfileByUserId(promise?.$id);
-      console.log('User profile:', profile);
-
-      const userData = { 
-        id: promise?.$id, 
-        name: promise?.name,  
-        bio: profile?.bio, 
-        image: profile?.image 
-      };
-      console.log('Setting user data:', userData);
-      setUser(userData);
-      
-      // Dispatch auth state change event with new user data
-      dispatchAuthStateChange(userData);
-      
-      // Force router refresh to update all components
-      router.refresh();
-      
-      return userData;
     } catch (error) {
       console.error('Error in checkUser:', error);
       setUser(null);
@@ -119,9 +129,10 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     checkUser();
     
     // Set up an interval to periodically check user session
+    // Увеличиваем интервал проверки с 1 минуты до 5 минут
     const authCheckInterval = setInterval(() => {
       checkUser();
-    }, 60000); // Check every minute
+    }, 5 * 60 * 1000); // Check every 5 minutes
     
     return () => clearInterval(authCheckInterval);
   }, []);

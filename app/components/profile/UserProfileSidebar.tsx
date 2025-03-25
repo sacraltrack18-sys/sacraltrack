@@ -72,16 +72,17 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const bio = getProfileProperty('bio', '');
   const hasStats = !!(getProfileProperty('stats', null) || getProfileProperty('$stats', null));
 
-  console.log('UserProfileSidebar received profile:', 
-    profile ? JSON.stringify({
-      id: profileId,
-      user_id: userId,
-      name,
-      image: imageUrl,
-      bio,
-      hasStats
-    }, null, 2) : 'null'
-  );
+  // Закомментируем избыточный вывод в консоль
+  // console.log('UserProfileSidebar received profile:', 
+  //   profile ? JSON.stringify({
+  //     id: profileId,
+  //     user_id: userId,
+  //     name,
+  //     image: imageUrl,
+  //     bio,
+  //     hasStats
+  //   }, null, 2) : 'null'
+  // );
 
   const contextUser = useUser();
   const { setIsEditProfileOpen } = useGeneralStore();

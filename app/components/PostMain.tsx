@@ -11,7 +11,6 @@ import getStripe from '@/libs/getStripe';
 import { usePlayerContext } from '@/app/context/playerContext';
 import { AudioPlayer } from '@/app/components/AudioPlayer';
 import Image from 'next/image';
-import { FiShare2 } from 'react-icons/fi';
 import { HiMusicNote } from 'react-icons/hi';
 import { FaPlay, FaPause, FaFire, FaStar, FaTrophy } from 'react-icons/fa';
 import { AiFillFire, AiFillStar } from 'react-icons/ai';
@@ -25,6 +24,7 @@ import FloatingComments from '@/app/components/FloatingComments';
 import { CommentWithProfile } from "@/app/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { PiFireFill } from 'react-icons/pi';
+import { ShareIcon } from '@heroicons/react/24/outline';
 
 // Toast styles
 const successToast = (message: string) => toast.success(message, {
@@ -782,12 +782,51 @@ const PostMain = memo(({ post }: PostMainCompTypes) => {
                     )}
                     <motion.button 
                         onClick={handleShare}
-                        className="text-white p-3 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#20DDBB] transition-colors"
-                        whileHover={{ scale: 1.1, rotate: 15 }}
-                        whileTap={{ scale: 0.9 }}
+                        className="relative p-3 rounded-full bg-white/5 hover:bg-[#2E2469]/50 group overflow-hidden
+                                  transition-all duration-300"
+                        whileHover={{ 
+                            scale: 1.08,
+                        }}
+                        whileTap={{ scale: 0.92 }}
                         aria-label={`Share track ${post.trackname}`}
                     >
-                        <FiShare2 size={20} aria-hidden="true" />
+                        <ShareIcon className="w-[24px] h-[24px] text-pink-400 transition-all duration-300 relative z-10
+                                             group-hover:text-white group-hover:scale-110" />
+                        
+                        {/* Animated background effect on hover */}
+                        <motion.div 
+                            className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-500/20 opacity-0 
+                                      group-hover:opacity-100 transition-opacity duration-300"
+                            initial={{ scale: 0, borderRadius: '100%' }}
+                            whileHover={{ 
+                                scale: 1.2, 
+                                borderRadius: '100%',
+                                rotate: [0, 10, -5, 0],
+                            }}
+                            transition={{
+                                scale: { duration: 0.3 },
+                                rotate: { duration: 0.5, repeat: Infinity, repeatType: "reverse" }
+                            }}
+                        />
+                        
+                        {/* Animated ripple effect on hover */}
+                        <motion.div
+                            className="absolute inset-0 rounded-full pointer-events-none"
+                            initial={{ boxShadow: "0 0 0 0 rgba(236, 72, 153, 0)" }}
+                            whileHover={{ 
+                                boxShadow: [
+                                    "0 0 0 0 rgba(236, 72, 153, 0.7)",
+                                    "0 0 0 8px rgba(236, 72, 153, 0)"
+                                ],
+                            }}
+                            transition={{ 
+                                boxShadow: { 
+                                    duration: 1.5, 
+                                    repeat: Infinity,
+                                    repeatType: "loop" 
+                                }
+                            }}
+                        />
                     </motion.button>
                 </div>
             </div>

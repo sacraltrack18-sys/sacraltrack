@@ -2,6 +2,25 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { database, Query, ID, storage } from '@/libs/AppWriteClient';
 
+// Вспомогательная функция для преобразования ID файла в полный URL
+const getFullMediaUrl = (fileId: string): string => {
+  // Если уже полный URL, возвращаем как есть
+  if (fileId.startsWith('http')) {
+    return fileId;
+  }
+  
+  // Иначе создаем URL из ID файла
+  try {
+    return storage.getFileView(
+      process.env.NEXT_PUBLIC_BUCKET_ID!,
+      fileId
+    ).href;
+  } catch (error) {
+    console.error('Error creating file URL from ID:', error);
+    return fileId; // Возвращаем исходный ID в случае ошибки
+  }
+};
+
 export interface VibePost {
   id: string;
   user_id: string;
@@ -132,10 +151,10 @@ export const useVibeStore = create<VibeStore>()(
                   id: doc.$id,
                   user_id: doc.user_id,
                   type: doc.type,
-                  media_url: doc.media_url,
+                  media_url: getFullMediaUrl(doc.media_url),
                   caption: doc.caption,
                   mood: doc.mood,
-                  created_at: doc.created_at,
+                  created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
                   stats: doc.stats || {
@@ -218,10 +237,10 @@ export const useVibeStore = create<VibeStore>()(
                   id: doc.$id,
                   user_id: doc.user_id,
                   type: doc.type,
-                  media_url: doc.media_url,
+                  media_url: getFullMediaUrl(doc.media_url),
                   caption: doc.caption,
                   mood: doc.mood,
-                  created_at: doc.created_at,
+                  created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
                   stats: doc.stats || {
@@ -288,10 +307,10 @@ export const useVibeStore = create<VibeStore>()(
               id: doc.$id,
               user_id: doc.user_id,
               type: doc.type,
-              media_url: doc.media_url,
+              media_url: getFullMediaUrl(doc.media_url),
               caption: doc.caption,
               mood: doc.mood,
-              created_at: doc.created_at,
+              created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
               location: doc.location,
               tags: doc.tags,
               stats: doc.stats || {
@@ -348,10 +367,10 @@ export const useVibeStore = create<VibeStore>()(
               id: doc.$id,
               user_id: doc.user_id,
               type: doc.type,
-              media_url: doc.media_url,
+              media_url: getFullMediaUrl(doc.media_url),
               caption: doc.caption,
               mood: doc.mood,
-              created_at: doc.created_at,
+              created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
               location: doc.location,
               tags: doc.tags,
               stats: doc.stats || {
@@ -401,6 +420,10 @@ export const useVibeStore = create<VibeStore>()(
             );
             console.log('URL файла получен:', fileUrl.href);
 
+            // Сохраняем только ID файла вместо полного URL
+            // Это соответствует ограничению Appwrite в 99 символов
+            // При получении файла, вы можете сконструировать полный URL используя ID
+            
             // Create vibe post document
             console.log('Создание записи в коллекции vibe_posts...');
             const vibePostId = ID.unique();
@@ -413,10 +436,9 @@ export const useVibeStore = create<VibeStore>()(
               {
                 user_id: vibeData.user_id,
                 type: vibeData.type,
-                media_url: fileUrl.href,
+                media_url: fileId, // Сохраняем только ID файла вместо полного URL
                 caption: vibeData.caption || '',
                 mood: vibeData.mood || '',
-                created_at: new Date().toISOString(),
                 location: vibeData.location || '',
                 tags: vibeData.tags || [],
                 stats: {
@@ -437,6 +459,9 @@ export const useVibeStore = create<VibeStore>()(
           } catch (error: any) {
             console.error('Ошибка при создании vibe post:', error);
             console.error('Детали ошибки:', error?.message, error?.code);
+            if (error?.response) {
+              console.error('Полный ответ сервера:', error.response);
+            }
             console.error('Используемые переменные окружения:', {
               database_id: process.env.NEXT_PUBLIC_DATABASE_ID,
               bucket_id: process.env.NEXT_PUBLIC_BUCKET_ID,
@@ -649,8 +674,10 @@ export const useVibeStore = create<VibeStore>()(
           try {
             set({ isLoadingVibes: true, error: null });
 
-            // Extract fileId from URL
-            const fileId = mediaUrl.split('/').pop() || '';
+            // Extract fileId from URL or use directly if it's already an ID
+            const fileId = mediaUrl.startsWith('http') 
+              ? (mediaUrl.split('/').pop() || '')
+              : mediaUrl;
 
             // Delete vibe post document
             await database.deleteDocument(

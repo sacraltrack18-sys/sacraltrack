@@ -1,7 +1,6 @@
 "use client"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { BiSearch } from "react-icons/bi"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { useEffect, useState, useRef, useCallback } from "react" 
 import { useUser } from "@/app/context/user"
@@ -20,7 +19,7 @@ import NotificationBell from "@/app/components/notifications/NotificationBell"
 import useNotifications from "@/app/hooks/useNotifications"
 import { toast } from "react-hot-toast"
 import VibeUploader from "@/app/components/vibe/VibeUploader"
-import { SparklesIcon } from "@heroicons/react/24/outline"
+import { SparklesIcon, MusicalNoteIcon, MagnifyingGlassIcon, ArrowTrendingUpIcon, UserCircleIcon } from "@heroicons/react/24/outline"
 
 export default function TopNav({ params }: ProfilePageTypes) {    
     const userContext = useUser()
@@ -370,7 +369,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
                         <span className="px-1 py-1 pb-[2px] font-medium text-[16px] hidden md:inline">ST</span>   
                     </Link>
                     
-                    {/* Genres - Mobile Optimized */}
+                    {/* Genres - Mobile Optimized - Only visible on home page */}
                     <div className="flex items-center">
                             {pathname === '/' && (
                                 <button
@@ -378,25 +377,22 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                 className="text-white text-[13px] flex items-center"
                                 onClick={handleGenresClick}
                                 >
-                                <img
-                                    className="w-[23px] h-[23px] transition-transform duration-200 hover:scale-110"
-                                    src="/images/ico-genre.svg"
-                                />
-                                <span className="ml-2 font-medium text-[13px] hidden md:inline">Genre</span>
+                                <MusicalNoteIcon className="w-[24px] h-[24px] text-blue-400 transition-transform duration-200 hover:scale-110" />
+                                <span className="ml-2 font-medium text-[13px] hidden md:inline">GENRES</span>
                                 </button>
                             )}
                     </div>
 
-                    {/* Search Bar - Mobile Optimized */}
+                    {/* Search Bar - Mobile Optimized - Only visible on home page */}
+                    {pathname === '/' && (
                     <div className="relative flex items-center">
                         <button
                             id="search-button"
                             onClick={() => setShowSearch(!showSearch)}
                             className="p-2 hover:bg-[#2E2469] rounded-full transition-all duration-200"
                         >
-                            <BiSearch 
-                                size={24} 
-                                className="text-white transition-transform duration-200 hover:scale-110" 
+                                <MagnifyingGlassIcon 
+                                    className="w-[24px] h-[24px] text-cyan-400 transition-transform duration-200 hover:scale-110" 
                             />
                         </button>
 
@@ -451,6 +447,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
                             )}
                         </AnimatePresence>
                     </div>
+                    )}
 
                     {/* Right Side Actions - Mobile Optimized */}
                     <div className="flex items-center gap-2 md:gap-3">
@@ -460,7 +457,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
                         onClick={() => goTo()}
                             className="flex items-center rounded-2xl py-[6px] px-2 md:px-[15px]"
                     >
-                            <img className="w-[24px] h-[24px]" src="/images/ico-rel.svg" />
+                            <ArrowTrendingUpIcon className="w-[24px] h-[24px] text-green-400" />
                             <span className="ml-2 font-medium text-[13px] hidden md:inline">RELEASE</span>
                     </button>
 
@@ -479,13 +476,78 @@ export default function TopNav({ params }: ProfilePageTypes) {
 
                         {/* Profile Section */}
                     {!userContext?.user?.id ? (
-                            <button
+                            <motion.button
                                 onClick={() => setIsLoginOpen(true)}
-                                className="flex items-center bg-[#3E83F7] text-white rounded-2xl px-2 md:px-3 py-[10px] hover:bg-[#5492FA]"
+                                className="relative flex items-center justify-center overflow-hidden bg-gradient-to-r 
+                                        from-blue-500 to-indigo-600 text-white rounded-2xl px-2 md:px-4 py-[10px] 
+                                        shadow-lg shadow-blue-500/25 group"
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
                             >
-                                <span className="whitespace-nowrap mx-4 font-medium text-[14px] hidden md:inline">Log in</span>
-                                <img className="w-[16px] h-[16px] md:hidden m-[3px]" src="/images/Login.svg" alt="Login" />
-                            </button>
+                                {/* Fancy background gradient that animates on hover */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 opacity-0 
+                                              group-hover:opacity-100 transition-all duration-500 ease-out"></div>
+                                
+                                {/* Shimmer effect */}
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-30">
+                                    <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] 
+                                                  bg-gradient-to-r from-transparent via-white/50 to-transparent 
+                                                  transition-all duration-1000 ease-in-out"></div>
+                                </div>
+                                
+                                {/* Mini particles on hover */}
+                                <div className="absolute inset-0 overflow-hidden">
+                                    {[...Array(3)].map((_, i) => (
+                                        <div 
+                                            key={i}
+                                            className="opacity-0 group-hover:opacity-100 absolute w-1 h-1 rounded-full bg-white/80"
+                                            style={{
+                                                top: `${Math.random() * 100}%`,
+                                                left: `${Math.random() * 100}%`,
+                                                transition: `all ${0.5 + Math.random() * 0.5}s ease-out`,
+                                                transitionDelay: `${Math.random() * 0.3}s`,
+                                                transform: 'scale(0)',
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                
+                                <div className="flex items-center gap-2 relative z-10">
+                                    <motion.div
+                                        animate={{ 
+                                            scale: [1, 1.08, 1],
+                                        }}
+                                        transition={{ 
+                                            duration: 2.5,
+                                            repeat: Infinity,
+                                            repeatType: "loop"
+                                        }}
+                                    >
+                                        <UserCircleIcon className="w-[20px] h-[20px] md:w-[22px] md:h-[22px] text-white group-hover:text-blue-200 
+                                                            transition-all duration-300 group-hover:scale-110 group-hover:rotate-12" />
+                                    </motion.div>
+                                    <span className="whitespace-nowrap font-medium text-[14px] hidden md:inline group-hover:text-blue-100
+                                                   transition-colors duration-300">Log in</span>
+                                </div>
+                                
+                                <motion.div
+                                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                                    initial={{ boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)" }}
+                                    animate={{ 
+                                        boxShadow: [
+                                            "0 0 0 0 rgba(255, 255, 255, 0.7)",
+                                            "0 0 0 10px rgba(255, 255, 255, 0)"
+                                        ]
+                                    }}
+                                    transition={{ 
+                                        boxShadow: { 
+                                            duration: 1.5, 
+                                            repeat: Infinity,
+                                            repeatType: "loop" 
+                                        }
+                                    }}
+                                />
+                            </motion.button>
                     ) : (
                             <div className="relative">
                                 <button 

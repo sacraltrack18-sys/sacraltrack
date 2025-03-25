@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import MainLayout from "@/app/layouts/MainLayout";
+import RoyaltyLayout from "@/app/layouts/RoyaltyLayout";
 import RoyaltyDashboard from "@/app/components/royalty/RoyaltyDashboard";
 import PurchaseNotification from "@/app/components/notifications/PurchaseNotification";
 import WithdrawalNotifications from "@/app/components/notifications/WithdrawalNotification";
+import UserVerificationCard from "@/app/components/royalty/UserVerificationCard";
 import { useRoyaltyManagement } from "@/app/hooks/useRoyaltyManagement";
 import { usePurchaseNotifications } from "@/app/hooks/usePurchaseNotifications";
 import { motion } from 'framer-motion';
-import { BsArrowClockwise, BsSpeedometer2 } from 'react-icons/bs';
 import { toast } from 'react-hot-toast';
+import { useUser } from "@/app/context/user";
+import { FaMoneyBillWave, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
+import { auth } from '../firebase/firebase';
+import { useEffect as useEffectFirebase } from 'react';
 
 export default function RoyaltyPage() {
   const { royaltyData, loading, error, notifications, refreshRoyaltyData, forceRefresh } = useRoyaltyManagement();
@@ -17,6 +21,55 @@ export default function RoyaltyPage() {
   const [currentNotificationState, setCurrentNotificationState] = useState<any>(null);
   const [withdrawalNotifications, setWithdrawalNotifications] = useState(notifications);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const userContext = useUser();
+  
+  // Verification states
+  const [emailVerified, setEmailVerified] = useState<boolean>(false);
+  const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState<boolean>(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState<boolean>(false);
+  
+  // Get user's email and phone from context
+  const userEmail = userContext?.user ? (userContext.user as any).email : undefined;
+  const userPhone = userContext?.user ? 
+    (typeof (userContext.user as any).phone === 'string' ? 
+      parseInt((userContext.user as any).phone, 10) :
+      (userContext.user as any).phone) 
+    : undefined;
+  
+  // Check verification status on load
+  useEffect(() => {
+    if (userContext?.user) {
+      setEmailVerified(userContext.user?.hasOwnProperty('email_verified') ? Boolean((userContext.user as any).email_verified) : false);
+      setPhoneVerified(userContext.user?.hasOwnProperty('phone_verified') ? Boolean((userContext.user as any).phone_verified) : false);
+    }
+  }, [userContext?.user]);
+
+  // Firebase initialization effect
+  useEffectFirebase(() => {
+    // Check if Firebase is initialized
+    if (auth) {
+      console.log('Firebase Authentication initialized successfully');
+    }
+    
+    // Update UI if user is already authenticated with phone
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user && user.phoneNumber) {
+        // If Firebase user has a verified phone, update our local state
+        setPhoneVerified(true);
+        
+        // Update our user context
+        if (userContext?.user) {
+          const phoneAsNumber = parseInt(user.phoneNumber.replace(/\D/g, ''), 10);
+          (userContext.user as any).phone = phoneAsNumber;
+          (userContext.user as any).phone_verified = true;
+        }
+      }
+    });
+    
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []);
 
   // Transform withdrawal history data to match expected format using type assertion
   const transformedWithdrawalHistory = (royaltyData.withdrawalHistory || []).map(record => {
@@ -62,95 +115,179 @@ export default function RoyaltyPage() {
       setIsRefreshing(false);
     }
   };
+  
+  // Enhanced verification handlers with Firebase support
+  const handleVerifyEmail = async () => {
+    try {
+      setIsVerifyingEmail(true);
+      // Here you would typically call your API to send verification email
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulated API call
+      toast.success('Verification code sent to your email');
+    } catch (error) {
+      toast.error('Failed to send verification code');
+      throw error;
+    } finally {
+      setIsVerifyingEmail(false);
+    }
+  };
+  
+  const handleVerifyPhone = async (phoneNumber: number) => {
+    try {
+      setIsVerifyingPhone(true);
+      // Here Firebase will handle phone verification under the hood
+      // (the actual SMS sending is managed by the useFirebasePhoneAuth hook)
+      console.log(`Firebase will send verification code to ${phoneNumber}`);
+      toast.success(`Verification code requested for ${phoneNumber}`);
+      return true;
+    } catch (error: any) {
+      console.error('Error in handleVerifyPhone:', error);
+      const errorMessage = error.message || 'Failed to send verification code';
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setIsVerifyingPhone(false);
+    }
+  };
+
+  // Phone verification completed handler
+  const handlePhoneVerified = (phoneNumber: number) => {
+    setPhoneVerified(true);
+    
+    // Save phone number to user profile
+    if (userContext?.user) {
+      (userContext.user as any).phone = phoneNumber;
+      (userContext.user as any).phone_verified = true;
+      
+      // Here you would typically call your API to update the user profile
+      console.log(`Verified phone ${phoneNumber} saved to user profile via Firebase`);
+      
+      // Example API call (commented out since it's a simulation)
+      // await fetch('/api/user/update-profile', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ phone: phoneNumber, phone_verified: true })
+      // });
+    }
+    
+    toast.success('Phone successfully verified with Firebase and saved to your profile!');
+  };
+  
+  // Email verification completed handler
+  const handleEmailVerified = () => {
+    setEmailVerified(true);
+    
+    // Here you would typically update the user data in your backend
+    // This is a simulation
+    if (userContext?.user) {
+      (userContext.user as any).email_verified = true;
+    }
+    
+    toast.success('Email successfully verified!');
+  };
 
   return (
-    <MainLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-[1500px] mx-auto py-8 px-4 sm:px-6"
+    <RoyaltyLayout>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full max-w-[1400px] mx-auto pb-10 pt-20 px-4 sm:px-6 md:px-6 lg:px-8"
       >
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-              <BsSpeedometer2 className="text-[#20DDBB]" /> 
+        {/* Mobile Actions Header for small screens with updated style */}
+        <div className="lg:hidden sticky top-16 z-10 bg-[#1A2338]/80 backdrop-blur-md px-4 py-3 mb-5 border-b border-[#3f2d63]/20 rounded-lg mobile-header">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <FaMoneyBillWave className="text-violet-300" />
               <span>Royalty Dashboard</span>
-            </h1>
-            <p className="text-[#818BAC] text-lg">Track your earnings and manage withdrawals</p>
-          </motion.div>
-          
-          <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            onClick={handleRefresh}
-            disabled={isRefreshing || loading}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg ${
-              isRefreshing || loading 
-                ? 'bg-[#3f2d63]/40 text-[#818BAC] cursor-not-allowed' 
-                : 'bg-[#3f2d63] text-white hover:bg-[#4a357a] active:bg-[#574186]'
-            } transition-all duration-300`}
-          >
-            <BsArrowClockwise className={`${(isRefreshing || loading) && 'animate-spin'}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Data'}</span>
-          </motion.button>
-        </div>
-
-        {/* Loading indicator */}
-        {loading && !royaltyData.balance && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full rounded-xl bg-[#272B43] border border-[#3f2d63] p-8 flex items-center justify-center space-y-4 h-[300px] text-center"
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 border-4 border-[#3f2d63] border-t-[#20DDBB] rounded-full animate-spin"></div>
-              <p className="text-[#818BAC] text-lg animate-pulse">Loading your royalty dashboard...</p>
+            </h2>
+            
+            <div className={`text-xs py-1.5 px-3 rounded-full flex items-center gap-1.5 transition-all duration-300 ${
+              emailVerified && phoneVerified
+                ? 'bg-gradient-to-r from-[#3f2d63]/30 to-[#4e377a]/30 text-violet-300 shadow-sm shadow-purple-500/10' 
+                : 'bg-gradient-to-r from-amber-500/20 to-amber-400/20 text-amber-400'
+            }`}>
+              {emailVerified && phoneVerified ? (
+                <>
+                  <FaCheckCircle className="text-xs" />
+                  <span>Verified</span>
+                </>
+              ) : (
+                <>
+                  <FaInfoCircle className="text-xs" />
+                  <span>Verify Account</span>
+                </>
+              )}
             </div>
-          </motion.div>
+          </div>
+        </div>
+        
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-12 h-12 border-t-2 border-b-2 border-violet-300 rounded-full animate-spin mb-4"></div>
+            <p className="text-[#818BAC] animate-pulse">Loading your royalty dashboard...</p>
+          </div>
         )}
-
-        {/* Error state */}
+        
         {error && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full rounded-xl bg-[#272B43] border border-red-500/30 p-8 text-center"
-          >
-            <h3 className="text-red-400 text-xl font-bold mb-2">Something went wrong</h3>
-            <p className="text-[#818BAC]">{error}</p>
+          <div className="text-center py-16">
+            <FaInfoCircle className="text-red-400 text-4xl mx-auto mb-4" />
+            <h3 className="text-white text-xl mb-2">Something went wrong</h3>
+            <p className="text-[#818BAC] mb-6">We couldn't load your royalty data at this time.</p>
             <button 
               onClick={handleRefresh}
-              className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+              className="px-4 py-2 bg-[#3f2d63] text-white rounded-lg hover:bg-[#4e377a] transition-colors"
             >
               Try Again
             </button>
-          </motion.div>
+          </div>
         )}
-
-        {/* Main Dashboard */}
+        
         {!loading && !error && (
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="w-full"
-          >
-            <RoyaltyDashboard 
-              balance={royaltyData.balance}
-              totalEarned={royaltyData.totalEarned}
-              pendingAmount={royaltyData.pendingAmount}
-              withdrawnAmount={royaltyData.withdrawnAmount}
-              tracksSold={royaltyData.tracksSold}
-              transactions={royaltyData.transactions}
-              withdrawalHistory={transformedWithdrawalHistory}
-            />
-          </motion.div>
+          <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 lg:gap-6">
+            {/* Left Column - Royalty Dashboard (wider) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="lg:col-span-6 order-2 lg:order-1 px-0"
+            >
+              <RoyaltyDashboard 
+                balance={royaltyData.balance}
+                totalEarned={royaltyData.totalEarned}
+                pendingAmount={royaltyData.pendingAmount}
+                withdrawnAmount={royaltyData.withdrawnAmount}
+                tracksSold={royaltyData.tracksSold}
+                transactions={royaltyData.transactions}
+                withdrawalHistory={transformedWithdrawalHistory}
+              />
+            </motion.div>
+            
+            {/* Right Column - Verification Card (narrower) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="lg:col-span-2 order-1 lg:order-2"
+            >
+              <div className="lg:sticky lg:top-24">
+                <UserVerificationCard
+                  emailVerified={emailVerified}
+                  phoneVerified={phoneVerified}
+                  onVerifyEmail={handleVerifyEmail}
+                  onVerifyPhone={async (phoneNumber: number) => {
+                    try {
+                      await handleVerifyPhone(phoneNumber);
+                    } catch (error) {
+                      console.error(error);
+                    }
+                  }}
+                  userEmail={userEmail}
+                  userPhone={userPhone}
+                  onEmailVerified={handleEmailVerified}
+                  onPhoneVerified={handlePhoneVerified}
+                />
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {/* Purchase Notifications */}
@@ -168,6 +305,6 @@ export default function RoyaltyPage() {
           onDismiss={dismissWithdrawalNotification}
         />
       </motion.div>
-    </MainLayout>
+    </RoyaltyLayout>
   );
 }

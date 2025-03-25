@@ -92,18 +92,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </motion.div>
 			</div>
 
-            {/* Support button */}
+            {/* Enhanced Support Button with Glass Effect */}
             <motion.a
                 href="http://t.me/sashaplayra"
                 target="_blank"
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="fixed bottom-5 right-5 bg-transparent text-white rounded-full w-20 h-20 flex items-center justify-center cursor-pointer hover:bg-[#1E2136] focus:outline-none"
+                whileHover={{ 
+                  scale: 1.05, 
+                  y: -5,
+                  boxShadow: '0 10px 25px rgba(77, 99, 181, 0.4)'
+                }}
+                className="fixed bottom-5 right-5 bg-gradient-to-r from-[#3f2d63]/80 to-[#583d8c]/80 backdrop-blur-sm text-white rounded-full w-20 h-20 flex items-center justify-center cursor-pointer border border-[#583d8c]/50 shadow-lg z-50 transition-all duration-300"
             >   
                 <div className="flex flex-col items-center">
-                    <img src="/images/tel.svg" className="w-4 h-4 mb-1" alt="" />
-                    <span className="text-[10px]">Support</span>
+                    <img src="/images/tel.svg" className="w-5 h-5 mb-1 drop-shadow-md" alt="" />
+                    <span className="text-xs font-medium">Support</span>
                 </div>
             </motion.a>
 		</div>

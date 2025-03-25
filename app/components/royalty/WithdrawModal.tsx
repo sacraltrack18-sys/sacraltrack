@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { FaUniversity, FaPaypal, FaCreditCard, FaBitcoin, FaQuestionCircle, FaInfoCircle, FaMoneyBillWave } from 'react-icons/fa';
+import { FaUniversity, FaPaypal, FaCreditCard, FaInfoCircle, FaMoneyBillWave, FaArrowRight, FaTimes, FaWallet } from 'react-icons/fa';
 import { Tooltip } from 'react-tooltip';
 
 interface WithdrawModalProps {
@@ -18,20 +18,26 @@ interface WithdrawalDetails {
   bankName: string;
   accountNumber: string;
   holderName: string;
+  swiftBic: string;
+  bankAddress: string;
+  accountIban: string;
+  routingNumber: string;
   email: string;
   cardNumber: string;
   cardExpiry: string;
   cardCVV: string;
-  walletAddress: string;
-  network: string;
+}
+
+interface FieldErrors {
+  [key: string]: string;
 }
 
 const withdrawalMethods = [
   {
-    id: 'bank_transfer' as const,
-    name: 'Bank',
-    icon: <FaUniversity className="w-5 h-5" />,
-    tooltip: "Transfer funds directly to your bank account"
+    id: 'card' as const,
+    name: 'Visa',
+    icon: <FaCreditCard className="w-5 h-5" />,
+    tooltip: "Withdraw funds to your Visa card"
   },
   {
     id: 'paypal' as const,
@@ -40,17 +46,11 @@ const withdrawalMethods = [
     tooltip: "Fast withdrawal to your PayPal account"
   },
   {
-    id: 'card' as const,
-    name: 'Card',
-    icon: <FaCreditCard className="w-5 h-5" />,
-    tooltip: "Withdraw funds to your credit/debit card"
-  },
-  {
-    id: 'crypto' as const,
-    name: 'Crypto',
-    icon: <FaBitcoin className="w-5 h-5" />,
-    tooltip: "Withdraw to your cryptocurrency wallet"
-  },
+    id: 'bank_transfer' as const,
+    name: 'Bank',
+    icon: <FaUniversity className="w-5 h-5" />,
+    tooltip: "Transfer funds directly to your bank account"
+  }
 ] as const;
 
 type WithdrawalMethod = typeof withdrawalMethods[number]['id'];
@@ -106,13 +106,16 @@ export default function WithdrawModal({
     bankName: '',
     accountNumber: '',
     holderName: '',
+    swiftBic: '',
+    bankAddress: '',
+    accountIban: '',
+    routingNumber: '',
     email: '',
     cardNumber: '',
     cardExpiry: '',
     cardCVV: '',
-    walletAddress: '',
-    network: ''
   });
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amountError, setAmountError] = useState('');
   const [operationCompleted, setOperationCompleted] = useState(false);
@@ -129,8 +132,14 @@ export default function WithdrawModal({
       });
       // Сбрасываем флаг завершения операции при каждом открытии
       setOperationCompleted(false);
+      setFieldErrors({});
     }
   }, [availableBalance, isOpen]);
+
+  // Сбрасываем ошибки полей при смене метода
+  useEffect(() => {
+    setFieldErrors({});
+  }, [method]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -144,6 +153,95 @@ export default function WithdrawModal({
     }
   };
 
+  const validateFields = (): boolean => {
+    const errors: FieldErrors = {};
+    let isValid = true;
+
+    // Валидация для банковского перевода
+    if (method === 'bank_transfer') {
+      if (!details.bankName) {
+        errors.bankName = 'Bank name is required';
+        isValid = false;
+      }
+      if (!details.accountNumber) {
+        errors.accountNumber = 'Account number is required';
+        isValid = false;
+      }
+      if (!details.holderName) {
+        errors.holderName = 'Account holder name is required';
+        isValid = false;
+      }
+      if (!details.swiftBic) {
+        errors.swiftBic = 'SWIFT/BIC code is required';
+        isValid = false;
+      }
+    }
+    
+    // Валидация для PayPal
+    if (method === 'paypal') {
+      if (!details.email) {
+        errors.email = 'PayPal email is required';
+        isValid = false;
+      } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(details.email)) {
+        errors.email = 'Please enter a valid email address';
+        isValid = false;
+      }
+    }
+    
+    // Валидация для карты
+    if (method === 'card') {
+      // Валидация номера карты - должно быть 16 цифр (убираем пробелы)
+      const cardNumber = details.cardNumber.replace(/\s/g, '');
+      if (!cardNumber) {
+        errors.cardNumber = 'Card number is required';
+        isValid = false;
+      } else if (!/^\d{16}$/.test(cardNumber)) {
+        errors.cardNumber = 'Card number must contain 16 digits';
+        isValid = false;
+      }
+      
+      // Валидация даты истечения срока действия (формат MM/YY)
+      if (!details.cardExpiry) {
+        errors.cardExpiry = 'Expiry date is required';
+        isValid = false;
+      } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(details.cardExpiry)) {
+        errors.cardExpiry = 'Expiry date must be in MM/YY format';
+        isValid = false;
+      } else {
+        // Проверка, что дата не истекла
+        const [month, year] = details.cardExpiry.split('/');
+        const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
+        const currentDate = new Date();
+        
+        if (expiryDate < currentDate) {
+          errors.cardExpiry = 'Card has expired';
+          isValid = false;
+        }
+      }
+      
+      // Валидация CVV (3-4 цифры)
+      if (!details.cardCVV) {
+        errors.cardCVV = 'CVV code is required';
+        isValid = false;
+      } else if (!/^\d{3,4}$/.test(details.cardCVV)) {
+        errors.cardCVV = 'CVV must be 3 or 4 digits';
+        isValid = false;
+      }
+      
+      // Валидация имени держателя карты
+      if (!details.holderName) {
+        errors.holderName = 'Cardholder name is required';
+        isValid = false;
+      } else if (details.holderName.length < 3) {
+        errors.holderName = 'Enter full cardholder name as on card';
+        isValid = false;
+      }
+    }
+
+    setFieldErrors(errors);
+    return isValid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -154,11 +252,19 @@ export default function WithdrawModal({
 
     if (!amount || Number(amount) <= 0) {
       setAmountError('Please enter a valid amount');
+      toast.error('Please enter a valid withdrawal amount');
       return;
     }
 
     if (Number(amount) > safeBalance) {
       setAmountError('Insufficient balance');
+      toast.error('Insufficient balance for withdrawal');
+      return;
+    }
+
+    // Валидация полей в зависимости от метода вывода
+    if (!validateFields()) {
+      toast.error('Please fill in all required fields correctly');
       return;
     }
 
@@ -172,7 +278,11 @@ export default function WithdrawModal({
             bank_transfer: {
               bank_name: details.bankName,
               account_number: details.accountNumber,
-              account_holder: details.holderName
+              account_holder: details.holderName,
+              swift_bic: details.swiftBic,
+              bank_address: details.bankAddress,
+              iban: details.accountIban,
+              routing_number: details.routingNumber
             }
           };
           break;
@@ -185,375 +295,499 @@ export default function WithdrawModal({
           break;
         case 'card':
           withdrawalDetails = {
-            card: {
-              number: details.cardNumber.replace(/\s/g, ''),
-              expiry: details.cardExpiry,
+            visa_card: {
+              card_number: details.cardNumber.replace(/\s/g, ''),
+              expiry_date: details.cardExpiry,
               cvv: details.cardCVV,
-              holder_name: details.holderName
-            }
-          };
-          break;
-        case 'crypto':
-          withdrawalDetails = {
-            crypto: {
-              wallet_address: details.walletAddress,
-              network: details.network
+              card_holder: details.holderName
             }
           };
           break;
       }
 
       await onWithdraw(Number(amount), method, withdrawalDetails);
-      
-      // Устанавливаем флаг успешного завершения операции
       setOperationCompleted(true);
       
-      toast.success('Withdrawal request submitted successfully', {
-        style: {
-          borderRadius: '10px',
-          background: '#333',
-          color: '#fff',
-        },
-        iconTheme: {
-          primary: '#20DDBB',
-          secondary: '#000',
-        },
+      // Сбрасываем форму после успешного вывода
+      setAmount('');
+      setDetails({
+        bankName: '',
+        accountNumber: '',
+        holderName: '',
+        swiftBic: '',
+        bankAddress: '',
+        accountIban: '',
+        routingNumber: '',
+        email: '',
+        cardNumber: '',
+        cardExpiry: '',
+        cardCVV: '',
       });
-      
-      // Закрываем модальное окно после успешного вывода средств
-      handleCloseModal();
     } catch (error) {
-      console.error('Withdrawal request failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to process withdrawal');
+      console.error('Withdrawal submission error:', error);
+      toast.error('Failed to process withdrawal request');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Process fee calculator (estimate)
-  const calculateProcessingFee = (amount: number) => {
-    // Убираем комиссию, возвращаем 0
-    return "0.00";
-  };
-
-  // Сбрасываем состояние при закрытии модального окна
-  const handleCloseModal = () => {
-    setAmount('');
-    setAmountError('');
-    setDetails({
-      bankName: '',
-      accountNumber: '',
-      holderName: '',
-      email: '',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCVV: '',
-      walletAddress: '',
-      network: ''
-    });
-    
-    // Вызываем родительский обработчик закрытия окна
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  const calculatedFee = amount ? calculateProcessingFee(Number(amount)) : "0.00";
-  const netAmount = amount ? (Number(amount) - Number(calculatedFee)).toFixed(2) : "0.00";
-  // Гарантируем, что баланс всегда будет числом
-  const safeAvailableBalance = availableBalance !== undefined && availableBalance !== null 
-    ? availableBalance 
-    : 0;
-
   console.log('WithdrawModal рендеринг с балансом:', {
-    rawBalance: availableBalance,
-    safeBalance: safeAvailableBalance,
-    formattedBalance: safeAvailableBalance.toFixed(2)
+    availableBalance,
+    isOpen,
+    operationCompleted
   });
+
+  // Render the withdrawal form based on the selected method
+  const renderWithdrawalForm = () => {
+    switch (method) {
+      case 'bank_transfer':
+        return (
+          <>
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="holderName" className="block text-sm font-medium text-white mb-1">
+                Account Holder Name
+              </label>
+              <input
+                id="holderName"
+                type="text"
+                value={details.holderName}
+                onChange={(e) => setDetails({ ...details, holderName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="John Smith"
+              />
+              {fieldErrors.holderName && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.holderName}</p>
+              )}
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="bankName" className="block text-sm font-medium text-white mb-1">
+                Bank Name
+              </label>
+              <input
+                id="bankName"
+                type="text"
+                value={details.bankName}
+                onChange={(e) => setDetails({ ...details, bankName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="Enter bank name"
+              />
+              {fieldErrors.bankName && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.bankName}</p>
+              )}
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="accountNumber" className="block text-sm font-medium text-white mb-1">
+                Account Number
+              </label>
+              <input
+                id="accountNumber"
+                type="text"
+                value={details.accountNumber}
+                onChange={(e) => setDetails({ ...details, accountNumber: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="Enter account number"
+              />
+              {fieldErrors.accountNumber && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.accountNumber}</p>
+              )}
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="swiftBic" className="block text-sm font-medium text-white mb-1">
+                SWIFT/BIC Code
+              </label>
+              <input
+                id="swiftBic"
+                type="text"
+                value={details.swiftBic}
+                onChange={(e) => setDetails({ ...details, swiftBic: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="Enter SWIFT/BIC code"
+              />
+              {fieldErrors.swiftBic && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.swiftBic}</p>
+              )}
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="accountIban" className="block text-sm font-medium text-white mb-1">
+                IBAN (Optional)
+              </label>
+              <input
+                id="accountIban"
+                type="text"
+                value={details.accountIban}
+                onChange={(e) => setDetails({ ...details, accountIban: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="Enter IBAN (if applicable)"
+              />
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="routingNumber" className="block text-sm font-medium text-white mb-1">
+                Routing Number (Optional)
+              </label>
+              <input
+                id="routingNumber"
+                type="text"
+                value={details.routingNumber}
+                onChange={(e) => setDetails({ ...details, routingNumber: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="Enter routing number"
+              />
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="bankAddress" className="block text-sm font-medium text-white mb-1">
+                Bank Address (Optional)
+              </label>
+              <textarea
+                id="bankAddress"
+                value={details.bankAddress}
+                onChange={(e) => setDetails({ ...details, bankAddress: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent h-20 resize-none"
+                placeholder="Enter bank address"
+              />
+            </motion.div>
+          </>
+        );
+      case 'paypal':
+        return (
+          <motion.div variants={formItemVariants} className="mb-4">
+            <label htmlFor="paypalEmail" className="block text-sm font-medium text-white mb-1">
+              PayPal Email
+            </label>
+            <input
+              id="paypalEmail"
+              type="email"
+              value={details.email}
+              onChange={(e) => setDetails({ ...details, email: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+              placeholder="your-email@example.com"
+            />
+            {fieldErrors.email && (
+              <p className="text-red-400 text-xs mt-1">{fieldErrors.email}</p>
+            )}
+          </motion.div>
+        );
+      case 'card':
+        return (
+          <>
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="cardholderName" className="block text-sm font-medium text-white mb-1">
+                Cardholder Name
+              </label>
+              <input
+                id="cardholderName"
+                type="text"
+                value={details.holderName}
+                onChange={(e) => setDetails({ ...details, holderName: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="John Smith"
+              />
+              {fieldErrors.holderName && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.holderName}</p>
+              )}
+            </motion.div>
+
+            <motion.div variants={formItemVariants} className="mb-4">
+              <label htmlFor="cardNumber" className="block text-sm font-medium text-white mb-1">
+                Card Number
+              </label>
+              <input
+                id="cardNumber"
+                type="text"
+                value={details.cardNumber}
+                onChange={(e) => {
+                  // Format card number with spaces for readability
+                  const value = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+                  const formatted = value.replace(/(.{4})/g, '$1 ').trim();
+                  setDetails({ ...details, cardNumber: formatted });
+                }}
+                maxLength={19} // 16 digits + 3 spaces
+                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                placeholder="1234 5678 9012 3456"
+              />
+              {fieldErrors.cardNumber && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.cardNumber}</p>
+              )}
+            </motion.div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <motion.div variants={formItemVariants}>
+                <label htmlFor="cardExpiry" className="block text-sm font-medium text-white mb-1">
+                  Expiry Date
+                </label>
+                <input
+                  id="cardExpiry"
+                  type="text"
+                  value={details.cardExpiry}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 4) value = value.slice(0, 4);
+                    
+                    if (value.length > 2) {
+                      value = `${value.slice(0, 2)}/${value.slice(2)}`;
+                    }
+                    
+                    setDetails({ ...details, cardExpiry: value });
+                  }}
+                  maxLength={5} // MM/YY
+                  className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                  placeholder="MM/YY"
+                />
+                {fieldErrors.cardExpiry && (
+                  <p className="text-red-400 text-xs mt-1">{fieldErrors.cardExpiry}</p>
+                )}
+              </motion.div>
+
+              <motion.div variants={formItemVariants}>
+                <label htmlFor="cardCVV" className="block text-sm font-medium text-white mb-1">
+                  CVV
+                </label>
+                <input
+                  id="cardCVV"
+                  type="text"
+                  value={details.cardCVV}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setDetails({ ...details, cardCVV: value });
+                  }}
+                  maxLength={4}
+                  className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
+                  placeholder="123"
+                />
+                {fieldErrors.cardCVV && (
+                  <p className="text-red-400 text-xs mt-1">{fieldErrors.cardCVV}</p>
+                )}
+              </motion.div>
+            </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Render the success state after withdrawal is completed
+  const renderSuccessState = () => (
+    <motion.div 
+      className="text-center p-6" 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+        <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h3 className="text-xl font-bold text-white mb-2">Withdrawal Successful!</h3>
+      <p className="text-[#9BA3BF] text-sm mb-6">
+        Your withdrawal request for ${amount} has been successfully submitted. 
+        Please allow 1-3 business days for processing.
+      </p>
+    </motion.div>
+  );
+
+  // Fix for mobile scrolling issues
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 bg-black/30 backdrop-blur-lg flex items-center justify-center z-50 p-4"
-          variants={backdropVariants}
+          key="modal-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0"
           initial="hidden"
           animate="visible"
           exit="hidden"
-          onClick={handleCloseModal}
+          variants={backdropVariants}
         >
+          {/* Backdrop */}
+          <motion.div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+
+          {/* Modal */}
           <motion.div
+            className="relative bg-[#1A2338]/80 backdrop-blur-xl text-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden z-10 border border-[#3f2d63]/30"
             variants={modalVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="bg-gradient-to-br from-[#272B43]/90 to-[#1e2235]/90 backdrop-blur-md rounded-xl p-8 w-full max-w-md shadow-2xl border border-[#3f2d63]/70"
-            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <FaMoneyBillWave className="text-[#20DDBB]" />
-                Withdraw Royalties
-              </h2>
+            {/* Close button */}
               <button 
-                onClick={handleCloseModal}
-                className="text-[#818BAC] hover:text-white transition-colors p-2 hover:bg-[#3f2d63]/30 rounded-full"
+              onClick={onClose}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-white transition-colors hover:bg-[#3f2d63]/50 z-20"
+              aria-label="Close"
               >
-                ✕
+              <FaTimes className="w-5 h-5" />
               </button>
+
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-[#3f2d63]/30 bg-gradient-to-r from-[#3f2d63]/50 via-[#4e9ab3]/30 to-transparent backdrop-blur-md">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#20DDBB]/30 to-[#3f2d63]/30 rounded-full flex items-center justify-center shadow-inner backdrop-blur-sm mr-3">
+                  <FaMoneyBillWave className="text-[#20DDBB] text-xl animate-floatY" />
+                </div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-white to-[#cfd1e1] bg-clip-text text-transparent">Withdraw Funds</h2>
+              </div>
+              <p className="text-[#9BA3BF] text-sm mt-2 pl-[52px]">Transfer your earnings to your preferred payment method</p>
             </div>
             
-            <motion.form 
-              onSubmit={handleSubmit} 
-              className="space-y-8"
-              variants={staggeredFormVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <motion.div className="relative" variants={formItemVariants}>
-                <label className="block text-sm text-[#818BAC] mb-2 flex items-center">
-                  Amount
-                  <FaInfoCircle 
-                    className="ml-2 text-[#20DDBB] text-xs cursor-help"
-                    data-tooltip-id="amount-tooltip"
-                    data-tooltip-content="Enter the amount you wish to withdraw."
-                  />
+            <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {/* Show success screen or the form based on operation status */}
+              {operationCompleted ? (
+                renderSuccessState()
+              ) : (
+                <form onSubmit={handleSubmit}>
+                  {/* Available Balance */}
+                  <div className="bg-gradient-to-r from-[#1A2338]/80 to-[#1A2338]/60 backdrop-blur-lg p-4 rounded-xl mb-6 border border-[#3f2d63]/30 shadow-inner">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-[#3f2d63]/30 flex items-center justify-center mr-2">
+                          <FaWallet className="text-[#20DDBB] text-sm" />
+                        </div>
+                        <span className="text-[#9BA3BF]">Available Balance:</span>
+                      </div>
+                      <span className="text-white font-bold text-lg bg-gradient-to-r from-[#20DDBB] to-white bg-clip-text text-transparent">${(availableBalance || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Withdrawal Amount */}
+                  <motion.div variants={formItemVariants} className="mb-6">
+                    <label htmlFor="amount" className="block text-sm font-medium text-white mb-1">
+                      Amount to Withdraw
                 </label>
                 <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400">$</span>
                   <input
+                        id="amount"
                     type="number"
                     value={amount}
                     onChange={handleAmountChange}
-                    className={`w-full bg-[#1A2338]/80 backdrop-blur-sm text-white pl-8 pr-[110px] py-4 rounded-lg focus:ring-2 focus:outline-none transition-all ${
-                      amountError 
-                        ? 'focus:ring-red-500 border border-red-500/50' 
-                        : 'focus:ring-[#20DDBB] border border-[#3f2d63]/70'
-                    }`}
+                        className={`w-full px-6 py-2.5 rounded-xl bg-[#1A2338]/90 border ${
+                          amountError ? 'border-red-500' : 'border-[#3f2d63]/70'
+                        } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent`}
                     placeholder="0.00"
-                    required
-                    min="0"
                     step="0.01"
+                        min="0.01"
+                        max={availableBalance}
                   />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#20DDBB] font-bold">$</div>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-[#818BAC]">
-                    Max: ${safeAvailableBalance.toFixed(2)} {typeof safeAvailableBalance === 'number' ? '' : `(${typeof safeAvailableBalance})`}
                   </div>
-                </div>
-                {amountError && (
-                  <p className="text-red-400 text-sm mt-1">{amountError}</p>
-                )}
-                <Tooltip id="amount-tooltip" />
+                    {amountError && <p className="text-red-400 text-xs mt-1">{amountError}</p>}
               </motion.div>
 
-              <motion.div variants={formItemVariants}>
-                <label className="block text-sm text-[#818BAC] mb-2">
-                  Payment Method
+                  {/* Withdrawal Method Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Withdrawal Method
                 </label>
-                <div className="grid grid-cols-4 gap-3 bg-[#1A2338]/80 backdrop-blur-sm p-2 rounded-lg border border-[#3f2d63]/70">
-                  {withdrawalMethods.map((m) => (
-                    <button
-                      key={m.id}
+                    <div className="grid grid-cols-3 gap-3">
+                      {withdrawalMethods.map((withdrawalMethod) => (
+                        <motion.button
+                          key={withdrawalMethod.id}
                       type="button"
-                      onClick={() => setMethod(m.id)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all ${
-                        method === m.id
-                          ? 'bg-gradient-to-r from-[#20DDBB] to-[#18B399] text-[#0F1623] shadow-lg scale-105'
-                          : 'text-[#818BAC] hover:bg-[#2A344D]/70 hover:text-white'
-                      }`}
-                      data-tooltip-id={`method-tooltip-${m.id}`}
-                      data-tooltip-content={m.tooltip}
-                    >
-                      {m.icon}
-                      <span className="text-xs mt-1">{m.name}</span>
-                      <Tooltip id={`method-tooltip-${m.id}`} />
-                    </button>
+                          onClick={() => setMethod(withdrawalMethod.id)}
+                          className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
+                            method === withdrawalMethod.id
+                              ? 'bg-gradient-to-br from-[#20DDBB]/20 via-[#4e9ab3]/20 to-[#3f2d63]/50 border border-[#20DDBB]/40 shadow-lg shadow-[#20DDBB]/10'
+                              : 'bg-[#1A2338]/80 border border-[#3f2d63]/30 hover:border-[#3f2d63]/50'
+                          }`}
+                          whileHover={{ 
+                            y: -5, 
+                            boxShadow: method === withdrawalMethod.id 
+                              ? '0 15px 30px -5px rgba(32, 221, 187, 0.3)' 
+                              : '0 10px 25px -5px rgba(0, 0, 0, 0.2)'
+                          }}
+                          whileTap={{ y: 0 }}
+                          data-tooltip-id={`tooltip-${withdrawalMethod.id}`}
+                          data-tooltip-content={withdrawalMethod.tooltip}
+                        >
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 backdrop-blur-sm ${
+                            method === withdrawalMethod.id
+                              ? 'bg-gradient-to-r from-[#20DDBB]/40 to-[#4e9ab3]/30 text-[#20DDBB] animate-glow'
+                              : 'bg-[#1A2338]/90 text-gray-400'
+                          }`}>
+                            {withdrawalMethod.icon}
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            method === withdrawalMethod.id ? 'text-white' : 'text-gray-400'
+                          }`}>
+                            {withdrawalMethod.name}
+                          </span>
+                        </motion.button>
+                      ))}
+                      {withdrawalMethods.map((withdrawalMethod) => (
+                        <Tooltip key={withdrawalMethod.id} id={`tooltip-${withdrawalMethod.id}`} />
                   ))}
                 </div>
-              </motion.div>
+                  </div>
 
+                  {/* Dynamic Form Fields Based on Selected Method */}
               <motion.div 
-                className="space-y-4 mt-4"
-                variants={formItemVariants}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {method === 'bank_transfer' && (
-                  <>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.bankName}
-                        onChange={(e) => setDetails({...details, bankName: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Bank Name"
-                        required
-                      />
-                    </motion.div>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.accountNumber}
-                        onChange={(e) => setDetails({...details, accountNumber: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Account Number"
-                        required
-                      />
-                    </motion.div>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.holderName}
-                        onChange={(e) => setDetails({...details, holderName: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Account Holder Name"
-                        required
-                      />
-                    </motion.div>
-                  </>
-                )}
-
-                {method === 'paypal' && (
-                  <motion.div variants={formItemVariants}>
-                    <input
-                      type="email"
-                      value={details.email}
-                      onChange={(e) => setDetails({...details, email: e.target.value})}
-                      className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                      placeholder="PayPal Email"
-                      required
-                    />
-                  </motion.div>
-                )}
-
-                {method === 'card' && (
-                  <>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.cardNumber}
-                        onChange={(e) => setDetails({...details, cardNumber: e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim()})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Card Number"
-                        maxLength={19}
-                        required
-                      />
-                    </motion.div>
-                    <motion.div className="grid grid-cols-2 gap-4" variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.cardExpiry}
-                        onChange={(e) => setDetails({...details, cardExpiry: e.target.value.replace(/\D/g, '').replace(/(\d{2})(\d{2})/, '$1/$2').substr(0, 5)})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="MM/YY"
-                        maxLength={5}
-                        required
-                      />
-                      <input
-                        type="text"
-                        value={details.cardCVV}
-                        onChange={(e) => setDetails({...details, cardCVV: e.target.value.replace(/\D/g, '')})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="CVV"
-                        maxLength={4}
-                        required
-                      />
-                    </motion.div>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.holderName}
-                        onChange={(e) => setDetails({...details, holderName: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Card Holder Name"
-                        required
-                      />
-                    </motion.div>
-                  </>
-                )}
-
-                {method === 'crypto' && (
-                  <>
-                    <motion.div variants={formItemVariants}>
-                      <input
-                        type="text"
-                        value={details.walletAddress}
-                        onChange={(e) => setDetails({...details, walletAddress: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        placeholder="Wallet Address"
-                        required
-                      />
-                    </motion.div>
-                    <motion.div variants={formItemVariants}>
-                      <select
-                        value={details.network}
-                        onChange={(e) => setDetails({...details, network: e.target.value})}
-                        className="w-full bg-[#1A2338]/80 backdrop-blur-sm text-white px-4 py-4 rounded-lg border border-[#3f2d63]/70 focus:ring-2 focus:ring-[#20DDBB] focus:outline-none transition-all"
-                        required
-                      >
-                        <option value="">Select Network</option>
-                        <option value="ethereum">Ethereum</option>
-                        <option value="binance">Binance Smart Chain</option>
-                        <option value="polygon">Polygon</option>
-                        <option value="solana">Solana</option>
-                      </select>
-                    </motion.div>
-                  </>
-                )}
+                    variants={staggeredFormVariants}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    {renderWithdrawalForm()}
               </motion.div>
               
-              {/* Fee summary */}
-              {amount && Number(amount) > 0 && (
-                <motion.div 
-                  className="mt-4 p-5 bg-[#1A2338]/60 backdrop-blur-sm rounded-lg border border-[#3f2d63]/50"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[#818BAC]">Amount:</span>
-                    <span className="text-white">${Number(amount).toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-[#3f2d63]/50 my-3 pt-3 flex justify-between items-center">
-                    <span className="text-white font-medium">You'll receive:</span>
-                    <span className="text-[#20DDBB] font-bold">${Number(amount).toFixed(2)}</span>
-                  </div>
-                </motion.div>
-              )}
-
-              <motion.div className="flex gap-4 mt-8" variants={formItemVariants}>
+                  {/* Submit Button */}
+                  <motion.div variants={formItemVariants} className="flex justify-end mt-6">
                 <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 px-4 py-3 bg-[#1A2338]/70 backdrop-blur-sm text-white rounded-lg border border-[#3f2d63]/70 hover:bg-[#1A2338] transition-colors"
-                >
-                  Cancel
-                </button>
-                <motion.button
                   type="submit"
-                  disabled={isSubmitting || !amount || Number(amount) <= 0}
-                  className={`flex-1 px-4 py-3 rounded-lg disabled:opacity-50 transition-all ${
-                    isSubmitting || !amount || Number(amount) <= 0
-                      ? 'bg-gray-600 text-gray-300'
-                      : 'bg-gradient-to-r from-[#20DDBB] to-[#18B399] text-white hover:shadow-lg hover:scale-105 active:scale-95'
-                  }`}
-                  whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
-                  whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
-                >
+                      disabled={isSubmitting || !amount || Number(amount) <= 0 || Number(amount) > (availableBalance || 0)}
+                      className={`rounded-full bg-gradient-to-r from-[#20DDBB]/90 via-[#4e9ab3] to-[#3f2d63]/90 px-6 py-3.5 text-white 
+                        font-medium flex items-center gap-2 transition-all border border-[#20DDBB]/30 backdrop-blur-lg
+                        shadow-xl animate-gradient relative overflow-hidden group ${
+                        isSubmitting || !amount || Number(amount) <= 0 || Number(amount) > (availableBalance || 0)
+                          ? 'opacity-60 cursor-not-allowed'
+                          : 'hover:shadow-[0_0_30px_rgba(32,221,187,0.5)] hover:scale-105'
+                      }`}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 
+                        group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-500"></span>
+                      
+                      <div className="flex items-center relative z-10">
                   {isSubmitting ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                       Processing...
-                    </span>
+                          </>
                   ) : (
-                    'Withdraw'
+                          <>
+                            Withdraw ${amount || '0.00'}
+                            <FaArrowRight className="text-sm ml-1 animate-floatY" />
+                          </>
                   )}
-                </motion.button>
+                      </div>
+                    </button>
               </motion.div>
-            </motion.form>
+                </form>
+              )}
+            </div>
           </motion.div>
         </motion.div>
       )}

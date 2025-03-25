@@ -752,72 +752,136 @@ export const useRoyaltyManagement = () => {
     }
   };
 
-  // Функция для проверки возможности вывода
+  // Валидация запроса на вывод средств
   const validateWithdrawal = (amount: number, withdrawalMethod: string, details: WithdrawalDetails) => {
     console.log('🔍 Validating withdrawal request:', { amount, withdrawalMethod });
     
     if (amount <= 0) {
+      console.error('❌ Invalid amount:', amount);
       throw new Error('Withdrawal amount must be greater than 0');
     }
     
-    // Removed minimum balance check for testing purposes
+    if (amount < 1) {
+      console.error('❌ Amount below minimum:', amount);
+      throw new Error('Minimum withdrawal amount is $1.00');
+    }
     
     if (!withdrawalMethod) {
+      console.error('❌ No withdrawal method specified');
       throw new Error('Please select a withdrawal method');
     }
     
-    // Method-specific validations
+    // Method-specific validations with improved error messages
     switch (withdrawalMethod) {
       case 'bank_transfer':
         if (!details.bank_transfer) {
+          console.error('❌ Missing bank_transfer details object');
           throw new Error('Bank transfer details are required');
         }
         if (!details.bank_transfer.bank_name) {
-          throw new Error('Bank name is required');
+          console.error('❌ Missing bank name in bank_transfer details');
+          throw new Error('Bank name is required for bank transfers');
         }
         if (!details.bank_transfer.account_number) {
-          throw new Error('Account number is required');
+          console.error('❌ Missing account number in bank_transfer details');
+          throw new Error('Account number is required for bank transfers');
         }
         if (!details.bank_transfer.account_holder) {
-          throw new Error('Account holder name is required');
+          console.error('❌ Missing account holder in bank_transfer details');
+          throw new Error('Account holder name is required for bank transfers');
         }
+        console.log('✅ Bank transfer details validation passed');
         break;
+        
       case 'paypal':
         if (!details.paypal || !details.paypal.email) {
+          console.error('❌ Missing PayPal email in details');
           throw new Error('PayPal email is required');
         }
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(details.paypal.email)) {
+          console.error('❌ Invalid PayPal email format:', details.paypal.email);
+          throw new Error('Please enter a valid PayPal email address');
+        }
+        console.log('✅ PayPal details validation passed');
         break;
+        
       case 'card':
       case 'visa_card':
         if (!details.visa_card) {
+          console.error('❌ Missing visa_card details object');
           throw new Error('Card details are required');
         }
-        if (!details.visa_card.card_number) {
+        
+        const cardNumber = details.visa_card.card_number?.replace(/\s/g, '');
+        if (!cardNumber) {
+          console.error('❌ Missing card number in visa_card details');
           throw new Error('Card number is required');
         }
+        if (!/^\d{16}$/.test(cardNumber)) {
+          console.error('❌ Invalid card number format:', cardNumber);
+          throw new Error('Card number must contain 16 digits');
+        }
+        
         if (!details.visa_card.expiry_date) {
+          console.error('❌ Missing expiry date in visa_card details');
           throw new Error('Expiry date is required');
         }
+        if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(details.visa_card.expiry_date)) {
+          console.error('❌ Invalid expiry date format:', details.visa_card.expiry_date);
+          throw new Error('Expiry date must be in MM/YY format');
+        }
+        
+        const [month, year] = details.visa_card.expiry_date.split('/');
+        const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
+        const currentDate = new Date();
+        if (expiryDate < currentDate) {
+          console.error('❌ Card expired:', {expiryDate, currentDate});
+          throw new Error('The card has expired');
+        }
+        
         if (!details.visa_card.cvv) {
+          console.error('❌ Missing CVV in visa_card details');
           throw new Error('CVV is required');
         }
+        if (!/^\d{3,4}$/.test(details.visa_card.cvv)) {
+          console.error('❌ Invalid CVV format:', details.visa_card.cvv);
+          throw new Error('CVV must be 3 or 4 digits');
+        }
+        
+        if (!details.visa_card.card_holder) {
+          console.error('❌ Missing card holder name in visa_card details');
+          throw new Error('Cardholder name is required');
+        }
+        if (details.visa_card.card_holder.length < 3) {
+          console.error('❌ Card holder name too short:', details.visa_card.card_holder);
+          throw new Error('Please enter the full name as shown on the card');
+        }
+        
+        console.log('✅ Visa card details validation passed');
         break;
+        
       case 'crypto':
         if (!details.crypto) {
+          console.error('❌ Missing crypto details object');
           throw new Error('Cryptocurrency details are required');
         }
         if (!details.crypto.wallet_address) {
+          console.error('❌ Missing wallet address in crypto details');
           throw new Error('Wallet address is required');
         }
         if (!details.crypto.network) {
+          console.error('❌ Missing network in crypto details');
           throw new Error('Cryptocurrency network is required');
         }
+        console.log('✅ Crypto details validation passed');
         break;
+        
       default:
-        throw new Error('Invalid withdrawal method');
+        console.error('❌ Invalid withdrawal method:', withdrawalMethod);
+        throw new Error(`Invalid withdrawal method: ${withdrawalMethod}`);
     }
     
-    return true;
+    console.log('✅ All validation checks passed');
   };
 
   // Обновляем функцию createWithdrawalNotification
@@ -866,7 +930,8 @@ export const useRoyaltyManagement = () => {
       console.log('🔄 Processing withdrawal request:', {
         amount,
         method: withdrawalMethod,
-        userId
+        userId,
+        details: JSON.stringify(details)
       });
 
       // 1. Валидация
@@ -898,16 +963,39 @@ export const useRoyaltyManagement = () => {
       const withdrawalId = ID.unique();
       const withdrawalDate = new Date().toISOString();
       
+      // Подготовка деталей для сохранения в правильном формате в зависимости от метода
+      let formattedDetails = {};
+      
+      switch (withdrawalMethod) {
+        case 'card':
+          formattedDetails = {
+            visa_card: details.visa_card || {}
+          };
+          break;
+        case 'paypal':
+          formattedDetails = {
+            paypal: details.paypal || {}
+          };
+          break;
+        case 'bank_transfer':
+          formattedDetails = {
+            bank_transfer: details.bank_transfer || {}
+          };
+          break;
+        default:
+          formattedDetails = details;
+      }
+      
       console.log('Creating withdrawal with data:', {
         userId,
         amount: amount.toString(),
         withdrawalMethod,
         withdrawalDate,
         processingFee: (amount * 0.03).toFixed(2),
-        details: typeof details === 'string' ? details : JSON.stringify(details)
+        details: JSON.stringify(formattedDetails)
       });
       
-      try {
+      // Создаем документ вывода средств с детальными данными
       const withdrawalDoc = await database.createDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS!,
@@ -916,64 +1004,32 @@ export const useRoyaltyManagement = () => {
           userId: userId,
           amount: amount.toString(),
           status: 'pending',
+          withdrawal_method: withdrawalMethod,
           method: withdrawalMethod,
           bankDetails: withdrawalMethod === 'bank_transfer' ? JSON.stringify(details.bank_transfer) : null,
           paypalEmail: withdrawalMethod === 'paypal' ? details.paypal?.email : null,
-          createdAt: new Date(),
-          updatedAt: new Date().toISOString(),
-          withdrawal_details: typeof details === 'string' ? details : JSON.stringify(details)
+          cardDetails: withdrawalMethod === 'card' ? JSON.stringify(details.visa_card) : null,
+          createdAt: new Date().toISOString()
         }
       );
 
-        console.log('✅ Created withdrawal record:', withdrawalDoc.$id);
-      } catch (error) {
-        console.error('❌ Error creating withdrawal document:', error);
-        throw new Error(`Failed to create withdrawal: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      console.log('✅ Withdrawal document created:', withdrawalDoc.$id);
 
-      // 4. Создаем запись в истории выводов с правильной структурой
-      try {
-        const withdrawalHistoryDoc = await database.createDocument(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
-          ID.unique(),
-          {
-            userId: userId,
-            withdrawals: withdrawalId,
-            amount: amount.toString(),
-            method: withdrawalMethod,
-            status: 'pending',
-            processedAt: new Date().toISOString(),
-            details: typeof details === 'string' ? details : JSON.stringify(details),
-            date: new Date().toISOString()
-          }
-        );
-
-        console.log('✅ Created withdrawal history record:', withdrawalHistoryDoc.$id);
-      } catch (error) {
-        console.error('❌ Error creating withdrawal history record:', error);
-        // Продолжаем выполнение даже в случае ошибки, чтобы не блокировать основной процесс
-      }
-
-      // 5. Обновляем баланс
-      console.log('3️⃣ Updating balance...');
-      // Получаем текущее значение pending_withdrawals или устанавливаем 0, если оно отсутствует
-      const currentPendingWithdrawals = parseFloat(balanceDoc.documents[0].pending_withdrawals || '0');
-      
-      // Увеличиваем pending_withdrawals на сумму нового вывода
-      const newPendingWithdrawals = currentPendingWithdrawals + amount;
-      
-      // Вычисляем новый доступный баланс, вычитая сумму вывода
+      // 4. Обновляем баланс пользователя
+      console.log('3️⃣ Updating user balance...');
+      const pendingWithdrawals = parseFloat(balanceDoc.documents[0].pending_withdrawals || '0');
       const newAvailableBalance = currentBalance - amount;
+      const newPendingWithdrawals = pendingWithdrawals + amount;
       
-      console.log('📊 Balance update calculation:', {
+      console.log('Balance update calculations:', {
         currentBalance, 
-        currentPendingWithdrawals,
-        newPendingWithdrawals,
+        pendingWithdrawals,
+        amount,
         newAvailableBalance,
-        withdrawalAmount: amount
+        newPendingWithdrawals
       });
       
+      // Обновляем баланс пользователя
       await database.updateDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
@@ -985,25 +1041,25 @@ export const useRoyaltyManagement = () => {
         }
       );
 
-      console.log('✅ Balance updated. New values:', {
+      console.log('✅ Balance updated successfully. New values:', {
         balance: newAvailableBalance,
         pending_withdrawals: newPendingWithdrawals
       });
 
-      // 6. Создаем уведомление
+      // 5. Создаем уведомление
       console.log('4️⃣ Creating notification...');
       await createWithdrawalNotification(
         'pending',
         amount.toString(),
         withdrawalMethod,
-        `Your withdrawal request for $${amount.toFixed(2)} via ${withdrawalMethod} has been submitted and is being processed.`
+        `Your withdrawal request of $${amount.toFixed(2)} is being processed.`
       );
 
-      // 7. Запускаем процесс проверки статуса
+      // 6. Запускаем процесс проверки статуса
       console.log('5️⃣ Starting status check...');
       startWithdrawalStatusCheck(withdrawalId);
 
-      // 8. Немедленно обновляем интерфейс, добавляя запись в историю выводов и обновляя баланс
+      // 7. Немедленно обновляем интерфейс, добавляя запись в историю выводов и обновляя баланс
       console.log('6️⃣ Updating UI...');
       setRoyaltyData(prev => ({
         ...prev,
@@ -1025,7 +1081,7 @@ export const useRoyaltyManagement = () => {
         ]
       }));
 
-      // 9. Обновляем данные после короткой задержки, чтобы дать базе данных время на обновление
+      // 8. Обновляем данные после короткой задержки, чтобы дать базе данных время на обновление
       console.log('7️⃣ Scheduling data refresh...');
       setTimeout(() => {
         // Выполняем полное обновление данных, включая новый вывод

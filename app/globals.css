@@ -381,3 +381,107 @@
 .glass-effect {
   @apply bg-white/5 backdrop-blur-sm border border-white/10;
 }
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 6s ease infinite;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(26, 35, 56, 0.6);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(63, 45, 99, 0.6);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(88, 61, 140, 0.6);
+}
+
+@layer utilities {
+  /* Existing utility classes */
+  
+  /* Add shimmer animation for status badges */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+  
+  /* Enhanced shimmer animation for status badges */
+  .status-badge-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .status-badge-shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(90deg, 
+      rgba(255, 255, 255, 0) 0%, 
+      rgba(255, 255, 255, 0.1) 50%, 
+      rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2.5s infinite linear;
+  }
+  
+  /* Status badge glow effects */
+  .status-badge-approved {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  }
+  
+  .status-badge-pending {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+  }
+  
+  .status-badge-rejected {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  
+  /* Pulse animation for pending status */
+  @keyframes pulse-glow {
+    0% {
+      box-shadow: 0 0 5px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+    }
+    100% {
+      box-shadow: 0 0 5px rgba(245, 158, 11, 0.3);
+    }
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}

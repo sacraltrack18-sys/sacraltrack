@@ -45,6 +45,7 @@ interface ProfileStore {
     updateProfile: (userId: string, data: Partial<Profile>) => Promise<void>;
     setupAuthListener: () => void;
     clearCurrentProfile: () => void;
+    profileCache: Record<string, { profile: any, timestamp: number }>;
 }
 
 export const useProfileStore = create<ProfileStore>()(
@@ -56,6 +57,7 @@ export const useProfileStore = create<ProfileStore>()(
                 loading: false,
                 error: null,
                 hasUserReleases: false,
+                profileCache: {} as Record<string, { profile: any, timestamp: number }>,
 
                 setHasUserReleases: (value: boolean) => {
                     set({ hasUserReleases: value });
@@ -243,7 +245,16 @@ export const useProfileStore = create<ProfileStore>()(
                     try {
                         set({ loading: true, error: null });
                         
-                        console.log('Получение профиля по ID пользователя:', userId);
+                        // Проверяем наличие кеша и его актуальность (не старше 5 минут)
+                        const cache = get().profileCache[userId];
+                        const now = Date.now();
+                        const cacheValidTime = 5 * 60 * 1000; // 5 минут
+
+                        if (cache && (now - cache.timestamp < cacheValidTime)) {
+                            // Используем кешированный профиль
+                            set({ loading: false });
+                            return cache.profile;
+                        }
                         
                         if (!userId) {
                             console.warn('No userId provided to getProfileById');
@@ -274,10 +285,9 @@ export const useProfileStore = create<ProfileStore>()(
                             [Query.equal('user_id', userId)]
                         );
                         
-                        console.log(`Найдено ${response.documents.length} профилей по ID ${userId}`);
-                        
-                        if (response.documents.length > 0) {
-                            console.log('Данные профиля из базы:', JSON.stringify(response.documents[0], null, 2));
+                        // Уменьшаем количество логов
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log(`Найдено ${response.documents.length} профилей по ID ${userId}`);
                         }
 
                         if (response.documents.length === 0) {
@@ -369,7 +379,12 @@ export const useProfileStore = create<ProfileStore>()(
                         };
 
                         console.log('Профиль успешно загружен и преобразован:', JSON.stringify(profile, null, 2));
-                        set({ loading: false });
+
+                        // После получения профиля, сохраняем его в кеш
+                        const profileCacheUpdate = { ...get().profileCache };
+                        profileCacheUpdate[userId] = { profile, timestamp: now };
+                        set({ profileCache: profileCacheUpdate, loading: false });
+                        
                         return profile;
                     } catch (error) {
                         console.error('Ошибка при получении профиля:', error);

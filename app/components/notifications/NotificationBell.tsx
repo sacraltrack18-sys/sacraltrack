@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { BsBell } from 'react-icons/bs';
 import { motion, AnimatePresence } from 'framer-motion';
 import useNotifications from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/context/user';
 import NotificationCenter from './NotificationCenter';
+import { BellIcon } from '@heroicons/react/24/outline';
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -51,7 +51,7 @@ const NotificationBell = () => {
             repeat: 2
           }}
         >
-          <BsBell size={20} />
+          <BellIcon className="w-[24px] h-[24px] text-amber-400" />
         </motion.div>
         
         <AnimatePresence>
