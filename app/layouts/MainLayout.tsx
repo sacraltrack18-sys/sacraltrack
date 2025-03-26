@@ -16,6 +16,7 @@ import UserProfileSidebar from "../components/profile/UserProfileSidebar";
 import { useProfileStore } from "@/app/stores/profile";
 import AuthObserver from "@/app/components/AuthObserver";
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
+import ContentFilter from "@/app/components/ContentFilter";
 
 // Local interface for profile card
 interface ProfileCardProps {
@@ -89,6 +90,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             >
     			{/*	TOP 100 <RightSideBar /> 
                 <TechMessage />*/}
+                <div className="hidden lg:block sticky top-[80px]">
+                    <ContentFilter />
+                </div>
                 </motion.div>
 			</div>
 

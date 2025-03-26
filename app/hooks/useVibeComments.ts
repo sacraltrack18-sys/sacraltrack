@@ -117,23 +117,55 @@ export const useVibeComments = (vibeId?: string) => {
           vibeId
         );
 
-        const stats = vibeDoc.stats || {
-          total_likes: 0,
-          total_comments: 0,
-          total_views: 0
-        };
+        console.log('Current vibe stats for comments:', vibeDoc.stats, 'Type:', typeof vibeDoc.stats);
+        
+        // Проверяем структуру stats и преобразуем соответственно
+        let updatedStats;
+        
+        if (Array.isArray(vibeDoc.stats)) {
+          // Если stats это массив - работаем как с массивом
+          const stats = [...vibeDoc.stats];
+          
+          // Убедимся, что у нас есть все три элемента
+          while (stats.length < 3) {
+            stats.push('0');
+          }
+          
+          // Увеличиваем счетчик комментариев (второй элемент массива)
+          const currentComments = parseInt(stats[1], 10) || 0;
+          stats[1] = (currentComments + 1).toString();
+          updatedStats = stats;
+          
+          console.log('Updating array stats for comments to:', stats);
+        } else if (typeof vibeDoc.stats === 'object' && vibeDoc.stats !== null) {
+          // Если stats это объект - преобразуем в массив
+          const totalLikes = typeof vibeDoc.stats.total_likes === 'number' ? vibeDoc.stats.total_likes : 0;
+          const totalComments = (typeof vibeDoc.stats.total_comments === 'number' ? vibeDoc.stats.total_comments : 0) + 1;
+          const totalViews = typeof vibeDoc.stats.total_views === 'number' ? vibeDoc.stats.total_views : 0;
+          
+          updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
+          console.log('Converting object stats to array for comments:', updatedStats);
+        } else {
+          // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
+          updatedStats = ['0', '1', '0'];
+          console.log('Creating new stats array for comments:', updatedStats);
+        }
 
+        // Обновляем документ с новыми stats
         await database.updateDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
           process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
           vibeId,
           {
             stats: {
-              ...stats,
-              total_comments: stats.total_comments + 1
+              total_likes: parseInt(updatedStats[0]) || 0,
+              total_comments: parseInt(updatedStats[1]) || 0,
+              total_views: parseInt(updatedStats[2]) || 0
             }
           }
         );
+        
+        console.log('Vibe stats updated successfully for comments');
       } catch (statsError) {
         console.error('Error updating vibe stats:', statsError);
       }
@@ -221,23 +253,55 @@ export const useVibeComments = (vibeId?: string) => {
             vibeId
           );
 
-          const stats = vibeDoc.stats || {
-            total_likes: 0,
-            total_comments: 0,
-            total_views: 0
-          };
+          console.log('Current vibe stats for deleting comment:', vibeDoc.stats, 'Type:', typeof vibeDoc.stats);
+          
+          // Проверяем структуру stats и преобразуем соответственно
+          let updatedStats;
+          
+          if (Array.isArray(vibeDoc.stats)) {
+            // Если stats это массив - работаем как с массивом
+            const stats = [...vibeDoc.stats];
+            
+            // Убедимся, что у нас есть все три элемента
+            while (stats.length < 3) {
+              stats.push('0');
+            }
+            
+            // Уменьшаем счетчик комментариев (второй элемент массива)
+            const currentComments = parseInt(stats[1], 10) || 0;
+            stats[1] = Math.max(0, currentComments - 1).toString();
+            updatedStats = stats;
+            
+            console.log('Updating array stats for deleting comment to:', stats);
+          } else if (typeof vibeDoc.stats === 'object' && vibeDoc.stats !== null) {
+            // Если stats это объект - преобразуем в массив
+            const totalLikes = typeof vibeDoc.stats.total_likes === 'number' ? vibeDoc.stats.total_likes : 0;
+            const totalComments = Math.max(0, (typeof vibeDoc.stats.total_comments === 'number' ? vibeDoc.stats.total_comments : 0) - 1);
+            const totalViews = typeof vibeDoc.stats.total_views === 'number' ? vibeDoc.stats.total_views : 0;
+            
+            updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
+            console.log('Converting object stats to array for deleting comment:', updatedStats);
+          } else {
+            // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
+            updatedStats = ['0', '0', '0'];
+            console.log('Creating new stats array for deleting comment:', updatedStats);
+          }
 
+          // Обновляем документ с новыми stats
           await database.updateDocument(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
             process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
             vibeId,
             {
               stats: {
-                ...stats,
-                total_comments: Math.max(0, stats.total_comments - 1)
+                total_likes: parseInt(updatedStats[0]) || 0,
+                total_comments: parseInt(updatedStats[1]) || 0,
+                total_views: parseInt(updatedStats[2]) || 0
               }
             }
           );
+          
+          console.log('Vibe stats updated successfully for deleting comment');
         } catch (statsError) {
           console.error('Error updating vibe stats:', statsError);
         }

@@ -14,6 +14,7 @@ import WelcomeModal from './components/WelcomeModal';
 export const metadata: Metadata = {
     title: 'Sacral Track',
     description: 'Sacral Track - music network marketplace for music artists and lovers. Listen to music, release a tracks, withdraw royalties to visa/mastercard.',
+    metadataBase: new URL('https://sacraltrack.store'),
     openGraph: {
         title: 'Sacral Track',
         description: 'Sacral Track - music network marketplace for music artists and lovers',

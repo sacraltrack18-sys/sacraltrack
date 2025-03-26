@@ -14,7 +14,8 @@ import {
   FaLock,
   FaStar,
   FaUserShield,
-  FaSpinner
+  FaSpinner,
+  FaAt
 } from 'react-icons/fa';
 import VerificationCodeModal from './VerificationCodeModal';
 import { toast } from 'react-hot-toast';
@@ -111,7 +112,8 @@ const VerificationStep = ({
   onVerify,
   isDisabled = false,
   isLoading = false,
-  verificationInfo
+  verificationInfo,
+  highlightedInfo
 }: { 
   title: string; 
   description: string; 
@@ -121,6 +123,7 @@ const VerificationStep = ({
   isDisabled?: boolean;
   isLoading?: boolean;
   verificationInfo?: string;
+  highlightedInfo?: string;
 }) => {
   return (
     <motion.div 
@@ -150,6 +153,16 @@ const VerificationStep = ({
                   <FaCheckCircle className="ml-2 text-xs sm:text-sm text-violet-300" />
                 )}
               </h3>
+              
+              {highlightedInfo && (
+                <div className="mt-1.5 mb-2">
+                  <span className="text-sm font-medium text-violet-300">{highlightedInfo}</span>
+                  {isVerified && (
+                    <span className="ml-2 text-xs px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded">verified</span>
+                  )}
+                </div>
+              )}
+              
               <p className="text-xs text-[#9BA3BF] mt-1 max-w-xs">
                 {description}
               </p>
@@ -223,6 +236,19 @@ const VerificationStep = ({
   );
 };
 
+const EmailDisplay = ({ email }: { email?: string }) => {
+  if (!email) return null;
+  
+  return (
+    <div className="flex items-center gap-2 p-3 mt-3 mb-1 bg-[#252742]/70 rounded-lg border border-[#3f2d63]/40">
+      <FaAt className="text-violet-300" />
+      <div className="text-white text-sm font-medium overflow-hidden text-ellipsis">
+        {email}
+      </div>
+    </div>
+  );
+};
+
 export default function UserVerificationCard({
   emailVerified = false,
   phoneVerified = false,
@@ -241,6 +267,11 @@ export default function UserVerificationCard({
   const [phoneNumberInput, setPhoneNumberInput] = useState(userPhone ? userPhone.toString() : '');
   const [phoneInputError, setPhoneInputError] = useState('');
   const phoneInputRef = useRef<HTMLInputElement>(null);
+  
+  // Отладочный вывод email
+  useEffect(() => {
+    console.log('UserVerificationCard: userEmail =', userEmail);
+  }, [userEmail]);
   
   const [isEmailVerifiedLocal, setIsEmailVerifiedLocal] = useState(emailVerified);
   const [isPhoneVerifiedLocal, setIsPhoneVerifiedLocal] = useState(phoneVerified);
@@ -295,52 +326,19 @@ export default function UserVerificationCard({
   };
 
   const handleVerifyPhone = async () => {
-    const error = validatePhoneNumber(phoneNumberInput);
-    setPhoneInputError(error);
-    
-    if (error) {
-      // Focus the phone input if there's an error
-      phoneInputRef.current?.focus();
-      return;
-    }
+    if (!isEmailVerifiedLocal) return;
     
     try {
       setIsVerifyingPhone(true);
-      // Convert string to number
-      const phoneAsNumber = parseInt(phoneNumberInput, 10);
       
-      // Use Firebase to send verification code
-      const success = await sendVerificationCode(phoneAsNumber, 'phone-verify-button');
+      // Открываем модальное окно для верификации телефона
+      setShowPhoneModal(true);
       
-      if (success) {
-        // Call the original verification function for any other logic
-        await onVerifyPhone(phoneAsNumber);
-        // Show the verification code modal
-        setShowPhoneModal(true);
-      }
     } catch (error) {
-      toast.error('Failed to send verification SMS');
-      console.error(error);
+      console.error('Error in handleVerifyPhone:', error);
+      toast.error('Failed to initialize phone verification');
     } finally {
       setIsVerifyingPhone(false);
-    }
-  };
-
-  const handleEmailCodeVerify = async (code: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setIsEmailVerifiedLocal(true);
-      
-      if (onEmailVerified) {
-        onEmailVerified();
-      }
-      
-      toast.success('Email successfully verified!');
-      return Promise.resolve();
-    } catch (error) {
-      toast.error('Email verification error');
-      return Promise.reject(error);
     }
   };
 
@@ -401,40 +399,19 @@ export default function UserVerificationCard({
                     <FaCheckCircle className="ml-2 text-xs sm:text-sm text-violet-300" />
                   )}
                 </h3>
-                <p className="text-xs text-[#9BA3BF] mt-1 max-w-xs">
-                  Add SMS verification via Firebase to protect your account and withdrawals
-                </p>
                 
-                {!isPhoneVerifiedLocal && (
-                  <div className="mt-3 space-y-2 w-full max-w-[220px]">
-                    <input
-                      ref={phoneInputRef}
-                      type="number"
-                      value={phoneNumberInput}
-                      onChange={(e) => {
-                        // Only allow numeric input
-                        setPhoneNumberInput(e.target.value.replace(/[^0-9]/g, ''));
-                        if (phoneInputError) setPhoneInputError('');
-                      }}
-                      placeholder="Enter your phone number"
-                      className={`w-full px-3 py-2 text-xs rounded-lg bg-[#1A2338]/80 border ${
-                        phoneInputError 
-                          ? 'border-red-500/70 focus:ring-red-500'
-                          : 'border-[#3f2d63]/70 focus:ring-purple-500'
-                      } text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:border-transparent`}
-                      disabled={!isEmailVerifiedLocal || isVerifyingPhone || isPhoneVerifiedLocal}
-                    />
-                    {phoneInputError && (
-                      <p className="text-red-400 text-xs">{phoneInputError}</p>
+                {phoneNumberInput && (
+                  <div className="mt-1.5 mb-2">
+                    <span className="text-sm font-medium text-violet-300">{phoneNumberInput}</span>
+                    {isPhoneVerifiedLocal && (
+                      <span className="ml-2 text-xs px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded">verified</span>
                     )}
                   </div>
                 )}
                 
-                {isPhoneVerifiedLocal && phoneNumberInput && (
-                  <p className="text-xs text-[#9BA3BF] mt-2">
-                    Verified number: <span className="text-violet-300">{phoneNumberInput}</span>
-                  </p>
-                )}
+                <p className="text-xs text-[#9BA3BF] mt-1 max-w-xs">
+                  Add SMS verification via Firebase to protect your account and withdrawals
+                </p>
               </div>
             </div>
             
@@ -461,7 +438,7 @@ export default function UserVerificationCard({
                   ) : (
                     <>
                       <span className="z-10 relative">
-                        {phoneNumberInput ? 'Verify with Firebase' : 'Send Code via Firebase'}
+                        Verify Phone
                       </span>
                       <motion.div 
                         className="z-10 relative"
@@ -551,13 +528,28 @@ export default function UserVerificationCard({
               
               <VerificationStep
                 title="Email Verification"
-                description="We'll send a verification code to your email address"
-                verificationInfo={`Code will be sent to: ${userEmail || 'your email'}`}
+                description="Click the button below to receive a verification link in your email"
+                verificationInfo={isEmailVerifiedLocal 
+                  ? userEmail ? `Email verified: ${userEmail}` : undefined
+                  : userEmail ? `Verification link will be sent to: ${userEmail}` : undefined
+                }
                 icon={<FaEnvelope />}
                 isVerified={isEmailVerifiedLocal}
                 onVerify={handleVerifyEmail}
                 isLoading={isVerifyingEmail}
               />
+              
+              {userEmail && (
+                <div className="flex items-center gap-2 p-3 mt-1 mb-3 bg-[#252742]/70 rounded-lg border border-[#3f2d63]/40">
+                  <FaAt className="text-violet-300" />
+                  <div className="text-white text-sm font-medium overflow-hidden text-ellipsis">
+                    {userEmail}
+                  </div>
+                  {isEmailVerifiedLocal && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded">verified</span>
+                  )}
+                </div>
+              )}
               
               {/* Using custom phone verification step component with input field */}
               <PhoneVerificationStep />
@@ -595,14 +587,6 @@ export default function UserVerificationCard({
           </div>
         </motion.div>
       </div>
-
-      <VerificationCodeModal
-        isOpen={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
-        onVerify={handleEmailCodeVerify}
-        type="email"
-        email={userEmail}
-      />
 
       <VerificationCodeModal
         isOpen={showPhoneModal}

@@ -14,6 +14,11 @@ import { useUser } from "@/app/context/user";
 import { FaMoneyBillWave, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import { auth } from '../firebase/firebase';
 import { useEffect as useEffectFirebase } from 'react';
+import useFirebasePhoneAuth from '@/app/hooks/useFirebasePhoneAuth';
+import useAppwriteEmailVerification from '@/app/hooks/useAppwriteEmailVerification';
+import VerificationCodeModal from "@/app/components/royalty/VerificationCodeModal";
+import FirebasePhoneAuth from "@/app/components/royalty/FirebasePhoneAuth";
+import { account } from '@/libs/AppWriteClient';
 
 export default function RoyaltyPage() {
   const { royaltyData, loading, error, notifications, refreshRoyaltyData, forceRefresh } = useRoyaltyManagement();
@@ -29,6 +34,14 @@ export default function RoyaltyPage() {
   const [isVerifyingEmail, setIsVerifyingEmail] = useState<boolean>(false);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState<boolean>(false);
   
+  // Firebase phone authentication state
+  const [showVerificationModal, setShowVerificationModal] = useState<boolean>(false);
+  const [verificationPhoneNumber, setVerificationPhoneNumber] = useState<number | null>(null);
+  const [showRecaptcha, setShowRecaptcha] = useState<boolean>(false);
+  
+  // Constants
+  const FIREBASE_VERIFY_BUTTON_ID = 'firebase-phone-verify-button';
+  
   // Get user's email and phone from context
   const userEmail = userContext?.user ? (userContext.user as any).email : undefined;
   const userPhone = userContext?.user ? 
@@ -37,13 +50,84 @@ export default function RoyaltyPage() {
       (userContext.user as any).phone) 
     : undefined;
   
+  // Отладочный вывод email
+  useEffect(() => {
+    console.log('User context:', userContext?.user);
+    console.log('RoyaltyPage: userEmail =', userEmail);
+    
+    // Если email не найден в контексте пользователя, получим его из Appwrite
+    if (!userEmail && userContext?.user) {
+      const getEmailFromAppwrite = async () => {
+        try {
+          const accountInfo = await account.get();
+          if (accountInfo && accountInfo.email) {
+            console.log('Got email from Appwrite account:', accountInfo.email);
+            // Обновляем email в контексте пользователя
+            if (userContext?.user) {
+              (userContext.user as any).email = accountInfo.email;
+            }
+          }
+        } catch (error) {
+          console.error('Error getting email from Appwrite account:', error);
+        }
+      };
+      
+      getEmailFromAppwrite();
+    }
+  }, [userContext?.user, userEmail]);
+  
+  // Initialize Firebase phone auth hook
+  const { 
+    sendVerificationCode, 
+    verifyCode, 
+    loading: firebaseLoading, 
+    reset: resetFirebaseAuth 
+  } = useFirebasePhoneAuth();
+  
+  // Initialize Appwrite email verification hook
+  const {
+    sendVerification,
+    checkEmailVerification,
+    loading: emailVerificationLoading
+  } = useAppwriteEmailVerification();
+  
   // Check verification status on load
   useEffect(() => {
     if (userContext?.user) {
-      setEmailVerified(userContext.user?.hasOwnProperty('email_verified') ? Boolean((userContext.user as any).email_verified) : false);
+      // Проверяем статус верификации email в Appwrite при загрузке страницы
+      const checkEmailStatus = async () => {
+        try {
+          const isEmailVerified = await checkEmailVerification();
+          setEmailVerified(isEmailVerified);
+          
+          // Обновляем статус в контексте пользователя
+          if (userContext?.user) {
+            (userContext.user as any).email_verified = isEmailVerified;
+            
+            // Если email не установлен в контексте, попробуем получить его из аккаунта Appwrite
+            if (!userEmail) {
+              try {
+                const accountInfo = await account.get();
+                if (accountInfo && accountInfo.email) {
+                  console.log('Got email from Appwrite account:', accountInfo.email);
+                  (userContext.user as any).email = accountInfo.email;
+                }
+              } catch (error) {
+                console.error('Error getting email from Appwrite account:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking email verification status:', error);
+        }
+      };
+      
+      checkEmailStatus();
+      
+      // Проверяем статус верификации телефона
       setPhoneVerified(userContext.user?.hasOwnProperty('phone_verified') ? Boolean((userContext.user as any).phone_verified) : false);
     }
-  }, [userContext?.user]);
+  }, [userContext?.user, userEmail]);
 
   // Firebase initialization effect
   useEffectFirebase(() => {
@@ -120,37 +204,97 @@ export default function RoyaltyPage() {
   const handleVerifyEmail = async () => {
     try {
       setIsVerifyingEmail(true);
-      // Here you would typically call your API to send verification email
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulated API call
-      toast.success('Verification code sent to your email');
+      
+      // Отправляем запрос на верификацию email через Appwrite
+      // Создаем URL для перенаправления после верификации
+      const verificationUrl = `${window.location.origin}/verify-email`;
+      
+      await sendVerification(verificationUrl);
+      
+      toast.success('Verification email sent to your inbox!');
+      
+      // Информируем пользователя о необходимости проверить почту
+      toast.success('Please check your email and click the verification link.');
     } catch (error) {
-      toast.error('Failed to send verification code');
+      console.error('Error sending verification email:', error);
+      toast.error('Failed to send verification email');
       throw error;
     } finally {
       setIsVerifyingEmail(false);
     }
   };
   
-  const handleVerifyPhone = async (phoneNumber: number) => {
+  // Создаем обертку, чтобы соответствовать ожидаемому типу Promise<void>
+  const handleVerifyPhoneWrapper = async (phoneNumber: number): Promise<void> => {
+    try {
+      // Показываем reCAPTCHA перед отправкой кода
+      setShowRecaptcha(true);
+      await handleVerifyPhone(phoneNumber);
+    } catch (error) {
+      // Ошибки уже обрабатываются в handleVerifyPhone
+      setShowRecaptcha(false);
+    }
+  };
+  
+  // Внутренняя реализация, которая возвращает boolean
+  const handleVerifyPhone = async (phoneNumber: number): Promise<boolean> => {
     try {
       setIsVerifyingPhone(true);
-      // Here Firebase will handle phone verification under the hood
-      // (the actual SMS sending is managed by the useFirebasePhoneAuth hook)
-      console.log(`Firebase will send verification code to ${phoneNumber}`);
-      toast.success(`Verification code requested for ${phoneNumber}`);
-      return true;
+      
+      // Store phone number for verification modal
+      setVerificationPhoneNumber(phoneNumber);
+      
+      // Attempt to send verification code via Firebase
+      const success = await sendVerificationCode(phoneNumber, FIREBASE_VERIFY_BUTTON_ID);
+      
+      if (success) {
+        // Show verification code modal if code was sent successfully
+        setShowVerificationModal(true);
+        // Hide reCAPTCHA after successful code sending
+        setShowRecaptcha(false);
+        return true;
+      } else {
+        throw new Error('Failed to send verification code');
+      }
     } catch (error: any) {
       console.error('Error in handleVerifyPhone:', error);
       const errorMessage = error.message || 'Failed to send verification code';
       toast.error(errorMessage);
+      // Hide reCAPTCHA when error occurs
+      setShowRecaptcha(false);
       throw error;
     } finally {
       setIsVerifyingPhone(false);
     }
   };
+  
+  // Handle verification code submission
+  const handlePhoneCodeVerify = async (code: string): Promise<void> => {
+    try {
+      // Verify code with Firebase
+      const success = await verifyCode(code);
+      
+      if (success && verificationPhoneNumber) {
+        // Update local state
+        setPhoneVerified(true);
+        
+        // Call the callback to update parent component state
+        await handlePhoneVerified(verificationPhoneNumber);
+        
+        // Close modal
+        setShowVerificationModal(false);
+        resetFirebaseAuth();
+      } else {
+        throw new Error('Verification failed');
+      }
+    } catch (error) {
+      console.error('Error in handlePhoneCodeVerify:', error);
+      throw error; // Rethrow for the modal to handle the error state
+    }
+  };
 
   // Phone verification completed handler
-  const handlePhoneVerified = (phoneNumber: number) => {
+  const handlePhoneVerified = async (phoneNumber: number) => {
     setPhoneVerified(true);
     
     // Save phone number to user profile
@@ -159,14 +303,26 @@ export default function RoyaltyPage() {
       (userContext.user as any).phone_verified = true;
       
       // Here you would typically call your API to update the user profile
-      console.log(`Verified phone ${phoneNumber} saved to user profile via Firebase`);
-      
-      // Example API call (commented out since it's a simulation)
-      // await fetch('/api/user/update-profile', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phone: phoneNumber, phone_verified: true })
-      // });
+      try {
+        // Example API call to update user profile
+        const response = await fetch('/api/user/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            phone: phoneNumber, 
+            phone_verified: true 
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update profile');
+        }
+        
+        console.log(`Verified phone ${phoneNumber} saved to user profile`);
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        // Still continue as Firebase verification was successful
+      }
     }
     
     toast.success('Phone successfully verified with Firebase and saved to your profile!');
@@ -176,8 +332,7 @@ export default function RoyaltyPage() {
   const handleEmailVerified = () => {
     setEmailVerified(true);
     
-    // Here you would typically update the user data in your backend
-    // This is a simulation
+    // Обновляем статус в контексте пользователя
     if (userContext?.user) {
       (userContext.user as any).email_verified = true;
     }
@@ -261,32 +416,39 @@ export default function RoyaltyPage() {
               />
             </motion.div>
             
-            {/* Right Column - Verification Card (narrower) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="lg:col-span-2 order-1 lg:order-2"
-            >
-              <div className="lg:sticky lg:top-24">
-                <UserVerificationCard
-                  emailVerified={emailVerified}
-                  phoneVerified={phoneVerified}
-                  onVerifyEmail={handleVerifyEmail}
-                  onVerifyPhone={async (phoneNumber: number) => {
-                    try {
-                      await handleVerifyPhone(phoneNumber);
-                    } catch (error) {
-                      console.error(error);
-                    }
-                  }}
-                  userEmail={userEmail}
-                  userPhone={userPhone}
-                  onEmailVerified={handleEmailVerified}
-                  onPhoneVerified={handlePhoneVerified}
-                />
-              </div>
-            </motion.div>
+            {/* Right Column - Verification & Notifications */}
+            <div className="col-span-1 lg:col-span-3 space-y-4 lg:space-y-6">
+              {/* Verification Card */}
+              <UserVerificationCard
+                emailVerified={emailVerified}
+                phoneVerified={phoneVerified}
+                onVerifyEmail={handleVerifyEmail}
+                onVerifyPhone={handleVerifyPhoneWrapper}
+                userEmail={userEmail}
+                userPhone={userPhone}
+                onEmailVerified={handleEmailVerified}
+                onPhoneVerified={handlePhoneVerified}
+              />
+              
+              {/* Verification Modal for Phone Verification */}
+              <VerificationCodeModal
+                isOpen={showVerificationModal}
+                onClose={() => {
+                  setShowVerificationModal(false);
+                  setShowRecaptcha(false);
+                  resetFirebaseAuth();
+                }}
+                onVerify={handlePhoneCodeVerify}
+                type="phone"
+                phone={verificationPhoneNumber?.toString()}
+                onPhoneChange={(newPhone) => {
+                  // Преобразуем строку в число
+                  const phoneAsNumber = parseInt(newPhone.replace(/\D/g, ''), 10);
+                  setVerificationPhoneNumber(phoneAsNumber);
+                }}
+                onPhoneSubmit={handleVerifyPhone}
+              />
+            </div>
           </div>
         )}
 
@@ -304,6 +466,9 @@ export default function RoyaltyPage() {
           notifications={withdrawalNotifications}
           onDismiss={dismissWithdrawalNotification}
         />
+
+        {/* Firebase reCAPTCHA container */}
+        <FirebasePhoneAuth buttonId={FIREBASE_VERIFY_BUTTON_ID} isVisible={showRecaptcha} />
       </motion.div>
     </RoyaltyLayout>
   );

@@ -2,14 +2,15 @@ import { storage, database } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
 import { useCallback } from 'react';
 import { saveUploadProgress, getUploadProgress } from '@/app/utils/audioUtils';
+import imageCompression from 'browser-image-compression';
 
 // Create a type for the upload parameters 
 interface UploadParams {
-  audio?: string | File | Blob;  // Может быть строкой (путь) или файлом
+  audio?: string | File | Blob;  // Can be a string (path) or a file
   image: File;
-  mp3?: File | Blob;  // Может быть null для прямой загрузки без предобработки
-  m3u8?: File | Blob;  // Может быть null для прямой загрузки без предобработки
-  segments?: File[] | string[];  // Может быть null для прямой загрузки без предобработки
+  mp3?: File | Blob;  // Can be null for direct upload without preprocessing
+  m3u8?: File | Blob;  // Can be null for direct upload without preprocessing
+  segments?: File[] | string[];  // Can be null for direct upload without preprocessing
   trackname: string;
   genre: string;
   userId?: string;
@@ -23,16 +24,67 @@ interface UploadResult {
   error?: string;
 }
 
-// Функция для проверки, является ли значение файлом
+/**
+ * Function for image optimization before upload
+ * Performs the following steps:
+ * 1. Compresses the image to a maximum size of 1MB
+ * 2. Limits the width/height to 1200px for quality balance
+ * 3. Converts to WebP if the browser supports (better compression) or JPEG
+ * 4. Uses Web Worker for better performance
+ * 5. Returns the optimized image with a new name and type
+ * @param imageFile Original image file
+ * @returns Optimized image file
+ */
+async function optimizeImage(imageFile: File): Promise<File> {
+  console.log('Starting image optimization...');
+  console.log(`Original image: ${imageFile.name}, type: ${imageFile.type}, size: ${(imageFile.size / 1024 / 1024).toFixed(2)} MB`);
+  
+  try {
+    // Check if browser supports WebP
+    const isWebPSupported = !!(window.OffscreenCanvas || (document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0));
+    
+    const options = {
+      maxSizeMB: 1, // maximum size in MB (average optimal size)
+      maxWidthOrHeight: 1200, // width/height limit for quality balance
+      useWebWorker: true, // use Web Worker for better performance
+      initialQuality: 0.8, // initial quality for JPEG (80% - good balance)
+      fileType: isWebPSupported ? 'image/webp' : 'image/jpeg', // prefer WebP if supported
+    };
+    
+    const compressedFile = await imageCompression(imageFile, options);
+    
+    // Create a new file with the correct extension and type for better compatibility
+    const fileExtension = options.fileType === 'image/webp' ? '.webp' : '.jpg';
+    const optimizedFileName = imageFile.name.replace(/\.[^/.]+$/, "") + '_optimized' + fileExtension;
+    
+    // Create a new file with optimized data and correct name/type
+    const optimizedFile = new File(
+      [compressedFile], 
+      optimizedFileName, 
+      { type: options.fileType }
+    );
+    
+    console.log(`Optimized image: ${optimizedFile.name}, type: ${optimizedFile.type}, size: ${(optimizedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`Compression ratio: ${(imageFile.size / optimizedFile.size).toFixed(2)}x`);
+    
+    return optimizedFile;
+  } catch (error) {
+    console.error('Error during image optimization:', error);
+    console.log('Falling back to original image');
+    return imageFile; // return original in case of error
+  }
+}
+
+// Function to check if a value is a file
 function isFile(value: any): value is File {
   return value && typeof value === 'object' && 'size' in value && 'type' in value && 'name' in value;
 }
 
-// Функция для загрузки файла с повторными попытками
+// Function to upload a file with retries
 async function uploadWithRetry(file: File, fileId: string, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Логируем информацию о переменной окружения и загрузке
+      // Log information about the environment variable and upload
       console.log(`Uploading file to bucket ID: ${process.env.NEXT_PUBLIC_BUCKET_ID}`);
       
       const response = await storage.createFile(
@@ -42,7 +94,7 @@ async function uploadWithRetry(file: File, fileId: string, retries = 3) {
       );
       return response;
     } catch (error) {
-      console.error(`Попытка ${attempt}/${retries} загрузки не удалась:`, error);
+      console.error(`Attempt ${attempt}/${retries} failed:`, error);
       if (attempt === retries) throw error;
       await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
@@ -57,7 +109,7 @@ export function createFileUrl(fileId: string): string {
 
 // Define the hook with named export instead of default export
 export function useCreatePost() {
-  // Функция для загрузки отдельного сегмента и получения его ID
+  // Function to upload an individual segment and get its ID
   const createSegmentFile = useCallback(async (segmentFile: File): Promise<string> => {
     console.log(`createSegmentFile called with file: ${segmentFile?.name}, size: ${segmentFile?.size} bytes`);
     
@@ -71,12 +123,12 @@ export function useCreatePost() {
       throw new Error('Segment must be a valid file');
     }
 
-    // Генерируем уникальный ID для сегмента
+    // Generate a unique ID for the segment
     const segmentId = ID.unique();
     console.log(`Generated segment ID: ${segmentId}`);
 
     try {
-      // Проверяем доступность хранилища
+      // Check storage availability
       if (!storage) {
         console.error('Storage client is undefined!');
         throw new Error('Storage client is not available');
@@ -89,12 +141,12 @@ export function useCreatePost() {
       
       console.log(`Uploading segment to Appwrite, bucket: ${process.env.NEXT_PUBLIC_BUCKET_ID}...`);
       
-      // Загружаем сегмент в Appwrite Storage с повторными попытками
+      // Upload segment to Appwrite Storage with retries
       const result = await uploadWithRetry(segmentFile, segmentId);
       
       console.log(`Segment uploaded successfully, Appwrite ID: ${result?.$id}`);
 
-      // Возвращаем ID загруженного сегмента - это важно для М3U8 плейлиста
+      // Return the ID of the uploaded segment - important for M3U8 playlist
       return result?.$id || segmentId;
     } catch (error) {
       console.error('Error uploading segment file to Appwrite:', error);
@@ -109,7 +161,7 @@ export function useCreatePost() {
     const { audio, image, mp3, m3u8, segments, trackname, genre, userId = 'anonymous', onProgress } = params;
                                 
     try {
-      // Проверяем корректность параметров
+      // Check parameter correctness
       if (!image) {
         throw new Error('Image file is required');
       }
@@ -143,7 +195,7 @@ export function useCreatePost() {
         }
       }
 
-      // Проверка доступности API клиентов
+      // Check API client availability
       if (!storage || typeof storage.createFile !== 'function') {
         console.error('Storage client is not properly initialized');
         throw new Error('Storage client is not available');
@@ -154,15 +206,15 @@ export function useCreatePost() {
         throw new Error('Database client is not available');
       }
 
-      // Генерируем уникальный ID для трека
+      // Generate a unique ID for the track
       const trackId = ID.unique();
       const startTime = Date.now();
 
-      // Логируем информацию о базе данных и коллекции
+      // Log database ID and collection ID
       console.log(`Database ID: ${process.env.NEXT_PUBLIC_DATABASE_ID}`);
       console.log(`Collection ID: ${process.env.NEXT_PUBLIC_COLLECTION_ID_POST}`);
 
-      // Функция для расчета оставшегося времени
+      // Function to calculate remaining time
       const getEstimatedTime = (progress: number) => {
         const elapsedTime = Date.now() - startTime;
         const estimatedTotalTime = (elapsedTime / progress) * 100;
@@ -195,16 +247,30 @@ export function useCreatePost() {
         }
       }
 
-      // Upload cover image
+      // Cover optimization and upload
+      updateProgress('Preparing cover image', 25);
+      console.log('Original image size:', Math.round(image.size / 1024), 'KB');
+      
+      // Optimize image before upload
+      updateProgress('Optimizing image...', 27);
+      const optimizedImage = await optimizeImage(image);
+      console.log('Optimized image size:', Math.round(optimizedImage.size / 1024), 'KB');
+      updateProgress('Image optimized', 30);
+      
+      // Upload optimized image
       updateProgress('Uploading cover image', 33);
         const imageId = ID.unique();
-      const imageUploadResult = await uploadWithRetry(image, imageId);
+      const imageUploadResult = await uploadWithRetry(optimizedImage, imageId);
       // Use the ID returned from Appwrite
       const finalImageId = imageUploadResult && imageUploadResult.$id ? imageUploadResult.$id : imageId;
-      console.log(`Image file uploaded with ID: ${finalImageId}`);
+      console.log(`Optimized image uploaded with ID: ${finalImageId}`);
+      
+      // Show compression level
+      const compressionRatio = (image.size / optimizedImage.size).toFixed(1);
+      updateProgress(`Cover image uploaded (compression in ${compressionRatio}x times)`, 40);
 
       // Upload MP3 version if provided
-      updateProgress('Uploading MP3 version', 66);
+      updateProgress('Uploading MP3 version', 45);
       let mp3Id = '';
       if (mp3 && isFile(mp3)) {
         mp3Id = ID.unique();
@@ -219,7 +285,7 @@ export function useCreatePost() {
       }
 
       // Handle segments upload if provided
-      updateProgress('Processing segments', 75);
+      updateProgress('Processing segments', 60);
       let segmentIds: string[] = [];
       if (segments && segments.length > 0) {
         console.log(`Processing ${segments.length} segments:`, segments);
@@ -247,26 +313,12 @@ export function useCreatePost() {
             segmentIds.push(segment);
           }
           // Update progress for each segment
-          updateProgress(`Processing segment ${i+1}/${segments.length}`, 75 + (i / segments.length * 5));
+          updateProgress(`Processing segment ${i+1}/${segments.length}`, 60 + (i / segments.length * 10));
         }
         console.log(`Final segment IDs for M3U8 and DB:`, segmentIds);
       }
 
-      // Generate M3U8 playlist if segments are available and no m3u8 file provided
-      updateProgress('Generating playlist', 80);
-      let m3u8Id = '';
-      if (m3u8 && isFile(m3u8)) {
-        m3u8Id = ID.unique();
-        const m3u8UploadResult = await uploadWithRetry(m3u8, m3u8Id);
-        // Use the ID returned from Appwrite
-        if (m3u8UploadResult && m3u8UploadResult.$id) {
-          m3u8Id = m3u8UploadResult.$id;
-          console.log(`M3U8 playlist uploaded with ID: ${m3u8Id}`);
-        } else {
-          console.log(`Using generated M3U8 ID: ${m3u8Id}`);
-        }
-      } else if (segmentIds.length > 0) {
-        // Create M3U8 playlist from segment IDs
+      // Generate M3U8 playlist from segment IDs
         console.log(`Generating M3U8 playlist from segments IDs:`, segmentIds);
         
         // Log environment variables to debug
@@ -284,6 +336,20 @@ export function useCreatePost() {
           console.error('Missing required environment variables for M3U8 generation');
         }
         
+      // Generate M3U8 playlist if segments are available and no m3u8 file provided
+      updateProgress('Generating playlist', 70);
+      let m3u8Id = '';
+      if (m3u8 && isFile(m3u8)) {
+        m3u8Id = ID.unique();
+        const m3u8UploadResult = await uploadWithRetry(m3u8, m3u8Id);
+        // Use the ID returned from Appwrite
+        if (m3u8UploadResult && m3u8UploadResult.$id) {
+          m3u8Id = m3u8UploadResult.$id;
+          console.log(`M3U8 playlist uploaded with ID: ${m3u8Id}`);
+        } else {
+          console.log(`Using generated M3U8 ID: ${m3u8Id}`);
+        }
+      } else if (segmentIds.length > 0) {
         // Generate M3U8 content using the verified environment variables
         const m3u8Content = generateM3U8Playlist(segmentIds, appwriteEndpoint, bucketId, projectId);
         console.log(`Generated M3U8 content (first 200 chars):`, m3u8Content?.substring(0, 200) + '...');
@@ -291,6 +357,7 @@ export function useCreatePost() {
         if (m3u8Content) {
           m3u8Id = ID.unique();
           const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
+          updateProgress('Uploading playlist', 75);
           const m3u8UploadResult = await uploadWithRetry(m3u8File, m3u8Id);
           // Use the ID returned from Appwrite
           if (m3u8UploadResult && m3u8UploadResult.$id) {
@@ -302,8 +369,8 @@ export function useCreatePost() {
         }
       }
 
-      // Create database record
-      updateProgress('Creating database record', 90);
+      // Create record in the database
+      updateProgress('Creating database record', 85);
       
       // Debug: Log database data before creating the document
       console.log('Creating document with data:', {
@@ -341,7 +408,7 @@ export function useCreatePost() {
         segments: post.segments
       });
 
-      updateProgress('Upload complete', 100);
+      updateProgress('Upload completed', 100);
       return {
         success: true,
         trackId: post.$id

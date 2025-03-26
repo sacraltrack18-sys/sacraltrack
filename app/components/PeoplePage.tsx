@@ -501,7 +501,7 @@ export default function PeoplePage() {
     const [filterBy, setFilterBy] = useState('all');
     const [error, setError] = useState<string | null>(null);
     
-    const { friends, loadFriends, addFriend, removeFriend } = useFriendsStore();
+    const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
     
     // Toggle sort direction
@@ -563,12 +563,10 @@ export default function PeoplePage() {
         setFilteredProfiles(filtered);
     };
     
-    // Проверка, является ли пользователь другом
+    // Проверяем, является ли пользователь другом или есть ли отправленный запрос
     const isFriend = (userId: string) => {
-        return friends.some(friend => 
-            (friend.userId === userId && friend.status === 'accepted') || 
-            (friend.friendId === userId && friend.status === 'accepted')
-        );
+        return friends.some(friend => friend.friendId === userId) || 
+               sentRequests.some(request => request.friendId === userId);
     };
     
     // Рейтинг пользователя
@@ -649,48 +647,55 @@ export default function PeoplePage() {
     };
     
     // Сортировка и фильтрация профилей
-    const sortAndFilterProfiles = (profilesToFilter = profiles) => {
-        let result = [...profilesToFilter];
-        
-        // Фильтрация
-        if (filterBy === 'friends') {
-            result = result.filter(profile => isFriend(profile.user_id));
-        } else if (filterBy === 'new') {
-            // Предполагаем, что в профиле есть поле createdAt
-            result = result.sort((a, b) => 
-                new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-            );
-        }
-        
-        // Сортировка
-        if (sortBy === 'name') {
-            result.sort((a, b) => {
-                const nameA = a.name.toLowerCase();
-                const nameB = b.name.toLowerCase();
-                return sortDirection === 'asc' 
-                    ? nameA.localeCompare(nameB) 
-                    : nameB.localeCompare(nameA);
-            });
-        } else if (sortBy === 'rating') {
-            result.sort((a, b) => {
-                const ratingA = a.stats.averageRating;
-                const ratingB = b.stats.averageRating;
-                return sortDirection === 'asc' 
-                    ? ratingA - ratingB 
-                    : ratingB - ratingA;
-            });
-        } else if (sortBy === 'followers') {
-            result.sort((a, b) => {
-                const followersA = a.stats.totalFollowers;
-                const followersB = b.stats.totalFollowers;
-                return sortDirection === 'asc' 
-                    ? followersA - followersB 
-                    : followersB - followersA;
-            });
-        }
-        
-        setFilteredProfiles(result);
-    };
+    const sortAndFilterProfiles = useMemo(() => {
+        return (profilesToFilter = profiles) => {
+            let result = [...profilesToFilter];
+            
+            // Фильтрация
+            if (filterBy === 'friends') {
+                result = result.filter(profile => isFriend(profile.user_id));
+            } else if (filterBy === 'new') {
+                // Предполагаем, что в профиле есть поле createdAt
+                result = result.sort((a, b) => 
+                    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+                );
+            }
+            
+            // Сортировка
+            if (sortBy === 'name') {
+                result.sort((a, b) => {
+                    const nameA = a.name.toLowerCase();
+                    const nameB = b.name.toLowerCase();
+                    return sortDirection === 'asc' 
+                        ? nameA.localeCompare(nameB) 
+                        : nameB.localeCompare(nameA);
+                });
+            } else if (sortBy === 'rating') {
+                result.sort((a, b) => {
+                    const ratingA = a.stats.averageRating;
+                    const ratingB = b.stats.averageRating;
+                    return sortDirection === 'asc' 
+                        ? ratingA - ratingB 
+                        : ratingB - ratingA;
+                });
+            } else if (sortBy === 'followers') {
+                result.sort((a, b) => {
+                    const followersA = a.stats.totalFollowers;
+                    const followersB = b.stats.totalFollowers;
+                    return sortDirection === 'asc' 
+                        ? followersA - followersB 
+                        : followersB - followersA;
+                });
+            }
+            
+            setFilteredProfiles(result);
+        };
+    }, [profiles, sortBy, sortDirection, filterBy, isFriend]);
+    
+    // Обновление отображаемых профилей при изменении фильтров
+    useEffect(() => {
+        sortAndFilterProfiles();
+    }, [sortAndFilterProfiles]);
     
     // Загрузка рейтинга топ-пользователей с использованием реальных данных
     const loadTopUsers = async () => {
@@ -735,8 +740,8 @@ export default function PeoplePage() {
         }
         
         try {
-            await addFriend(userId);
-            toast.success('Friend request sent!');
+            console.log('Calling addFriend with friendId:', userId, 'currentUserId:', user.user.id);
+            await addFriend(userId, user.user.id);
             
             // Обновляем состояние, чтобы отобразить изменения в UI
             await loadFriends();
@@ -765,31 +770,37 @@ export default function PeoplePage() {
         }
     };
     
-    // Инициализация данных
+    // Функция для инициализации данных
     useEffect(() => {
         const initializeData = async () => {
             setIsLoading(true);
             try {
-                await loadFriends();
-                await loadUsers();
-                await loadTopUsers();
+                // Проверяем конфигурацию Appwrite
+                const configResult = checkAppwriteConfig();
+                if (!configResult.isValid) {
+                    console.error("Invalid Appwrite configuration:", configResult.missingVars);
+                    setError("Configuration error. Please contact support.");
+                    return;
+                }
+                
+                // Загружаем профили пользователей, друзей и топ пользователей
+                await Promise.all([
+                    loadUsers(),
+                    loadFriends(),       // Загружаем друзей
+                    loadSentRequests(),  // Загружаем отправленные запросы
+                    loadTopUsers()
+                ]);
+                
+                setIsLoading(false);
             } catch (error) {
-                console.error('Error initializing data:', error);
-                setError('Failed to load data. Please try again later.');
-            } finally {
+                console.error("Error initializing data:", error);
+                setError("Failed to load data. Please try again later.");
                 setIsLoading(false);
             }
         };
         
-        if (user?.user?.id) {
-            initializeData();
-        }
-    }, [user?.user?.id]);
-    
-    // Обновление отображаемых профилей при изменении фильтров
-    useEffect(() => {
-        sortAndFilterProfiles();
-    }, [profiles, sortBy, sortDirection, filterBy, friends]);
+        initializeData();
+    }, [sortBy, filterBy]); // Убираем зависимости функций, оставляем только необходимые переменные
     
     return (
         <div className="container mx-auto px-4 py-8 max-w-7xl">

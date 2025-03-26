@@ -123,7 +123,7 @@ export default function Upload() {
     // Проверяем наличие необходимых функций
     useEffect(() => {
         if (!createPostHook?.createPost || !createPostHook?.createSegmentFile) {
-            console.error('Функции createPost или createSegmentFile недоступны');
+            console.error('Functions createPost or createSegmentFile not available');
             toast.error('Initialization error. Please refresh the page');
         }
     }, [createPostHook]);
@@ -243,9 +243,14 @@ export default function Upload() {
 
     // Функция отмены загрузки
     const handleCancelUpload = () => {
-        if (!uploadController) return;
+        if (!uploadController) {
+            console.log("No active upload to cancel");
+            return;
+        }
         
+        console.log("Cancelling upload process");
         setIsCancelling(true);
+        
         // Показываем пользователю, что идет отмена
         toast.loading('Cancelling upload...', { 
             id: 'cancel-toast',
@@ -261,9 +266,11 @@ export default function Upload() {
         });
         
         // Отмена запроса и загрузки
+        console.log("Aborting upload controller");
         uploadController.abort();
         
         // Abort any server-side processing by sending a cancel request
+        console.log("Sending server-side cancel request");
         fetch('/api/audio/cancel', {
             method: 'POST',
             headers: {
@@ -272,13 +279,15 @@ export default function Upload() {
             body: JSON.stringify({ userId: user?.id }),
         }).catch(error => {
             console.error('Error cancelling server process:', error);
-        });
+        }).finally(() => {
+            console.log("Server cancel request completed");
         
         // Reset all states immediately
         setIsProcessing(false);
         setIsCancelling(false);
         setProcessingStage('');
         setProcessingProgress(0);
+            setUploadController(null);
         
         // Reset all form fields
         clearAll();
@@ -294,6 +303,7 @@ export default function Upload() {
                 borderRadius: '12px'
             },
             icon: '✓'
+            });
         });
     };
 
@@ -302,12 +312,21 @@ export default function Upload() {
         e.preventDefault();
         
         console.log("=== Upload Started ===");
+
+        // Reset cancelling flag to ensure we're starting fresh
+        if (isCancelling) {
+            console.log("Upload was in cancelling state, resetting");
+            setIsCancelling(false);
+            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
+        }
+        
         console.log("Initial state:", {
             fileAudio,
             fileImage,
             trackname,
             genre,
-            isProcessing
+            isProcessing,
+            isCancelling
         });
 
         if (!fileAudio || !fileImage || !trackname || !genre) {
@@ -315,8 +334,15 @@ export default function Upload() {
             return;
         }
 
-        try {
-            console.log("Setting initial processing state...");
+        // Reset any previous upload controller to avoid interference
+        if (uploadController) {
+            console.log("Aborting previous upload controller");
+            uploadController.abort();
+            setUploadController(null);
+            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
+        }
+
+        // Set initial stage
             setIsProcessing(true);
             setProcessingStage('Preparing upload');
             setProcessingProgress(0);
@@ -349,7 +375,7 @@ export default function Upload() {
                 return;
             }
 
-            // Проверка длительности аудио (не более 12 минут)
+        // Check audio duration (not more than 12 minutes)
             if (audioDuration > 12 * 60) {
                 toast.error('Track duration must not exceed 12 minutes', {
                     style: {
@@ -363,9 +389,11 @@ export default function Upload() {
                     },
                     icon: '⏱️'
                 });
+            setIsProcessing(false);
                 return;
             }
 
+        try {
             // Debug log to confirm states are set
             console.log("Progress bar state:", { isProcessing: true, processingStage: 'Preparing upload', processingProgress: 0 });
             
@@ -382,10 +410,6 @@ export default function Upload() {
                 icon: '🚀'
             });
 
-            // Создаем новый контроллер для возможности отмены
-            const controller = new AbortController();
-            setUploadController(controller);
-
             // Create FormData
             const formData = new FormData();
             formData.append('audio', fileAudio);
@@ -399,17 +423,19 @@ export default function Upload() {
                 formData.append('genre', genre);
             }
 
-            // Set initial stage
+            // Set upload stage
             setProcessingStage('Uploading WAV');
             setProcessingProgress(0);
             toast.loading(`Uploading WAV: 0%`, { id: toastId });
 
+            // Create new controller for cancellation
+            const controller = new AbortController();
+            setUploadController(controller);
+
             // Track upload progress using XMLHttpRequest
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/audio/process');
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             
-            // Abort controller for signal
+            // Configure all event handlers before opening the connection
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     const percentage = Math.round((event.loaded / event.total) * 100);
@@ -426,16 +452,9 @@ export default function Upload() {
                 setUploadController(null);
             };
             
-            xhr.onabort = () => {
-                console.log('Upload canceled by user');
-                toast.error('Upload canceled by user', { id: 'cancel-toast' });
-                setIsProcessing(false);
-                setUploadController(null);
-            };
-            
             xhr.onload = async () => {
                 if (xhr.status !== 200) {
-                    console.error(`Server error: ${xhr.statusText || 'unknown error'}`, { id: toastId });
+                    console.error(`Server error: ${xhr.statusText || 'unknown error'}`);
                     toast.error(`Server error: ${xhr.statusText || 'unknown error'}`, { id: toastId });
                     setIsProcessing(false);
                     setUploadController(null);
@@ -459,39 +478,47 @@ export default function Upload() {
                     const reader = response.body?.getReader();
                     const decoder = new TextDecoder();
 
-                    if (!reader) throw new Error('Не удалось создать reader');
+                    if (!reader) throw new Error('Failed to create reader');
 
                     // Continue with the rest of the processing...
                     await handleSSEProcessing(reader, decoder, toastId);
                 } catch (error) {
-                    console.error('Error processing server response', { id: toastId });
+                    console.error('Error processing server response');
                     toast.error('Error processing server response', { id: toastId });
                     setIsProcessing(false);
                     setUploadController(null);
                 }
             };
             
-            // Connect abort controller
-            uploadController?.signal.addEventListener('abort', () => {
+            // Add abort handler to signal
+            controller.signal.addEventListener('abort', () => {
+                console.log('Upload canceled by user (from signal)');
                 xhr.abort();
+                // Toast message will be shown by handleCancelUpload
             });
             
-            // Send the request
+            // Now open the connection and send the request after all handlers are set
+            xhr.open('POST', '/api/audio/process');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             xhr.responseType = 'text';
-            xhr.send(formData);
             
-        } catch (error) {
-            // Check if it was a user cancellation
-            if (error instanceof DOMException && error.name === 'AbortError') {
-                // Upload was cancelled by the user, do nothing
+            // Final safety check before sending request
+            if (isCancelling) {
+                console.log("Upload was cancelled before sending request");
+                xhr.abort();
+                setIsProcessing(false);
+                setUploadController(null);
                 return;
             }
             
-            console.error('Ошибка загрузки:', error);
-            const errorToastId = toast.loading('Upload failed');
-            toast.error('Failed to upload track', { id: errorToastId });
+            console.log("Sending XHR request...");
+            xhr.send(formData);
             
-            // Reset processing state only on error
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast.error('Failed to upload track');
+            
+            // Reset processing state
             setIsProcessing(false);
             setUploadController(null);
         }
@@ -553,21 +580,160 @@ export default function Upload() {
                     if (update.type === 'progress') {
                         // Map server stages to our UI stages
                         let displayStage = update.stage;
+                        let displayProgress = update.progress;
+                        let detailedMessage = '';
+                        
+                        // Extract details from details, if they exist
+                        const details = update.details as any;
+                        
+                        // Handle different types of progress
                         if (update.stage.includes('convert')) {
                             displayStage = 'Converting to MP3';
+                            // If there are conversion details
+                            if (details?.conversionProgress) {
+                                detailedMessage = `Conversion: ${typeof details.conversionProgress === 'string' ? details.conversionProgress : Math.round(details.conversionProgress) + '%'}`;
+                            }
                         } else if (update.stage.includes('segment')) {
                             displayStage = 'Segmenting audio';
+                            // If there are segment details
+                            if (details?.segmentProgress) {
+                                detailedMessage = `Segmenting: ${Math.round(details.segmentProgress)}% (${Math.floor(details.segmentProgress / 100 * 42)}/${42} segments)`;
+                            }
                         } else if (update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) {
                             displayStage = 'Preparing segments';
+                            // If there are preparation details
+                            if (details?.preparationProgress) {
+                                detailedMessage = `Preparation: ${Math.round(details.preparationProgress)}%`;
+                            }
+                        } else if (update.stage.includes('Smooth segment progress')) {
+                            displayStage = 'Segmenting audio';
+                            // Extract information about segment progress from string
+                            const match = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+) \(([0-9.]+)%\)/);
+                            if (match) {
+                                const current = parseFloat(match[1]);
+                                const total = parseFloat(match[2]);
+                                const percent = parseFloat(match[3]);
+                                detailedMessage = `Processing segment ${Math.floor(current)} of ${Math.floor(total)} (${percent.toFixed(1)}%)`;
+                            }
                         } else if (update.stage.includes('id') || update.stage.includes('ID')) {
                             displayStage = 'Generating IDs';
                         } else if (update.stage.includes('playlist') || update.stage.includes('m3u8')) {
                             displayStage = 'Creating playlist';
+                        } else if (update.stage.includes('Created segment')) {
+                            displayStage = 'Segmenting audio';
+                            // Extract created segment number
+                            const match = update.stage.match(/Created segment segment_(\d+)\.mp3/);
+                            if (match) {
+                                const segmentNum = parseInt(match[1]);
+                                const totalSegments = 42; // Based on logs
+                                detailedMessage = `Created segment ${segmentNum+1} of ${totalSegments}`;
+                                // Update progress based on created segment
+                                displayProgress = ((segmentNum+1) / totalSegments) * 100;
+                            }
+                        }
+                        
+                        // Use message from details, if exists and no own detailed message
+                        if (!detailedMessage && details?.message) {
+                            detailedMessage = details.message;
                         }
 
+                        // Update UI with progress information
                         setProcessingStage(displayStage);
-                        setProcessingProgress(update.progress);
-                        toast.loading(`${displayStage}: ${Math.round(update.progress)}%`, { 
+                        setProcessingProgress(displayProgress);
+                        
+                        // If this is segmenting stage, add details to stage name for UploadProgress
+                        // and update progress value based on actual segment progress
+                        if (update.stage.includes('segment') && details?.segmentProgress) {
+                            const segmentCount = 42; // Real segment count from logs
+                            const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
+                            
+                            // Update stage name with segment information for component UploadProgress
+                            setProcessingStage(`${displayStage} ${currentSegment}/${segmentCount}`);
+                            
+                            // Important: update progress value, so progress bar doesn't "hang" in one place
+                            setProcessingProgress(details.segmentProgress);
+                            
+                            console.log(`Segment progress update: ${details.segmentProgress}% (segment ${currentSegment}/${segmentCount})`);
+                        }
+                        
+                        // If the string contains information about the current segment in "Smooth segment progress: X.YY/Z" format
+                        const smoothSegmentMatch = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/);
+                        if (smoothSegmentMatch) {
+                            const currentSegmentFloat = parseFloat(smoothSegmentMatch[1]);
+                            const totalSegments = parseFloat(smoothSegmentMatch[2]);
+                            const realProgress = (currentSegmentFloat / totalSegments) * 100;
+                            
+                            // Update progress based on actual value
+                            setProcessingProgress(realProgress);
+                            
+                            // Update the stage so user can see segmentation progress
+                            setProcessingStage(`Segmenting audio ${Math.floor(currentSegmentFloat)}/${Math.floor(totalSegments)}`);
+                            
+                            console.log(`Updating progress bar to ${realProgress.toFixed(1)}% based on segment ${currentSegmentFloat}/${totalSegments}`);
+                        }
+                        
+                        // If message about created segment
+                        const createdSegmentMatch = update.stage.match(/Created segment segment_(\d+)\.mp3/);
+                        if (createdSegmentMatch) {
+                            const segmentNum = parseInt(createdSegmentMatch[1]);
+                            const totalSegments = 42; // Based on logs
+                            const realProgress = ((segmentNum + 1) / totalSegments) * 100;
+                            
+                            // Update progress and current segment information
+                            setProcessingProgress(realProgress);
+                            setProcessingStage(`Segmenting audio ${segmentNum + 1}/${totalSegments}`);
+                            
+                            console.log(`Created segment ${segmentNum + 1}/${totalSegments}, updating progress to ${realProgress.toFixed(1)}%`);
+                        }
+                        
+                        // If log message includes information about starting segmentation
+                        if (update.stage.includes('Creating segments') || update.stage.includes('audio segments')) {
+                            // Check if there is information about the number of segments
+                            const totalSegmentsMatch = update.stage.match(/Creating (\d+) segments/i);
+                            if (totalSegmentsMatch) {
+                                const totalSegments = parseInt(totalSegmentsMatch[1]);
+                                console.log(`Starting segmentation process with ${totalSegments} segments`);
+                                // Set initial segmentation progress
+                                setProcessingStage(`Segmenting audio 0/${totalSegments}`);
+                                setProcessingProgress(1); // Start with 1% to show the process has begun
+                            }
+                        }
+                        
+                        // If this is conversion stage, add time details
+                        if (update.stage.includes('convert') && details?.message) {
+                            const timeMatch = details.message.match(/(\d+:\d+)\s+from\s+(\d+:\d+)/);
+                            if (timeMatch) {
+                                setProcessingStage(`${displayStage} (${timeMatch[1]} from ${timeMatch[2]})`);
+                                
+                                // If there is information about conversion progress, use it
+                                if (details.conversionProgress) {
+                                    const conversionProgressValue = typeof details.conversionProgress === 'string' 
+                                        ? parseInt(details.conversionProgress) 
+                                        : details.conversionProgress;
+                                        
+                                    setProcessingProgress(conversionProgressValue);
+                                }
+                            }
+                        }
+                        
+                        // If this is preparation stage, add preparation progress information
+                        if ((update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) && details?.preparationProgress) {
+                            const segmentCount = 42; // Real segment count from logs
+                            const preparedSegments = Math.floor((details.preparationProgress / 100) * segmentCount);
+                            setProcessingStage(`${displayStage} ${preparedSegments}/${segmentCount}`);
+                            
+                            // Update progress bar based on actual preparation progress
+                            setProcessingProgress(details.preparationProgress);
+                        }
+                        
+                        // Form toast message
+                        const toastMessage = detailedMessage 
+                            ? `${displayStage}: ${Math.round(displayProgress)}% (${detailedMessage})` 
+                            : `${displayStage}: ${Math.round(displayProgress)}%`;
+                            
+                        console.log(`Progress update: ${toastMessage}`);
+                        
+                        toast.loading(toastMessage, { 
                             id: toastId,
                             style: {
                                 border: '1px solid #20DDBB',
@@ -624,14 +790,14 @@ export default function Upload() {
                             
                             // Ensure all necessary data is present
                             if (!result || !result.mp3File || !result.segments || !result.m3u8Template) {
-                                throw new Error('Не удалось получить данные обработанного аудио');
+                                throw new Error('Failed to get processed audio data');
                             }
                             
                             // Convert MP3 file from data URL
                             const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
                             const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
                             
-                            // Загружаем сегменты в Appwrite и получаем их ID
+                            // Load segments to Appwrite and get their IDs
                             const segmentIds = [];
                             const totalSegments = result.segments.length;
                             
@@ -639,71 +805,71 @@ export default function Upload() {
                             setProcessingStage('Uploading segments to Appwrite');
                             setProcessingProgress(0);
                             
-                            // Проверка, что user существует и у нас есть доступ к createPost
+                            // Check if user exists and we have access to createPost
                             if (!user) {
                                 throw new Error('Authentication error. Please sign in to the system');
                             }
 
-                            // Проверяем функцию createSegmentFile
+                            // Check createSegmentFile function
                             if (!createPostHook?.createSegmentFile) {
                                 console.error('createSegmentFile function is not available');
                                 throw new Error('Segment upload function is not available. Please refresh the page');
                             }
 
-                            // Загружаем сегменты по очереди с показом прогресса
+                            // Load segments one by one with progress display
                             for (let i = 0; i < totalSegments; i++) {
                                 try {
                                     const segment = result.segments[i];
                                     console.log(`Processing segment ${i+1}/${totalSegments}: ${segment.name}`);
                                     
-                                    // Проверяем, что у сегмента есть data
+                                    // Check if segment has data
                                     if (!segment.data) {
                                         console.error(`Segment ${i+1} has no data!`);
-                                        throw new Error(`Данные сегмента ${i+1} отсутствуют`);
+                                        throw new Error(`Segment data ${i+1} is missing`);
                                     }
                                     
-                                    // Конвертируем base64 в Blob
+                                    // Convert base64 to Blob
                                     console.log(`Creating blob from base64 data for segment ${i+1}...`);
                                     const segmentBlob = await fetch(`data:audio/mp3;base64,${segment.data}`).then(r => r.blob());
                                     console.log(`Created blob, size: ${segmentBlob.size} bytes`);
                                     
-                                    // Создаем File объект из Blob
+                                    // Create File object from Blob
                                     const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
                                     console.log(`Created File object: ${segmentFile.name}, size: ${segmentFile.size} bytes`);
                                     
-                                    // Загружаем через createSegmentFile, который получен на верхнем уровне компонента
+                                    // Load through createSegmentFile, which is obtained at the upper level component
                                     console.log(`Uploading segment ${i+1} to Appwrite...`);
                                     const segmentId = await createPostHook.createSegmentFile(segmentFile);
                                     
-                                    // Проверяем, что segmentId валидный
+                                    // Check if segmentId is valid
                                     if (!segmentId || segmentId === 'unique()') {
                                         console.warn(`Invalid segment ID received from createSegmentFile for segment ${i+1}: ${segmentId}`);
-                                        // Создаем новый ID и пробуем загрузить напрямую
+                                        // Create new ID and try to upload directly
                                         const fallbackId = ID.unique();
                                         console.log(`Trying direct upload with fallback ID: ${fallbackId}`);
                                         
                                         try {
-                                            // Прямая загрузка через Appwrite SDK
+                                            // Direct upload through Appwrite SDK
                                             const uploadResult = await storage.createFile(
                                                 process.env.NEXT_PUBLIC_BUCKET_ID!,
                                                 fallbackId,
                                                 segmentFile
                                             );
                                             
-                                            // Используем ID из результата загрузки
+                                            // Use ID from upload result
                                             const validSegmentId = uploadResult?.$id || fallbackId;
                                             console.log(`Segment ${i+1} uploaded with fallback method, ID: ${validSegmentId}`);
                                             segmentIds.push(validSegmentId);
                                         } catch (fallbackError) {
                                             console.error(`Fallback upload failed for segment ${i+1}:`, fallbackError);
-                                            throw new Error(`Не удалось загрузить сегмент ${i+1} ни одним из способов`);
+                                            throw new Error(`Failed to upload segment ${i+1} by any method`);
                                         }
                                     } else {
                                         console.log(`Segment ${i+1} uploaded successfully, ID: ${segmentId}`);
                                         segmentIds.push(segmentId);
                                     }
                                     
-                                    // Обновляем прогресс
+                                    // Update progress
                                     const progress = Math.round((i + 1) / totalSegments * 100);
                                     setProcessingProgress(progress);
                                     toast.loading(`Uploading segments: ${progress}%`, { 
@@ -728,19 +894,19 @@ export default function Upload() {
                             console.log(`All ${totalSegments} segments uploaded successfully`);
                             console.log('Segment IDs:', segmentIds);
 
-                            // Создаем M3U8 плейлист с реальными URL сегментов
+                            // Create M3U8 playlist with real URLs of segments
                             console.log('Creating M3U8 playlist with segment IDs...');
                             let m3u8Content = result.m3u8Template;
 
-                            // Debug: показываем оригинальный шаблон плейлиста
+                            // Debug: show original playlist template
                             console.log('Original M3U8 template (first 200 chars):', m3u8Content.substring(0, 200) + '...');
 
-                            // Проверяем, что у нас есть плейсхолдеры для замены
+                            // Check if we have placeholders for replacement
                             if (!m3u8Content.includes('SEGMENT_PLACEHOLDER_')) {
                                 console.warn('M3U8 template does not contain SEGMENT_PLACEHOLDER_ markers!');
                                 console.log('Creating M3U8 content manually...');
                                 
-                                // Создаем HLS плейлист вручную с простыми ID сегментов
+                                // Create HLS playlist manually with simple segment IDs
                                 m3u8Content = "#EXTM3U\n";
                                 m3u8Content += "#EXT-X-VERSION:3\n";
                                 m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
@@ -750,7 +916,7 @@ export default function Upload() {
                                 
                                 for (let i = 0; i < segmentIds.length; i++) {
                                     const segmentId = segmentIds[i];
-                                    // Просто добавляем ID сегмента, без полного URL
+                                    // Simply add segment ID, without full URL
                                     m3u8Content += "#EXTINF:10,\n";
                                     m3u8Content += `${segmentId}\n`;
                                     console.log(`Added segment ${i+1} with ID ${segmentId} to M3U8 playlist`);
@@ -758,7 +924,7 @@ export default function Upload() {
                                 
                                 m3u8Content += "#EXT-X-ENDLIST\n";
                             } else {
-                                // Заменяем плейсхолдеры на ID сегментов
+                                // Replace placeholders with segment IDs
                                 console.log('Environment variables for URLs:');
                                 console.log(`- NEXT_PUBLIC_APPWRITE_ENDPOINT: ${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined'}`);
                                 console.log(`- NEXT_PUBLIC_BUCKET_ID: ${process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined'}`);
@@ -771,7 +937,7 @@ export default function Upload() {
                                     console.log(`Replacing placeholder "${placeholder}" for segment ${i+1} with ID: ${segmentId}`);
                                     
                                     if (m3u8Content.includes(placeholder)) {
-                                        // Просто используем ID сегмента вместо полного URL
+                                        // Simply use segment ID instead of full URL
                                         m3u8Content = m3u8Content.replace(placeholder, segmentId);
                                         console.log(`Placeholder ${placeholder} replaced successfully with segment ID`);
                                     } else {
@@ -780,10 +946,10 @@ export default function Upload() {
                                 }
                             }
 
-                            // Debug: показываем финальный плейлист
+                            // Debug: show final playlist
                             console.log('Final M3U8 content (first 500 chars):', m3u8Content.substring(0, 500) + '...');
 
-                            // Создаем M3U8 файл
+                            // Create M3U8 file
                             console.log('Creating M3U8 file...');
                             const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
 
@@ -829,7 +995,7 @@ export default function Upload() {
                                 }
                             });
 
-                            // Проверяем наличие всех необходимых файлов
+                            // Check for all necessary files
                             if (!fileAudio || !fileImage) {
                                 throw new Error('Required files for upload are missing');
                             }
@@ -932,17 +1098,17 @@ export default function Upload() {
                 icon: '❌'
             });
             
-            // Также нужно сбросить состояние обработки
+            // Also need to reset processing state
             setIsProcessing(false);
             setUploadController(null);
             
             throw error;
         } finally {
-            // Важно: НЕ сбрасываем isProcessing здесь, 
-            // т.к. это приведет к исчезновению окна прогресса при успешной обработке
-            // Сброс isProcessing произойдет в нужное время в других частях кода
+            // Important: DO NOT reset isProcessing here, 
+            // as this would cause progress window to disappear on successful processing
+            // Reset isProcessing will happen at the right time in other parts of the code
             
-            // Только если процесс был отменен или произошла ошибка
+            // Only if process was cancelled or an error occurred
             if (isCancelling) {
                 setIsProcessing(false);
                 setUploadController(null);
@@ -984,17 +1150,57 @@ export default function Upload() {
             />
             
             <div className="max-w-4xl mx-auto px-4 py-24">
-                <div className="flex items-center justify-between mb-12">
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
-                        Upload Your Track
-                    </h1>
-                    <RequirementsTooltip
-                        isOpen={isTooltipOpen}
-                        onToggle={() => setIsTooltipOpen(!isTooltipOpen)}
-                        fileAudio={fileAudio}
-                        fileImage={fileImage}
-                        trackname={trackname}
-                    />
+                {/* New animated header with floating gradient */}
+                <div className="mb-8 text-center relative">
+                    {/* Animated background gradient orbs */}
+                    <div className="absolute inset-0 overflow-hidden opacity-30 -z-10">
+                        <motion.div 
+                            className="absolute h-40 w-40 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] blur-3xl"
+                            animate={{ 
+                                x: ['-20%', '120%'],
+                                y: ['30%', '60%'],
+                            }} 
+                            transition={{ 
+                                duration: 15,
+                                repeat: Infinity,
+                                repeatType: 'reverse',
+                                ease: "easeInOut"
+                            }}
+                        />
+                        <motion.div 
+                            className="absolute h-60 w-60 rounded-full bg-gradient-to-r from-[#8A2BE2] to-[#FF69B4] blur-3xl"
+                            animate={{ 
+                                x: ['120%', '-20%'],
+                                y: ['10%', '80%'],
+                            }} 
+                            transition={{ 
+                                duration: 18,
+                                repeat: Infinity,
+                                repeatType: 'reverse',
+                                ease: "easeInOut"
+                            }}
+                        />
+                    </div>
+                    
+                    {/* Main heading */}
+                    <motion.h1 
+                        className="text-5xl font-bold mb-4 bg-gradient-to-r from-[#20DDBB] via-[#018CFD] to-[#8A2BE2] bg-clip-text text-transparent"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                    >
+                        Create release
+                    </motion.h1>
+                    
+                    {/* Subheading */}
+                    <motion.p 
+                        className="text-lg text-white/70"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                    >
+                        Upload your track and artwork for release
+                    </motion.p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

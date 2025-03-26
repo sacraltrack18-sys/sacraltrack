@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useFriendsStore } from '@/app/stores/friends';
 import { useLikedStore } from '@/app/stores/likedStore';
 import { usePostStore } from '@/app/stores/post';
+import { useVibeStore } from '@/app/stores/vibeStore';
 
 interface User {
     id?: string;
@@ -21,7 +22,7 @@ interface User {
 
 interface ActivityItem {
     id: string;
-    type: 'track' | 'friend' | 'visitor';
+    type: 'track' | 'friend' | 'visitor' | 'vibe';
     title: string;
     subtitle: string;
     timestamp: Date;
@@ -42,6 +43,8 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
                 return <BsPeople className="text-blue-400" />;
             case 'visitor':
                 return <BsCalendarCheck className="text-green-400" />;
+            case 'vibe':
+                return <BsHeadphones className="text-purple-400" />;
             default:
                 return <BsHeart className="text-purple-400" />;
         }
@@ -108,6 +111,7 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
     const { friends, pendingRequests, loadFriends } = useFriendsStore();
     const { likedPosts, fetchLikedPosts } = useLikedStore();
     const { postsByUser, setPostsByUser } = usePostStore();
+    const { vibePostsByUser, fetchVibesByUser } = useVibeStore();
     
     useEffect(() => {
         const loadActivity = async () => {
@@ -119,12 +123,14 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                     await Promise.all([
                         loadFriends(),
                         fetchLikedPosts(userId),
-                        setPostsByUser(userId)
+                        setPostsByUser(userId),
+                        fetchVibesByUser(userId)
                     ]);
                 } else {
                     await Promise.all([
                         loadFriends(),
-                        setPostsByUser(userId)
+                        setPostsByUser(userId),
+                        fetchVibesByUser(userId)
                     ]);
                 }
                 
@@ -192,6 +198,26 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                     });
                 }
                 
+                // Добавляем последний опубликованный вайб
+                if (vibePostsByUser && vibePostsByUser.length > 0) {
+                    const lastVibe = vibePostsByUser[0];
+                    
+                    activities.push({
+                        id: `vibe_${lastVibe.id}`,
+                        type: 'vibe',
+                        title: lastVibe.caption || 'Musical Vibe',
+                        subtitle: isOwner ? 'You shared a vibe' : 'Shared a musical vibe',
+                        timestamp: new Date(lastVibe.created_at || Date.now()),
+                        image: lastVibe.media_url || '',
+                        link: `/vibe/${lastVibe.id}`,
+                        user: {
+                            user_id: lastVibe.user_id,
+                            name: lastVibe.profile?.name || 'Unknown',
+                            image: lastVibe.profile?.image || ''
+                        }
+                    });
+                }
+                
                 // Если реальных активностей нет, оставляем пустой массив вместо демо-данных
                 
                 // Сортируем активности по дате, новые сверху
@@ -208,23 +234,25 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
         };
         
         loadActivity();
-    }, [userId, isOwner]);
+    }, [userId, isOwner, loadFriends, fetchLikedPosts, setPostsByUser, fetchVibesByUser]);
     
     // Получение статистики для рейтинг-карточки
     const { friends: friendsList } = useFriendsStore();
     const { postsByUser: tracks } = usePostStore();
     const { likedPosts: likes } = useLikedStore();
+    const { vibePostsByUser: vibes } = useVibeStore();
     
     // Расчет рейтинга
     const [rank, setRank] = useState({ name: 'Novice', color: 'from-gray-400 to-gray-500', score: 0 });
     
     useEffect(() => {
-        // Расчет простого рейтинга на основе количества друзей, треков и лайков
+        // Расчет простого рейтинга на основе количества друзей, треков, лайков и вайбов
         const friendsScore = friendsList.length * 10;
         const tracksScore = tracks?.length * 15 || 0;
         const likesScore = likes?.length * 5 || 0;
+        const vibesScore = vibes?.length * 8 || 0;
         
-        const totalScore = friendsScore + tracksScore + likesScore;
+        const totalScore = friendsScore + tracksScore + likesScore + vibesScore;
         
         // Определение ранга на основе общего счета
         let rankName = 'Novice';
@@ -245,7 +273,7 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
         }
         
         setRank({ name: rankName, color, score: totalScore });
-    }, [friendsList.length, tracks, likes]);
+    }, [friendsList.length, tracks, likes, vibes]);
     
     // Форматирование времени
     const formatTime = (date: Date) => {
@@ -295,18 +323,22 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
                         </p>
                         <p className="text-sm text-gray-400">Score: {rank.score}</p>
                     </div>
-                    <div className="flex gap-6 mt-2">
-                    <div className="text-center">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 mt-2">
+                        <div className="text-center">
                             <p className="text-lg font-bold text-white">{friendsList.length || '0'}</p>
                             <p className="text-xs text-gray-400">Friends</p>
-                    </div>
-                    <div className="text-center">
+                        </div>
+                        <div className="text-center">
                             <p className="text-lg font-bold text-white">{tracks?.length || '0'}</p>
                             <p className="text-xs text-gray-400">Tracks</p>
-                    </div>
-                    <div className="text-center">
+                        </div>
+                        <div className="text-center">
                             <p className="text-lg font-bold text-white">{likes?.length || '0'}</p>
                             <p className="text-xs text-gray-400">Likes</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-lg font-bold text-white">{vibes?.length || '0'}</p>
+                            <p className="text-xs text-gray-400">Vibes</p>
                         </div>
                     </div>
                 </div>

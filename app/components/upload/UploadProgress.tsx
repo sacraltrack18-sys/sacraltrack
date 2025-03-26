@@ -58,6 +58,44 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
     "Finalizing": "Almost done!"
   };
 
+  // Extract detailed information from stage name
+  const getDetailedInfo = () => {
+    if (!stage) return '';
+
+    // Извлекаем информацию о сегментах
+    if (stage.toLowerCase().includes('segment')) {
+      const segmentMatch = stage.match(/(\d+)\/(\d+)/);
+      if (segmentMatch) {
+        const [_, current, total] = segmentMatch;
+        const currentSegment = parseInt(current);
+        const totalSegments = parseInt(total);
+        const percentDone = Math.round((currentSegment / totalSegments) * 100);
+        return `Processing segment ${current} of ${total} (${percentDone}% complete)`;
+      }
+    }
+    
+    // Извлекаем информацию о конвертации
+    if (stage.toLowerCase().includes('convert')) {
+      const timeMatch = stage.match(/\((\d+:\d+)\s+from\s+(\d+:\d+)\)/);
+      if (timeMatch) {
+        const [_, current, total] = timeMatch;
+        return `Converting: ${current} of ${total} total length`;
+      }
+    }
+    
+    // Извлекаем информацию о подготовке сегментов
+    if (stage.toLowerCase().includes('prepar')) {
+      const prepMatch = stage.match(/(\d+)\/(\d+)/);
+      if (prepMatch) {
+        const [_, current, total] = prepMatch;
+        const percentDone = Math.round((parseInt(current) / parseInt(total)) * 100);
+        return `Preparing segment ${current} of ${total} for streaming (${percentDone}% complete)`;
+      }
+    }
+    
+    return '';
+  };
+
   // Map the current stage to index in the stages array
   const getCurrentStageIndex = () => {
     if (!stage) return -1;
@@ -148,6 +186,16 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
             </div>
             <span className="text-[#20DDBB] text-lg font-bold">{Math.round(progress)}%</span>
           </div>
+          
+          {/* Detailed processing information if available */}
+          {getDetailedInfo() && (
+            <div className="mb-3 text-sm text-white/70 pl-8">
+              <div className="flex items-center">
+                <span className="w-2 h-2 bg-[#20DDBB]/50 rounded-full mr-2"></span>
+                <span>{getDetailedInfo()}</span>
+              </div>
+            </div>
+          )}
           
           {/* Current stage progress bar */}
           <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">

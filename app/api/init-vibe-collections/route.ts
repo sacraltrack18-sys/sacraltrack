@@ -1,38 +1,86 @@
 import { NextResponse } from 'next/server';
 import { Client, Databases, Permission, Role, IndexType } from 'node-appwrite';
+import { account } from '@/libs/AppWriteClient';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Initialize the Appwrite client
+    // Инициализация Appwrite с использованием только переменных из .env.local
     const client = new Client()
       .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL!)
-      .setProject(process.env.NEXT_PUBLIC_ENDPOINT!)
-      .setKey(process.env.APPWRITE_API_KEY!); // Make sure to add this to your environment variables
-
+      .setProject(process.env.NEXT_PUBLIC_ENDPOINT!);
+    
+    // Вместо setKey используем cookie аутентификации из запроса
+    // Это позволит использовать текущую сессию пользователя вместо API ключа
+    const cookies = request.headers.get('cookie');
+    if (cookies) {
+      client.headers['Cookie'] = cookies;
+    }
+    
+    console.log('Инициализация коллекций вайба с использованием клиентских переменных...');
+    console.log('Используемые переменные:', {
+      appwrite_url: process.env.NEXT_PUBLIC_APPWRITE_URL,
+      endpoint: process.env.NEXT_PUBLIC_ENDPOINT,
+      database_id: process.env.NEXT_PUBLIC_DATABASE_ID,
+      vibe_posts: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS,
+      vibe_likes: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES,
+      vibe_comments: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS,
+      vibe_views: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_VIEWS
+    });
+    
     const databases = new Databases(client);
     const databaseId = process.env.NEXT_PUBLIC_DATABASE_ID!;
-
-    // Create Collections
-    await createVibePostsCollection(databases, databaseId);
-    await createVibeLikesCollection(databases, databaseId);
-    await createVibeCommentsCollection(databases, databaseId);
-    await createVibeViewsCollection(databases, databaseId);
-
-    return NextResponse.json({ 
-      message: 'Vibe collections initialized successfully', 
-      collections: [
-        'vibe_posts',
-        'vibe_likes',
-        'vibe_comments',
-        'vibe_views'
-      ]
-    });
-  } catch (error) {
-    console.error('Failed to initialize Vibe collections:', error);
-    return NextResponse.json(
-      { error: 'Failed to initialize Vibe collections', details: error },
-      { status: 500 }
+    
+    // Проверка существования коллекций вместо их создания
+    const vibeCollections = [
+      {
+        name: 'vibe_posts',
+        id: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!
+      },
+      {
+        name: 'vibe_likes',
+        id: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES!
+      },
+      {
+        name: 'vibe_comments',
+        id: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS!
+      },
+      {
+        name: 'vibe_views',
+        id: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_VIEWS!
+      }
+    ];
+    
+    // Проверяем доступность коллекций
+    const collectionResults = await Promise.all(
+      vibeCollections.map(async (collection) => {
+        try {
+          await databases.listDocuments(
+            databaseId,
+            collection.id,
+            []
+          );
+          return { name: collection.name, exists: true, error: null };
+        } catch (error: any) {
+          return { 
+            name: collection.name, 
+            exists: false, 
+            error: error?.message || 'Unknown error'
+          };
+        }
+      })
     );
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Vibe collections checked successfully', 
+      collections: collectionResults
+    });
+  } catch (error: any) {
+    console.error('Error checking Vibe collections:', error);
+    return NextResponse.json({ 
+      error: 'Failed to check Vibe collections', 
+      details: error?.message || 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -45,6 +93,7 @@ async function createVibePostsCollection(databases: Databases, databaseId: strin
       return;
     } catch (error) {
       // Collection doesn't exist, create it
+      console.log('Creating vibe_posts collection...');
     }
 
     // Create vibe_posts collection
@@ -138,7 +187,7 @@ async function createVibePostsCollection(databases: Databases, databaseId: strin
       true // array
     );
 
-    // Create stats object as individual number attributes
+    // Create stats attributes as individual fields instead of an object
     await databases.createIntegerAttribute(
       databaseId,
       'vibe_posts',

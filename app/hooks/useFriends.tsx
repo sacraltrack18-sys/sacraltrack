@@ -53,7 +53,11 @@ export const useFriends = () => {
 
   // Загрузка друзей
   const loadFriends = async () => {
-    if (!user?.id) return;
+    // Проверяем id пользователя и тихо выходим, если его нет
+    if (!user?.id) {
+      console.log("User not authenticated, skipping friends loading in useFriends hook");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -139,7 +143,11 @@ export const useFriends = () => {
       setPendingFriends(pendingWithProfiles);
     } catch (error) {
       console.error('Error loading friends:', error);
-      setError('Failed to load friends');
+      // Показываем ошибку только если пользователь авторизован (двойная проверка на всякий случай)
+      if (user?.id) {
+        setError('Failed to load friends');
+        toast.error('Failed to load friends');
+      }
     } finally {
       setLoading(false);
     }

@@ -50,19 +50,76 @@ const convertAudio = async (
             message: 'Starting audio conversion to MP3...'
         });
 
+        // Улучшенные параметры для FFmpeg с аппаратным ускорением и многопоточностью
         const ffmpegProcess = spawn('ffmpeg', [
+            '-hwaccel', 'auto',    // Аппаратное ускорение
             '-i', inputPath,
-            '-vn', // Отключаем видео потоки
-            '-ar', '44100', // Аудио sample rate
-            '-ac', '2', // Stereo
-            '-b:a', '192k', // Битрейт
-            '-f', 'mp3', // Формат выходного файла
+            '-vn',                 // Отключаем видео потоки
+            '-ar', '44100',        // Аудио sample rate
+            '-ac', '2',            // Stereo
+            '-b:a', '192k',        // Битрейт
+            '-threads', '0',       // Используем все доступные потоки процессора
+            '-f', 'mp3',           // Формат выходного файла
             outputPath
         ]);
 
         // Отслеживаем прогресс конвертации через stderr
         let duration = 0;
         let progressPattern = /time=(\d+):(\d+):(\d+.\d+)/;
+        let conversionStartPercent = 30;  // Начальный процент для конвертации
+        let conversionEndPercent = 45;    // Конечный процент для конвертации
+        
+        // Переменные для плавного "ползущего" прогресса
+        let lastReportedProgress = 0;      // Последний прогресс, о котором сообщил FFmpeg
+        let lastReportedTime = 0;          // Последнее время воспроизведения, о котором сообщил FFmpeg
+        let lastUpdateTime = Date.now();   // Время последнего обновления
+        let progressInterval: NodeJS.Timeout | null = null;
+
+        // Функция для отправки плавных обновлений прогресса
+        const sendSmoothProgress = () => {
+            if (duration === 0) return; // Ждем, пока узнаем длительность
+            
+            const now = Date.now();
+            const timeSinceLastUpdate = (now - lastUpdateTime) / 1000; // в секундах
+            
+            // Предполагаем скорость обработки на основе предыдущих обновлений (в 10x скорости реального времени)
+            // Можно настроить множитель в зависимости от производительности вашей системы
+            const estimatedProgressIncrease = Math.min(
+                (timeSinceLastUpdate * 10) / duration * 100, // оценка увеличения процента
+                1 // Максимальное увеличение за одно обновление - 1%
+            );
+            
+            // Обновляем предполагаемый прогресс, не превышая следующую ожидаемую отметку
+            const estimatedProgress = Math.min(
+                lastReportedProgress + estimatedProgressIncrease,
+                100 // Не превышаем 100%
+            );
+            
+            // Рассчитываем предполагаемое текущее время воспроизведения
+            const estimatedCurrentTime = Math.min(
+                lastReportedTime + timeSinceLastUpdate * 10, // предполагаемое увеличение времени
+                duration // Не превышаем общую длительность
+            );
+            
+            // Корректируем общий прогресс
+            const totalProgress = conversionStartPercent + (estimatedProgress / 100) * (conversionEndPercent - conversionStartPercent);
+            
+            console.log(`Estimated progress: ${estimatedCurrentTime.toFixed(2)}/${duration} seconds (${estimatedProgress.toFixed(2)}% conversion, ${totalProgress.toFixed(2)}% overall progress)`);
+            
+            // Обновляем индикатор прогресса
+            sendProgress(writer, totalProgress, 'Converting to MP3', {
+                type: 'conversion',
+                progress: estimatedProgress, // Прогресс самой конвертации в процентах
+                conversionProgress: `${Math.round(estimatedProgress)}%`, // Текстовое представление
+                message: `Conversion progress: ${Math.round(estimatedProgress)}% (${Math.floor(estimatedCurrentTime / 60)}:${(estimatedCurrentTime % 60).toFixed(0).padStart(2, '0')} from ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`
+            });
+            
+            // Обновляем время последнего обновления
+            lastUpdateTime = now;
+        };
+
+        // Запускаем интервал для плавных обновлений прогресса (каждые 200 мс)
+        progressInterval = setInterval(sendSmoothProgress, 200);
 
         ffmpegProcess.stderr.on('data', (data) => {
             const output = data.toString();
@@ -88,24 +145,42 @@ const convertAudio = async (
                 const seconds = parseFloat(match[3]);
                 const currentTime = hours * 3600 + minutes * 60 + seconds;
                 
-                // Вычисляем прогресс в процентах (от 30 до 45%)
-                const progress = Math.min(45, 30 + (currentTime / duration) * 15);
-                console.log(`Conversion progress: ${currentTime}/${duration} seconds (${progress.toFixed(2)}%)`);
+                // Вычисляем прогресс в процентах от текущего процесса конвертации (не от всего процесса)
+                const conversionProgress = Math.min(100, (currentTime / duration) * 100);
                 
-                sendProgress(writer, progress, 'Converting to MP3', {
+                // Корректируем общий прогресс (масштабируем конвертацию между 30% и 45% общего процесса)
+                const totalProgress = conversionStartPercent + (conversionProgress / 100) * (conversionEndPercent - conversionStartPercent);
+                
+                console.log(`Conversion progress: ${currentTime}/${duration} seconds (${conversionProgress.toFixed(2)}% conversion, ${totalProgress.toFixed(2)}% overall progress)`);
+                
+                // Обновляем последние известные значения для интерполяции
+                lastReportedProgress = conversionProgress;
+                lastReportedTime = currentTime;
+                lastUpdateTime = Date.now();
+                
+                sendProgress(writer, totalProgress, 'Converting to MP3', {
                         type: 'conversion',
-                        progress: progress,
-                    message: `Converting audio: ${Math.round(progress)}%`
+                    progress: conversionProgress, // Прогресс самой конвертации в процентах
+                    conversionProgress: `${Math.round(conversionProgress)}%`, // Текстовое представление
+                    message: `Conversion progress: ${Math.round(conversionProgress)}% (${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')} from ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`
                     });
             }
         });
 
         ffmpegProcess.on('close', (code) => {
+            // Останавливаем интервал обновления прогресса
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
             if (code === 0) {
                 console.log('Conversion completed successfully');
-                sendProgress(writer, 45, 'Conversion complete', {
+                sendProgress(writer, conversionEndPercent, 'Conversion complete', {
                     type: 'conversion',
-                    message: 'Audio converted to MP3 successfully'
+                    progress: 100,
+                    conversionProgress: "100%",
+                    message: 'Audio successfully converted to MP3'
                 });
                 resolve();
             } else {
@@ -115,6 +190,12 @@ const convertAudio = async (
         });
 
         ffmpegProcess.on('error', (err) => {
+            // Останавливаем интервал обновления прогресса
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
             console.error('Error during conversion:', err);
             reject(err);
         });
@@ -166,23 +247,65 @@ const createSegments = async (
 
     const segments: string[] = [];
     
+    // Переменные для расчета прогресса
+    const segmentationStartPercent = 50;
+    const segmentationEndPercent = 70;
+    
+    // Переменные для плавного обновления прогресса
+    let currentSegment = 0;
+    let lastUpdateTime = Date.now();
+    let progressInterval: NodeJS.Timeout | null = null;
+    
+    // Функция для обновления плавного прогресса
+    const sendSmoothProgress = () => {
+        const now = Date.now();
+        const timeSinceLastUpdate = (now - lastUpdateTime) / 1000; // в секундах
+        
+        // Предполагаем прогресс в текущем сегменте (0.2 части сегмента за секунду)
+        const estimatedSegmentProgress = Math.min(
+            timeSinceLastUpdate * 0.2,
+            0.95 // максимум 95% сегмента на этапе ожидания
+        );
+        
+        // Оценка общего прогресса (текущий сегмент + часть следующего)
+        const estimatedTotalProgress = Math.min(
+            currentSegment + estimatedSegmentProgress,
+            totalSegments
+        );
+        
+        // Процент прогресса сегментации
+        const segmentProgress = (estimatedTotalProgress / totalSegments) * 100;
+        
+        // Общий прогресс
+        const progress = segmentationStartPercent + (segmentProgress / 100) * (segmentationEndPercent - segmentationStartPercent);
+        
+        console.log(`Smooth segment progress: ${estimatedTotalProgress.toFixed(2)}/${totalSegments} (${segmentProgress.toFixed(1)}%)`);
+        
+        sendProgress(writer, progress, 'Segmenting audio', {
+            type: 'segmentation',
+            progress: progress,
+            segmentProgress: segmentProgress,
+            message: `Segment creation progress: ${Math.floor(segmentProgress)}% (processed approximately ${Math.floor(estimatedTotalProgress)}/${totalSegments})`
+        });
+    };
+    
+    // Запускаем интервал плавных обновлений (каждые 200 мс)
+    progressInterval = setInterval(sendSmoothProgress, 200);
+    
     // Создаем сегменты
     for (let i = 0; i < totalSegments; i++) {
         const startTime = i * segmentDuration;
         const segmentName = `segment_${i.toString().padStart(3, '0')}.mp3`;
         const segmentPath = path.join(outputDir, segmentName);
         
-        // Отправляем прогресс (от 50 до 70%)
-        const progress = 50 + ((i + 1) / totalSegments) * 20;
-        sendProgress(writer, progress, 'Segmenting audio', {
-            type: 'segmentation',
-            progress: progress,
-            message: `Creating segment ${i + 1} of ${totalSegments}`
-        });
+        // Обновляем текущий сегмент
+        currentSegment = i;
+        lastUpdateTime = Date.now();
 
         try {
             await new Promise<void>((resolve, reject) => {
                 const ffmpegProcess = spawn('ffmpeg', [
+                    '-hwaccel', 'auto',
                     '-i', inputPath,
                     '-ss', startTime.toString(),
                     '-t', segmentDuration.toString(),
@@ -190,6 +313,7 @@ const createSegments = async (
                     '-ar', '44100',
                     '-ac', '2',
                     '-b:a', '192k',
+                    '-threads', '0',
                     '-f', 'mp3',
                     segmentPath
                 ]);
@@ -198,6 +322,18 @@ const createSegments = async (
                     if (code === 0) {
                         console.log(`Created segment ${segmentName}`);
                         segments.push(segmentName);
+                        
+                        // Отправляем точное обновление прогресса после завершения сегмента
+                        const exactSegmentProgress = ((i + 1) / totalSegments) * 100;
+                        const exactProgress = segmentationStartPercent + ((i + 1) / totalSegments) * (segmentationEndPercent - segmentationStartPercent);
+                        
+                        sendProgress(writer, exactProgress, 'Segmenting audio', {
+                            type: 'segmentation',
+                            progress: exactProgress,
+                            segmentProgress: exactSegmentProgress,
+                            message: `Segment creation progress: ${Math.round(exactSegmentProgress)}%`
+                        });
+                        
                         resolve();
                     } else {
                         reject(new Error(`FFmpeg process exited with code ${code} for segment ${i}`));
@@ -214,10 +350,16 @@ const createSegments = async (
         }
     }
 
+    // Останавливаем интервал обновлений
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+
     console.log(`Created ${segments.length} segments successfully`);
     sendProgress(writer, 70, 'Segmentation complete', {
         type: 'segmentation',
-        message: `Created ${segments.length} segments successfully`
+        message: `Created ${segments.length} segments successfully`,
+        segmentProgress: 100
     });
 
     return segments;
@@ -235,53 +377,172 @@ const prepareSegments = async (
         message: 'Preparing segment data for client...'
     });
 
-    const segmentFiles = [];
+    const segmentFiles: {name: string, data: string}[] = [];
     
     // Добавим больше логов для отладки
     console.log(`Total segments to prepare: ${segments.length}`);
     console.log(`Segments directory: ${segmentsDir}`);
     
-    for (let i = 0; i < segments.length; i++) {
-        const segmentPath = path.join(segmentsDir, segments[i]);
+    const preparationStartPercent = 75;
+    const preparationEndPercent = 90;
+    
+    // Переменные для плавного обновления прогресса
+    let completedSegments = 0;
+    let lastUpdateTime = Date.now();
+    let progressInterval: NodeJS.Timeout | null = null;
+    
+    // Функция для обновления плавного прогресса
+    const sendSmoothProgress = () => {
+        const now = Date.now();
+        const timeSinceLastUpdate = (now - lastUpdateTime) / 1000; // в секундах
         
-        // Читаем файл сегмента
-        console.log(`Reading segment file ${i+1}/${segments.length}: ${segmentPath}`);
+        // Оценка общего прогресса на основе завершенных сегментов
+        // (небольшое увеличение для создания эффекта движения)
+        const estimatedSegmentProgress = Math.min(
+            completedSegments + (timeSinceLastUpdate * 0.3),
+            segments.length - 0.05 // чуть меньше полного значения
+        );
+        
+        // Процент прогресса подготовки
+        const preparationProgress = (estimatedSegmentProgress / segments.length) * 100;
+        
+        // Общий прогресс
+        const progress = preparationStartPercent + (preparationProgress / 100) * (preparationEndPercent - preparationStartPercent);
+        
+        console.log(`Smooth preparation progress: ${estimatedSegmentProgress.toFixed(2)}/${segments.length} (${preparationProgress.toFixed(1)}%)`);
+        
+        sendProgress(writer, progress, 'Preparing segments', {
+            type: 'preparation',
+            progress: progress,
+            preparationProgress: preparationProgress,
+            message: `Segment preparation: ${Math.floor(preparationProgress)}% (processed approximately ${Math.floor(estimatedSegmentProgress)}/${segments.length})`
+        });
+    };
+    
+    // Запускаем интервал плавных обновлений каждые 100 мс для более частого обновления UI
+    progressInterval = setInterval(sendSmoothProgress, 100);
+    
+    // Функция для обработки одного сегмента
+    const processSegment = async (segmentIndex: number): Promise<{name: string, data: string}> => {
+        const segmentPath = path.join(segmentsDir, segments[segmentIndex]);
+        console.log(`Reading segment file ${segmentIndex+1}/${segments.length}: ${segmentPath}`);
         
         try {
             const segmentData = await fs.readFile(segmentPath);
-            console.log(`Segment ${i+1} read successfully, size: ${segmentData.length} bytes`);
+            console.log(`Segment ${segmentIndex+1} read successfully, size: ${segmentData.length} bytes`);
             
             // Создаем объект с данными
             const segment = {
-                name: segments[i],
+                name: segments[segmentIndex],
                 data: segmentData.toString('base64')
             };
             
-            // Добавляем в список
-            segmentFiles.push(segment);
+            // Увеличиваем счетчик завершенных сегментов
+            completedSegments++;
+            lastUpdateTime = Date.now();
             
-            // Отправляем прогресс (от 75 до 90%)
-            const progress = 75 + ((i + 1) / segments.length) * 15;
-            sendProgress(writer, progress, 'Preparing segments', {
+            // Отправляем точное обновление прогресса при завершении сегмента
+            const exactPreparationProgress = (completedSegments / segments.length) * 100;
+            const exactProgress = preparationStartPercent + (exactPreparationProgress / 100) * (preparationEndPercent - preparationStartPercent);
+            
+            sendProgress(writer, exactProgress, 'Preparing segments', {
                 type: 'preparation',
-                progress: progress,
-                message: `Prepared segment ${i + 1} of ${segments.length}`
+                progress: exactProgress,
+                preparationProgress: exactPreparationProgress,
+                message: `Segments prepared: ${completedSegments} of ${segments.length} (${Math.round(exactPreparationProgress)}%)`
             });
             
-            console.log(`Segment ${i+1} prepared and added to list`);
+            console.log(`Segment ${segmentIndex+1} prepared`);
+            return segment;
         } catch (error) {
-            console.error(`Error reading segment ${i+1}:`, error);
-            throw new Error(`Failed to read segment ${segments[i]}: ${error}`);
+            console.error(`Error reading segment ${segmentIndex+1}:`, error);
+            throw new Error(`Failed to read segment ${segments[segmentIndex]}: ${error}`);
         }
+    };
+    
+    // Функция для параллельной обработки с ограничением
+    const parallelProcess = async (items: number[], processFn: (index: number) => Promise<any>, concurrencyLimit: number) => {
+        const results: any[] = new Array(items.length);
+        const executing: Promise<any>[] = [];
+        let index = 0;
+        
+        // Создаем очередь для обработки всех элементов
+        const enqueue = async (): Promise<void> => {
+            // Обрабатываем текущий элемент
+            const i = index++;
+            
+            // Если все элементы уже в обработке, завершаем
+            if (i >= items.length) return;
+            
+            // Создаем промис для текущего элемента и добавляем его в список выполняющихся
+            const execPromise = processFn(items[i])
+                .then(result => {
+                    // Сохраняем результат в массиве
+                    results[i] = result;
+                    // Удаляем текущий промис из списка выполняющихся
+                    const execIndex = executing.indexOf(execPromise);
+                    if (execIndex >= 0) executing.splice(execIndex, 1);
+                    // Добавляем следующий элемент в очередь
+                    return enqueue();
+                });
+            
+            // Добавляем промис в список выполняющихся
+            executing.push(execPromise);
+            
+            // Если достигли лимита параллельных операций, ждем завершения хотя бы одной
+            if (executing.length >= concurrencyLimit) {
+                await Promise.race(executing);
+            }
+        };
+        
+        // Запускаем начальные параллельные операции
+        const initPromises = [];
+        for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
+            initPromises.push(enqueue());
+        }
+        
+        // Ждем завершения всех операций
+        await Promise.all(initPromises);
+        await Promise.all(executing);
+        
+        return results;
+    };
+    
+    try {
+        // Создаем массив индексов для параллельной обработки
+        const indices = Array.from({ length: segments.length }, (_, i) => i);
+        
+        // Определяем количество параллельных операций
+        // Рекомендуемое значение: от 3 до 6 для баланса между скоростью и нагрузкой
+        const concurrency = 4;
+        
+        // Обрабатываем сегменты параллельно
+        const results = await parallelProcess(indices, processSegment, concurrency);
+        
+        // Добавляем результаты в итоговый массив
+        segmentFiles.push(...results);
+        
+        // Останавливаем интервал обновлений
+        if (progressInterval) {
+            clearInterval(progressInterval);
     }
     
     console.log('All segments prepared: ', segmentFiles.length);
     sendProgress(writer, 90, 'Segments prepared', {
         type: 'preparation',
-        message: 'All segments prepared for client'
+            message: 'All segments prepared for client',
+            preparationProgress: 100
     });
     
     return segmentFiles;
+    } catch (error) {
+        // Останавливаем интервал обновлений в случае ошибки
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+        console.error('Error during parallel segment preparation:', error);
+        throw error;
+    }
 };
 
 interface ProgressData {
@@ -289,8 +550,11 @@ interface ProgressData {
     progress: number;
     stage: string;
     details?: {
-        type: 'init' | 'conversion' | 'metadata' | 'segmentation';
+        type: 'init' | 'conversion' | 'metadata' | 'segmentation' | 'preparation';
         progress?: number;
+        conversionProgress?: string | number; // Прогресс конвертации в процентах
+        segmentProgress?: number; // Прогресс сегментации в процентах
+        preparationProgress?: number; // Прогресс подготовки сегментов в процентах
         message: string;
         timemark?: string;
         currentTime?: number;
@@ -303,7 +567,7 @@ interface ProgressData {
 function sendProgress(writer: WritableStreamDefaultWriter, progress: number, stage: string, details?: unknown) {
     const data: ProgressData = {
         type: 'progress',
-        progress,
+        progress: Math.round(progress * 10) / 10, // Округляем до 1 десятичного знака для плавности
         stage,
         details
     };
@@ -340,10 +604,13 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
+    
+    // Переменная для интервала прогресса на финальных этапах
+    let finalProgressInterval: NodeJS.Timeout | null = null;
 
     try {
         console.log('Starting audio processing request...');
-        sendProgress(writer, 0, 'Starting audio processing...', {
+        sendProgress(writer, 0, 'Processing Started', {
             type: 'init',
             message: 'Initializing audio processing...'
         });
@@ -366,7 +633,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!file) {
-            throw new Error('No file provided');
+            throw new Error('File not provided');
         }
 
         // Проверяем файл
@@ -378,7 +645,7 @@ export async function POST(request: NextRequest) {
         console.log('File validation passed');
         
         // Сообщаем о начале обработки файла
-        sendProgress(writer, 10, 'File validated', {
+        sendProgress(writer, 10, 'File Validated', {
             type: 'validation',
             message: 'File validation passed, preparing for processing'
         });
@@ -395,7 +662,7 @@ export async function POST(request: NextRequest) {
         console.log('Created segments directory:', segmentsDir);
 
         // Сохраняем входной файл и сообщаем о прогрессе
-        sendProgress(writer, 15, 'Saving file', {
+        sendProgress(writer, 15, 'Saving File', {
             type: 'saving',
             message: 'Saving uploaded file to temporary storage'
         });
@@ -404,14 +671,14 @@ export async function POST(request: NextRequest) {
         await fs.writeFile(inputPath, buffer);
         console.log('Saved input file:', inputPath);
         
-        sendProgress(writer, 20, 'File saved', {
+        sendProgress(writer, 20, 'File Saved', {
             type: 'saving',
             message: 'File saved successfully, checking audio duration'
         });
 
         // Проверяем длительность
         console.log('Checking audio duration...');
-        sendProgress(writer, 25, 'Checking audio duration', {
+        sendProgress(writer, 25, 'Checking Duration', {
             type: 'duration',
             message: 'Analyzing audio file duration'
         });
@@ -420,12 +687,12 @@ export async function POST(request: NextRequest) {
         console.log('Audio duration:', duration, 'seconds');
         
         if (duration > 720) { // 12 минут
-            throw new Error('Audio file must not exceed 12 minutes');
+            throw new Error('Audio file should not exceed 12 minutes');
         }
         
-        sendProgress(writer, 30, 'Duration check passed', {
+        sendProgress(writer, 30, 'Duration Check Passed', {
             type: 'duration',
-            message: `Audio duration is ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`
+            message: `Audio duration: ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`
         });
 
         // Проверяем доступность FFmpeg
@@ -441,7 +708,7 @@ export async function POST(request: NextRequest) {
             console.log('FFmpeg is available');
         } catch (error) {
             console.error('Error checking FFmpeg:', error);
-            throw new Error('FFmpeg not properly configured');
+            throw new Error('FFmpeg is not properly configured');
         }
 
         // Конвертируем в MP3 с подробными отчетами о прогрессе
@@ -451,7 +718,7 @@ export async function POST(request: NextRequest) {
         // Добавляем метаданные
         if (trackname || artist || genre || imageFile) {
             console.log('Adding metadata...');
-            sendProgress(writer, 45, 'Adding metadata...', {
+            sendProgress(writer, 45, 'Adding Metadata...', {
                 type: 'metadata',
                 message: 'Adding track information...'
             });
@@ -483,9 +750,9 @@ export async function POST(request: NextRequest) {
             await NodeID3.write(tags, outputPath);
             console.log('Metadata added successfully');
             
-            sendProgress(writer, 50, 'Metadata added', {
+            sendProgress(writer, 50, 'Metadata Added', {
                 type: 'metadata',
-                message: 'Track information added successfully'
+                message: 'Track information successfully added'
             });
         }
 
@@ -499,6 +766,32 @@ export async function POST(request: NextRequest) {
         const segmentFiles = await prepareSegments(segments, segmentsDir, writer);
         console.log('Segment files prepared:', segmentFiles.length);
 
+        // Начинаем процесс финализации с плавным прогрессом
+        console.log('Starting finalization process...');
+        
+        // Переменные для плавного прогресса финализации
+        let finalizationProgress = 90;
+        const finalizationStartTime = Date.now();
+        
+        // Функция для обновления прогресса финализации
+        const updateFinalizationProgress = () => {
+            const now = Date.now();
+            const elapsed = (now - finalizationStartTime) / 1000; // в секундах
+            
+            // Увеличиваем прогресс со временем, но не более 99%
+            finalizationProgress = Math.min(99, 90 + (elapsed * 1.5)); // примерно +1.5% за секунду
+            
+            console.log(`Finalization smooth progress: ${finalizationProgress.toFixed(1)}%`);
+            
+            sendProgress(writer, finalizationProgress, 'Finalizing', {
+                type: 'finalization',
+                message: 'Preparing audio file for completion...'
+            });
+        };
+        
+        // Запускаем интервал плавного прогресса финализации
+        finalProgressInterval = setInterval(updateFinalizationProgress, 200);
+
         // Читаем финальный аудио файл
         const audioData = await fs.readFile(outputPath);
         console.log('Final audio file size:', audioData.length);
@@ -506,7 +799,7 @@ export async function POST(request: NextRequest) {
         // Создаем шаблон M3U8 плейлиста 
         // (конкретные URL-адреса будут добавлены клиентом после загрузки в Appwrite)
         console.log('Creating M3U8 playlist template...');
-        sendProgress(writer, 95, 'Creating playlist', {
+        sendProgress(writer, 95, 'Creating Playlist', {
             type: 'playlist',
             message: 'Creating M3U8 playlist template'
         });
@@ -527,10 +820,16 @@ export async function POST(request: NextRequest) {
         
         console.log('M3U8 playlist template created');
         
+        // Останавливаем интервал прогресса финализации
+        if (finalProgressInterval) {
+            clearInterval(finalProgressInterval);
+            finalProgressInterval = null;
+        }
+        
         // Отправляем финальный результат
-        sendProgress(writer, 100, 'Processing complete', {
+        sendProgress(writer, 100, 'Processing Complete', {
             type: 'complete',
-            message: 'Audio processing completed successfully'
+            message: 'Audio processing successfully completed'
         });
         
         // Отправляем результат клиенту
@@ -555,6 +854,12 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
+        // Останавливаем интервал прогресса, если он активен
+        if (finalProgressInterval) {
+            clearInterval(finalProgressInterval);
+            finalProgressInterval = null;
+        }
+        
         console.error('Error during audio processing:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         const errorDetails = error instanceof Error ? error.stack : '';

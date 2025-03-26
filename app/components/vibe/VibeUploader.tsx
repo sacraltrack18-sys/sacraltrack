@@ -137,19 +137,26 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
+  const [cameraPermissionChecked, setCameraPermissionChecked] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const webcamRef = useRef<Webcam>(null);
   const formRef = useRef<HTMLDivElement>(null);
   
-  // Check if camera is available
-  useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  // Check if camera is available only when needed
+  const checkCameraAvailability = useCallback(() => {
+    if (!cameraPermissionChecked && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ video: true })
-        .then(() => setHasCamera(true))
-        .catch(() => setHasCamera(false));
+        .then(() => {
+          setHasCamera(true);
+          setCameraPermissionChecked(true);
+        })
+        .catch(() => {
+          setHasCamera(false);
+          setCameraPermissionChecked(true);
+        });
     }
-  }, []);
+  }, [cameraPermissionChecked]);
 
   // Автоматически заполнить местоположение при открытии
   useEffect(() => {
@@ -281,40 +288,90 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      setIsLoginOpen(true);
-      return;
-    }
-    
-    if (selectedTab === 'photo' && !photoFile) {
-      musicToast.error('Please select or capture a photo of your musical vibe');
-      return;
-    }
-    
     try {
-      let vibeId: string;
+      if (!user || !user.id) {
+        musicToast.error('Необходимо войти в систему для публикации вайба!');
+        console.error('Пользователь не авторизован:', user);
+        return;
+      }
+
+      if (selectedTab === 'photo' && !photoFile && !caption.trim()) {
+        musicToast.error('Пожалуйста, добавьте фото или напишите текст для вайба!');
+        return;
+      }
+
+      console.log('Начало публикации вайба:', {
+        userObject: user ? 'доступен' : 'недоступен',
+        userId: user?.id,
+        photoFile: photoFile ? 'выбрано' : 'не выбрано',
+        caption: caption ? 'заполнено' : 'пустое'
+      });
+
+      let vibeId;
       
-      if (selectedTab === 'photo' && photoFile) {
-        vibeId = await createVibePost({
+      if (selectedTab === 'photo') {
+        // Убедимся, что у нас есть ID пользователя
+        if (!user.id) {
+          musicToast.error('Не удалось определить ваш ID пользователя. Пожалуйста, войдите снова.');
+          console.error('ID пользователя отсутствует в объекте user:', user);
+          return;
+        }
+        
+        console.log('Подготавливаем данные для вайба:', {
           user_id: user.id,
           type: selectedTab,
-          media: photoFile,
-          caption,
+          photo_size: photoFile ? `${photoFile.size} bytes` : 'no photo',
+          caption_length: caption ? caption.length : 0,
           mood: selectedMood,
-          location
+          location: location ? 'set' : 'not set'
         });
         
-        musicToast.success('Your musical vibe is now live! 🎵');
-        if (onSuccess) onSuccess(vibeId);
-        onClose();
+        try {
+          vibeId = await createVibePost({
+            user_id: user.id,
+            type: selectedTab,
+            media: photoFile || undefined,
+            caption,
+            mood: selectedMood,
+            location,
+            tags: [],
+          });
+          
+          console.log('Вайб успешно создан с ID:', vibeId);
+          musicToast.success('Ваш музыкальный вайб опубликован! 🎵');
+          if (onSuccess) onSuccess(vibeId);
+          onClose();
+        } catch (createError: any) {
+          console.error('Детализированная ошибка при создании вайба:', {
+            message: createError?.message,
+            code: createError?.code,
+            response: createError?.response,
+            stack: createError?.stack
+          });
+          
+          // Проверяем специфические типы ошибок для более информативных сообщений
+          if (createError?.message?.includes('storage')) {
+            musicToast.error('Не удалось загрузить фото. Проверьте размер и формат файла.');
+          } else if (createError?.message?.includes('permission') || createError?.code === 401) {
+            musicToast.error('У вас нет прав для создания вайба. Попробуйте выйти и войти снова.');
+          } else if (createError?.message?.includes('collection')) {
+            musicToast.error('Ошибка с коллекцией вайбов. Пожалуйста, обратитесь к администратору.');
+            console.error('Ошибка с коллекцией вайбов. Проверьте переменные окружения и ID коллекций.');
+          } else if (createError?.message?.includes('database')) {
+            musicToast.error('Ошибка базы данных. Пожалуйста, обратитесь к администратору.');
+            console.error('Ошибка базы данных. Проверьте переменные окружения и ID базы данных.');
+          } else {
+            musicToast.error('Не удалось опубликовать вайб. Пожалуйста, попробуйте позже.');
+          }
+        }
       } else if (selectedTab === 'video') {
-        musicToast.info('Video vibes feature dropping soon! Stay tuned!');
+        musicToast.info('Функция видео вайбов появится скоро! Следите за обновлениями!');
       } else if (selectedTab === 'sticker') {
-        musicToast.info('Sticker vibes feature coming soon - we\'re composing it!');
+        musicToast.info('Функция стикер-вайбов в разработке - мы трудимся над ней!');
       }
     } catch (error) {
-      console.error('Error posting vibe:', error);
-      musicToast.error('Your musical masterpiece couldn\'t be published. Let\'s try again!');
+      console.error('Общая ошибка при публикации вайба:', error);
+      musicToast.error('Ваш музыкальный шедевр не удалось опубликовать. Давайте попробуем еще раз!');
     }
   };
   
@@ -435,7 +492,14 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                     <motion.button
                       whileHover={{ scale: 1.05, boxShadow: "0 8px 20px rgba(167, 139, 250, 0.3)" }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setUseCameraMode(true)}
+                      onClick={() => {
+                        checkCameraAvailability();
+                        if (hasCamera) {
+                          setUseCameraMode(true);
+                        } else {
+                          musicToast.info('Please allow camera access to use this feature');
+                        }
+                      }}
                       className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg shadow-purple-600/20"
                     >
                       <CameraIcon className="h-5 w-5 mr-2" />
@@ -705,9 +769,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               whileHover={{ scale: 1.05, boxShadow: "0 8px 20px rgba(167, 139, 250, 0.3)" }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
-              disabled={isCreatingVibe || (selectedTab === 'photo' && !photoFile) || isOptimizingImage}
+              disabled={isCreatingVibe || (selectedTab === 'photo' && !photoFile && !caption.trim()) || isOptimizingImage}
               className={`px-6 py-3 rounded-full flex items-center shadow-lg ${
-                isCreatingVibe || (selectedTab === 'photo' && !photoFile) || isOptimizingImage
+                isCreatingVibe || (selectedTab === 'photo' && !photoFile && !caption.trim()) || isOptimizingImage
                   ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-purple-600/20'
               }`}

@@ -30,12 +30,8 @@ export interface VibePost {
   mood?: string;
   created_at: string;
   location?: string;
-  tags?: string[];
-  stats: {
-    total_likes: number;
-    total_comments: number;
-    total_views: number;
-  };
+  tags?: string;
+  stats: string[] | { total_likes: number; total_comments: number; total_views: number };
 }
 
 export interface VibePostWithProfile extends VibePost {
@@ -69,7 +65,7 @@ interface VibeStore {
   createVibePost: (vibeData: {
     user_id: string;
     type: 'photo' | 'video' | 'sticker';
-    media: File;
+    media?: File;
     caption?: string;
     mood?: string;
     location?: string;
@@ -157,11 +153,7 @@ export const useVibeStore = create<VibeStore>()(
                   created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
-                  stats: doc.stats || {
-                    total_likes: 0,
-                    total_comments: 0,
-                    total_views: 0
-                  },
+                  stats: doc.stats || ['0', '0', '0'],
                   profile
                 };
               })
@@ -243,11 +235,7 @@ export const useVibeStore = create<VibeStore>()(
                   created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
-                  stats: doc.stats || {
-                    total_likes: 0,
-                    total_comments: 0,
-                    total_views: 0
-                  },
+                  stats: doc.stats || ['0', '0', '0'],
                   profile
                 };
               })
@@ -313,11 +301,7 @@ export const useVibeStore = create<VibeStore>()(
               created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
               location: doc.location,
               tags: doc.tags,
-              stats: doc.stats || {
-                total_likes: 0,
-                total_comments: 0,
-                total_views: 0
-              },
+              stats: doc.stats || ['0', '0', '0'],
               profile
             }));
 
@@ -373,11 +357,7 @@ export const useVibeStore = create<VibeStore>()(
               created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
               location: doc.location,
               tags: doc.tags,
-              stats: doc.stats || {
-                total_likes: 0,
-                total_comments: 0,
-                total_views: 0
-              },
+              stats: doc.stats || ['0', '0', '0'],
               profile
             };
 
@@ -395,81 +375,138 @@ export const useVibeStore = create<VibeStore>()(
           try {
             set({ isCreatingVibe: true, error: null });
             
-            console.log('Начало создания vibe post, ID коллекции:', process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS);
-            console.log('Используемые данные:', {
+            // Детальное логирование используемых переменных
+            console.log('Начало создания vibe post, параметры:', {
               database_id: process.env.NEXT_PUBLIC_DATABASE_ID,
               bucket_id: process.env.NEXT_PUBLIC_BUCKET_ID,
+              collection_id_vibe_posts: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS,
               user_id: vibeData.user_id,
-              type: vibeData.type
+              type: vibeData.type,
+              has_media: !!vibeData.media
             });
             
-            // Upload media file first
-            console.log('Загрузка файла начата...');
-            const fileId = ID.unique();
-            await storage.createFile(
-              process.env.NEXT_PUBLIC_BUCKET_ID!,
-              fileId,
-              vibeData.media
-            );
-            console.log('Файл успешно загружен с ID:', fileId);
-
-            // Get file URL
-            const fileUrl = storage.getFileView(
-              process.env.NEXT_PUBLIC_BUCKET_ID!,
-              fileId
-            );
-            console.log('URL файла получен:', fileUrl.href);
-
-            // Сохраняем только ID файла вместо полного URL
-            // Это соответствует ограничению Appwrite в 99 символов
-            // При получении файла, вы можете сконструировать полный URL используя ID
+            // Проверка переменных окружения
+            if (!process.env.NEXT_PUBLIC_DATABASE_ID) {
+              console.error("NEXT_PUBLIC_DATABASE_ID не определен в .env.local");
+              throw new Error("Не удалось получить ID базы данных");
+            }
+            if (!process.env.NEXT_PUBLIC_BUCKET_ID) {
+              console.error("NEXT_PUBLIC_BUCKET_ID не определен в .env.local");
+              throw new Error("Не удалось получить ID хранилища");
+            }
+            if (!process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS) {
+              console.error("NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS не определен в .env.local");
+              throw new Error("Не удалось получить ID коллекции вайбов");
+            }
             
-            // Create vibe post document
-            console.log('Создание записи в коллекции vibe_posts...');
+            // Подготовка данных для документа
+            let fileId = '';
+            
+            // Загрузка файла медиа, если он существует
+            if (vibeData.media) {
+              try {
+                console.log('Загрузка файла медиа, размер:', vibeData.media.size);
+                
+                // Используем ID.unique() из Appwrite для генерации ID
+                const uniqueFileId = ID.unique();
+                console.log('Сгенерирован ID для файла:', uniqueFileId);
+                
+                // Загрузка файла в хранилище
+                const file = await storage.createFile(
+                process.env.NEXT_PUBLIC_BUCKET_ID!,
+                  uniqueFileId,
+                vibeData.media
+              );
+                
+                fileId = file.$id;
+                console.log('Файл успешно загружен, ID:', fileId);
+            } catch (fileError: any) {
+              console.error('Ошибка при загрузке файла:', fileError);
+                throw new Error(`Не удалось загрузить файл: ${fileError.message || 'неизвестная ошибка'}`);
+              }
+              } else {
+              console.log('Создание вайба без медиа-файла (только текст)');
+            }
+            
+            // Создание документа вайба
+            console.log('Создание записи в коллекции вайбов, ID коллекции:', process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS);
+            
+            // Используем ID.unique() из Appwrite
             const vibePostId = ID.unique();
-            console.log('Созданный ID для vibe post:', vibePostId);
             
-            const response = await database.createDocument(
-              process.env.NEXT_PUBLIC_DATABASE_ID!,
-              process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-              vibePostId,
-              {
-                user_id: vibeData.user_id,
-                type: vibeData.type,
-                media_url: fileId, // Сохраняем только ID файла вместо полного URL
-                caption: vibeData.caption || '',
-                mood: vibeData.mood || '',
-                location: vibeData.location || '',
-                tags: vibeData.tags || [],
-                stats: {
-                  total_likes: 0,
-                  total_comments: 0,
-                  total_views: 0
+            // Подготовка данных документа
+            const documentData = {
+              user_id: vibeData.user_id,
+              type: vibeData.type,
+              media_url: fileId,
+              caption: vibeData.caption || '',
+              mood: vibeData.mood || '',
+              location: vibeData.location || '',
+              tags: vibeData.tags ? JSON.stringify(vibeData.tags) : '',
+              stats: ['0', '0', '0'], // [total_likes, total_comments, total_views] в виде строк
+              created_at: new Date().toISOString()
+            };
+            
+            console.log('Данные документа для создания:', documentData);
+            
+            try {
+              const response = await database.createDocument(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+                vibePostId,
+                documentData
+              );
+            
+              console.log('Вайб успешно создан в коллекции!', response.$id);
+
+              set({ isCreatingVibe: false });
+              // Обновляем список вайбов
+              get().fetchAllVibes();
+              
+              return response.$id;
+            } catch (docError: any) {
+              console.error('Ошибка при создании документа вайба:', docError);
+              console.error('Детали ошибки документа:', {
+                message: docError?.message,
+                code: docError?.code,
+                response: docError?.response
+              });
+              
+              // Пытаемся удалить загруженный файл, так как документ не был создан
+              if (fileId) {
+              try {
+                await storage.deleteFile(
+                  process.env.NEXT_PUBLIC_BUCKET_ID!,
+                  fileId
+                );
+                console.log('Загруженный файл был удален после ошибки создания документа');
+              } catch (cleanupError) {
+                console.error('Ошибка при удалении файла после неудачного создания документа:', cleanupError);
                 }
               }
-            );
-          
-            console.log('Vibe post успешно создан в коллекции!', response.$id);
-
-            set({ isCreatingVibe: false });
-            // Refresh vibes after creation
-            get().fetchAllVibes();
-            
-            return response.$id;
-          } catch (error: any) {
-            console.error('Ошибка при создании vibe post:', error);
-            console.error('Детали ошибки:', error?.message, error?.code);
-            if (error?.response) {
-              console.error('Полный ответ сервера:', error.response);
+              
+              // Проверка конкретных типов ошибок при создании документа
+              if (docError?.code === 401) {
+                throw new Error('Не удалось создать документ вайба: требуется авторизация');
+              } else if (docError?.message?.includes('collection')) {
+                throw new Error(`Ошибка коллекции: ${docError?.message}`);
+              } else if (docError?.message?.includes('attribute')) {
+                throw new Error(`Ошибка структуры документа: ${docError?.message}`);
+              } else {
+                throw new Error(`Не удалось создать документ вайба: ${docError?.message || 'Неизвестная ошибка'}`);
+              }
             }
+          } catch (error: any) {
+            console.error('Ошибка при создании вайба:', error);
+            console.error('Стек ошибки:', error?.stack);
             console.error('Используемые переменные окружения:', {
               database_id: process.env.NEXT_PUBLIC_DATABASE_ID,
               bucket_id: process.env.NEXT_PUBLIC_BUCKET_ID,
-              collection_id: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS,
+              collection_id_vibe_posts: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS,
             });
             
             set({ 
-              error: `Failed to create vibe post: ${error?.message || 'Unknown error'}`, 
+              error: `Не удалось создать вайб: ${error?.message || 'Неизвестная ошибка'}`, 
               isCreatingVibe: false 
             });
             throw error;
@@ -478,6 +515,8 @@ export const useVibeStore = create<VibeStore>()(
 
         likeVibe: async (vibeId, userId) => {
           try {
+            console.log('Trying to like vibe:', vibeId, 'by user:', userId);
+            
             // Create like document
             await database.createDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -497,55 +536,79 @@ export const useVibeStore = create<VibeStore>()(
               vibeId
             );
 
-            const stats = vibe.stats || {
-              total_likes: 0,
-              total_comments: 0,
-              total_views: 0
-            };
+            console.log('Current vibe stats:', vibe.stats, 'Type:', typeof vibe.stats);
+            
+            // Проверяем структуру stats и преобразуем соответственно
+            let stats;
+            let updatedStats: string[] = [];
+            
+            if (Array.isArray(vibe.stats)) {
+              // Если stats это массив - работаем как с массивом
+              stats = [...vibe.stats];
+              
+              // Убедимся, что у нас есть все три элемента
+              while (stats.length < 3) {
+                stats.push('0');
+              }
+              
+              // Увеличиваем количество лайков (первый элемент массива)
+              const currentLikes = parseInt(stats[0], 10) || 0;
+              stats[0] = (currentLikes + 1).toString();
+              updatedStats = stats;
+              
+              console.log('Updating array stats to:', stats);
+            } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+              // Если stats это объект - преобразуем в массив
+              const totalLikes = typeof vibe.stats.total_likes === 'number' ? vibe.stats.total_likes + 1 : 1;
+              const totalComments = typeof vibe.stats.total_comments === 'number' ? vibe.stats.total_comments : 0;
+              const totalViews = typeof vibe.stats.total_views === 'number' ? vibe.stats.total_views : 0;
+              
+              updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
+              console.log('Converting object stats to array:', updatedStats);
+            } else {
+              // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
+              updatedStats = ['1', '0', '0'];
+              console.log('Creating new stats array:', updatedStats);
+            }
 
+            // Обновляем документ с новыми stats
             await database.updateDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
               process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
               vibeId,
               {
                 stats: {
-                  ...stats,
-                  total_likes: stats.total_likes + 1
+                  total_likes: parseInt(updatedStats[0]) || 0,
+                  total_comments: parseInt(updatedStats[1]) || 0,
+                  total_views: parseInt(updatedStats[2]) || 0
                 }
               }
             );
+            
+            console.log('Vibe stats updated successfully');
 
             // Update local state
             get().fetchUserLikedVibes(userId);
             
-            // Update current vibe if it's the one being viewed
+            // Обновляем локальное состояние вайба, если это текущий просматриваемый вайб
             const currentVibe = get().vibePostById;
             if (currentVibe && currentVibe.id === vibeId) {
-              set({
-                vibePostById: {
-                  ...currentVibe,
-                  stats: {
-                    ...currentVibe.stats,
-                    total_likes: currentVibe.stats.total_likes + 1
-                  }
-                }
-              });
+              const updatedVibe = { ...currentVibe, stats: updatedStats };
+              set({ vibePostById: updatedVibe });
+              console.log('Updated current vibe in store');
             }
 
-            // Update vibes in all posts list
+            // Обновляем лайки во всем списке вайбов
             set(state => ({
-              allVibePosts: state.allVibePosts.map(vibe => 
-                vibe.id === vibeId 
-                  ? { 
-                      ...vibe, 
-                      stats: { 
-                        ...vibe.stats, 
-                        total_likes: vibe.stats.total_likes + 1 
-                      } 
-                    }
-                  : vibe
-              )
+              allVibePosts: state.allVibePosts.map(vibe => {
+                if (vibe.id === vibeId) {
+                  return { ...vibe, stats: updatedStats };
+                }
+                return vibe;
+              })
             }));
+            
+            console.log('Updated vibe in all posts list');
 
           } catch (error) {
             console.error('Error liking vibe:', error);
@@ -555,6 +618,8 @@ export const useVibeStore = create<VibeStore>()(
 
         unlikeVibe: async (vibeId, userId) => {
           try {
+            console.log('Trying to unlike vibe:', vibeId, 'by user:', userId);
+            
             // Find the like document
             const response = await database.listDocuments(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -566,6 +631,8 @@ export const useVibeStore = create<VibeStore>()(
             );
 
             if (response.documents.length > 0) {
+              console.log('Found like document, deleting it');
+              
               // Delete the like document
               await database.deleteDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -580,55 +647,80 @@ export const useVibeStore = create<VibeStore>()(
                 vibeId
               );
 
-              const stats = vibe.stats || {
-                total_likes: 0,
-                total_comments: 0,
-                total_views: 0
-              };
+              console.log('Current vibe stats:', vibe.stats, 'Type:', typeof vibe.stats);
+              
+              // Проверяем структуру stats и преобразуем соответственно
+              let updatedStats: string[] = [];
+              
+              if (Array.isArray(vibe.stats)) {
+                // Если stats это массив - работаем как с массивом
+                const stats = [...vibe.stats];
+                
+                // Убедимся, что у нас есть все три элемента
+                while (stats.length < 3) {
+                  stats.push('0');
+                }
+                
+                // Уменьшаем количество лайков (первый элемент массива)
+                const currentLikes = parseInt(stats[0], 10) || 0;
+                stats[0] = Math.max(0, currentLikes - 1).toString();
+                updatedStats = stats;
+                
+                console.log('Updating array stats to:', stats);
+              } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+                // Если stats это объект - преобразуем в массив
+                const totalLikes = Math.max(0, (typeof vibe.stats.total_likes === 'number' ? vibe.stats.total_likes : 0) - 1);
+                const totalComments = typeof vibe.stats.total_comments === 'number' ? vibe.stats.total_comments : 0;
+                const totalViews = typeof vibe.stats.total_views === 'number' ? vibe.stats.total_views : 0;
+                
+                updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
+                console.log('Converting object stats to array:', updatedStats);
+              } else {
+                // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
+                updatedStats = ['0', '0', '0'];
+                console.log('Creating new stats array:', updatedStats);
+              }
 
+              // Обновляем документ с новыми stats
               await database.updateDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
                 vibeId,
                 {
                   stats: {
-                    ...stats,
-                    total_likes: Math.max(0, stats.total_likes - 1)
+                    total_likes: parseInt(updatedStats[0]) || 0,
+                    total_comments: parseInt(updatedStats[1]) || 0,
+                    total_views: parseInt(updatedStats[2]) || 0
                   }
                 }
               );
+              
+              console.log('Vibe stats updated successfully');
 
               // Update local state
               get().fetchUserLikedVibes(userId);
               
-              // Update current vibe if it's the one being viewed
+              // Обновляем локальное состояние вайба, если это текущий просматриваемый вайб
               const currentVibe = get().vibePostById;
               if (currentVibe && currentVibe.id === vibeId) {
-                set({
-                  vibePostById: {
-                    ...currentVibe,
-                    stats: {
-                      ...currentVibe.stats,
-                      total_likes: Math.max(0, currentVibe.stats.total_likes - 1)
-                    }
-                  }
-                });
+                const updatedVibe = { ...currentVibe, stats: updatedStats };
+                set({ vibePostById: updatedVibe });
+                console.log('Updated current vibe in store');
               }
 
-              // Update vibes in all posts list
+              // Обновляем лайки во всем списке вайбов
               set(state => ({
-                allVibePosts: state.allVibePosts.map(vibe => 
-                  vibe.id === vibeId 
-                    ? { 
-                        ...vibe, 
-                        stats: { 
-                          ...vibe.stats, 
-                          total_likes: Math.max(0, vibe.stats.total_likes - 1)
-                        } 
-                      }
-                    : vibe
-                )
+                allVibePosts: state.allVibePosts.map(vibe => {
+                  if (vibe.id === vibeId) {
+                    return { ...vibe, stats: updatedStats };
+                  }
+                  return vibe;
+                })
               }));
+              
+              console.log('Updated vibe in all posts list');
+            } else {
+              console.log('No like document found for this vibe and user');
             }
           } catch (error) {
             console.error('Error unliking vibe:', error);

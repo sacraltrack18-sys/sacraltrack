@@ -25,6 +25,9 @@ import WelcomeReleasesSkeleton from "@/app/components/profile/WelcomeReleasesSke
 import { usePostStore } from "@/app/stores/post";
 import FriendsTab from "@/app/components/profile/FriendsTab";
 import UserActivitySidebar from "@/app/components/profile/UserActivitySidebar";
+import { useVibeStore } from '@/app/stores/vibeStore';
+import { MdOutlineMusicNote } from 'react-icons/md';
+import UserVibes from "@/app/components/profile/UserVibes";
 
 export default function ProfileLayout({ children, params }: { children: React.ReactNode, params: { params: { id: string } } }) {
     const pathname = usePathname()
@@ -35,7 +38,9 @@ export default function ProfileLayout({ children, params }: { children: React.Re
     const { likedPosts, isLoading: likedLoading, showLikedTracks, setShowLikedTracks, fetchLikedPosts } = useLikedStore();
     const { postsByUser } = usePostStore();
     const [showFriends, setShowFriends] = useState(false);
+    const [showVibes, setShowVibes] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const { fetchVibesByUser } = useVibeStore();
 
     // Проверяем, является ли текущий пользователь владельцем профиля
     const isProfileOwner = contextUser?.user?.id === currentProfile?.user_id;
@@ -146,6 +151,21 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                         )}
                                     </div>
                                 </motion.div>
+                            ) : showVibes ? (
+                                <motion.div
+                                    key="vibes"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="w-full"
+                                >
+                                    <div className="max-w-[1500px] mx-auto py-6">
+                                        {currentProfile && (
+                                            <UserVibes userId={currentProfile.user_id} isProfileOwner={isProfileOwner} />
+                                        )}
+                                    </div>
+                                </motion.div>
                             ) : (
                                 <motion.div
                                     key="main"
@@ -242,18 +262,19 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowFriends(false);
                                 setShowLikedTracks(false);
                                 setShowPurchases(false);
+                                setShowVibes(false);
                             }}
                             className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
-                                !showFriends && !showLikedTracks && !showPurchases
+                                !showFriends && !showLikedTracks && !showPurchases && !showVibes
                                 ? 'text-[#20DDBB] bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 shadow-[0_0_15px_rgba(32,221,187,0.1)]' 
                                 : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-[#20DDBB]/5 hover:to-[#5D59FF]/5 hover:shadow-[0_0_10px_rgba(32,221,187,0.05)]'
                             }`}
                         >
-                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${!showFriends && !showLikedTracks && !showPurchases ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] shadow-[0_0_10px_rgba(32,221,187,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/50 group-hover:to-[#5D59FF]/50 group-hover:shadow-[0_0_8px_rgba(32,221,187,0.3)]'} transition-all duration-300`}>
+                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] shadow-[0_0_10px_rgba(32,221,187,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/50 group-hover:to-[#5D59FF]/50 group-hover:shadow-[0_0_8px_rgba(32,221,187,0.3)]'} transition-all duration-300`}>
                                 <motion.div 
                                     className="absolute inset-0 rounded-full bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                                     animate={{ 
-                                        rotate: !showFriends && !showLikedTracks && !showPurchases ? [0, 360] : [0, 0],
+                                        rotate: !showFriends && !showLikedTracks && !showPurchases && !showVibes ? [0, 360] : [0, 0],
                                     }}
                                     transition={{ 
                                         repeat: Infinity, 
@@ -263,10 +284,45 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                     }}
                                 />
                                 <BsVinylFill 
-                                    className={`w-3.5 h-3.5 transition-all duration-300 ${!showFriends && !showLikedTracks && !showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
+                                    className={`w-3.5 h-3.5 transition-all duration-300 ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
                                 />
                             </div>
-                            <span className={`hidden sm:inline font-medium ${!showFriends && !showLikedTracks && !showPurchases ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] drop-shadow-[0_0_1px_rgba(32,221,187,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/70 group-hover:to-[#5D59FF]/70'} transition-all duration-300`}>Releases</span>
+                            <span className={`hidden sm:inline font-medium ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] drop-shadow-[0_0_1px_rgba(32,221,187,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/70 group-hover:to-[#5D59FF]/70'} transition-all duration-300`}>Releases</span>
+                        </motion.button>
+
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                setShowFriends(false);
+                                setShowLikedTracks(false);
+                                setShowPurchases(false);
+                                setShowVibes(true);
+                            }}
+                            className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
+                                showVibes
+                                ? 'text-purple-400 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 shadow-[0_0_15px_rgba(168,85,247,0.1)]' 
+                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-indigo-500/5 hover:shadow-[0_0_10px_rgba(168,85,247,0.05)]'
+                            }`}
+                        >
+                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showVibes ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-purple-500/50 group-hover:to-indigo-500/50 group-hover:shadow-[0_0_8px_rgba(168,85,247,0.3)]'} transition-all duration-300`}>
+                                <motion.div 
+                                    className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                    animate={{ 
+                                        scale: showVibes ? [1, 1.2, 1] : [1, 1, 1],
+                                    }}
+                                    transition={{ 
+                                        repeat: Infinity, 
+                                        repeatDelay: 1,
+                                        duration: 1.5,
+                                        ease: "easeInOut"
+                                    }}
+                                />
+                                <MdOutlineMusicNote 
+                                    className={`w-4 h-4 transition-all duration-300 ${showVibes ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
+                                />
+                            </div>
+                            <span className={`hidden sm:inline font-medium ${showVibes ? 'bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-400 drop-shadow-[0_0_1px_rgba(168,85,247,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400/70 group-hover:to-indigo-400/70'} transition-all duration-300`}>Vibes</span>
                         </motion.button>
 
                         <motion.button
@@ -276,6 +332,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowFriends(false);
                                 setShowLikedTracks(true);
                                 setShowPurchases(false);
+                                setShowVibes(false);
                             }}
                             className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
                                 showLikedTracks
@@ -310,6 +367,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowFriends(true);
                                 setShowLikedTracks(false);
                                 setShowPurchases(false);
+                                setShowVibes(false);
                             }}
                             className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
                                 showFriends 
@@ -344,6 +402,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                     setShowFriends(false);
                                     setShowLikedTracks(false);
                                     setShowPurchases(true);
+                                    setShowVibes(false);
                                 }}
                                 className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
                                     showPurchases 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTimes, FaCheckCircle, FaExclamationCircle, FaPaperPlane, FaFireAlt } from 'react-icons/fa';
+import { FaTimes, FaCheckCircle, FaExclamationCircle, FaPaperPlane, FaFireAlt, FaPhone, FaArrowRight } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
 interface VerificationCodeModalProps {
@@ -10,6 +10,8 @@ interface VerificationCodeModalProps {
   type: 'email' | 'phone';
   email?: string;
   phone?: number | string;
+  onPhoneChange?: (phoneNumber: string) => void;
+  onPhoneSubmit?: (phoneNumber: number) => Promise<boolean>;
 }
 
 export default function VerificationCodeModal({
@@ -18,7 +20,9 @@ export default function VerificationCodeModal({
   onVerify,
   type,
   email,
-  phone
+  phone,
+  onPhoneChange,
+  onPhoneSubmit
 }: VerificationCodeModalProps) {
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +30,28 @@ export default function VerificationCodeModal({
   const [canResend, setCanResend] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Добавляем состояние для ввода телефона
+  const [phoneInput, setPhoneInput] = useState(phone?.toString() || '');
+  const [phoneInputError, setPhoneInputError] = useState('');
+  const [isPhoneSubmitting, setIsPhoneSubmitting] = useState(false);
+  const [showCodeInputs, setShowCodeInputs] = useState(!!phone);
+  
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  
+  // Валидация номера телефона
+  const validatePhoneNumber = (phone: string) => {
+    if (!phone.trim()) {
+      return 'Phone number is required';
+    }
+    
+    // Проверка на минимальную длину (7 цифр) и максимальную (15 цифр)
+    if (phone.length < 7 || phone.length > 15) {
+      return 'Enter a valid phone number (7-15 digits)';
+    }
+    
+    return '';
+  };
 
   // Initialize refs
   useEffect(() => {
@@ -39,12 +65,27 @@ export default function VerificationCodeModal({
       setTimeLeft(60);
       setCanResend(false);
       setVerificationStatus('idle');
-      // Focus the first input when modal opens
+      setPhoneInput(phone?.toString() || '');
+      setShowCodeInputs(!!phone);
+      
+      // Focus appropriate input when modal opens
       setTimeout(() => {
-        inputRefs.current[0]?.focus();
+        if (type === 'phone' && !phone && phoneInputRef.current) {
+          phoneInputRef.current.focus();
+        } else if (showCodeInputs) {
+          inputRefs.current[0]?.focus();
+        }
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, phone, type, showCodeInputs]);
+
+  // Обновляем phone input при изменении пропса phone
+  useEffect(() => {
+    if (phone) {
+      setPhoneInput(phone.toString());
+      setShowCodeInputs(true);
+    }
+  }, [phone]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -57,6 +98,46 @@ export default function VerificationCodeModal({
     }
     return () => clearInterval(timer);
   }, [timeLeft, canResend]);
+
+  // Обработчик отправки номера телефона
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const error = validatePhoneNumber(phoneInput);
+    if (error) {
+      setPhoneInputError(error);
+      return;
+    }
+    
+    if (!onPhoneSubmit) {
+      toast.error('Phone verification is not configured');
+      return;
+    }
+    
+    try {
+      setIsPhoneSubmitting(true);
+      // Преобразуем строку в число и отправляем
+      const phoneNumber = parseInt(phoneInput.replace(/\D/g, ''), 10);
+      const success = await onPhoneSubmit(phoneNumber);
+      
+      if (success) {
+        setShowCodeInputs(true);
+        // Если есть callback для обновления телефона в родительском компоненте
+        if (onPhoneChange) {
+          onPhoneChange(phoneInput);
+        }
+        
+        // Фокус на первое поле для ввода кода
+        setTimeout(() => {
+          inputRefs.current[0]?.focus();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error submitting phone number:', error);
+    } finally {
+      setIsPhoneSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +270,65 @@ export default function VerificationCodeModal({
     );
   };
 
+  // Render phone input form
+  const renderPhoneInputForm = () => {
+    if (type !== 'phone' || showCodeInputs) return null;
+    
+    return (
+      <form onSubmit={handlePhoneSubmit} className="space-y-4 mb-4">
+        <div className="space-y-2">
+          <label className="text-white text-sm font-medium flex items-center gap-2">
+            <FaPhone className="text-violet-300" />
+            <span>Your Phone Number</span>
+          </label>
+          <div className="relative">
+            <input
+              type="tel"
+              ref={phoneInputRef}
+              value={phoneInput}
+              onChange={(e) => {
+                setPhoneInput(e.target.value.replace(/[^0-9+]/g, ''));
+                if (phoneInputError) setPhoneInputError('');
+              }}
+              placeholder="+1234567890"
+              className={`w-full px-4 py-3 text-sm rounded-lg bg-[#1A2338]/80 border ${
+                phoneInputError 
+                  ? 'border-red-500/70 focus:ring-red-500'
+                  : 'border-[#3f2d63]/70 focus:ring-purple-500'
+              } text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:border-transparent`}
+            />
+            {phoneInputError && (
+              <p className="text-red-400 text-xs mt-1">{phoneInputError}</p>
+            )}
+          </div>
+          <p className="text-[#9BA3BF] text-xs">
+            Enter your phone number with country code (e.g. +1 for US, +7 for Russia). 
+            <span className="text-violet-300">Include the + symbol and all digits, no spaces.</span>
+          </p>
+        </div>
+        
+        <button
+          type="submit"
+          disabled={isPhoneSubmitting || !phoneInput}
+          className={`w-full py-3 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+            isPhoneSubmitting || !phoneInput
+              ? 'bg-[#1A2338]/80 text-[#818BAC] cursor-not-allowed'
+              : 'bg-gradient-to-r from-[#3f2d63] to-[#4e377a] text-white hover:shadow-lg hover:shadow-violet-900/20'
+          }`}
+        >
+          {isPhoneSubmitting ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <span>Send Verification Code</span>
+              <FaArrowRight size={12} />
+            </>
+          )}
+        </button>
+      </form>
+    );
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -219,127 +359,90 @@ export default function VerificationCodeModal({
               </button>
             </div>
 
-            <div className="mb-6">
-              <p className="text-[#9BA3BF] text-sm mb-2">
-                Enter the verification code sent to:
-              </p>
-              <p className="text-white font-medium">
-                {type === 'email' ? email : phone?.toString()}
-              </p>
-              <p className="text-xs text-[#9BA3BF] mt-2">
-                {type === 'email' 
-                  ? 'Check your spam folder if you don\'t receive the code within a few minutes'
-                  : 'Firebase verification: Enter the 6-digit code from the SMS'
-                }
-              </p>
-            </div>
+            {/* Conditional Message - только если показываем поля ввода кода */}
+            {showCodeInputs && (
+              <div className="mb-6">
+                <p className="text-[#9BA3BF] text-sm mb-2">
+                  Enter the verification code sent to:
+                </p>
+                <p className="text-white font-medium">
+                  {type === 'email' ? email : phoneInput}
+                </p>
+                <p className="text-xs text-[#9BA3BF] mt-2">
+                  {type === 'email' 
+                    ? 'Check your spam folder if you don\'t receive the code within a few minutes'
+                    : 'Firebase verification: Enter the 6-digit code from the SMS'
+                  }
+                </p>
+              </div>
+            )}
 
             {renderVerificationStatus()}
+            
+            {/* Phone Input Form */}
+            {renderPhoneInputForm()}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex justify-center gap-2">
-                {[...Array(6)].map((_, index) => (
-                  <motion.div 
-                    key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ 
-                      opacity: 1, 
-                      y: 0,
-                      transition: { delay: index * 0.05 }
-                    }}
-                    className="relative"
-                  >
-                    <input
-                      ref={el => inputRefs.current[index] = el}
-                      type="text"
-                      maxLength={1}
-                      className="w-12 h-14 text-center text-white text-lg font-bold bg-[#1A2338]/80 border border-[#3f2d63]/70 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      value={code[index] || ''}
-                      onChange={(e) => handleCodeChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      disabled={isSubmitting || verificationStatus === 'success'}
-                    />
-                    {/* Subtle gradient bottom border */}
-                    <div className={`absolute bottom-0 left-0 w-full h-1 rounded-b-lg ${code[index] ? 'bg-gradient-to-r from-purple-400 to-blue-500' : 'bg-transparent'}`}></div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center text-sm mt-6">
-                <motion.button
-                  type="button"
-                  onClick={handleResendCode}
-                  disabled={!canResend || isSubmitting || verificationStatus === 'success'}
-                  whileHover={canResend && !isSubmitting && verificationStatus !== 'success' ? { scale: 1.05 } : {}}
-                  whileTap={canResend && !isSubmitting && verificationStatus !== 'success' ? { scale: 0.95 } : {}}
-                  className={`flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-colors ${
-                    (!canResend || isSubmitting || verificationStatus === 'success') ? 'opacity-50 cursor-not-allowed' : 'hover:underline'
-                  }`}
-                >
-                  <FaPaperPlane size={12} />
-                  <span>{canResend ? 'Resend Code' : `Resend in ${timeLeft}s`}</span>
-                </motion.button>
+            {/* Code Input Form - показываем только если уже есть номер телефона */}
+            {showCodeInputs && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex justify-center gap-2">
+                  {[...Array(6)].map((_, index) => (
+                    <motion.div 
+                      key={index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ 
+                        opacity: 1, 
+                        y: 0,
+                        transition: { delay: index * 0.05 }
+                      }}
+                      className="relative"
+                    >
+                      <input
+                        ref={el => inputRefs.current[index] = el}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={code[index] || ''}
+                        onChange={(e) => handleCodeChange(index, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
+                        className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold border border-purple-500/30 bg-[#1A2338]/80 rounded-lg text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </motion.div>
+                  ))}
+                </div>
                 
-                <motion.button
+                <div className="text-center text-xs text-[#9BA3BF]">
+                  {!canResend ? (
+                    <p>Resend code in {timeLeft} seconds</p>
+                  ) : (
+                    <button 
+                      type="button"
+                      onClick={handleResendCode}
+                      className="text-violet-300 hover:text-violet-200 hover:underline flex items-center gap-1.5 mx-auto transition-colors"
+                    >
+                      <FaPaperPlane size={10} />
+                      <span>Resend verification code</span>
+                    </button>
+                  )}
+                </div>
+                
+                <button
                   type="submit"
-                  disabled={code.length !== 6 || isSubmitting || verificationStatus === 'success'}
-                  whileHover={code.length === 6 && !isSubmitting && verificationStatus !== 'success' ? { scale: 1.05, y: -2 } : {}}
-                  whileTap={code.length === 6 && !isSubmitting && verificationStatus !== 'success' ? { scale: 0.95 } : {}}
-                  className={`relative overflow-hidden bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all ${
-                    (code.length !== 6 || isSubmitting || verificationStatus === 'success') ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:shadow-purple-500/20'
+                  disabled={code.length !== 6 || isSubmitting}
+                  className={`w-full py-3 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                    code.length !== 6 || isSubmitting
+                      ? 'bg-[#1A2338]/80 text-[#818BAC] cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#3f2d63] to-[#4e377a] text-white hover:shadow-lg hover:shadow-violet-900/20'
                   }`}
                 >
                   {isSubmitting ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : verificationStatus === 'success' ? (
-                    <>
-                      <span>Verified</span>
-                      <FaCheckCircle />
-                    </>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <>
-                      <span>Verify</span>
-                      <FaCheckCircle />
-                      {/* Button glow effect */}
-                      {code.length === 6 && !isSubmitting && (
-                        <motion.div 
-                          className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-500/0 via-white/20 to-purple-500/0"
-                          initial={{ x: '-100%' }}
-                          animate={{ x: '100%' }}
-                          transition={{ 
-                            repeat: Infinity, 
-                            duration: 1.5, 
-                            ease: 'linear',
-                            repeatDelay: 0.5
-                          }}
-                        />
-                      )}
-                    </>
+                    'Verify Code'
                   )}
-                </motion.button>
-              </div>
-            </form>
-
-            <div className="mt-6 flex items-center gap-2 text-sm text-[#9BA3BF] bg-[#1A2338]/40 p-3 rounded-lg">
-              {type === 'phone' ? (
-                <div className="flex items-start gap-2">
-                  <FaFireAlt className="text-orange-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="mb-1">This code is sent via Firebase Authentication.</p>
-                    <p className="text-xs opacity-80">
-                      Standard SMS rates may apply. Your privacy is protected by Firebase.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <FaExclamationCircle className="text-amber-400 flex-shrink-0" />
-                  <p>
-                    Didn't receive the code? Check your spam folder or try resending.
-                  </p>
-                </>
-              )}
-            </div>
+                </button>
+              </form>
+            )}
           </motion.div>
         </motion.div>
       )}
