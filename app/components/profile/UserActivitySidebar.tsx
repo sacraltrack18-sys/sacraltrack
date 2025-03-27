@@ -31,6 +31,16 @@ interface ActivityItem {
     user?: User;
 }
 
+interface UserActivitySidebarProps {
+    userId: string;
+    isOwner: boolean;
+    onShowFriends?: () => void;
+    onShowLikes?: () => void;
+    onShowPurchases?: () => void;
+    onShowVibes?: () => void;
+    activeTab?: 'friends' | 'likes' | 'purchases' | 'vibes' | 'main';
+}
+
 const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
     const [imageError, setImageError] = useState(false);
     
@@ -104,7 +114,15 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
     );
 };
 
-const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ userId, isOwner }) => {
+const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({ 
+    userId, 
+    isOwner, 
+    onShowFriends, 
+    onShowLikes, 
+    onShowPurchases,
+    onShowVibes,
+    activeTab = 'main'
+}) => {
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
@@ -308,84 +326,147 @@ const UserActivitySidebar: React.FC<{ userId: string, isOwner: boolean }> = ({ u
     );
         
         return (
-        <div className="sticky top-24 space-y-6">
-            {/* Rating Card */}
-            <motion.div 
-                className="glass-card rounded-xl p-5 bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 border border-white/10"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-            >
-                <h3 className="text-lg font-medium text-white mb-3">Rating</h3>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <p className={`text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${rank.color}`}>
-                            {rank.name}
-                        </p>
-                        <p className="text-sm text-gray-400">Score: {rank.score}</p>
+        <div className="space-y-6">
+            {/* Таб переключатели для быстрого доступа */}
+            <div className="bg-[#1A1C2E]/70 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#3f2d63]/30">
+                <h3 className="text-lg font-semibold text-white mb-4">Quick Access</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                        onClick={onShowFriends}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300
+                            ${activeTab === 'friends' 
+                                ? 'bg-gradient-to-br from-purple-600 to-violet-700 text-white' 
+                                : 'bg-[#252742]/50 hover:bg-[#252742] text-white/70'}`}
+                    >
+                        <BsPeople className="text-2xl mb-2" />
+                        <span className="text-xs">Friends</span>
+                        {pendingRequests.length > 0 && isOwner && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                                {pendingRequests.length}
+                            </span>
+                        )}
+                    </motion.button>
+
+                    <motion.button
+                        onClick={onShowLikes}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300
+                            ${activeTab === 'likes' 
+                                ? 'bg-gradient-to-br from-pink-600 to-red-500 text-white' 
+                                : 'bg-[#252742]/50 hover:bg-[#252742] text-white/70'}`}
+                    >
+                        <BsHeart className="text-2xl mb-2" />
+                        <span className="text-xs">Liked</span>
+                    </motion.button>
+
+                    {isOwner && (
+                        <motion.button
+                            onClick={onShowPurchases}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300
+                                ${activeTab === 'purchases' 
+                                    ? 'bg-gradient-to-br from-green-600 to-teal-500 text-white' 
+                                    : 'bg-[#252742]/50 hover:bg-[#252742] text-white/70'}`}
+                        >
+                            <BsHeadphones className="text-2xl mb-2" />
+                            <span className="text-xs">Purchases</span>
+                        </motion.button>
+                    )}
+
+                    <motion.button
+                        onClick={onShowVibes}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300
+                            ${activeTab === 'vibes' 
+                                ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white' 
+                                : 'bg-[#252742]/50 hover:bg-[#252742] text-white/70'}`}
+                    >
+                        <BsMusicNoteBeamed className="text-2xl mb-2" />
+                        <span className="text-xs">Vibes</span>
+                    </motion.button>
+                </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 mt-2">
-                        <div className="text-center">
-                            <p className="text-lg font-bold text-white">{friendsList.length || '0'}</p>
-                            <p className="text-xs text-gray-400">Friends</p>
+
+            {/* Статистика профиля */}
+            <div className="bg-[#1A1C2E]/70 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#3f2d63]/30">
+                <h3 className="text-lg font-semibold text-white mb-4">Profile Stats</h3>
+                
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <BsPeople className="text-purple-400 mr-2" />
+                            <span className="text-white/80">Friends</span>
                         </div>
-                        <div className="text-center">
-                            <p className="text-lg font-bold text-white">{tracks?.length || '0'}</p>
-                            <p className="text-xs text-gray-400">Tracks</p>
+                        <span className="font-semibold text-white">{friendsList.length}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <BsMusicNoteBeamed className="text-blue-400 mr-2" />
+                            <span className="text-white/80">Tracks</span>
                         </div>
-                        <div className="text-center">
-                            <p className="text-lg font-bold text-white">{likes?.length || '0'}</p>
-                            <p className="text-xs text-gray-400">Likes</p>
+                        <span className="font-semibold text-white">{tracks?.length || 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <BsHeart className="text-pink-400 mr-2" />
+                            <span className="text-white/80">Liked</span>
                         </div>
-                        <div className="text-center">
-                            <p className="text-lg font-bold text-white">{vibes?.length || '0'}</p>
-                            <p className="text-xs text-gray-400">Vibes</p>
+                        <span className="font-semibold text-white">{likes?.length || 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <BsHeadphones className="text-teal-400 mr-2" />
+                            <span className="text-white/80">Vibes</span>
                         </div>
+                        <span className="font-semibold text-white">{vibes?.length || 0}</span>
                     </div>
                 </div>
-            </motion.div>
-            
-            {/* Activity History */}
+                
+                <div className="mt-4">
+                    <div className="flex justify-between mb-1">
+                        <span className="text-xs text-white/60">Profile Level</span>
+                        <span className="text-xs text-white/60">{Math.min(100, rank.score)}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded overflow-hidden">
             <motion.div
-                className="glass-card rounded-xl p-5 bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 border border-white/10"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-            >
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-white">Recent Activity</h3>
-                    <button className="text-sm text-[#20DDBB] hover:text-[#20DDBB]/80 transition">
-                        History
-                    </button>
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, rank.score)}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={`h-full bg-gradient-to-r ${rank.color}`}
+                        />
+                    </div>
+                    <p className="text-xs mt-1 text-center font-medium bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                        {rank.name}
+                    </p>
+                </div>
             </div>
             
-                <div className="space-y-3">
+            {/* Последняя активность */}
+            <div className="bg-[#1A1C2E]/70 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#3f2d63]/30">
+                <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+                
                     {isLoading ? (
                         <ActivitySkeleton />
-                    ) : activityItems.length > 0 ? (
-                        activityItems.map((item) => (
+                ) : activityItems.length === 0 ? (
+                    <div className="text-center py-6">
+                        <p className="text-gray-400">No recent activity</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {activityItems.map(item => (
                             <ActivityCard key={item.id} item={item} />
-                        ))
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="py-6 text-center"
-                        >
-                            <div className="text-[#A6B1D0] text-sm">
-                                <p>No recent activity</p>
-                                <p className="mt-2 text-xs">Activity will appear here</p>
+                        ))}
                             </div>
-                        </motion.div>
                     )}
                 </div>
-            </motion.div>
-            
-            <style jsx global>{`
-                .glass-card {
-                    backdrop-filter: blur(8px);
-                    box-shadow: 0 0 15px rgba(32, 221, 187, 0.1);
-                }
-            `}</style>
         </div>
     );
 };

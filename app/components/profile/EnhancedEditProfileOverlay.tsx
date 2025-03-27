@@ -14,6 +14,7 @@ import useChangeUserImage from '@/app/hooks/useChangeUserImage';
 import useUpdateProfile from '@/app/hooks/useUpdateProfile';
 import useUpdateProfileImage from '@/app/hooks/useUpdateProfileImage';
 import { SocialLinks, Profile, UserContextTypes } from '@/app/types';
+import useGeolocation from '@/app/hooks/useGeolocation';
 
 // Icons
 import { FaTwitter, FaInstagram, FaSoundcloud, FaYoutube, FaTelegram } from 'react-icons/fa';
@@ -129,6 +130,8 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     setCurrentProfile: (profileOrId: EnhancedProfile | string) => void 
   };
   const { isEditProfileOpen, setIsEditProfileOpen } = useGeneralStore();
+  const { getCurrentLocation, locationName, isLoading: isLoadingLocation } = useGeolocation();
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   
   // Form state
   const [activeTab, setActiveTab] = useState('basic');
@@ -287,6 +290,46 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     setUploadProgress(0);
   };
   
+  // Handle location detection
+  const handleDetectLocation = async () => {
+    try {
+      setIsDetectingLocation(true);
+      const detectedLocation = await getCurrentLocation();
+      if (detectedLocation) {
+        setLocation(detectedLocation);
+        setFormTouched(true);
+        toast.custom(() => (
+          <SuccessToast message="Location detected successfully" />
+        ), { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Error detecting location:', error);
+      toast.error('Failed to detect your location. Please enter it manually.');
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+  
+  // Ask for location on first load if not set
+  useEffect(() => {
+    if (isEditProfileOpen && currentProfile && !currentProfile.location && !location) {
+      // Ask for permission to detect location
+      const askForLocation = async () => {
+        const confirmed = window.confirm('Would you like to add your current location to your profile?');
+        if (confirmed) {
+          await handleDetectLocation();
+        }
+      };
+      
+      // Add a small delay before asking
+      const timer = setTimeout(() => {
+        askForLocation();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isEditProfileOpen, currentProfile, location]);
+  
   // Handle form submission
   const handleSave = async () => {
     setIsLoading(true);
@@ -341,15 +384,18 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         // Refetch the current profile to get the updated data
         await setCurrentProfile(currentProfile.$id);
         
-        // Show success toast but don't close the modal
+        // Show success toast
         toast.custom(() => (
           <SuccessToast message="Profile updated successfully" />
         ), { duration: 3000 });
         
-        // Reset form state but keep the modal open
+        // Reset form state
         setIsLoading(false);
         setUploadingImage(false);
         setFormTouched(false);
+        
+        // Close the modal after successful save
+        setIsEditProfileOpen(false);
       }
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -806,27 +852,37 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                       </div>
                     </motion.div>
                     
-                    {/* Location field */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <label className="block text-white mb-2 font-medium">Location</label>
+                    {/* Location field with detect button */}
+                    <div className="space-y-2">
+                      <label htmlFor="location" className="text-white/80 text-sm flex justify-between items-center">
+                        <span>Location</span>
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleDetectLocation}
+                          disabled={isDetectingLocation}
+                          className="text-xs text-[#20DDBB] hover:text-[#20DDBB]/80 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <MdLocationOn size={14} />
+                          {isDetectingLocation ? 'Detecting...' : 'Detect location'}
+                        </motion.button>
+                      </label>
                       <div className="relative">
-                        <MdLocationOn className="absolute left-3 top-1/2 -translate-y-1/2 text-[#20DDBB]" />
+                        <MdLocationOn className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                         <input
+                          id="location"
                           type="text"
+                          placeholder="Your location"
                           value={location}
                           onChange={(e) => {
                             setLocation(e.target.value);
                             setFormTouched(true);
                           }}
-                          className="w-full bg-[#24183D]/70 text-white rounded-xl p-3 pl-10 border border-white/10 focus:border-[#20DDBB] outline-none transition-all focus:shadow-[0_0_15px_rgba(32,221,187,0.15)]"
-                          placeholder="Your location"
+                          className="w-full bg-white/5 text-white rounded-lg border border-white/10 focus:border-[#20DDBB]/50 focus:ring-1 focus:ring-[#20DDBB]/50 pl-10 py-2.5 outline-none transition"
                         />
                       </div>
-                    </motion.div>
+                    </div>
                     
                     {/* Website field */}
                     <motion.div

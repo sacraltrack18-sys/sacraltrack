@@ -173,27 +173,109 @@ export type Action = {
   };
 
   export const genres: string[] = [
+    // Our unique genres
     "Instrumental",
-    "Techno",
     "K-pop",
-    "Deep",
-    "Hip-hop",
     "Meditative",
-    "Electronic",
-    "Rave",
-    "House",
-    "DnB",
-    "Bass",
-    "Minimal",
-    "Lo-fi",
-    "Neurofunk",
-    "Psy",
-    "Trap",
-    "Ambient",
     "Acapella",
     "Ai",
     "Films",
-    "Games"]
+    "Games",
+    "Jazz",
+    "Street music",
+    "Poetry",
+    "Rap",
+    
+    // House
+    "Deep House",
+    "Tech House",
+    "Progressive House",
+    "Melodic House & Techno",
+    "Future House",
+    "Bass House",
+    "Afro House",
+    
+    // Techno
+    "Peak Time / Driving Techno",
+    "Melodic Techno",
+    "Deep Techno",
+    "Minimal / Deep Tech",
+    "Deep / Hypnotic Techno",
+    "Techno",
+    "Techno (Peak Time / Driving)",
+    "Techno (Melodic)",
+    
+    // Trance
+    "Uplifting Trance",
+    "Psy-Trance",
+    "Tech-Trance",
+    "Progressive Trance",
+    "Vocal Trance",
+    "Hard Trance",
+    "Trance (Main Floor)",
+    "Trance (Deep / Hypnotic)",
+    
+    // Dubstep / Bass
+    "Dubstep",
+    "Riddim",
+    "Melodic Dubstep",
+    "Bass House",
+    "Future Bass",
+    "Trap",
+    "Bass / Club",
+    "Bass Music",
+    "UK Garage / Bassline",
+    
+    // Breaks
+    "Breaks",
+    "Breakbeat",
+    "Breakbeat / UK Bass",
+    "Electro (Classic / Detroit / Modern)",
+    
+    // Hard Dance
+    "Hardcore / Hard Techno",
+    "Hardstyle / Hardcore",
+    
+    // Indie Dance / Nu Disco
+    "Indie Dance",
+    "Nu Disco",
+    "Disco",
+    "Indie Dance / Nu Disco",
+    "Disco / Nu Disco",
+    
+    // Electronica / Downtempo
+    "Electronica",
+    "Downtempo",
+    "IDM",
+    "Leftfield",
+    "Ambient",
+    "Chillout",
+    "Trip Hop",
+    "Experimental",
+    
+    // Ethnic
+    "Ethnic",
+    
+    // Afro
+    "Afro House",
+    "Afro Tech",
+    "Afro Pop",
+    "Afro / Tribal",
+    
+    // Minimal / Deep Tech
+    "Minimal",
+    "Deep Tech",
+    "Minimal / Deep Tech",
+    "Deep House",
+    "Tech House",
+    
+    // Melodic House & Techno
+    "Melodic House & Techno",
+    "Progressive House",
+    "Melodic Techno",
+    "Deep House",
+    "Tech House"
+  ];
 
 export interface Genre {
     id: string;

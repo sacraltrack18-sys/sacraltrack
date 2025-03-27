@@ -28,7 +28,7 @@ export const TermsSections = () => {
       <Section id="introduction" title="Introduction">
         <div className="space-y-6">
           <p className="text-white/80 leading-relaxed">
-            Welcome to sacraltrack.com. The Site, all services and APIs are the property of Sacral Projects, 
+            Welcome to sacraltrack.space. The Site, all services and APIs are the property of Sacral Projects, 
             registered under Partnership No. OC436704 at Palliser House Second Floor - London, United Kingdom.
           </p>
           <div className="mt-6 p-4 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">

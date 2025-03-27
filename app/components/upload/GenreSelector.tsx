@@ -7,27 +7,108 @@ interface GenreSelectorProps {
 }
 
 const genres = [
-    "Ambient",
-    "Bass",
-    "Chillout",
+    // Our unique genres
+    "Instrumental",
+    "K-pop",
+    "Meditative",
+    "Acapella",
+    "Ai",
+    "Films",
+    "Games",
+    "Jazz",
+    "Street music",
+    "Poetry",
+    "Rap",
+    
+    // House
     "Deep House",
-    "Drum & Bass",
-    "Dubstep",
-    "EDM",
-    "Electro",
-    "Experimental",
-    "Future Bass",
-    "Hardstyle",
-    "Hip-Hop",
-    "House",
-    "IDM",
-    "Lo-Fi",
-    "Melodic Techno",
+    "Tech House",
     "Progressive House",
-    "Psy Trance",
+    "Melodic House & Techno",
+    "Future House",
+    "Bass House",
+    "Afro House",
+    
+    // Techno
+    "Peak Time / Driving Techno",
+    "Melodic Techno",
+    "Deep Techno",
+    "Minimal / Deep Tech",
+    "Deep / Hypnotic Techno",
     "Techno",
-    "Trance",
+    "Techno (Peak Time / Driving)",
+    "Techno (Melodic)",
+    
+    // Trance
+    "Uplifting Trance",
+    "Psy-Trance",
+    "Tech-Trance",
+    "Progressive Trance",
+    "Vocal Trance",
+    "Hard Trance",
+    "Trance (Main Floor)",
+    "Trance (Deep / Hypnotic)",
+    
+    // Dubstep / Bass
+    "Dubstep",
+    "Riddim",
+    "Melodic Dubstep",
+    "Bass House",
+    "Future Bass",
     "Trap",
+    "Bass / Club",
+    "Bass Music",
+    "UK Garage / Bassline",
+    
+    // Breaks
+    "Breaks",
+    "Breakbeat",
+    "Breakbeat / UK Bass",
+    "Electro (Classic / Detroit / Modern)",
+    
+    // Hard Dance
+    "Hardcore / Hard Techno",
+    "Hardstyle / Hardcore",
+    
+    // Indie Dance / Nu Disco
+    "Indie Dance",
+    "Nu Disco",
+    "Disco",
+    "Indie Dance / Nu Disco",
+    "Disco / Nu Disco",
+    
+    // Electronica / Downtempo
+    "Electronica",
+    "Downtempo",
+    "IDM",
+    "Leftfield",
+    "Ambient",
+    "Chillout",
+    "Trip Hop",
+    "Experimental",
+    
+    // Ethnic
+    "Ethnic",
+    
+    // Afro
+    "Afro House",
+    "Afro Tech",
+    "Afro Pop",
+    "Afro / Tribal",
+    
+    // Minimal / Deep Tech
+    "Minimal",
+    "Deep Tech",
+    "Minimal / Deep Tech",
+    "Deep House",
+    "Tech House",
+    
+    // Melodic House & Techno
+    "Melodic House & Techno",
+    "Progressive House",
+    "Melodic Techno",
+    "Deep House",
+    "Tech House"
 ];
 
 // Group genres by first letter for better organization

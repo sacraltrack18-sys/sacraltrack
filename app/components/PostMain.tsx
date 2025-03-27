@@ -334,10 +334,11 @@ interface PostImageReactionsProps {
     reactions: Record<string, number>;
 }
 
-// Создаем компонент для отображения анимированных реакций
+// Создаем компонент для отображения реакций на изображении
 const PostImageReactions = memo(({ post, onReact, reactions = {} }: PostImageReactionsProps) => {
     const reactionTypes: ReactionType[] = [
-        {
+        // Temporarily removed fire reaction
+        /*{
             id: 'fire',
             icon: <div className="fire-icon-3d">
                     <PiFireFill size={38} className="text-transparent fire-gradient" />
@@ -348,7 +349,7 @@ const PostImageReactions = memo(({ post, onReact, reactions = {} }: PostImageRea
                 initial: { scale: 0.8, opacity: 0, rotateY: -30 },
                 animate: { scale: 1, opacity: 1, rotateY: 0 }
             }
-        }
+        }*/
     ];
 
     return (

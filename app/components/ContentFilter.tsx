@@ -227,8 +227,6 @@ const ContentFilter = () => {
   
   return (
     <div className="bg-gradient-to-br from-[#1A1633]/90 to-[#29234A]/90 backdrop-blur-sm p-4 rounded-xl border border-purple-500/10 shadow-lg">
-      <h2 className="text-white font-medium text-lg mb-4">Content Filter</h2>
-      
       {/* Tab buttons */}
       <div className="grid grid-cols-2 gap-2 mb-6">
         <TabButton
@@ -282,7 +280,6 @@ const ContentFilter = () => {
             disabled={loading}
           >
             <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="text-sm">Refresh</span>
           </button>
         </div>
         

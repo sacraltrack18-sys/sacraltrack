@@ -55,50 +55,16 @@ const checkEnvironmentVariables = () => {
   return { url, bucketId, endpoint };
 };
 
-const createBucketUrl = (fileId: string, type: string = 'default'): string => {
-  try {
-    // Проверка входных параметров
-    if (!fileId || fileId.trim() === '') {
-      const placeholder = getPlaceholderImage(type);
-      debugLog(`Empty fileId, using placeholder: ${placeholder}`);
-      return placeholder;
+const useCreateBucketUrl = (fileId: string, type: 'user' | 'track' | 'banner' = 'track') => {
+    if (!fileId) return '/images/placeholders/user-placeholder.svg';
+
+    // If the fileId is already a full URL or a placeholder path, return it as is
+    if (fileId.startsWith('http') || fileId.startsWith('/images/')) {
+        return fileId;
     }
 
-    // Если файл уже начинается с / или http, значит это локальный путь или внешний URL
-    if (fileId.startsWith('/') || fileId.startsWith('http')) {
-      return fileId;
-    }
+    // Construct the storage URL using the file ID
+    return `${process.env.NEXT_PUBLIC_APPWRITE_URL}/storage/buckets/${process.env.NEXT_PUBLIC_BUCKET_ID}/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_ENDPOINT}`;
+}
 
-    // Проверяем, есть ли URL уже в кэше
-    if (urlCache.has(fileId)) {
-      return urlCache.get(fileId) as string;
-    }
-
-    // Получаем переменные окружения в рантайме
-    const { url, bucketId, endpoint } = checkEnvironmentVariables();
-    
-    // Если какая-то из переменных отсутствует, используем заглушку
-    if (!url || !bucketId || !endpoint) {
-      console.error('[useCreateBucketUrl] Environment variables are missing. Check your .env file.');
-      return getPlaceholderImage(type);
-    }
-    
-    try {
-      // Формируем URL напрямую
-      const fileUrl = `${url}/storage/buckets/${bucketId}/files/${fileId}/view?project=${endpoint}`;
-      debugLog(`Created URL for file ${fileId}`);
-      
-      // Кэшируем результат
-      urlCache.set(fileId, fileUrl);
-      return fileUrl;
-    } catch (err) {
-      console.error(`[useCreateBucketUrl] Error creating URL for file ${fileId}:`, err);
-      return getPlaceholderImage(type);
-    }
-  } catch (error) {
-    console.error(`[useCreateBucketUrl] Unexpected error:`, error);
-    return getPlaceholderImage(type);
-  }
-};
-
-export default createBucketUrl;
+export default useCreateBucketUrl;

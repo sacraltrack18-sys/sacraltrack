@@ -59,6 +59,25 @@ const getUserName = async (userId: string): Promise<string> => {
     }
 };
 
+// Получение профиля пользователя
+const getUserProfile = async (userId: string) => {
+    try {
+        const profile = await database.listDocuments(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+            [Query.equal('user_id', userId)]
+        );
+        
+        if (profile.documents.length > 0) {
+            return profile.documents[0];
+        }
+        return null;
+    } catch (error) {
+        console.error('Error getting user profile:', error);
+        return null;
+    }
+};
+
 interface Friend {
     id: string;
     userId: string;
@@ -66,8 +85,7 @@ interface Friend {
     status: 'pending' | 'accepted' | 'rejected';
     createdAt: string;
     updatedAt?: string;
-    notificationSent?: boolean;
-    lastInteractionDate?: string;
+    profile?: any; // Профиль друга
 }
 
 interface FriendsStore {
@@ -101,55 +119,40 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
                 const localStorageUserId = localStorage.getItem('userId');
                 if (localStorageUserId) {
                     userId = localStorageUserId;
-                    console.log('Using userId from localStorage:', userId);
                 }
-            } else {
-                console.log('Using provided userId:', userId);
             }
             
-            console.log('Adding friend, current userId:', userId);
-            
             if (!userId) {
-                console.error('User not authenticated: userId is null or empty');
                 throw new Error('User not authenticated');
             }
 
-            console.log('Checking for existing friendship between', userId, 'and', friendId);
-            // Check if friendship already exists
+            // Проверяем, существует ли уже запрос на дружбу в любом направлении
             const existingFriendship = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
                     Query.equal('user_id', userId),
                     Query.equal('friend_id', friendId)
                 ]
             );
 
-            // Also check if there's an existing request from the other side
             const existingReverseRequest = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
                     Query.equal('user_id', friendId),
                     Query.equal('friend_id', userId)
                 ]
             );
 
-            console.log('Existing friendship check results:', {
-                existingRequests: existingFriendship.documents.length,
-                existingReverseRequests: existingReverseRequest.documents.length
-            });
-
             if (existingFriendship.documents.length > 0 || existingReverseRequest.documents.length > 0) {
-                console.error('Friendship or request already exists');
                 throw new Error('Friendship already exists');
             }
 
-            console.log('Creating new friend request document');
-            // Create new friend request
+            // Создаем новый запрос на дружбу
             const friendDoc = await database.createDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 ID.unique(),
                 {
                     user_id: userId,
@@ -158,13 +161,9 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
                     created_at: new Date().toISOString()
                 }
             );
-            console.log('Friend request document created:', friendDoc.$id);
 
-            // Get sender's name
+            // Получаем имя отправителя и создаем уведомление
             const senderName = await getUserName(userId);
-            console.log('Sender name retrieved:', senderName);
-            
-            // Create notification about friend request for the recipient
             await createFriendNotification(
                 friendId,
                 'friend_request',
@@ -175,12 +174,12 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
 
             toast.success('Friend request sent successfully!');
             
-            // Update the list of sent requests
+            // Обновляем список отправленных запросов
             await get().loadSentRequests();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error sending friend request:', error);
-            set({ error: 'Failed to send friend request' });
-            toast.error('Failed to send friend request');
+            set({ error: error.message || 'Failed to send friend request' });
+            toast.error(error.message || 'Failed to send friend request');
         } finally {
             set({ loading: false });
         }
@@ -192,10 +191,10 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
             const userId = localStorage.getItem('userId');
             if (!userId) throw new Error('User not authenticated');
             
-            // Check both directions of friendship
+            // Проверяем оба направления дружбы
             const friendshipAsInitiator = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
                     Query.equal('status', 'accepted'),
                     Query.equal('user_id', userId),
@@ -205,7 +204,7 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
             
             const friendshipAsReceiver = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
                     Query.equal('status', 'accepted'),
                     Query.equal('user_id', friendId),
@@ -213,7 +212,7 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
                 ]
             );
 
-            // Combine results
+            // Объединяем результаты
             const friendshipDocuments = [
                 ...friendshipAsInitiator.documents,
                 ...friendshipAsReceiver.documents
@@ -223,23 +222,26 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
                 throw new Error('Friendship not found');
             }
 
-            // Delete the friendship
+            // Удаляем дружбу
             await database.deleteDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 friendshipDocuments[0].$id
             );
 
-            // Update UI state
+            // Обновляем состояние UI
             set(state => ({
                 friends: state.friends.filter(f => f.friendId !== friendId)
             }));
 
             toast.success('Friend removed successfully');
-        } catch (error) {
+            
+            // Обновляем список друзей
+            await get().loadFriends();
+        } catch (error: any) {
             console.error('Error removing friend:', error);
-            set({ error: 'Failed to remove friend' });
-            toast.error('Failed to remove friend');
+            set({ error: error.message || 'Failed to remove friend' });
+            toast.error(error.message || 'Failed to remove friend');
         } finally {
             set({ loading: false });
         }
@@ -251,17 +253,22 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
             const userId = localStorage.getItem('userId');
             if (!userId) throw new Error('User not authenticated');
 
-            // Get request details before updating
+            // Находим запрос на дружбу
             const request = await database.getDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 requestId
             );
 
-            // Update request status
+            // Проверяем, что запрос предназначен текущему пользователю
+            if (request.friend_id !== userId) {
+                throw new Error('You can only accept your own friend requests');
+            }
+
+            // Обновляем статус запроса
             await database.updateDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 requestId,
                 {
                     status: 'accepted',
@@ -269,29 +276,27 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
                 }
             );
 
-            // Get sender's name for notification
-            const receiverName = await getUserName(userId);
-            
-            // Create notification for the person who sent the original request
+            // Получаем имя текущего пользователя и создаем уведомление для отправителя запроса
+            const currentUserName = await getUserName(userId);
             await createFriendNotification(
                 request.user_id,
                 'friend_accepted',
-                receiverName,
+                currentUserName,
                 userId,
                 requestId
             );
 
             toast.success('Friend request accepted!');
             
-            // Refresh friends and pending requests
+            // Обновляем списки друзей и запросов
             await Promise.all([
                 get().loadFriends(),
                 get().loadPendingRequests()
             ]);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error accepting friend request:', error);
-            set({ error: 'Failed to accept friend request' });
-            toast.error('Failed to accept friend request');
+            set({ error: error.message || 'Failed to accept friend request' });
+            toast.error(error.message || 'Failed to accept friend request');
         } finally {
             set({ loading: false });
         }
@@ -300,24 +305,36 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
     rejectFriendRequest: async (requestId: string) => {
         try {
             set({ loading: true, error: null });
-            
-            // Delete the friend request
+            const userId = localStorage.getItem('userId');
+            if (!userId) throw new Error('User not authenticated');
+
+            // Находим запрос на дружбу
+            const request = await database.getDocument(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
+                requestId
+            );
+
+            // Проверяем, что запрос предназначен текущему пользователю
+            if (request.friend_id !== userId) {
+                throw new Error('You can only reject your own friend requests');
+            }
+
+            // Удаляем запрос
             await database.deleteDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 requestId
             );
             
-            // Update UI state
-            set(state => ({
-                pendingRequests: state.pendingRequests.filter(req => req.id !== requestId)
-            }));
-            
             toast.success('Friend request rejected');
-        } catch (error) {
+            
+            // Обновляем список запросов
+            await get().loadPendingRequests();
+        } catch (error: any) {
             console.error('Error rejecting friend request:', error);
-            set({ error: 'Failed to reject friend request' });
-            toast.error('Failed to reject friend request');
+            set({ error: error.message || 'Failed to reject friend request' });
+            toast.error(error.message || 'Failed to reject friend request');
         } finally {
             set({ loading: false });
         }
@@ -326,62 +343,55 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
     loadFriends: async () => {
         try {
             set({ loading: true, error: null });
-            
-            // Пытаемся получить ID пользователя из localStorage
             const userId = localStorage.getItem('userId');
-            console.log('Loading friends for user ID (from localStorage):', userId);
-            
             if (!userId) {
-                console.warn('No userId found in localStorage, friends list will be empty');
                 set({ friends: [] });
                 return;
             }
 
-            // Load friends where user is the initiator
-            console.log('Loading friendships where user is initiator...');
-            const friendshipsAsInitiator = await database.listDocuments(
+            // Загружаем друзей, где мы являемся инициатором
+            const friendsAsInitiator = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
-                    Query.equal('status', 'accepted'),
-                    Query.equal('user_id', userId)
+                    Query.equal('user_id', userId),
+                    Query.equal('status', 'accepted')
                 ]
             );
-            console.log('Found', friendshipsAsInitiator.documents.length, 'friendships as initiator');
 
-            // Load friends where user is the receiver
-            console.log('Loading friendships where user is receiver...');
-            const friendshipsAsReceiver = await database.listDocuments(
+            // Загружаем друзей, где мы являемся получателем
+            const friendsAsReceiver = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
-                    Query.equal('status', 'accepted'),
-                    Query.equal('friend_id', userId)
+                    Query.equal('friend_id', userId),
+                    Query.equal('status', 'accepted')
                 ]
             );
-            console.log('Found', friendshipsAsReceiver.documents.length, 'friendships as receiver');
 
-            // Format and combine the friend lists
-            const formattedFriendsAsInitiator = friendshipsAsInitiator.documents.map(doc => ({
-                id: doc.$id,
-                userId: doc.user_id,
-                friendId: doc.friend_id,
-                status: doc.status,
-                createdAt: doc.created_at
-            }));
+            // Объединяем и форматируем результаты
+            const allFriendships = [...friendsAsInitiator.documents, ...friendsAsReceiver.documents];
+            const formattedFriends = await Promise.all(
+                allFriendships.map(async (friendship) => {
+                    // Определяем ID друга (не нас)
+                    const friendId = friendship.user_id === userId ? friendship.friend_id : friendship.user_id;
+                    
+                    // Загружаем профиль друга
+                    const friendProfile = await getUserProfile(friendId);
+                    
+                    return {
+                        id: friendship.$id,
+                        userId: friendship.user_id,
+                        friendId: friendId,
+                        status: friendship.status,
+                        createdAt: friendship.created_at,
+                        updatedAt: friendship.updated_at,
+                        profile: friendProfile
+                    };
+                })
+            );
 
-            const formattedFriendsAsReceiver = friendshipsAsReceiver.documents.map(doc => ({
-                id: doc.$id,
-                userId: doc.friend_id, // Это текущий пользователь
-                friendId: doc.user_id, // Это друг (инициатор запроса)
-                status: doc.status,
-                createdAt: doc.created_at
-            }));
-            
-            const combinedFriends = [...formattedFriendsAsInitiator, ...formattedFriendsAsReceiver];
-            console.log('Combined friends list:', combinedFriends);
-            
-            set({ friends: combinedFriends });
+            set({ friends: formattedFriends });
         } catch (error) {
             console.error('Error loading friends:', error);
             set({ error: 'Failed to load friends' });
@@ -394,26 +404,38 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         try {
             set({ loading: true, error: null });
             const userId = localStorage.getItem('userId');
-            if (!userId) return;
+            if (!userId) {
+                set({ pendingRequests: [] });
+                return;
+            }
 
-            // Load pending friend requests where the user is the recipient
-            const requests = await database.listDocuments(
+            // Загружаем входящие запросы на дружбу
+            const pendingRequests = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
-                    Query.equal('status', 'pending'),
-                    Query.equal('friend_id', userId)
+                    Query.equal('friend_id', userId),
+                    Query.equal('status', 'pending')
                 ]
             );
 
-            // Format the requests
-            const formattedRequests = requests.documents.map(doc => ({
-                id: doc.$id,
-                userId: doc.user_id,
-                friendId: doc.friend_id,
-                status: doc.status,
-                createdAt: doc.created_at
-            }));
+            // Форматируем результаты
+            const formattedRequests = await Promise.all(
+                pendingRequests.documents.map(async (request) => {
+                    // Загружаем профиль отправителя
+                    const senderProfile = await getUserProfile(request.user_id);
+                    
+                    return {
+                        id: request.$id,
+                        userId: request.user_id,
+                        friendId: request.friend_id,
+                        status: request.status,
+                        createdAt: request.created_at,
+                        updatedAt: request.updated_at,
+                        profile: senderProfile
+                    };
+                })
+            );
 
             set({ pendingRequests: formattedRequests });
         } catch (error) {
@@ -428,26 +450,38 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         try {
             set({ loading: true, error: null });
             const userId = localStorage.getItem('userId');
-            if (!userId) return;
+            if (!userId) {
+                set({ sentRequests: [] });
+                return;
+            }
 
-            // Load pending friend requests where the user is the sender
-            const requests = await database.listDocuments(
+            // Загружаем отправленные запросы на дружбу
+            const sentRequests = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIEND_REQUESTS!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
                 [
-                    Query.equal('status', 'pending'),
-                    Query.equal('user_id', userId)
+                    Query.equal('user_id', userId),
+                    Query.equal('status', 'pending')
                 ]
             );
 
-            // Format the requests
-            const formattedRequests = requests.documents.map(doc => ({
-                id: doc.$id,
-                userId: doc.user_id,
-                friendId: doc.friend_id,
-                status: doc.status,
-                createdAt: doc.created_at
-            }));
+            // Форматируем результаты
+            const formattedRequests = await Promise.all(
+                sentRequests.documents.map(async (request) => {
+                    // Загружаем профиль получателя
+                    const receiverProfile = await getUserProfile(request.friend_id);
+                    
+                    return {
+                        id: request.$id,
+                        userId: request.user_id,
+                        friendId: request.friend_id,
+                        status: request.status,
+                        createdAt: request.created_at,
+                        updatedAt: request.updated_at,
+                        profile: receiverProfile
+                    };
+                })
+            );
 
             set({ sentRequests: formattedRequests });
         } catch (error) {
@@ -456,5 +490,5 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         } finally {
             set({ loading: false });
         }
-    },
+    }
 })); 

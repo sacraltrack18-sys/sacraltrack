@@ -76,7 +76,7 @@ export default function TermsOfUse() {
                 <div>
                   <h2 className="text-xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
                     Terms of Use
-              </h2>
+                  </h2>
                   <p className="text-sm text-[#818BAC]">Last updated: {new Date().toLocaleDateString()}</p>
                 </div>
               </div>
@@ -94,8 +94,8 @@ export default function TermsOfUse() {
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-center gap-3">
-                    <span className="text-xl">{section.icon}</span>
-                    <span className="text-sm">{section.title}</span>
+                      <span className="text-xl">{section.icon}</span>
+                      <span className="text-sm">{section.title}</span>
                     </div>
                   </motion.button>
                 ))}
@@ -127,10 +127,10 @@ export default function TermsOfUse() {
               <TermsSection id="introduction" title="Introduction">
                 <div className="space-y-6">
                   <div className="p-6 bg-[#1A2338]/60 backdrop-blur-md rounded-xl border border-[#3f2d63]/30">
-                <p className="text-white/80 leading-relaxed">
+                    <p className="text-white/80 leading-relaxed">
                       Welcome to sacraltrack.space. The Site, all services and APIs are the property of Sacral Projects, 
-                  registered under Partnership No. OC436704 at Palliser House Second Floor - London, United Kingdom.
-                </p>
+                      registered under Partnership No. OC436704 at Palliser House Second Floor - London, United Kingdom.
+                    </p>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
@@ -195,6 +195,44 @@ export default function TermsOfUse() {
                 </div>
               </TermsSection>
 
+              <TermsSection id="vibes" title="Vibes & Social">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track offers a comprehensive social network with "Vibes" - our social sharing feature that connects artists and music lovers.
+                  </p>
+
+                  <InfoCard icon="🌟" title="Vibes Feature">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        Share and engage with the music community through Vibes:
+                      </p>
+                      <CheckList items={[
+                        'Post updates, thoughts, and images',
+                        'Share music you're enjoying',
+                        'Announce new releases and events',
+                        'Connect with fans and artists',
+                        'Discover trending content'
+                      ]} />
+                    </div>
+                  </InfoCard>
+
+                  <InfoCard icon="🔍" title="Social Network Guidelines">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        When participating in our social network, users must adhere to these guidelines:
+                      </p>
+                      <CheckList items={[
+                        'Respect intellectual property rights',
+                        'Maintain a supportive community environment',
+                        'Follow content appropriateness standards',
+                        'Engage in meaningful music discussions',
+                        'Report violations through proper channels'
+                      ]} />
+                    </div>
+                  </InfoCard>
+                </div>
+              </TermsSection>
+
               <TermsSection id="rankings" title="Rankings & Ratings">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
@@ -217,9 +255,9 @@ export default function TermsOfUse() {
               </TermsSection>
             </motion.div>
           </div>
-          </div>
         </div>
-
+      </div>
+      
       {/* Back to top button */}
       {showBackToTop && (
         <motion.button
@@ -234,3 +272,23 @@ export default function TermsOfUse() {
     </>
   );
 }
+
+// Add custom scrollbar styles to globals.css
+/*
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #20DDBB;
+  border-radius: 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #1CB399;
+}
+*/

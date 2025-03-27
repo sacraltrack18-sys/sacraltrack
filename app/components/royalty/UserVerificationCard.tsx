@@ -104,40 +104,37 @@ interface UserVerificationCardProps {
   onPhoneVerified?: (phoneNumber: number) => void;
 }
 
+interface VerificationStepProps {
+  title: string;
+  description: string;
+  verificationInfo?: string;
+  icon: JSX.Element;
+  isVerified: boolean;
+  onVerify: () => void;
+  isLoading: boolean;
+}
+
 const VerificationStep = ({ 
   title, 
   description, 
+  verificationInfo, 
   icon, 
   isVerified, 
   onVerify,
-  isDisabled = false,
-  isLoading = false,
-  verificationInfo,
-  highlightedInfo
-}: { 
-  title: string; 
-  description: string; 
-  icon: React.ReactNode; 
-  isVerified: boolean; 
-  onVerify: () => void;
-  isDisabled?: boolean;
-  isLoading?: boolean;
-  verificationInfo?: string;
-  highlightedInfo?: string;
-}) => {
-  return (
+  isLoading 
+}: VerificationStepProps) => (
     <motion.div 
       className={`gradient-border mb-3 transition-all duration-300 ${isVerified ? 'always-glow' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={!isVerified && !isDisabled ? { scale: 1.02 } : {}}
+    whileHover={!isVerified ? { scale: 1.02 } : {}}
     >
       <div className={`relative p-5 rounded-lg transition-all duration-300 ${
         isVerified 
           ? 'bg-[#1A2338]/60 backdrop-blur-md' 
           : 'bg-[#1A2338]/50 hover:bg-[#1A2338]/60 backdrop-blur-md'
       }`}>
-        <div className="flex justify-between">
+      <div className="flex justify-between items-start">
           <div className="flex items-start gap-3">
             <div className={`p-2.5 rounded-lg ${
               isVerified 
@@ -154,9 +151,9 @@ const VerificationStep = ({
                 )}
               </h3>
               
-              {highlightedInfo && (
+            {verificationInfo && (
                 <div className="mt-1.5 mb-2">
-                  <span className="text-sm font-medium text-violet-300">{highlightedInfo}</span>
+                <span className="text-sm font-medium text-violet-300">{verificationInfo}</span>
                   {isVerified && (
                     <span className="ml-2 text-xs px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded">verified</span>
                   )}
@@ -166,11 +163,6 @@ const VerificationStep = ({
               <p className="text-xs text-[#9BA3BF] mt-1 max-w-xs">
                 {description}
               </p>
-              {verificationInfo && (
-                <p className="text-xs text-[#9BA3BF] mt-2 italic">
-                  {verificationInfo}
-                </p>
-              )}
             </div>
           </div>
           
@@ -182,59 +174,30 @@ const VerificationStep = ({
             ) : (
               <button
                 onClick={onVerify}
-                disabled={isDisabled || isLoading}
+              disabled={isLoading}
                 className={`
                   relative overflow-hidden group flex items-center gap-1.5 text-xs py-1.5 px-3.5 rounded-full transition-all duration-300
-                  ${isDisabled 
+                ${isLoading
                     ? 'bg-[#1A2338]/50 text-[#818BAC] cursor-not-allowed opacity-70' 
                     : 'bg-gradient-to-r from-[#3f2d63] to-[#4e377a] text-white hover:shadow-lg hover:shadow-violet-900/20'
                   }
                 `}
               >
                 {isLoading ? (
-                  <FaSpinner className="animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span className="z-10 relative">Verify</span>
-                    <motion.div 
-                      className="z-10 relative"
-                      initial={{ rotate: 0 }}
-                      whileHover={{ rotate: 90 }}
-                      transition={{ duration: 0.3 }}
-                    >
+                  <span>Verify</span>
                       <FaArrowRight size={10} />
-                    </motion.div>
-                    {/* Button glow effect */}
-                    {!isDisabled && (
-                      <motion.div 
-                        className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-500/0 via-violet-400/20 to-purple-500/0"
-                        initial={{ x: '-100%' }}
-                        animate={{ x: '100%' }}
-                        transition={{ 
-                          repeat: Infinity, 
-                          duration: 1.5, 
-                          ease: 'linear',
-                          repeatDelay: 0.5
-                        }}
-                      />
-                    )}
                   </>
                 )}
               </button>
             )}
           </div>
         </div>
-        
-        {isDisabled && (
-          <div className="mt-2 flex items-center gap-1.5 text-[#818BAC] text-xs">
-            <FaInfoCircle size={12} />
-            <span>Complete email verification first</span>
-          </div>
-        )}
       </div>
     </motion.div>
   );
-};
 
 const EmailDisplay = ({ email }: { email?: string }) => {
   if (!email) return null;
@@ -481,47 +444,20 @@ export default function UserVerificationCard({
   };
   
   return (
-    <>
-      <style jsx global>{gradientBorderStyles}</style>
-      <div className="h-full w-full px-0 lg:px-0">
         <motion.div 
-          className="gradient-border rounded-xl overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <div className="h-full bg-[#1A2338]/60 backdrop-blur-lg rounded-xl">
-            <div className="p-4 md:p-5 space-y-4">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
-                  <FaUserShield className="text-violet-300" />
-                  <span>Verify Account</span>
-                </h2>
-                
-                <div className={`text-xs py-1 px-3 rounded-full flex items-center gap-1 ${
-                  isFullyVerified 
-                    ? 'bg-gradient-to-r from-[#3f2d63]/30 to-[#3f2d63]/10 text-violet-300' 
-                    : 'bg-gradient-to-r from-amber-500/30 to-amber-500/10 text-amber-400'
-                }`}>
-                  {isFullyVerified ? (
-                    <>
-                      <FaCheckCircle className="text-xs" />
-                      <span>Verified</span>
-                    </>
-                  ) : (
-                    <>
-                      <FaInfoCircle className="text-xs" />
-                      <span className="hidden xs:inline">Not Verified</span>
-                    </>
-                  )}
-                </div>
+      className="w-full"
+    >
+      <div className="gradient-border">
+        <div className="bg-[#1A2338]/60 backdrop-blur-md p-6 rounded-lg">
+          <div className="flex items-center gap-2 mb-6">
+            <FaUserShield className="text-violet-300 text-xl" />
+            <h2 className="text-white text-lg font-medium">Account Verification</h2>
               </div>
               
-              <p className="text-xs sm:text-sm text-[#9BA3BF]">
-                Verify your account to unlock withdrawals and enhanced security
-              </p>
-              
-              <div className="flex items-center gap-2 mt-4 mb-3 text-violet-300 text-xs sm:text-sm">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-violet-300 text-xs sm:text-sm">
                 <FaLock size={14} />
                 <span className="text-white font-medium">Security verification steps</span>
               </div>
@@ -540,7 +476,7 @@ export default function UserVerificationCard({
               />
               
               {userEmail && (
-                <div className="flex items-center gap-2 p-3 mt-1 mb-3 bg-[#252742]/70 rounded-lg border border-[#3f2d63]/40">
+              <div className="flex items-center gap-2 p-3 bg-[#252742]/70 rounded-lg border border-[#3f2d63]/40">
                   <FaAt className="text-violet-300" />
                   <div className="text-white text-sm font-medium overflow-hidden text-ellipsis">
                     {userEmail}
@@ -551,11 +487,10 @@ export default function UserVerificationCard({
                 </div>
               )}
               
-              {/* Using custom phone verification step component with input field */}
               <PhoneVerificationStep />
               
               {isFullyVerified && (
-                <div className="gradient-border always-glow mt-4">
+              <div className="gradient-border always-glow mt-6">
                   <motion.div 
                     className="p-4 bg-[#1A2338]/80 backdrop-blur-sm rounded-lg text-center"
                     initial={{ opacity: 0, y: 20 }}
@@ -570,7 +505,7 @@ export default function UserVerificationCard({
                 </div>
               )}
               
-              <div className="gradient-border mt-4">
+            <div className="gradient-border mt-6">
                 <motion.div 
                   className="p-3 sm:p-4 bg-[#1A2338]/70 backdrop-blur-sm rounded-lg flex items-center gap-3"
                   initial={{ opacity: 0, y: 20 }}
@@ -585,7 +520,6 @@ export default function UserVerificationCard({
               </div>
             </div>
           </div>
-        </motion.div>
       </div>
 
       <VerificationCodeModal
@@ -595,6 +529,6 @@ export default function UserVerificationCard({
         type="phone"
         phone={phoneNumberInput ? parseInt(phoneNumberInput, 10) : undefined}
       />
-    </>
+    </motion.div>
   );
 } 

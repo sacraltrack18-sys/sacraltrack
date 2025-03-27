@@ -80,6 +80,47 @@ interface VibeStore {
   resetVibeState: () => void;
 }
 
+// Создадим утилитарные функции для работы со статистикой
+
+const normalizeVibeStats = (stats: any): { total_likes: number; total_comments: number; total_views: number } => {
+  // Если stats это массив
+  if (Array.isArray(stats)) {
+    const statsArray = [...stats];
+    while (statsArray.length < 3) statsArray.push('0');
+    return {
+      total_likes: parseInt(statsArray[0], 10) || 0,
+      total_comments: parseInt(statsArray[1], 10) || 0,
+      total_views: parseInt(statsArray[2], 10) || 0
+    };
+  }
+  
+  // Если stats это объект
+  if (typeof stats === 'object' && stats !== null && !Array.isArray(stats)) {
+    return {
+      total_likes: typeof stats.total_likes === 'number' ? stats.total_likes : 0,
+      total_comments: typeof stats.total_comments === 'number' ? stats.total_comments : 0,
+      total_views: typeof stats.total_views === 'number' ? stats.total_views : 0
+    };
+  }
+  
+  // По умолчанию возвращаем нули
+  return {
+    total_likes: 0,
+    total_comments: 0,
+    total_views: 0
+  };
+};
+
+// Функция для преобразования нормализованной статистики обратно в массив
+const statsToArray = (stats: { total_likes: number; total_comments: number; total_views: number }): string[] => {
+  // Make sure we're returning numbers converted to strings, not objects that might be converted to "[object Object]"
+  const likes = typeof stats.total_likes === 'number' ? stats.total_likes.toString() : '0';
+  const comments = typeof stats.total_comments === 'number' ? stats.total_comments.toString() : '0';
+  const views = typeof stats.total_views === 'number' ? stats.total_views.toString() : '0';
+  
+  return [likes, comments, views];
+};
+
 export const useVibeStore = create<VibeStore>()(
   devtools(
     persist(
@@ -515,8 +556,23 @@ export const useVibeStore = create<VibeStore>()(
 
         likeVibe: async (vibeId, userId) => {
           try {
-            console.log('Trying to like vibe:', vibeId, 'by user:', userId);
-            
+            // Оптимистичное обновление UI перед выполнением сетевых запросов
+            set(state => ({
+              allVibePosts: state.allVibePosts.map(vibe => {
+                if (vibe.id === vibeId) {
+                  const currentStats = normalizeVibeStats(vibe.stats);
+                  const updatedStats = {
+                    ...currentStats,
+                    total_likes: currentStats.total_likes + 1
+                  };
+                  
+                  return { ...vibe, stats: updatedStats };
+                }
+                return vibe;
+              }),
+              userLikedVibes: [...(state.userLikedVibes || []), vibeId]
+            }));
+
             // Create like document
             await database.createDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -536,90 +592,63 @@ export const useVibeStore = create<VibeStore>()(
               vibeId
             );
 
-            console.log('Current vibe stats:', vibe.stats, 'Type:', typeof vibe.stats);
-            
-            // Проверяем структуру stats и преобразуем соответственно
-            let stats;
-            let updatedStats: string[] = [];
-            
-            if (Array.isArray(vibe.stats)) {
-              // Если stats это массив - работаем как с массивом
-              stats = [...vibe.stats];
-              
-              // Убедимся, что у нас есть все три элемента
-              while (stats.length < 3) {
-                stats.push('0');
-              }
-              
-              // Увеличиваем количество лайков (первый элемент массива)
-              const currentLikes = parseInt(stats[0], 10) || 0;
-              stats[0] = (currentLikes + 1).toString();
-              updatedStats = stats;
-              
-              console.log('Updating array stats to:', stats);
-            } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-              // Если stats это объект - преобразуем в массив
-              const totalLikes = typeof vibe.stats.total_likes === 'number' ? vibe.stats.total_likes + 1 : 1;
-              const totalComments = typeof vibe.stats.total_comments === 'number' ? vibe.stats.total_comments : 0;
-              const totalViews = typeof vibe.stats.total_views === 'number' ? vibe.stats.total_views : 0;
-              
-              updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
-              console.log('Converting object stats to array:', updatedStats);
-            } else {
-              // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
-              updatedStats = ['1', '0', '0'];
-              console.log('Creating new stats array:', updatedStats);
-            }
+            const currentStats = normalizeVibeStats(vibe.stats);
+            const updatedStats = {
+              ...currentStats,
+              total_likes: currentStats.total_likes + 1
+            };
 
-            // Обновляем документ с новыми stats
+            // Преобразуем объект статистики в массив для обновления документа
+            const statsForUpdate = statsToArray(updatedStats);
+            
+            // Log for debugging
+            console.log('Updating vibe stats:', {
+              vibeId,
+              currentStats,
+              updatedStats,
+              statsForUpdate
+            });
+
+            // Update document with new stats
             await database.updateDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
               process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
               vibeId,
-              {
-                stats: {
-                  total_likes: parseInt(updatedStats[0]) || 0,
-                  total_comments: parseInt(updatedStats[1]) || 0,
-                  total_views: parseInt(updatedStats[2]) || 0
-                }
-              }
+              { stats: statsForUpdate }
             );
-            
-            console.log('Vibe stats updated successfully');
 
-            // Update local state
+            // Обновляем состояние после успешного запроса для синхронизации с сервером
             get().fetchUserLikedVibes(userId);
-            
-            // Обновляем локальное состояние вайба, если это текущий просматриваемый вайб
-            const currentVibe = get().vibePostById;
-            if (currentVibe && currentVibe.id === vibeId) {
-              const updatedVibe = { ...currentVibe, stats: updatedStats };
-              set({ vibePostById: updatedVibe });
-              console.log('Updated current vibe in store');
-            }
-
-            // Обновляем лайки во всем списке вайбов
-            set(state => ({
-              allVibePosts: state.allVibePosts.map(vibe => {
-                if (vibe.id === vibeId) {
-                  return { ...vibe, stats: updatedStats };
-                }
-                return vibe;
-              })
-            }));
-            
-            console.log('Updated vibe in all posts list');
-
           } catch (error) {
             console.error('Error liking vibe:', error);
+            
+            // Отменяем оптимистичное обновление в случае ошибки
+            get().fetchUserLikedVibes(userId);
+            get().fetchAllVibes();
+            
             throw error;
           }
         },
 
         unlikeVibe: async (vibeId, userId) => {
           try {
-            console.log('Trying to unlike vibe:', vibeId, 'by user:', userId);
-            
+            // Оптимистичное обновление UI перед выполнением сетевых запросов
+            set(state => ({
+              allVibePosts: state.allVibePosts.map(vibe => {
+                if (vibe.id === vibeId) {
+                  const currentStats = normalizeVibeStats(vibe.stats);
+                  const updatedStats = {
+                    ...currentStats,
+                    total_likes: Math.max(0, currentStats.total_likes - 1)
+                  };
+                  
+                  return { ...vibe, stats: updatedStats };
+                }
+                return vibe;
+              }),
+              userLikedVibes: (state.userLikedVibes || []).filter(id => id !== vibeId)
+            }));
+
             // Find the like document
             const response = await database.listDocuments(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -631,8 +660,6 @@ export const useVibeStore = create<VibeStore>()(
             );
 
             if (response.documents.length > 0) {
-              console.log('Found like document, deleting it');
-              
               // Delete the like document
               await database.deleteDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -647,83 +674,33 @@ export const useVibeStore = create<VibeStore>()(
                 vibeId
               );
 
-              console.log('Current vibe stats:', vibe.stats, 'Type:', typeof vibe.stats);
-              
-              // Проверяем структуру stats и преобразуем соответственно
-              let updatedStats: string[] = [];
-              
-              if (Array.isArray(vibe.stats)) {
-                // Если stats это массив - работаем как с массивом
-                const stats = [...vibe.stats];
-                
-                // Убедимся, что у нас есть все три элемента
-                while (stats.length < 3) {
-                  stats.push('0');
-                }
-                
-                // Уменьшаем количество лайков (первый элемент массива)
-                const currentLikes = parseInt(stats[0], 10) || 0;
-                stats[0] = Math.max(0, currentLikes - 1).toString();
-                updatedStats = stats;
-                
-                console.log('Updating array stats to:', stats);
-              } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-                // Если stats это объект - преобразуем в массив
-                const totalLikes = Math.max(0, (typeof vibe.stats.total_likes === 'number' ? vibe.stats.total_likes : 0) - 1);
-                const totalComments = typeof vibe.stats.total_comments === 'number' ? vibe.stats.total_comments : 0;
-                const totalViews = typeof vibe.stats.total_views === 'number' ? vibe.stats.total_views : 0;
-                
-                updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
-                console.log('Converting object stats to array:', updatedStats);
-              } else {
-                // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
-                updatedStats = ['0', '0', '0'];
-                console.log('Creating new stats array:', updatedStats);
-              }
+              const currentStats = normalizeVibeStats(vibe.stats);
+              const updatedStats = {
+                ...currentStats,
+                total_likes: Math.max(0, currentStats.total_likes - 1)
+              };
 
-              // Обновляем документ с новыми stats
+              // Преобразуем объект статистики в массив для обновления документа
+              const statsForUpdate = statsToArray(updatedStats);
+
+              // Update document with new stats
               await database.updateDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
                 vibeId,
-                {
-                  stats: {
-                    total_likes: parseInt(updatedStats[0]) || 0,
-                    total_comments: parseInt(updatedStats[1]) || 0,
-                    total_views: parseInt(updatedStats[2]) || 0
-                  }
-                }
+                { stats: statsForUpdate }
               );
-              
-              console.log('Vibe stats updated successfully');
 
-              // Update local state
+              // Обновляем состояние после успешного запроса для синхронизации с сервером
               get().fetchUserLikedVibes(userId);
-              
-              // Обновляем локальное состояние вайба, если это текущий просматриваемый вайб
-              const currentVibe = get().vibePostById;
-              if (currentVibe && currentVibe.id === vibeId) {
-                const updatedVibe = { ...currentVibe, stats: updatedStats };
-                set({ vibePostById: updatedVibe });
-                console.log('Updated current vibe in store');
-              }
-
-              // Обновляем лайки во всем списке вайбов
-              set(state => ({
-                allVibePosts: state.allVibePosts.map(vibe => {
-                  if (vibe.id === vibeId) {
-                    return { ...vibe, stats: updatedStats };
-                  }
-                  return vibe;
-                })
-              }));
-              
-              console.log('Updated vibe in all posts list');
-            } else {
-              console.log('No like document found for this vibe and user');
             }
           } catch (error) {
             console.error('Error unliking vibe:', error);
+            
+            // Отменяем оптимистичное обновление в случае ошибки
+            get().fetchUserLikedVibes(userId);
+            get().fetchAllVibes();
+            
             throw error;
           }
         },

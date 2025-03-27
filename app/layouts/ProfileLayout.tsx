@@ -45,6 +45,35 @@ export default function ProfileLayout({ children, params }: { children: React.Re
     // Проверяем, является ли текущий пользователь владельцем профиля
     const isProfileOwner = contextUser?.user?.id === currentProfile?.user_id;
 
+    // Проверяем URL на наличие query параметра tab
+    useEffect(() => {
+        // Анализируем URL на наличие параметра tab
+        const url = new URL(window.location.href);
+        const tab = url.searchParams.get('tab');
+        
+        if (tab === 'friends') {
+            setShowFriends(true);
+            setShowPurchases(false);
+            setShowLikedTracks(false);
+            setShowVibes(false);
+        } else if (tab === 'purchases' && isProfileOwner) {
+            setShowFriends(false);
+            setShowPurchases(true);
+            setShowLikedTracks(false);
+            setShowVibes(false);
+        } else if (tab === 'likes') {
+            setShowFriends(false);
+            setShowPurchases(false);
+            setShowLikedTracks(true);
+            setShowVibes(false);
+        } else if (tab === 'vibes') {
+            setShowFriends(false);
+            setShowPurchases(false);
+            setShowLikedTracks(false);
+            setShowVibes(true);
+        }
+    }, [pathname, isProfileOwner]);
+
     useEffect(() => {
         const loadLikedPosts = async () => {
             if (showLikedTracks && currentProfile?.user_id) {
@@ -69,6 +98,22 @@ export default function ProfileLayout({ children, params }: { children: React.Re
         
         return () => clearTimeout(timer);
     }, [postsByUser, params.params.id, setHasUserReleases]);
+
+    const switchToTab = (tab: 'friends' | 'purchases' | 'likes' | 'vibes' | 'main') => {
+        setShowFriends(tab === 'friends');
+        setShowPurchases(tab === 'purchases');
+        setShowLikedTracks(tab === 'likes');
+        setShowVibes(tab === 'vibes');
+        
+        // Обновляем URL с параметром tab
+        const url = new URL(window.location.href);
+        if (tab !== 'main') {
+            url.searchParams.set('tab', tab);
+        } else {
+            url.searchParams.delete('tab');
+        }
+        window.history.pushState({}, '', url);
+    };
 
     return (
 		<>
@@ -198,7 +243,22 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                         <div className="hidden lg:block w-[300px] flex-shrink-0">
                             <UserActivitySidebar 
                                 userId={currentProfile.user_id} 
-                                isOwner={isProfileOwner} 
+                                isOwner={isProfileOwner}
+                                onShowFriends={() => switchToTab('friends')}
+                                onShowLikes={() => switchToTab('likes')} 
+                                onShowPurchases={() => switchToTab('purchases')}
+                                onShowVibes={() => switchToTab('vibes')}
+                                activeTab={
+                                    showFriends 
+                                        ? 'friends' 
+                                        : showLikedTracks 
+                                            ? 'likes' 
+                                            : showPurchases 
+                                                ? 'purchases' 
+                                                : showVibes 
+                                                    ? 'vibes' 
+                                                    : 'main'
+                                }
                             />
                         </div>
                     )}

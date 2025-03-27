@@ -198,12 +198,12 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
         loadSentRequests,
         acceptFriendRequest,
         rejectFriendRequest,
-        removeFriend
+        removeFriend,
+        addFriend
     } = useFriendsStore();
     
     const { getProfileById, currentProfile } = useProfileStore();
     
-    const [users, setUsers] = useState<{ [key: string]: User }>({});
     const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent'>('friends');
     const [isLoading, setIsLoading] = useState(true);
     const [showSearchModal, setShowSearchModal] = useState(false);
@@ -213,294 +213,255 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
     // Determine if the current user is the profile owner
     const isOwner = contextUser?.user?.id === profileId;
     
-    // Функция для загрузки профилей пользователей по ID
-    const loadUserProfiles = async (userIds: string[]): Promise<Record<string, User>> => {
+    const fetchData = async () => {
         try {
-            console.log("Loading profiles for userIds:", userIds);
-            // Преобразуем в массив уникальных ID
-            const uniqueUserIds = Array.from(new Set(userIds));
-            const profiles: Record<string, User> = {};
-            
-            await Promise.all(
-                uniqueUserIds.map(async (userId) => {
-                    try {
-                        const profile = await getProfileById(userId);
-                        if (profile) {
-                            profiles[userId] = {
-                                id: profile.$id,
-                                user_id: profile.user_id,
-                                name: profile.name || `User ${profile.user_id}`,
-                                image: profile.image || '',
-                                // Безопасно получаем username, если он есть
-                                username: (profile as any).username || `user_${profile.user_id}`
-                            };
-                        }
-                    } catch (error) {
-                        console.error(`Failed to load profile for user ${userId}:`, error);
-                    }
-                })
-            );
-            
-            return profiles;
-        } catch (error) {
-            console.error("Failed to load user profiles:", error);
-            return {};
-        }
-    };
-    
-    useEffect(() => {
-        const fetchData = async () => {
             setIsLoading(true);
             
-            try {
-                // Загружаем друзей и запросы только если текущий пользователь владелец профиля
+            // Если мы просматриваем свой профиль, загружаем все списки
                 if (isOwner) {
                     await Promise.all([
                         loadFriends(),
                         loadPendingRequests(),
                         loadSentRequests()
                     ]);
-                    
-                    // Формируем массив ID пользователей для загрузки профилей
-                    const friendIds = friends.map(friend => friend.friendId);
-                    const pendingIds = pendingRequests.map(request => request.userId);
-                    const sentIds = sentRequests.map(request => request.friendId);
-                    
-                    // Загружаем профили пользователей
-                    const profiles = await loadUserProfiles([...friendIds, ...pendingIds, ...sentIds]);
-                    setUsers(profiles);
                 } else {
-                    // Для просмотра чужого профиля загружаем только друзей этого пользователя
+                // Если просматриваем чужой профиль, загружаем только список друзей
                     await loadFriends();
-                    const friendIds = friends.map(friend => friend.friendId);
-                    const profiles = await loadUserProfiles(friendIds);
-                    setUsers(profiles);
                 }
             } catch (error) {
-                console.error("Failed to fetch friends data:", error);
-                toast.error("Failed to load friends");
+            console.error('Error fetching friends data:', error);
+            toast.error('Failed to load friends data');
             } finally {
                 setIsLoading(false);
             }
         };
         
-        if (profileId) {
+    useEffect(() => {
         fetchData();
-        }
-    }, [profileId, isOwner]);
+    }, [isOwner, profileId]);
     
+    // Обработчики действий с друзьями
     const handleAcceptRequest = async (requestId: string) => {
         try {
             await acceptFriendRequest(requestId);
-            // Обновляем данные после принятия запроса
-            await loadFriends();
-            await loadPendingRequests();
+            toast.success('Friend request accepted');
+            fetchData(); // Обновляем данные после действия
         } catch (error) {
-            console.error("Error accepting friend request:", error);
+            console.error('Error accepting friend request:', error);
+            toast.error('Failed to accept friend request');
         }
     };
     
     const handleRejectRequest = async (requestId: string) => {
         try {
             await rejectFriendRequest(requestId);
-            // Обновляем список запросов
-            await loadPendingRequests();
+            toast.success('Friend request rejected');
+            fetchData(); // Обновляем данные после действия
         } catch (error) {
-            console.error("Error rejecting friend request:", error);
+            console.error('Error rejecting friend request:', error);
+            toast.error('Failed to reject friend request');
         }
     };
     
     const handleRemoveFriend = async (friendId: string) => {
         try {
             await removeFriend(friendId);
-            // Обновляем список друзей
-            await loadFriends();
+            toast.success('Friend removed');
+            fetchData(); // Обновляем данные после действия
         } catch (error) {
-            console.error("Error removing friend:", error);
+            console.error('Error removing friend:', error);
+            toast.error('Failed to remove friend');
         }
     };
     
+    const handleAddFriend = async (userId: string) => {
+        try {
+            await addFriend(userId, contextUser?.user?.id);
+            toast.success('Friend request sent');
+            fetchData(); // Обновляем данные после действия
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            toast.error('Failed to send friend request');
+        }
+    };
+    
+    // Визуализация и рендеринг
     return (
-        <div className="w-full rounded-3xl bg-gradient-to-br from-[#1E2136]/80 to-[#15162C]/80 backdrop-blur-md shadow-xl overflow-hidden">
-            {/* Header with tab buttons */}
-            <div className="p-4 border-b border-purple-900/20">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold text-white">Friends</h2>
+        <div className="w-full">
+            {/* Заголовок и поиск друзей */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
+                <div className="mb-4 md:mb-0">
+                    <h2 className="text-2xl font-bold text-white">
+                        {isOwner ? 'Your Friends' : `${currentProfile?.name}'s Friends`}
+                    </h2>
+                    <p className="text-gray-400 mt-1">
+                        {isOwner 
+                            ? 'Manage your connections and friend requests' 
+                            : `Explore ${currentProfile?.name}'s connections`}
+                    </p>
+                </div>
                     
                     {isOwner && (
                         <motion.button
+                        onClick={() => setShowSearchModal(true)}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setShowSearchModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-900/20 transition-all duration-300"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-violet-600 rounded-xl text-white shadow-lg shadow-purple-900/20"
                         >
                             <UserPlusIcon className="w-5 h-5" />
-                            Find Friends
+                        <span>Find Friends</span>
                         </motion.button>
                     )}
                 </div>
                 
-                {/* Tab navigation */}
-                <div className="flex flex-wrap gap-2">
-                    <motion.button
+            {/* Вкладки (только для владельца профиля) */}
+            {isOwner && (
+                <div className="flex border-b border-gray-800 mb-6">
+                    <button
                         onClick={() => setActiveTab('friends')}
-                        className={`flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        className={`px-4 py-3 text-sm font-medium ${
                             activeTab === 'friends' 
-                            ? 'bg-purple-500 text-white' 
-                            : 'bg-[#252742] text-gray-400 hover:bg-[#2A2D42]'
+                                ? 'text-[#20DDBB] border-b-2 border-[#20DDBB]'
+                                : 'text-gray-400 hover:text-white'
                         }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                     >
-                        <BsPeople className="mr-2" /> All Friends
-                    </motion.button>
-                    
-                    {isOwner && (
-                        <>
-                            <motion.button
+                        Friends {friends.length > 0 && `(${friends.length})`}
+                    </button>
+                    <button
                                 onClick={() => setActiveTab('requests')}
-                                className={`flex items-center px-4 py-2 rounded-xl text-sm font-medium ml-2 transition-all ${
+                        className={`px-4 py-3 text-sm font-medium ${
                                     activeTab === 'requests' 
-                                    ? 'bg-purple-500 text-white' 
-                                    : 'bg-[#252742] text-gray-400 hover:bg-[#2A2D42]'
-                                } relative`}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <BsPersonPlus className="mr-2" /> Requests
-                                {pendingRequests.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                                        {pendingRequests.length}
-                                    </span>
-                                )}
-                            </motion.button>
-                            
-                            <motion.button
+                                ? 'text-[#20DDBB] border-b-2 border-[#20DDBB]'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        Friend Requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
+                    </button>
+                    <button
                                 onClick={() => setActiveTab('sent')}
-                                className={`flex items-center px-4 py-2 rounded-xl text-sm font-medium ml-2 transition-all ${
+                        className={`px-4 py-3 text-sm font-medium ${
                                     activeTab === 'sent' 
-                                    ? 'bg-purple-500 text-white' 
-                                    : 'bg-[#252742] text-gray-400 hover:bg-[#2A2D42]'
-                                }`}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <span className="mr-2">➡️</span> Sent
-                            </motion.button>
-                        </>
-                    )}
+                                ? 'text-[#20DDBB] border-b-2 border-[#20DDBB]'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        Sent Requests {sentRequests.length > 0 && `(${sentRequests.length})`}
+                    </button>
                 </div>
-            </div>
+            )}
             
-            {/* Content area */}
-            <div className="min-h-[400px]">
+            {/* Содержимое вкладок */}
                 {isLoading ? (
                     <LoadingState />
                 ) : (
                     <AnimatePresence mode="wait">
-                        {activeTab === 'friends' && (
+                    {activeTab === 'friends' || !isOwner ? (
                             <motion.div
                                 key="friends"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6"
-                            >
-                                {friends.length > 0 ? (
-                                    friends.map(friend => {
-                                        const user = users[friend.friendId];
-                                        if (!user) return null;
-                                        
-                                        return (
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            {friends.length === 0 ? (
+                                <EmptyState 
+                                    message={
+                                        isOwner 
+                                            ? "You don't have any friends yet. Start connecting with other users!" 
+                                            : `${currentProfile?.name} doesn't have any friends yet.`
+                                    } 
+                                    icon={<BsPeople />} 
+                                />
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {friends.map((friend) => (
                                             <FriendCard
                                                 key={friend.id}
-                                                user={user}
+                                            user={{
+                                                user_id: friend.friendId,
+                                                name: friend.profile?.name || 'User',
+                                                image: friend.profile?.image,
+                                                username: friend.profile?.username
+                                            }}
                                                 isFriend={true}
-                                                onRemove={handleRemoveFriend}
-                                            />
-                                        );
-                                    })
-                                ) : (
-                                    <EmptyState
-                                        message={isOwner ? "You don't have any friends yet" : "This user doesn't have any friends yet"}
-                                        icon={<BsPeople />}
-                                    />
+                                            onRemove={isOwner ? handleRemoveFriend : undefined}
+                                        />
+                                    ))}
+                                </div>
                                 )}
                             </motion.div>
-                        )}
-                        
-                        {activeTab === 'requests' && isOwner && (
+                    ) : activeTab === 'requests' ? (
                             <motion.div
                                 key="requests"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6"
-                            >
-                                {pendingRequests.length > 0 ? (
-                                    pendingRequests.map(request => {
-                                        const user = users[request.userId];
-                                        if (!user) return null;
-                                        
-                                        return (
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            {pendingRequests.length === 0 ? (
+                                <EmptyState 
+                                    message="You don't have any pending friend requests" 
+                                    icon={<BsPersonPlus />} 
+                                />
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {pendingRequests.map((request) => (
                                             <FriendCard
                                                 key={request.id}
-                                                user={user}
+                                            user={{
+                                                user_id: request.userId,
+                                                name: request.profile?.name || 'User',
+                                                image: request.profile?.image,
+                                                username: request.profile?.username
+                                            }}
                                                 isPending={true}
                                                 requestId={request.id}
                                                 onAccept={handleAcceptRequest}
                                                 onReject={handleRejectRequest}
                                             />
-                                        );
-                                    })
-                                ) : (
-                                    <EmptyState
-                                        message="You don't have any friend requests" 
-                                        icon={<BsPersonPlus />}
-                                    />
+                                    ))}
+                                </div>
                                 )}
                             </motion.div>
-                        )}
-                        
-                        {activeTab === 'sent' && isOwner && (
+                    ) : (
                             <motion.div
                                 key="sent"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6"
-                            >
-                                {sentRequests.length > 0 ? (
-                                    sentRequests.map(request => {
-                                        const user = users[request.friendId];
-                                        if (!user) return null;
-                                        
-                                        return (
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            {sentRequests.length === 0 ? (
+                                <EmptyState 
+                                    message="You haven't sent any friend requests yet" 
+                                    icon={<BsPersonPlus />} 
+                                />
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {sentRequests.map((request) => (
                                             <FriendCard
                                                 key={request.id}
-                                                user={user}
-                                                isPending={true}
-                                                requestId={request.id}
-                                            />
-                                        );
-                                    })
-                                ) : (
-                                    <EmptyState 
-                                        message="You haven't sent any friend requests" 
-                                        icon={<span className="text-4xl">➡️</span>} 
-                                    />
+                                            user={{
+                                                user_id: request.friendId,
+                                                name: request.profile?.name || 'User',
+                                                image: request.profile?.image,
+                                                username: request.profile?.username
+                                            }}
+                                        />
+                                    ))}
+                                </div>
                                 )}
                             </motion.div>
                         )}
                     </AnimatePresence>
                 )}
-            </div>
             
-            {/* Search friends modal */}
+            {/* Модальное окно поиска друзей */}
             {showSearchModal && (
                 <SearchFriendsModal 
-                    isOpen={showSearchModal} 
                     onClose={() => setShowSearchModal(false)} 
+                    onAddFriend={handleAddFriend}
+                    currentUserId={contextUser?.user?.id || ''}
                 />
             )}
         </div>

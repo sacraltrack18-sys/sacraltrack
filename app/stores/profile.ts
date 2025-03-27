@@ -70,14 +70,19 @@ export const useProfileStore = create<ProfileStore>()(
                 setupAuthListener: () => {
                     // Only setup the listener in browser environment
                     if (typeof window !== 'undefined') {
-                        console.log('Setting up auth state change listener for profile store');
-                        
+                        let lastAuthChange = 0;
+                        const DEBOUNCE_DELAY = 1000; // 1 second
+
                         // Define the handler function outside the block
                         const handleAuthChange = (event: Event) => {
+                            const now = Date.now();
+                            if (now - lastAuthChange < DEBOUNCE_DELAY) {
+                                return; // Ignore events that are too close together
+                            }
+                            lastAuthChange = now;
+
                             const customEvent = event as CustomEvent;
                             const userData = customEvent.detail?.user;
-                            
-                            console.log('Profile store received auth state change:', userData);
                             
                             if (userData && userData.id) {
                                 // User logged in, load their profile

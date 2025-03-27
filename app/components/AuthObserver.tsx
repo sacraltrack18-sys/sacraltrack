@@ -92,110 +92,22 @@ const AuthObserver = () => {
         if (lastAuthChangeRef.current && 
             ((authEventSignature.startsWith('login-') && lastAuthChangeRef.current.startsWith('login-')) ||
             (authEventSignature.startsWith('logout-') && lastAuthChangeRef.current.startsWith('logout-')))) {
-          // В production только важные логи
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Ignoring duplicate auth event');
-          }
           return;
         }
         
         // Store this event signature
         lastAuthChangeRef.current = authEventSignature;
         
-        // В production только важные логи
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Auth state change detected:', userData ? 'Logged in' : 'Logged out');
-        }
-        
         // Clear all user caches when auth state changes
         clearUserCache();
         
         // Only update profile if user data changed
         if (userData && (!currentProfile || currentProfile.user_id !== userData.id)) {
-          // В production только важные логи
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Setting current profile from auth change');
-          }
           setCurrentProfile(userData.id);
         }
         
         // Throttled router refresh
         throttledRefresh();
-        
-        // Show stylish toast notification
-        if (userData) {
-          toast.custom((t) => (
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.7 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.7, y: 20 }}
-              className={`${
-                t.visible ? 'animate-enter' : 'animate-leave'
-              } max-w-md w-full bg-gradient-to-br from-[#24183D] to-[#1A2338] backdrop-blur-xl shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-black/5 p-4`}
-            >
-              <div className="flex-1 w-0">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 pt-0.5">
-                    <div className="w-10 h-10 rounded-full bg-[#20DDBB]/20 flex items-center justify-center">
-                      <svg className="w-6 h-6 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <p className="text-sm font-medium text-white">Welcome back!</p>
-                    <p className="mt-1 text-sm text-[#A4ADC6]">
-                      Signed in as <span className="text-[#20DDBB]">{userData.name || 'User'}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="flex border-l border-white/10 pl-4 ml-4 items-center justify-center"
-              >
-                <svg className="w-5 h-5 text-white/60 hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </motion.div>
-          ), { id: 'auth-toast', duration: 3000 });
-        } else {
-          toast.custom((t) => (
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.7 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.7, y: 20 }}
-              className={`${
-                t.visible ? 'animate-enter' : 'animate-leave'
-              } max-w-md w-full bg-gradient-to-br from-[#24183D] to-[#1A2338] backdrop-blur-xl shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-black/5 p-4`}
-            >
-              <div className="flex-1 w-0">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 pt-0.5">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <p className="text-sm font-medium text-white">Signed out</p>
-                    <p className="mt-1 text-sm text-[#A4ADC6]">You've been safely logged out</p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="flex border-l border-white/10 pl-4 ml-4 items-center justify-center"
-              >
-                <svg className="w-5 h-5 text-white/60 hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </motion.div>
-          ), { id: 'auth-toast', duration: 3000 });
-        }
       };
       
       // Add listener

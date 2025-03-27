@@ -6,6 +6,8 @@ import { useVibeStore, VibePostWithProfile } from '@/app/stores/vibeStore';
 import VibeCard, { VibeCardSkeleton } from '@/app/components/vibe/VibeCard';
 import { MdOutlineMusicNote } from 'react-icons/md';
 import { VibeUploader } from '@/app/components/vibe/VibeUploader';
+import { HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 interface UserVibesProps {
   userId: string;
@@ -59,7 +61,7 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
 
       {/* Отображение вайбов */}
       {isLoadingVibes ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-[450px] mx-auto">
           {[1, 2, 3].map(i => (
             <VibeCardSkeleton key={i} />
           ))}
@@ -70,7 +72,7 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
           <p className="text-sm mt-1">{error}</p>
         </div>
       ) : vibePostsByUser && vibePostsByUser.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-[450px] mx-auto">
           <AnimatePresence>
             {vibePostsByUser.map((vibe) => (
               <motion.div
@@ -82,6 +84,7 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
                 transition={{ duration: 0.3 }}
               >
                 <VibeCard vibe={vibe} />
+                <VibeCounter vibe={vibe} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -121,6 +124,38 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
           onSuccess={handleVibeUploaderSuccess}
         />
       )}
+    </div>
+  );
+};
+
+const VibeCounter = ({ vibe }: { vibe: VibePostWithProfile }) => {
+  const { userLikedVibes } = useVibeStore();
+  const isLiked = userLikedVibes.includes(vibe.id);
+  
+  // Получаем значения лайков и комментариев
+  const likesCount = Array.isArray(vibe.stats) 
+    ? parseInt(vibe.stats[0], 10) || 0
+    : (vibe.stats?.total_likes || 0);
+    
+  const commentsCount = Array.isArray(vibe.stats)
+    ? parseInt(vibe.stats[1], 10) || 0
+    : (vibe.stats?.total_comments || 0);
+  
+  return (
+    <div className="flex items-center space-x-4 mt-1 text-sm">
+      <div className={`flex items-center space-x-1 ${isLiked ? 'text-red-400' : 'text-gray-400'}`}>
+        {isLiked ? (
+          <HeartIconSolid className="h-4 w-4" />
+        ) : (
+          <HeartIcon className="h-4 w-4" />
+        )}
+        <span>{likesCount}</span>
+      </div>
+      
+      <div className="flex items-center space-x-1 text-gray-400">
+        <ChatBubbleLeftIcon className="h-4 w-4" />
+        <span>{commentsCount}</span>
+      </div>
     </div>
   );
 };

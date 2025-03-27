@@ -231,38 +231,108 @@ export default function TopNav({ params }: ProfilePageTypes) {
 
       const genres: Genre[] = [
         { id: "genre-all", name: "All" },
-        { id: "genre-29", name: "Afro house" },
-        { id: "genre-16", name: "Ambient" },
-        { id: "genre-17", name: "Acapella" },
-        { id: "genre-18", name: "Ai" },
-        { id: "genre-10", name: "Bass" },
-        { id: "genre-9", name: "DnB" },
-        { id: "genre-28", name: "Downtempo" },
-        { id: "genre-3", name: "Deep" },
-        { id: "genre-24", name: "Deep bass" },
-        { id: "genre-27", name: "Dubstep" },
-        { id: "genre-26", name: "Electro" },
-        { id: "genre-6", name: "Electronic" },
-        { id: "genre-19", name: "Films" },
-        { id: "genre-33", name: "Jazz" },
-        { id: "genre-20", name: "Games" },
-        { id: "genre-4", name: "Hip-hop" },
-        { id: "genre-21", name: "Instrumental" },
+        // Our unique genres
+        { id: "genre-1", name: "Instrumental" },
         { id: "genre-2", name: "K-pop" },
-        { id: "genre-12", name: "Lo-fi" },
-        { id: "genre-5", name: "Meditative" },
-        { id: "genre-11", name: "Minimal" },
-        { id: "genre-13", name: "Neurofunk" },
-        { id: "genre-22", name: "Poetry" },
-        { id: "genre-14", name: "Psy" },
-        { id: "genre-23", name: "Rap" },
-        { id: "genre-7", name: "Rave" },
-        { id: "genre-32", name: "Street music" },
-        { id: "genre-1", name: "Techno" },
-        { id: "genre-30", name: "Minimal techno" },
-        { id: "genre-31", name: "Melodic techno" },
-        { id: "genre-15", name: "Trap" },
-        { id: "genre-8", name: "House" },
+        { id: "genre-3", name: "Meditative" },
+        { id: "genre-4", name: "Acapella" },
+        { id: "genre-5", name: "Ai" },
+        { id: "genre-6", name: "Films" },
+        { id: "genre-7", name: "Games" },
+        { id: "genre-8", name: "Jazz" },
+        { id: "genre-9", name: "Street music" },
+        { id: "genre-10", name: "Poetry" },
+        { id: "genre-11", name: "Rap" },
+        
+        // House
+        { id: "genre-12", name: "Deep House" },
+        { id: "genre-13", name: "Tech House" },
+        { id: "genre-14", name: "Progressive House" },
+        { id: "genre-15", name: "Melodic House & Techno" },
+        { id: "genre-16", name: "Future House" },
+        { id: "genre-17", name: "Bass House" },
+        { id: "genre-18", name: "Afro House" },
+        
+        // Techno
+        { id: "genre-19", name: "Peak Time / Driving Techno" },
+        { id: "genre-20", name: "Melodic Techno" },
+        { id: "genre-21", name: "Deep Techno" },
+        { id: "genre-22", name: "Minimal / Deep Tech" },
+        { id: "genre-23", name: "Deep / Hypnotic Techno" },
+        { id: "genre-24", name: "Techno" },
+        { id: "genre-25", name: "Techno (Peak Time / Driving)" },
+        { id: "genre-26", name: "Techno (Melodic)" },
+        
+        // Trance
+        { id: "genre-27", name: "Uplifting Trance" },
+        { id: "genre-28", name: "Psy-Trance" },
+        { id: "genre-29", name: "Tech-Trance" },
+        { id: "genre-30", name: "Progressive Trance" },
+        { id: "genre-31", name: "Vocal Trance" },
+        { id: "genre-32", name: "Hard Trance" },
+        { id: "genre-33", name: "Trance (Main Floor)" },
+        { id: "genre-34", name: "Trance (Deep / Hypnotic)" },
+        
+        // Dubstep / Bass
+        { id: "genre-35", name: "Dubstep" },
+        { id: "genre-36", name: "Riddim" },
+        { id: "genre-37", name: "Melodic Dubstep" },
+        { id: "genre-38", name: "Bass House" },
+        { id: "genre-39", name: "Future Bass" },
+        { id: "genre-40", name: "Trap" },
+        { id: "genre-41", name: "Bass / Club" },
+        { id: "genre-42", name: "Bass Music" },
+        { id: "genre-43", name: "UK Garage / Bassline" },
+        
+        // Breaks
+        { id: "genre-44", name: "Breaks" },
+        { id: "genre-45", name: "Breakbeat" },
+        { id: "genre-46", name: "Breakbeat / UK Bass" },
+        { id: "genre-47", name: "Electro (Classic / Detroit / Modern)" },
+        
+        // Hard Dance
+        { id: "genre-48", name: "Hardcore / Hard Techno" },
+        { id: "genre-49", name: "Hardstyle / Hardcore" },
+        
+        // Indie Dance / Nu Disco
+        { id: "genre-50", name: "Indie Dance" },
+        { id: "genre-51", name: "Nu Disco" },
+        { id: "genre-52", name: "Disco" },
+        { id: "genre-53", name: "Indie Dance / Nu Disco" },
+        { id: "genre-54", name: "Disco / Nu Disco" },
+        
+        // Electronica / Downtempo
+        { id: "genre-55", name: "Electronica" },
+        { id: "genre-56", name: "Downtempo" },
+        { id: "genre-57", name: "IDM" },
+        { id: "genre-58", name: "Leftfield" },
+        { id: "genre-59", name: "Ambient" },
+        { id: "genre-60", name: "Chillout" },
+        { id: "genre-61", name: "Trip Hop" },
+        { id: "genre-62", name: "Experimental" },
+        
+        // Ethnic
+        { id: "genre-63", name: "Ethnic" },
+        
+        // Afro
+        { id: "genre-64", name: "Afro House" },
+        { id: "genre-65", name: "Afro Tech" },
+        { id: "genre-66", name: "Afro Pop" },
+        { id: "genre-67", name: "Afro / Tribal" },
+        
+        // Minimal / Deep Tech
+        { id: "genre-68", name: "Minimal" },
+        { id: "genre-69", name: "Deep Tech" },
+        { id: "genre-70", name: "Minimal / Deep Tech" },
+        { id: "genre-71", name: "Deep House" },
+        { id: "genre-72", name: "Tech House" },
+        
+        // Melodic House & Techno
+        { id: "genre-73", name: "Melodic House & Techno" },
+        { id: "genre-74", name: "Progressive House" },
+        { id: "genre-75", name: "Melodic Techno" },
+        { id: "genre-76", name: "Deep House" },
+        { id: "genre-77", name: "Tech House" }
       ];
       
   
@@ -287,27 +357,51 @@ export default function TopNav({ params }: ProfilePageTypes) {
     const tutorialSteps: TutorialStep[] = [
         {
             id: 'welcome',
-            message: "Welcome to Sacral Track! Here you can publish your original tracks and earn $1 from each sale.",
+            message: (
+                <div className="space-y-1.5">
+                    <p className="font-semibold text-[#20DDBB]">Welcome to Sacral Track!</p>
+                    <p>This is your Release button. Publish your tracks on our marketplace and earn $1 per sale with our high-quality streaming platform.</p>
+                </div>
+            ),
             targetElementId: 'release-button',
-            position: 'bottom'
+            position: 'bottom',
+            mobilePosition: 'bottom'
         },
         {
             id: 'genres',
-            message: "Explore music by different genres and discover new artists.",
+            message: (
+                <div className="space-y-1.5">
+                    <p className="font-semibold text-[#20DDBB]">Music Categories</p>
+                    <p>Explore our extensive music library by different genres to discover artists and tracks that match your taste.</p>
+                </div>
+            ),
             targetElementId: 'genres-button',
-            position: 'bottom'
+            position: 'bottom',
+            mobilePosition: 'center'
         },
         {
             id: 'search',
-            message: "Search for your favorite tracks and artists.",
+            message: (
+                <div className="space-y-1.5">
+                    <p className="font-semibold text-[#20DDBB]">Music Search</p>
+                    <p>Find your favorite tracks and artists in our extensive music library. Just start typing to see instant results.</p>
+                </div>
+            ),
             targetElementId: 'search-button',
-            position: 'bottom'
+            position: 'bottom',
+            mobilePosition: 'center'
         },
         {
-            id: 'release',
-            message: "Welcome! Here you can publish your original tracks and earn $1 from each sale.",
-            targetElementId: 'release-button',
-            position: 'bottom'
+            id: 'vibe',
+            message: (
+                <div className="space-y-1.5">
+                    <p className="font-semibold text-[#20DDBB]">Social Network</p>
+                    <p>Share Vibes with our music community - post thoughts, photos, and updates to connect with other music lovers.</p>
+                </div>
+            ),
+            targetElementId: 'vibe-button',
+            position: 'bottom',
+            mobilePosition: 'bottom'
         }
     ];
 
@@ -348,7 +442,7 @@ export default function TopNav({ params }: ProfilePageTypes) {
             return '/images/placeholders/default-placeholder.svg';
         }
         try {
-            const type = imageId.startsWith('track_') ? 'track' : 'default';
+            const type = imageId.startsWith('track_') ? 'track' : 'user';
             return createBucketUrl(imageId, type);
         } catch (error) {
             console.error('Error in getSearchResultImageUrl:', error);
@@ -777,8 +871,22 @@ export default function TopNav({ params }: ProfilePageTypes) {
                                                         <motion.span
                                                             initial={{ scale: 0, opacity: 0 }}
                                                             animate={{ scale: 1, opacity: 1 }}
-                                                            className="w-2 h-2 bg-black rounded-full mr-1.5 inline-block"
-                                                        />
+                                                            className="mr-1.5 inline-block"
+                                                        >
+                                                            <svg 
+                                                                className="w-4 h-4 text-black" 
+                                                                fill="none" 
+                                                                viewBox="0 0 24 24" 
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path 
+                                                                    strokeLinecap="round" 
+                                                                    strokeLinejoin="round" 
+                                                                    strokeWidth={2} 
+                                                                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                                                                />
+                                                            </svg>
+                                                        </motion.span>
                                                     )}
                                                     <span>{genre.name}</span>
                                                 </span>

@@ -20,31 +20,24 @@ interface Profile {
 }
 
 interface SearchFriendsModalProps {
-    isOpen: boolean;
     onClose: () => void;
+    onAddFriend: (userId: string) => Promise<void>;
+    currentUserId: string;
 }
 
-export default function SearchFriendsModal({ isOpen, onClose }: SearchFriendsModalProps) {
+export default function SearchFriendsModal({ onClose, onAddFriend, currentUserId }: SearchFriendsModalProps) {
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const modalRef = useRef<HTMLDivElement>(null);
     
-    const userContext = useUser();
-    const { friends, sentRequests, loadFriends, loadSentRequests, addFriend } = useFriendsStore();
+    const { friends, sentRequests, loadFriends, loadSentRequests } = useFriendsStore();
     
     // Load user profiles
     useEffect(() => {
         const fetchProfiles = async () => {
-            if (!isOpen) return;
-            
-            console.log('Fetching profiles, user object:', userContext);
-            
-            if (!userContext?.user?.id) {
-                console.log('No user ID available:', userContext);
-                return;
-            }
+            if (!currentUserId) return;
             
             setIsLoading(true);
             try {
@@ -52,21 +45,16 @@ export default function SearchFriendsModal({ isOpen, onClose }: SearchFriendsMod
                 await Promise.all([loadFriends(), loadSentRequests()]);
                 
                 // Load all user profiles from the database
-                console.log('Fetching profiles from collection:', process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE);
                 const response = await database.listDocuments(
                     process.env.NEXT_PUBLIC_DATABASE_ID!,
                     process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
                     [Query.limit(100)]
                 );
                 
-                console.log('Profiles response:', response.documents);
-                
                 // Filter to not show the current user
                 const filteredProfiles = response.documents.filter(
-                    profile => profile.user_id !== userContext?.user?.id
+                    profile => profile.user_id !== currentUserId
                 ) as unknown as Profile[];
-                
-                console.log('Filtered profiles:', filteredProfiles);
                 
                 setProfiles(filteredProfiles);
                 setFilteredProfiles(filteredProfiles);
@@ -79,7 +67,7 @@ export default function SearchFriendsModal({ isOpen, onClose }: SearchFriendsMod
         };
         
         fetchProfiles();
-    }, [isOpen, userContext?.user?.id, loadFriends, loadSentRequests]);
+    }, [currentUserId, loadFriends, loadSentRequests]);
     
     // Handle search query changes
     useEffect(() => {
@@ -115,41 +103,29 @@ export default function SearchFriendsModal({ isOpen, onClose }: SearchFriendsMod
             }
         };
         
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
+        document.addEventListener('mousedown', handleClickOutside);
         
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isOpen, onClose]);
+    }, [onClose]);
     
     // Handle sending a friend request
     const handleAddFriend = async (userId: string) => {
-        console.log('handleAddFriend called for user ID:', userId);
-        
-        if (!userContext?.user?.id) {
-            console.error('Cannot add friend: user not logged in', userContext);
+        if (!currentUserId) {
             toast.error('You need to be logged in to add friends');
             return;
         }
         
         try {
-            console.log('Calling addFriend with friendId:', userId, 'and currentUserId:', userContext.user.id);
-            await addFriend(userId, userContext.user.id);
-            
-            console.log('Friend request sent successfully, updating UI lists');
-            // Update friend and request lists
+            await onAddFriend(userId);
+            // Обновляем списки друзей и запросов после успешного добавления
             await Promise.all([loadFriends(), loadSentRequests()]);
-            
-            console.log('Friend lists updated');
         } catch (error) {
             console.error("Failed to add friend:", error);
             toast.error('Failed to send friend request. Please try again.');
         }
     };
-    
-    if (!isOpen) return null;
     
     return (
         <AnimatePresence>
@@ -248,50 +224,50 @@ export default function SearchFriendsModal({ isOpen, onClose }: SearchFriendsMod
                                             }}
                                         >
                                             <div className="flex items-center space-x-4">
-                                                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-500/20 ring-2 ring-purple-500/20">
-                                                    <Image
-                                                        src={profile.image ? useCreateBucketUrl(profile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
-                                                        alt={profile.name}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
+                                                <div className="h-12 w-12 rounded-full overflow-hidden bg-purple-500/10 relative flex-shrink-0">
+                                                    {profile.image ? (
+                                                        <Image
+                                                            src={useCreateBucketUrl(profile.image, 'user')}
+                                                            alt={profile.name}
+                                                            fill
+                                                            className="object-cover"
+                                                            onError={(e) => (e.currentTarget.src = '/images/placeholders/user-placeholder.svg')}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-2xl text-white/30">
+                                                            {profile.name.substring(0, 1).toUpperCase()}
+                                                        </div>
+                                                    )}
                                                 </div>
+                                                
                                                 <div>
-                                                    <h3 className="text-white font-medium">{profile.name}</h3>
+                                                    <h3 className="font-semibold text-white">{profile.name}</h3>
                                                     {profile.username && (
-                                                        <p className="text-purple-400 text-sm">@{profile.username}</p>
+                                                        <p className="text-sm text-gray-400">@{profile.username}</p>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div>
-                                                {friendStatus === 'none' ? (
-                                                    <motion.button
-                                                        onClick={() => handleAddFriend(profile.user_id)}
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium shadow-lg shadow-purple-900/20 hover:from-purple-600 hover:to-blue-600"
-                                                        whileHover={{ scale: 1.05 }}
-                                                        whileTap={{ scale: 0.95 }}
-                                                    >
-                                                        <UserPlusIcon className="w-4 h-4 mr-1" />
-                                                        Add
-                                                    </motion.button>
-                                                ) : friendStatus === 'requested' ? (
-                                                    <motion.div 
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-700 text-gray-300 font-medium cursor-default"
-                                                        whileHover={{ scale: 1.05 }}
-                                                    >
-                                                        <CheckIcon className="w-4 h-4 mr-1" />
-                                                        Sent
-                                                    </motion.div>
-                                                ) : (
-                                                    <motion.div 
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-green-600 text-white font-medium cursor-default"
-                                                        whileHover={{ scale: 1.05 }}
-                                                    >
-                                                        <CheckIcon className="w-4 h-4 mr-1" />
-                                                        Friend
-                                                    </motion.div>
-                                                )}
-                                            </div>
+                                            
+                                            {friendStatus === 'none' ? (
+                                                <motion.button
+                                                    onClick={() => handleAddFriend(profile.user_id)}
+                                                    className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-md hover:shadow-lg transition-all"
+                                                    whileHover={{ scale: 1.1 }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                >
+                                                    <UserPlusIcon className="w-6 h-6" />
+                                                </motion.button>
+                                            ) : friendStatus === 'requested' ? (
+                                                <span className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-sm flex items-center">
+                                                    <CheckIcon className="w-4 h-4 mr-1" />
+                                                    Requested
+                                                </span>
+                                            ) : (
+                                                <span className="px-3 py-2 rounded-xl bg-green-500/10 text-green-400 text-sm flex items-center">
+                                                    <CheckIcon className="w-4 h-4 mr-1" />
+                                                    Friends
+                                                </span>
+                                            )}
                                         </motion.div>
                                     );
                                 })}

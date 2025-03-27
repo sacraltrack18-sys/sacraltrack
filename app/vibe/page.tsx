@@ -112,8 +112,8 @@ export default function VibePage() {
           />
         </div>
         
-        {/* Vibes grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Vibe Grid */}
+        <div className="grid grid-cols-1 gap-6 max-w-[450px] mx-auto">
           {isLoadingVibes && allVibePosts.length === 0 ? (
             // Show skeletons while loading
             Array.from({ length: 6 }).map((_, index) => (

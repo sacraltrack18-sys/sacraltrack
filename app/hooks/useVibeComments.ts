@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { database, Query, ID } from '@/libs/AppWriteClient';
 import { useUser } from '@/app/context/user';
 
@@ -15,6 +15,52 @@ interface VibeComment {
     username?: string;
   };
 }
+
+// Популярные эмодзи для музыкальных комментариев
+export const MUSIC_EMOJIS = [
+  '🎵', '🎶', '🎸', '🥁', '🎤', '🎧', '🎷', '🎹', '🎺', '🎻',
+  '👏', '🔥', '❤️', '💯', '✨', '🙌', '👍', '💃', '🕺', '😍'
+];
+
+// Вспомогательная функция для нормализации статистики
+const normalizeVibeStats = (stats: any): { total_likes: number; total_comments: number; total_views: number } => {
+  // Если stats это массив
+  if (Array.isArray(stats)) {
+    const statsArray = [...stats];
+    while (statsArray.length < 3) statsArray.push('0');
+    return {
+      total_likes: parseInt(statsArray[0], 10) || 0,
+      total_comments: parseInt(statsArray[1], 10) || 0,
+      total_views: parseInt(statsArray[2], 10) || 0
+    };
+  }
+  
+  // Если stats это объект
+  if (typeof stats === 'object' && stats !== null && !Array.isArray(stats)) {
+    return {
+      total_likes: typeof stats.total_likes === 'number' ? stats.total_likes : 0,
+      total_comments: typeof stats.total_comments === 'number' ? stats.total_comments : 0,
+      total_views: typeof stats.total_views === 'number' ? stats.total_views : 0
+    };
+  }
+  
+  // По умолчанию возвращаем нули
+  return {
+    total_likes: 0,
+    total_comments: 0,
+    total_views: 0
+  };
+};
+
+// Функция для преобразования нормализованной статистики обратно в массив
+const statsToArray = (stats: { total_likes: number; total_comments: number; total_views: number }): string[] => {
+  // Make sure we're returning numbers converted to strings, not objects that might be converted to "[object Object]"
+  const likes = typeof stats.total_likes === 'number' ? stats.total_likes.toString() : '0';
+  const comments = typeof stats.total_comments === 'number' ? stats.total_comments.toString() : '0';
+  const views = typeof stats.total_views === 'number' ? stats.total_views.toString() : '0';
+  
+  return [likes, comments, views];
+};
 
 export const useVibeComments = (vibeId?: string) => {
   const [comments, setComments] = useState<VibeComment[]>([]);
@@ -86,26 +132,52 @@ export const useVibeComments = (vibeId?: string) => {
     }
   };
 
+  // Добавление эмодзи в текст комментария
+  const addEmojiToComment = useCallback((emoji: string, commentText: string) => {
+    return commentText + emoji;
+  }, []);
+
   const addComment = async (text: string) => {
     if (!vibeId || !user?.id) {
       setError('You must be logged in to comment');
-      return;
+      throw new Error('You must be logged in to comment');
     }
 
     try {
       setIsLoading(true);
       setError(null);
 
+      const commentId = ID.unique();
+      const currentTime = new Date().toISOString();
+
+      // Оптимистичное обновление UI, добавляем комментарий сразу
+      const optimisticComment: VibeComment = {
+        id: commentId,
+        user_id: user.id,
+        vibe_id: vibeId,
+        text,
+        created_at: currentTime,
+        profile: user ? {
+          user_id: user.id,
+          name: user.name || 'User',
+          image: user.image || '/images/placeholders/user-placeholder.svg',
+          username: undefined
+        } : undefined
+      };
+
+      // Добавляем комментарий в начало списка (т.к. сортировка по убыванию даты)
+      setComments(prevComments => [optimisticComment, ...prevComments]);
+
       // Create the comment
       const response = await database.createDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS!,
-        ID.unique(),
+        commentId,
         {
           user_id: user.id,
           vibe_id: vibeId,
           text,
-          created_at: new Date().toISOString()
+          created_at: currentTime
         }
       );
 
@@ -117,97 +189,52 @@ export const useVibeComments = (vibeId?: string) => {
           vibeId
         );
 
-        console.log('Current vibe stats for comments:', vibeDoc.stats, 'Type:', typeof vibeDoc.stats);
-        
-        // Проверяем структуру stats и преобразуем соответственно
-        let updatedStats;
-        
-        if (Array.isArray(vibeDoc.stats)) {
-          // Если stats это массив - работаем как с массивом
-          const stats = [...vibeDoc.stats];
-          
-          // Убедимся, что у нас есть все три элемента
-          while (stats.length < 3) {
-            stats.push('0');
-          }
-          
-          // Увеличиваем счетчик комментариев (второй элемент массива)
-          const currentComments = parseInt(stats[1], 10) || 0;
-          stats[1] = (currentComments + 1).toString();
-          updatedStats = stats;
-          
-          console.log('Updating array stats for comments to:', stats);
-        } else if (typeof vibeDoc.stats === 'object' && vibeDoc.stats !== null) {
-          // Если stats это объект - преобразуем в массив
-          const totalLikes = typeof vibeDoc.stats.total_likes === 'number' ? vibeDoc.stats.total_likes : 0;
-          const totalComments = (typeof vibeDoc.stats.total_comments === 'number' ? vibeDoc.stats.total_comments : 0) + 1;
-          const totalViews = typeof vibeDoc.stats.total_views === 'number' ? vibeDoc.stats.total_views : 0;
-          
-          updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
-          console.log('Converting object stats to array for comments:', updatedStats);
-        } else {
-          // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
-          updatedStats = ['0', '1', '0'];
-          console.log('Creating new stats array for comments:', updatedStats);
-        }
+        const currentStats = normalizeVibeStats(vibeDoc.stats);
+        const updatedStats = {
+          ...currentStats,
+          total_comments: currentStats.total_comments + 1
+        };
 
-        // Обновляем документ с новыми stats
+        // Преобразуем объект статистики в массив для обновления документа
+        const statsForUpdate = statsToArray(updatedStats);
+        
+        // Log for debugging
+        console.log('Updating vibe comment stats:', {
+          vibeId,
+          currentStats,
+          updatedStats,
+          statsForUpdate,
+          statsType: typeof statsForUpdate
+        });
+
         await database.updateDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
           process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
           vibeId,
-          {
-            stats: {
-              total_likes: parseInt(updatedStats[0]) || 0,
-              total_comments: parseInt(updatedStats[1]) || 0,
-              total_views: parseInt(updatedStats[2]) || 0
-            }
-          }
+          { stats: statsForUpdate }
         );
-        
-        console.log('Vibe stats updated successfully for comments');
       } catch (statsError) {
         console.error('Error updating vibe stats:', statsError);
+        // Не прерываем выполнение, т.к. комментарий уже добавлен
+        // Просто логируем ошибку
       }
 
-      // Fetch the user profile
-      let profile;
-      try {
-        const profileResponse = await database.listDocuments(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-          [Query.equal('user_id', user.id)]
-        );
-        
-        if (profileResponse.documents.length > 0) {
-          const profileDoc = profileResponse.documents[0];
-          profile = {
-            user_id: profileDoc.user_id,
-            name: profileDoc.name,
-            image: profileDoc.image,
-            username: profileDoc.username
-          };
-        }
-      } catch (profileError) {
-        console.error('Error fetching profile:', profileError);
-      }
-
-      // Add the new comment to the state
-      const newComment: VibeComment = {
-        id: response.$id,
-        user_id: user.id,
-        vibe_id: vibeId,
-        text,
-        created_at: new Date().toISOString(),
-        profile
-      };
-
-      setComments(prevComments => [newComment, ...prevComments]);
-      
-      return newComment;
+      return optimisticComment;
     } catch (err) {
       console.error('Error adding comment:', err);
-      setError('Failed to add comment');
+      
+      // В случае ошибки удаляем оптимистично добавленный комментарий
+      if (user?.id) {
+        setComments(prevComments => 
+          prevComments.filter(comment => 
+            !(comment.user_id === user.id && comment.text === text && 
+              new Date(comment.created_at).getTime() > Date.now() - 10000)
+          )
+        );
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -217,7 +244,7 @@ export const useVibeComments = (vibeId?: string) => {
   const deleteComment = async (commentId: string) => {
     if (!user?.id) {
       setError('You must be logged in to delete a comment');
-      return;
+      throw new Error('You must be logged in to delete a comment');
     }
 
     try {
@@ -227,15 +254,20 @@ export const useVibeComments = (vibeId?: string) => {
       // Find the comment to check user ownership
       const comment = comments.find(c => c.id === commentId);
       if (!comment) {
-        setError('Comment not found');
-        return;
+        const errorMsg = 'Comment not found';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
 
       // Only allow the comment author to delete
       if (comment.user_id !== user.id) {
-        setError('You can only delete your own comments');
-        return;
+        const errorMsg = 'You can only delete your own comments';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
+
+      // Оптимистичное обновление UI, удаляем комментарий сразу
+      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
 
       // Delete the comment
       await database.deleteDocument(
@@ -253,65 +285,45 @@ export const useVibeComments = (vibeId?: string) => {
             vibeId
           );
 
-          console.log('Current vibe stats for deleting comment:', vibeDoc.stats, 'Type:', typeof vibeDoc.stats);
-          
-          // Проверяем структуру stats и преобразуем соответственно
-          let updatedStats;
-          
-          if (Array.isArray(vibeDoc.stats)) {
-            // Если stats это массив - работаем как с массивом
-            const stats = [...vibeDoc.stats];
-            
-            // Убедимся, что у нас есть все три элемента
-            while (stats.length < 3) {
-              stats.push('0');
-            }
-            
-            // Уменьшаем счетчик комментариев (второй элемент массива)
-            const currentComments = parseInt(stats[1], 10) || 0;
-            stats[1] = Math.max(0, currentComments - 1).toString();
-            updatedStats = stats;
-            
-            console.log('Updating array stats for deleting comment to:', stats);
-          } else if (typeof vibeDoc.stats === 'object' && vibeDoc.stats !== null) {
-            // Если stats это объект - преобразуем в массив
-            const totalLikes = typeof vibeDoc.stats.total_likes === 'number' ? vibeDoc.stats.total_likes : 0;
-            const totalComments = Math.max(0, (typeof vibeDoc.stats.total_comments === 'number' ? vibeDoc.stats.total_comments : 0) - 1);
-            const totalViews = typeof vibeDoc.stats.total_views === 'number' ? vibeDoc.stats.total_views : 0;
-            
-            updatedStats = [totalLikes.toString(), totalComments.toString(), totalViews.toString()];
-            console.log('Converting object stats to array for deleting comment:', updatedStats);
-          } else {
-            // Если stats отсутствует или имеет неизвестный формат - создаем новый массив
-            updatedStats = ['0', '0', '0'];
-            console.log('Creating new stats array for deleting comment:', updatedStats);
-          }
+          const currentStats = normalizeVibeStats(vibeDoc.stats);
+          const updatedStats = {
+            ...currentStats,
+            total_comments: Math.max(0, currentStats.total_comments - 1)
+          };
 
-          // Обновляем документ с новыми stats
+          // Преобразуем объект статистики в массив для обновления документа
+          const statsForUpdate = statsToArray(updatedStats);
+          
+          // Log for debugging
+          console.log('Updating vibe comment stats (delete):', {
+            vibeId,
+            currentStats,
+            updatedStats,
+            statsForUpdate,
+            statsType: typeof statsForUpdate
+          });
+
           await database.updateDocument(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
             process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
             vibeId,
-            {
-              stats: {
-                total_likes: parseInt(updatedStats[0]) || 0,
-                total_comments: parseInt(updatedStats[1]) || 0,
-                total_views: parseInt(updatedStats[2]) || 0
-              }
-            }
+            { stats: statsForUpdate }
           );
-          
-          console.log('Vibe stats updated successfully for deleting comment');
         } catch (statsError) {
           console.error('Error updating vibe stats:', statsError);
+          // Не прерываем выполнение, т.к. комментарий уже удален
+          // Просто логируем ошибку
         }
       }
-
-      // Remove the comment from the state
-      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
     } catch (err) {
       console.error('Error deleting comment:', err);
-      setError('Failed to delete comment');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete comment';
+      setError(errorMessage);
+      
+      // В случае ошибки возвращаем комментарии к исходному состоянию
+      fetchComments();
+      
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -323,6 +335,8 @@ export const useVibeComments = (vibeId?: string) => {
     error,
     fetchComments,
     addComment,
-    deleteComment
+    deleteComment,
+    addEmojiToComment,
+    musicEmojis: MUSIC_EMOJIS
   };
 }; 

@@ -14,6 +14,8 @@ import MainLayout from "./layouts/MainLayout"
 import { AnimatePresence } from 'framer-motion';
 import { motion } from 'framer-motion';
 import { ContentFilterProvider } from "@/app/context/ContentFilterContext";
+import { showOnboarding } from "./components/onboarding/OnboardingGuide";
+import { FaInfoCircle } from "react-icons/fa";
 
 // Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
 interface FeedItem {
@@ -325,6 +327,23 @@ export default function Home() {
                   <div ref={ref} className="h-10 w-full" />
                 </Suspense>
               </ClientOnly>
+
+              {/* Onboarding Button */}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={() => showOnboarding()}
+                className="fixed bottom-8 left-8 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white p-4 rounded-full 
+                          shadow-lg hover:shadow-[#20DDBB]/20 transition-all z-50 group"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <FaInfoCircle size={20} />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-[#1A2338] rounded text-sm whitespace-nowrap
+                              opacity-0 group-hover:opacity-100 transition-opacity">
+                  Show Guide
+                </span>
+              </motion.button>
             </div>
           </MainLayout>
         </GenreProvider>

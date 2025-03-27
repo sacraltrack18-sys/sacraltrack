@@ -95,6 +95,14 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const { likedPosts } = useLikedStore();
   const [rank, setRank] = useState({ name: 'Beginner', color: 'from-gray-400 to-gray-500', score: 0 });
   
+  // Track when profile data changes for re-rendering
+  const [profileVersion, setProfileVersion] = useState(0);
+  
+  // Update profileVersion when profile changes
+  useEffect(() => {
+    setProfileVersion(prev => prev + 1);
+  }, [profile]);
+  
   // Check if the current user is the profile owner
   const isOwner = contextUser?.user?.id === userId;
   

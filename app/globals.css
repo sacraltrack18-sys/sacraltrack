@@ -399,22 +399,53 @@
   animation: gradient 6s ease infinite;
 }
 
+/* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(26, 35, 56, 0.6);
-  border-radius: 10px;
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(63, 45, 99, 0.6);
-  border-radius: 10px;
+  background: #20DDBB;
+  border-radius: 20px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(88, 61, 140, 0.6);
+  background: #1CB399;
+}
+
+/* Gradient Border */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(to right, #20DDBB, #018CFD);
+  padding: 1px;
+  border-radius: 0.75rem;
+}
+
+.gradient-border.always-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(to right, #20DDBB, #018CFD);
+  border-radius: 0.85rem;
+  filter: blur(8px);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+/* Terms Page Specific Styles */
+.terms-section {
+  scroll-margin-top: 100px;
+}
+
+.terms-section-title {
+  @apply text-2xl font-bold text-white mb-6;
+  background: linear-gradient(to right, #20DDBB, #018CFD);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 @layer utilities {

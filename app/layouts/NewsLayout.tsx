@@ -100,7 +100,7 @@ export default function NewsLayout({ children, title = "Latest News", descriptio
                 <meta name="twitter:title" content={title} />
                 <meta name="twitter:description" content={description} />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <link rel="canonical" href={`https://sacraltrack.com${pathname}`} />
+                <link rel="canonical" href={`https://sacraltrack.space${pathname}`} />
                 {/* Structured data for News Article - this improves SEO for news content */}
                 <script type="application/ld+json">{`
                 {
@@ -108,14 +108,14 @@ export default function NewsLayout({ children, title = "Latest News", descriptio
                     "@type": "NewsArticle",
                     "headline": "${title}",
                     "description": "${description}",
-                    "image": "https://sacraltrack.com/images/log.png",
+                    "image": "https://sacraltrack.space/images/log.png",
                     "datePublished": "${new Date().toISOString()}",
                     "publisher": {
                         "@type": "Organization",
                         "name": "SacralTrack",
                         "logo": {
                             "@type": "ImageObject",
-                            "url": "https://sacraltrack.com/images/log.png"
+                            "url": "https://sacraltrack.space/images/log.png"
                         }
                     }
                 }
