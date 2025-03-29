@@ -30,6 +30,8 @@ import { MdOutlineMusicNote } from 'react-icons/md';
 import UserVibes from "@/app/components/profile/UserVibes";
 
 export default function ProfileLayout({ children, params }: { children: React.ReactNode, params: { params: { id: string } } }) {
+    const profileId = params.params.id;
+    
     const pathname = usePathname()
 	const contextUser = useUser();   
     const { currentProfile, hasUserReleases, setHasUserReleases } = useProfileStore();
@@ -92,12 +94,12 @@ export default function ProfileLayout({ children, params }: { children: React.Re
             // Проверяем наличие релизов у пользователя на основе данных из postsByUser
             const hasReleases = postsByUser && postsByUser.length > 0;
             setHasUserReleases(hasReleases);
-            console.log(`[ProfileLayout] User ${params.params.id} has releases: ${hasReleases} (count: ${postsByUser?.length || 0})`);
+            console.log(`[ProfileLayout] User ${profileId} has releases: ${hasReleases} (count: ${postsByUser?.length || 0})`);
             setIsLoading(false);
         }, 600); // Сокращаем время ожидания
         
         return () => clearTimeout(timer);
-    }, [postsByUser, params.params.id, setHasUserReleases]);
+    }, [postsByUser, profileId, setHasUserReleases]);
 
     const switchToTab = (tab: 'friends' | 'purchases' | 'likes' | 'vibes' | 'main') => {
         setShowFriends(tab === 'friends');
@@ -117,7 +119,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 
     return (
 		<>
-		<TopNav params={{ id: params.params.id }} />
+		<TopNav params={{ id: profileId }} />
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 

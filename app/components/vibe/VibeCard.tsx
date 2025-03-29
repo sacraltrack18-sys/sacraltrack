@@ -501,9 +501,10 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 src={imageError ? '/images/placeholders/image-placeholder.png' : vibe.media_url}
                 alt={vibe.caption || 'Vibe photo'}
                 fill
-                className={`object-contain md:object-cover transition-all duration-500 ${isLoading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} group-hover:scale-110 group-hover:filter group-hover:brightness-110`}
+                className={`object-contain transition-all duration-500 ${isLoading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'} group-hover:scale-105 group-hover:filter group-hover:brightness-110`}
                 onError={() => setImageError(true)}
                 onLoad={() => setIsLoading(false)}
+                sizes="(max-width: 768px) 100vw, 450px"
               />
             </div>
             
@@ -725,13 +726,26 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       <div className="p-4">
         <div className="flex items-center space-x-3">
           <Link href={`/profile/${vibe.user_id}`}>
-            <div className="relative h-11 w-11 rounded-full border-2 border-purple-500/30 p-0.5 bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-              <Image
-                src={vibe.profile?.image || '/images/placeholders/user-placeholder.svg'}
-                alt={vibe.profile?.name || 'User'}
-                fill
-                className="rounded-full object-cover"
-              />
+            <div className="relative h-11 w-11 rounded-full border-2 border-purple-500/30 p-0.5 bg-gradient-to-br from-purple-500/20 to-pink-500/20 overflow-hidden">
+              {vibe.profile?.image ? (
+                <Image
+                  src={vibe.profile.image}
+                  alt={vibe.profile?.name || 'User'}
+                  fill
+                  className="rounded-full object-cover"
+                  onError={(e) => {
+                    // Если изображение не загрузилось, заменяем на заглушку
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/images/placeholders/user-placeholder.svg';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-purple-900/50 rounded-full">
+                  <span className="text-white font-bold text-lg">
+                    {vibe.profile?.name ? vibe.profile.name.charAt(0).toUpperCase() : '?'}
+                  </span>
+                </div>
+              )}
             </div>
           </Link>
           <div className="flex-1">

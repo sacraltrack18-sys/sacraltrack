@@ -19,10 +19,24 @@ try {
         throw new Error('NEXT_PUBLIC_ENDPOINT is not set');
     }
 
-    // Set up client
+    // Set up client with improved options for WebSocket stability
     client
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL)
         .setProject(process.env.NEXT_PUBLIC_ENDPOINT);
+        
+    // Configure client for better realtime performance
+    if (typeof window !== 'undefined') {
+        // Set up event listeners for connection status
+        client.subscribe('realtime', (data: any) => {
+            if (data.event === 'disconnected') {
+                console.log('[REALTIME] Disconnected. Attempting to reconnect...');
+                // Reconnection is handled automatically by the client
+            }
+            if (data.event === 'connected') {
+                console.log('[REALTIME] Connected successfully');
+            }
+        });
+    }
     
     console.log("[APPWRITE-CONFIG] Appwrite client successfully initialized");
 } catch (error) {

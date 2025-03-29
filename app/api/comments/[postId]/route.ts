@@ -7,9 +7,9 @@ const ENABLE_COMMENTS = false; // Установите в true, чтобы вк�
 
 export async function GET(
     request: Request,
-    { params }: { params: { postId: string } }
+    { params }: { params: Promise<{ postId: string }> }
 ) {
-    const { postId } = params;
+    const { postId } = await params;
 
     if (!postId) {
         return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });

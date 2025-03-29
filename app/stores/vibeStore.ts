@@ -614,7 +614,13 @@ export const useVibeStore = create<VibeStore>()(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
               process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
               vibeId,
-              { stats: statsForUpdate }
+              { 
+                stats: {
+                  total_likes: updatedStats.total_likes,
+                  total_comments: updatedStats.total_comments,
+                  total_views: updatedStats.total_views
+                }
+              }
             );
 
             // Обновляем состояние после успешного запроса для синхронизации с сервером
@@ -688,7 +694,13 @@ export const useVibeStore = create<VibeStore>()(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
                 vibeId,
-                { stats: statsForUpdate }
+                { 
+                  stats: {
+                    total_likes: updatedStats.total_likes,
+                    total_comments: updatedStats.total_comments,
+                    total_views: updatedStats.total_views
+                  }
+                }
               );
 
               // Обновляем состояние после успешного запроса для синхронизации с сервером

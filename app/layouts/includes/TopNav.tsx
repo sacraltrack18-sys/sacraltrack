@@ -14,14 +14,91 @@ import { useProfileStore } from "@/app/stores/profile"
 import ClientOnly from "@/app/components/ClientOnly"
 import { usePostStore } from "@/app/stores/post"
 import { motion, AnimatePresence } from "framer-motion"
-import TutorialGuide, { TutorialStep } from '@/app/components/TutorialGuide'
-import NotificationBell from "@/app/components/notifications/NotificationBell"
-import useNotifications from "@/app/hooks/useNotifications"
-import { toast } from "react-hot-toast"
-import VibeUploader from "@/app/components/vibe/VibeUploader"
-import { SparklesIcon, MusicalNoteIcon, MagnifyingGlassIcon, ArrowTrendingUpIcon, UserCircleIcon } from "@heroicons/react/24/outline"
+import dynamic from "next/dynamic"
+import "@/app/styles/nav-animations.css"
+import React from 'react'
+import toast from "react-hot-toast"
+import useNotifications, { Notification } from "@/app/hooks/useNotifications"
+import { TutorialStep } from "@/app/components/TutorialGuide"
 
-export default function TopNav({ params }: ProfilePageTypes) {    
+// Import the smaller components
+import GenreSelector from "@/app/components/nav/GenreSelector"
+import SearchBar from "@/app/components/nav/SearchBar"
+import ProfileMenu from "@/app/components/nav/ProfileMenu"
+import ReleaseButton from "@/app/components/nav/ReleaseButton"
+import VibeButton from "@/app/components/nav/VibeButton"
+
+// Dynamically import components that are not needed immediately
+const NotificationBell = dynamic(() => import("@/app/components/notifications/NotificationBell"), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center animate-pulse">
+      <div className="w-4 h-4 rounded-full bg-white/10"></div>
+    </div>
+  )
+})
+const TutorialGuide = dynamic(() => import("@/app/components/TutorialGuide"), { ssr: false })
+const VibeUploader = dynamic(() => import("@/app/components/vibe/VibeUploader"), { ssr: false })
+
+// Define tutorial steps outside the component to avoid recreation on each render
+const tutorialSteps: {
+    id: string;
+    message: React.ReactNode;
+    targetElementId: string;
+    position: 'top' | 'bottom' | 'left' | 'right';
+    mobilePosition: 'top' | 'bottom' | 'center';
+}[] = [
+    {
+        id: 'welcome',
+        message: (
+            <div className="space-y-1.5">
+                <p className="font-semibold text-[#20DDBB]">Welcome to Sacral Track!</p>
+                <p>This is your Release button. Publish your tracks on our marketplace and earn $1 per sale with our high-quality streaming platform.</p>
+            </div>
+        ),
+        targetElementId: 'release-button',
+        position: 'bottom',
+        mobilePosition: 'bottom'
+    },
+    {
+        id: 'genres',
+        message: (
+            <div className="space-y-1.5">
+                <p className="font-semibold text-[#20DDBB]">Music Categories</p>
+                <p>Explore our extensive music library by different genres to discover artists and tracks that match your taste.</p>
+            </div>
+        ),
+        targetElementId: 'genres-button',
+        position: 'bottom',
+        mobilePosition: 'center'
+    },
+    {
+        id: 'search',
+        message: (
+            <div className="space-y-1.5">
+                <p className="font-semibold text-[#20DDBB]">Music Search</p>
+                <p>Find your favorite tracks and artists in our extensive music library. Just start typing to see instant results.</p>
+            </div>
+        ),
+        targetElementId: 'search-button',
+        position: 'bottom',
+        mobilePosition: 'center'
+    },
+    {
+        id: 'vibe',
+        message: (
+            <div className="space-y-1.5">
+                <p className="font-semibold text-[#20DDBB]">Social Network</p>
+                <p>Share Vibes with our music community - post thoughts, photos, and updates to connect with other music lovers.</p>
+            </div>
+        ),
+        targetElementId: 'vibe-button',
+        position: 'bottom',
+        mobilePosition: 'bottom'
+    }
+];
+
+const TopNav = React.memo(({ params }: { params: { id: string } }) => {    
     const userContext = useUser()
     const router = useRouter()
     const pathname = usePathname()
@@ -116,8 +193,10 @@ export default function TopNav({ params }: ProfilePageTypes) {
             let buttonRef = useRef<HTMLButtonElement>(null)
 
             useEffect(() => {
-                setCurrentProfile(params?.id)
-            }, [])
+                if (params.id) {
+                    setCurrentProfile(params.id)
+                }
+            }, [params.id])
 
             useEffect(() => { setIsEditProfileOpen(false) }, [])
 
@@ -136,6 +215,12 @@ export default function TopNav({ params }: ProfilePageTypes) {
                 document.addEventListener('mousedown', handleClickOutside)
                 return () => document.removeEventListener('mousedown', handleClickOutside)
             }, [showMenu])
+
+            // Закрываем VibeUploader при смене страницы
+            useEffect(() => {
+                // При изменении pathname закрываем VibeUploader
+                setShowVibeUploader(false)
+            }, [pathname])
 
             const goTo = () => {
                 if (!userContext?.user) return setIsLoginOpen(true)
@@ -337,73 +422,15 @@ export default function TopNav({ params }: ProfilePageTypes) {
       
   
 
-    // Add new state for tutorial
-    const [hasSeenTutorial, setHasSeenTutorial] = useState<boolean>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('hasSeenTutorial') === 'true';
-        }
-        return false;
-    });
+    // Add new state for tutorial with localStorage handling on component mount only
+    const [hasSeenTutorial, setHasSeenTutorial] = useState<boolean>(false);
+    const [showReleaseTooltip, setShowReleaseTooltip] = useState<boolean>(false);
 
-    // Add new state for the release button tooltip
-    const [showReleaseTooltip, setShowReleaseTooltip] = useState<boolean>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('hasSeenReleaseTooltip') !== 'true';
-        }
-        return true;
-    });
-
-    // Tutorial steps configuration
-    const tutorialSteps: TutorialStep[] = [
-        {
-            id: 'welcome',
-            message: (
-                <div className="space-y-1.5">
-                    <p className="font-semibold text-[#20DDBB]">Welcome to Sacral Track!</p>
-                    <p>This is your Release button. Publish your tracks on our marketplace and earn $1 per sale with our high-quality streaming platform.</p>
-                </div>
-            ),
-            targetElementId: 'release-button',
-            position: 'bottom',
-            mobilePosition: 'bottom'
-        },
-        {
-            id: 'genres',
-            message: (
-                <div className="space-y-1.5">
-                    <p className="font-semibold text-[#20DDBB]">Music Categories</p>
-                    <p>Explore our extensive music library by different genres to discover artists and tracks that match your taste.</p>
-                </div>
-            ),
-            targetElementId: 'genres-button',
-            position: 'bottom',
-            mobilePosition: 'center'
-        },
-        {
-            id: 'search',
-            message: (
-                <div className="space-y-1.5">
-                    <p className="font-semibold text-[#20DDBB]">Music Search</p>
-                    <p>Find your favorite tracks and artists in our extensive music library. Just start typing to see instant results.</p>
-                </div>
-            ),
-            targetElementId: 'search-button',
-            position: 'bottom',
-            mobilePosition: 'center'
-        },
-        {
-            id: 'vibe',
-            message: (
-                <div className="space-y-1.5">
-                    <p className="font-semibold text-[#20DDBB]">Social Network</p>
-                    <p>Share Vibes with our music community - post thoughts, photos, and updates to connect with other music lovers.</p>
-                </div>
-            ),
-            targetElementId: 'vibe-button',
-            position: 'bottom',
-            mobilePosition: 'bottom'
-        }
-    ];
+    useEffect(() => {
+        // Initialize tutorial state from localStorage
+        setHasSeenTutorial(localStorage.getItem('hasSeenTutorial') === 'true');
+        setShowReleaseTooltip(localStorage.getItem('hasSeenReleaseTooltip') !== 'true');
+    }, []);
 
     // Handle tutorial completion
     const handleTutorialComplete = () => {
@@ -450,494 +477,95 @@ export default function TopNav({ params }: ProfilePageTypes) {
         }
     };
 
+    // Client-side only state
+    const [isClient, setIsClient] = useState(false);
+    const [animationDots, setAnimationDots] = useState<Array<{top: string, left: string, transition: string, delay: string}>>([]);
+    
+    // Generate animation dots on client-side only
+    useEffect(() => {
+        setIsClient(true);
+        const dots = Array(10).fill(0).map(() => ({
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            transition: `all ${0.5 + Math.random() * 0.5}s ease-out`,
+            delay: `${Math.random() * 0.3}s`
+        }));
+        setAnimationDots(dots);
+    }, []);
+
+    const isHomePage = pathname === '/';
+
+    // Preload tutorial guide component on client side for smoother first experience
+    useEffect(() => {
+        if (typeof window !== 'undefined' && !localStorage.getItem('hasSeenTutorial')) {
+            // Prefetch the tutorial component if user hasn't seen it yet
+            import("@/app/components/TutorialGuide");
+        }
+    }, []);
+
     return (
         <>  
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-50 flex items-center h-[60px] right-0 left-0 border-b border-white/10">
-                <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${pathname === '/' ? 'max-w-full' : ''}`}>
+                <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo */}
                     <Link href="/" className="flex items-center">
                         <img 
                             className="min-w-[24px] w-[24px] transition-transform duration-200 hover:scale-110" 
                             src="/images/T-logo.svg"
+                            alt="Sacral Track Logo"
                         />
                         <span className="px-1 py-1 pb-[2px] font-medium text-[16px] hidden md:inline">ST</span>   
                     </Link>
                     
-                    {/* Genres - Mobile Optimized - Only visible on home page */}
+                    {/* Genres - Only visible on home page */}
                     <div className="flex items-center">
-                            {pathname === '/' && (
-                                <button
-                                id="genres-button"
-                                className="text-white text-[13px] flex items-center"
-                                onClick={handleGenresClick}
-                                >
-                                <MusicalNoteIcon className="w-[24px] h-[24px] text-blue-400 transition-transform duration-200 hover:scale-110" />
-                                <span className="ml-2 font-medium text-[13px] hidden md:inline">GENRES</span>
-                                </button>
-                            )}
+                        <GenreSelector isHomePage={isHomePage} />
                     </div>
 
-                    {/* Search Bar - Mobile Optimized - Only visible on home page */}
-                    {pathname === '/' && (
-                    <div className="relative flex items-center">
-                        <button
-                            id="search-button"
-                            onClick={() => setShowSearch(!showSearch)}
-                            className="p-2 hover:bg-[#2E2469] rounded-full transition-all duration-200"
-                        >
-                                <MagnifyingGlassIcon 
-                                    className="w-[24px] h-[24px] text-cyan-400 transition-transform duration-200 hover:scale-110" 
-                            />
-                        </button>
+                    {/* Search Bar - Only visible on home page */}
+                    <SearchBar isHomePage={isHomePage} />
 
-                        <AnimatePresence>
-                            {showSearch && (
-                                <motion.div
-                                    initial={{ width: 0, opacity: 0 }}
-                                    animate={{ width: "min(300px, 80vw)", opacity: 1 }}
-                                    exit={{ width: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="absolute right-12 top-1/2 -translate-y-1/2"
-                                >
-                                    <input
-                                        ref={searchInputRef}
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => {
-                                            setSearchQuery(e.target.value);
-                                            handleSearch(e.target.value);
-                                        }}
-                                        placeholder={searchPlaceholder}
-                                        className="w-full px-4 py-2 bg-[#2E2469] text-white rounded-full 
-                                                 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] 
-                                                 placeholder-gray-400 text-sm"
-                                    />
-
-                                    {/* Search Results - Mobile Optimized */}
-                                    {searchProfiles.length > 0 && (
-                                        <div className="absolute top-full mt-2 w-full bg-[#24183D] rounded-xl 
-                                                      shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto">
-                                            {searchProfiles.map((result) => (
-                                                <div
-                                                    key={`${result.type}-${result.id}`}
-                                                    onClick={() => handleSearchResultClick(result)}
-                                                    className="flex items-center gap-3 p-3 hover:bg-[#2E2469] 
-                                                             cursor-pointer transition-colors"
-                                                >
-                                                    <img
-                                                        src={getSearchResultImageUrl(result.image)}
-                                                        alt={result.name}
-                                                        className="w-10 h-10 rounded-full object-cover"
-                                                    />
-                                                    <div>
-                                                        <p className="text-white font-medium text-sm">{result.name}</p>
-                                                        <span className="text-gray-400 text-xs">{result.type === 'profile' ? 'Artist' : 'Track'}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    </div>
-                                    )}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                    )}
-
-                    {/* Right Side Actions - Mobile Optimized */}
+                    {/* Right Side Actions */}
                     <div className="flex items-center gap-2 md:gap-3">
                         {/* Release Button */}
-                    <button 
-                        id="release-button"
-                        onClick={() => goTo()}
-                            className="flex items-center rounded-2xl py-[6px] px-2 md:px-[15px]"
-                    >
-                            <ArrowTrendingUpIcon className="w-[24px] h-[24px] text-green-400" />
-                            <span className="ml-2 font-medium text-[13px] hidden md:inline">RELEASE</span>
-                    </button>
+                        <ReleaseButton />
 
-                    {/* VIBE Button */}
-                    <button 
-                        id="vibe-button"
-                        onClick={() => openVibeUploader()}
-                        className="flex items-center rounded-2xl py-[6px] px-2 md:px-[15px]"
-                    >
-                        <SparklesIcon className="w-[24px] h-[24px] text-purple-400" />
-                        <span className="ml-2 font-medium text-[13px] hidden md:inline">VIBE</span>
-                    </button>
+                        {/* VIBE Button */}
+                        <VibeButton onOpenVibeUploader={openVibeUploader} />
 
-                    {/* Notification Bell */}
+                        {/* Notification Bell */}
                         <NotificationBell />
 
                         {/* Profile Section */}
-                    {!userContext?.user?.id ? (
-                            <motion.button
-                                onClick={() => setIsLoginOpen(true)}
-                                className="relative flex items-center justify-center overflow-hidden bg-gradient-to-r 
-                                        from-blue-500 to-indigo-600 text-white rounded-2xl px-2 md:px-4 py-[10px] 
-                                        shadow-lg shadow-blue-500/25 group"
-                                whileHover={{ scale: 1.03 }}
-                                whileTap={{ scale: 0.97 }}
-                            >
-                                {/* Fancy background gradient that animates on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 opacity-0 
-                                              group-hover:opacity-100 transition-all duration-500 ease-out"></div>
-                                
-                                {/* Shimmer effect */}
-                                <div className="absolute inset-0 opacity-0 group-hover:opacity-30">
-                                    <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] 
-                                                  bg-gradient-to-r from-transparent via-white/50 to-transparent 
-                                                  transition-all duration-1000 ease-in-out"></div>
-                                </div>
-                                
-                                {/* Mini particles on hover */}
-                                <div className="absolute inset-0 overflow-hidden">
-                                    {[...Array(3)].map((_, i) => (
-                                        <div 
-                                            key={i}
-                                            className="opacity-0 group-hover:opacity-100 absolute w-1 h-1 rounded-full bg-white/80"
-                                            style={{
-                                                top: `${Math.random() * 100}%`,
-                                                left: `${Math.random() * 100}%`,
-                                                transition: `all ${0.5 + Math.random() * 0.5}s ease-out`,
-                                                transitionDelay: `${Math.random() * 0.3}s`,
-                                                transform: 'scale(0)',
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                                
-                                <div className="flex items-center gap-2 relative z-10">
-                                    <motion.div
-                                        animate={{ 
-                                            scale: [1, 1.08, 1],
-                                        }}
-                                        transition={{ 
-                                            duration: 2.5,
-                                            repeat: Infinity,
-                                            repeatType: "loop"
-                                        }}
-                                    >
-                                        <UserCircleIcon className="w-[20px] h-[20px] md:w-[22px] md:h-[22px] text-white group-hover:text-blue-200 
-                                                            transition-all duration-300 group-hover:scale-110 group-hover:rotate-12" />
-                                    </motion.div>
-                                    <span className="whitespace-nowrap font-medium text-[14px] hidden md:inline group-hover:text-blue-100
-                                                   transition-colors duration-300">Log in</span>
-                                </div>
-                                
-                                <motion.div
-                                    className="absolute inset-0 rounded-2xl pointer-events-none"
-                                    initial={{ boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)" }}
-                                    animate={{ 
-                                        boxShadow: [
-                                            "0 0 0 0 rgba(255, 255, 255, 0.7)",
-                                            "0 0 0 10px rgba(255, 255, 255, 0)"
-                                        ]
-                                    }}
-                                    transition={{ 
-                                        boxShadow: { 
-                                            duration: 1.5, 
-                                            repeat: Infinity,
-                                            repeatType: "loop" 
-                                        }
-                                    }}
-                                />
-                            </motion.button>
-                    ) : (
-                            <div className="relative">
-                                <button 
-                                    ref={buttonRef}
-                                    onClick={() => setShowMenu(!showMenu)} 
-                                    className="relative group"
-                                >
-                                    <motion.div
-                                        whileHover={{ scale: 1.05 }}
-                                        className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30 
-                                                 transition-all duration-300 group-hover:ring-[#20DDBB]/50"
-                                    >
-                                        <img 
-                                            className="w-full h-full object-cover"
-                                            src={userContext?.user?.image 
-                                                ? getProfileImageUrl(userContext.user.image)
-                                                : '/images/placeholders/user-placeholder.svg'
-                                            } 
-                                            alt={userContext?.user?.name || 'User avatar'}
-                                        />
-                                    </motion.div>
-                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#20DDBB] rounded-full 
-                                                  border-2 border-[#24183D] group-hover:scale-110 transition-transform"></div>
-                                </button>
-                                
-                                {/* Profile Menu - Mobile Optimized */}
-                                {showMenu && (
-                                    <>
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="fixed inset-0 bg-black/40 z-40"
-                                            onClick={() => setShowMenu(false)}
-                                        />
-
-                                        <motion.div
-                                            ref={menuRef}
-                                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute right-0 mt-2 w-[280px] max-w-[90vw] bg-[#24183D] rounded-xl 
-                                                     shadow-lg z-50 overflow-hidden border border-white/10"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/3 to-transparent pointer-events-none opacity-30"></div>
-                                            
-                                            <div className="relative flex flex-col gap-2">
-                                                <div className="px-6 py-3 border-b border-white/5">
-                                                    <Link 
-                                                        href={`/profile/${userContext?.user?.id}`}
-                                                        onClick={() => setShowMenu(false)}
-                                                        className="flex items-center gap-4 group/profile"
-                                                    >
-                                                        <motion.div 
-                                                            whileHover={{ scale: 1.05 }}
-                                                            className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30
-                                                                     group-hover/profile:ring-[#20DDBB]/50 transition-all duration-300
-                                                                     shadow-[0_0_15px_rgba(32,221,187,0.2)]"
-                                                        >
-                                                            <img 
-                                                                className="w-full h-full object-cover"
-                                                                src={userContext?.user?.image 
-                                                                    ? getProfileImageUrl(userContext.user.image)
-                                                                    : '/images/placeholders/user-placeholder.svg'
-                                                                } 
-                                                                alt={userContext?.user?.name || 'User avatar'}
-                                                            />
-                                                        </motion.div>
-                                                        <div>
-                                                            <p className="text-white font-medium text-[15px]">
-                                                                {userContext?.user?.name}
-                                                            </p>
-                                                            <span className="text-[#20DDBB] text-sm font-medium 
-                                                                      group-hover/profile:text-white transition-colors">
-                                                                View Profile
-                                                            </span>
-                                                        </div>
-                                                    </Link>
-                                                </div>
-
-                                                <div className="px-3 py-2">
-                                                    <Link 
-                                                        href="/royalty"
-                                                        onClick={() => setShowMenu(false)}
-                                                        className="flex items-center gap-4 p-3 text-white/90 
-                                                                 rounded-xl transition-all duration-200 group relative
-                                                                 hover:text-white hover:bg-[#20DDBB]/5"
-                                                    >
-                                                        <div className="w-10 h-10 flex items-center justify-center">
-                                                            <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                                                                          group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-                                                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
-                                                                      className="stroke-current" strokeWidth="1.5" fill="none"/>
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                                                                       transition-colors">Royalty</span>
-                                                    </Link>
-
-                                                    <Link 
-                                                        href="/people"
-                                                        onClick={() => setShowMenu(false)}
-                                                        className="flex items-center gap-4 p-3 text-white/90
-                                                                 rounded-xl transition-all duration-200 group relative
-                                                                 hover:text-white hover:bg-[#20DDBB]/5"
-                                                    >
-                                                        <div className="w-10 h-10 flex items-center justify-center">
-                                                            <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                                                                          group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-                                                                <path d="M16 3.23c2.51 2.48 2.51 6.5 0 9-2.51 2.48-6.57 2.48-9.08 0-2.51-2.48-2.51-6.5 0-9 2.51-2.48 6.57-2.48 9.08 0z"
-                                                                      className="stroke-current" strokeWidth="1.5" fill="none"/>
-                                                                <path d="M17.82 21c0-3.47-2.85-6.29-6.36-6.29S5.1 17.53 5.1 21"
-                                                                      className="stroke-current" strokeWidth="1.5" fill="none"/>
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                                                                       transition-colors">People</span>
-                                                    </Link>
-
-                                                    <Link 
-                                                        href="/news"
-                                                        onClick={() => setShowMenu(false)}
-                                                        className="flex items-center gap-4 p-3 text-white/90
-                                                                 rounded-xl transition-all duration-200 group relative
-                                                                 hover:text-white hover:bg-[#20DDBB]/5"
-                                                    >
-                                                        <div className="w-10 h-10 flex items-center justify-center">
-                                                            <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                                                                          group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-                                                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"
-                                                                      className="stroke-current" strokeWidth="1.5" fill="none" 
-                                                                      strokeLinecap="round" strokeLinejoin="round"/>
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                                                                       transition-colors">News</span>
-                                                    </Link>
-
-                                                    <button 
-                                                        onClick={() => { 
-                                                            userContext?.logout();
-                                                            setShowMenu(false);
-                                                        }}
-                                                        className="w-full flex items-center gap-4 p-3 text-white/90
-                                                                 rounded-xl transition-all duration-200 group relative
-                                                                 hover:text-white hover:bg-[#20DDBB]/5"
-                                                    >
-                                                        <div className="w-10 h-10 flex items-center justify-center">
-                                                            <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                                                                          group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-                                                                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
-                                                                      className="stroke-current" strokeWidth="1.5" fill="none"/>
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                                                                       transition-colors">Log Out</span>
-                                                    </button>
-                                                </div>
-
-                                                <div className="px-6 pt-3 mt-2 border-t border-white/10">
-                                                    <p className="text-[12px] text-[#818BAC] font-medium">
-                                                        All rights © 2025 SACRAL TRACK
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    </>
-                                )}
-                        </div>
-                    )}
+                        <ProfileMenu />
                     </div>
                 </div>
             </div>
 
-            {/* Genre Popup - Mobile Optimized */}
-            <AnimatePresence>
-                {showGenresPopup && (
-                    <>
-                        {/* Overlay for click-outside closing */}
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="fixed inset-0 bg-black/10 backdrop-blur-[2px] z-30"
-                            onClick={() => setShowGenresPopup(false)}
-                        />
-                        
-                        {/* Genres popup with enhanced styling */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="fixed inset-x-0 top-[60px] z-40 p-4 md:p-6 
-                                      bg-[#24183D]/40 backdrop-blur-xl border-b border-white/5
-                                      shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
-                        >
-                            <div className="max-w-7xl mx-auto">
-                                <div className="flex flex-wrap gap-2 md:gap-3 justify-center">
-                                    {genres
-                                        .sort((a, b) => {
-                                            if (a.name === 'All') return -1;
-                                            if (b.name === 'All') return 1;
-                                            return a.name.localeCompare(b.name);
-                                        })
-                                        .map((genre) => (
-                                            <motion.button
-                                                key={genre.id}
-                                                onClick={() => handleGenreSelect(genre.name)}
-                                                whileHover={{ scale: 1.05, y: -2 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                className={`px-4 md:px-6 py-2 md:py-3 text-[13px] md:text-[14px] 
-                                                    ${selectedGenre === genre.name.toLowerCase() 
-                                                        ? 'bg-[#20DDBB] text-black shadow-[0_0_15px_rgba(32,221,187,0.3)]' 
-                                                        : 'bg-[#2E2469]/30 text-white hover:bg-[#2E2469]/50 border border-white/5 hover:border-white/20'
-                                                    } rounded-full transition-all duration-300 
-                                                    whitespace-nowrap font-medium backdrop-blur-sm
-                                                    hover:shadow-[0_0_15px_rgba(32,221,187,0.15)]
-                                                    hover:bg-gradient-to-r hover:from-[#2E2469]/50 hover:to-[#2E2469]/30
-                                                    relative overflow-hidden group`}
-                                            >
-                                                <span className="relative z-10 flex items-center">
-                                                    {selectedGenre === genre.name.toLowerCase() && (
-                                                        <motion.span
-                                                            initial={{ scale: 0, opacity: 0 }}
-                                                            animate={{ scale: 1, opacity: 1 }}
-                                                            className="mr-1.5 inline-block"
-                                                        >
-                                                            <svg 
-                                                                className="w-4 h-4 text-black" 
-                                                                fill="none" 
-                                                                viewBox="0 0 24 24" 
-                                                                stroke="currentColor"
-                                                            >
-                                                                <path 
-                                                                    strokeLinecap="round" 
-                                                                    strokeLinejoin="round" 
-                                                                    strokeWidth={2} 
-                                                                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
-                                                                />
-                                                            </svg>
-                                                        </motion.span>
-                                                    )}
-                                                    <span>{genre.name}</span>
-                                                </span>
-                                                <div className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/0 to-[#20DDBB]/0 
-                                                      group-hover:from-[#20DDBB]/10 group-hover:to-[#20DDBB]/0 
-                                                      transition-all duration-300 opacity-0 group-hover:opacity-100"></div>
-                                                <motion.div 
-                                                    className="absolute inset-0 rounded-full pointer-events-none"
-                                                    initial={{ opacity: 0 }}
-                                                    whileHover={{ 
-                                                        opacity: [0, 0.4, 0], 
-                                                        scale: [1, 1.05, 1.03],
-                                                        transition: { 
-                                                            duration: 1.5, 
-                                                            repeat: Infinity,
-                                                            repeatType: "loop" 
-                                                        }
-                                                    }}
-                                                    style={{ 
-                                                        boxShadow: "0 0 0 2px rgba(32, 221, 187, 0.3)",
-                                                    }}
-                                                />
-                                            </motion.button>
-                                        ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+            {/* Tutorial Guide - Loaded only when needed */}
+            {!hasSeenTutorial && (
+                <TutorialGuide
+                    steps={tutorialSteps}
+                    isFirstVisit={showReleaseTooltip}
+                    onComplete={handleTutorialComplete}
+                />
+            )}
 
-            {/* Tutorial Guide */}
-            <TutorialGuide
-                steps={tutorialSteps}
-                isFirstVisit={showReleaseTooltip}
-                onComplete={handleTutorialComplete}
-            />
-
-            {/* Vibe uploader modal */}
-            <AnimatePresence>
-                {showVibeUploader && (
-                    <VibeUploader 
-                        onClose={() => setShowVibeUploader(false)} 
-                        onSuccess={() => {
-                            setShowVibeUploader(false);
-                            toast.success('Your vibe has been posted!');
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+            {/* Vibe uploader modal - Loaded only when shown */}
+            {showVibeUploader && (
+                <VibeUploader 
+                    onClose={() => setShowVibeUploader(false)} 
+                    onSuccess={() => {
+                        setShowVibeUploader(false);
+                        toast.success('Your vibe has been posted!');
+                    }}
+                />
+            )}
         </>
     )
-}
+});
+
+TopNav.displayName = 'TopNav';
+
+export default TopNav;
   

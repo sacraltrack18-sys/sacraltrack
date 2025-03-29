@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFriendsStore } from '@/app/stores/friends';
 import { useProfileStore } from '@/app/stores/profile';
@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import { database, Query } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
+import { useRouter } from 'next/navigation';
 
 interface UserCardProps {
     user: {
@@ -147,7 +148,21 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                 
                 <div className="relative">
                     {/* Область для навигации по профилю */}
-                    <Link href={`/profile/${user.user_id}`}>
+                    <Link 
+                        href={`/profile/${user.user_id}`}
+                        prefetch={true}
+                        onClick={(e) => {
+                            // Обработка ошибок навигации
+                            if (typeof window !== 'undefined') {
+                                e.preventDefault();
+                                try {
+                                    window.location.href = `/profile/${user.user_id}`;
+                                } catch (error) {
+                                    console.error('Navigation error:', error);
+                                }
+                            }
+                        }}
+                    >
                         <div className="cursor-pointer group-hover:scale-[1.01] transition-transform">
                             <div className="flex items-center gap-5">
                                 <motion.div 
@@ -503,6 +518,7 @@ export default function PeoplePage() {
     
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
+    const router = useRouter();
     
     // Toggle sort direction
     const toggleSortDirection = () => {
@@ -801,6 +817,27 @@ export default function PeoplePage() {
         
         initializeData();
     }, [sortBy, filterBy]); // Убираем зависимости функций, оставляем только необходимые переменные
+    
+    // Handle click on search result - с обработкой ошибок
+    const handleSearchResultClick = useCallback((result: any) => {
+        try {
+            if (result.type === 'profile') {
+                router.push(`/profile/${result.user_id}`);
+            } else {
+                router.push(`/post/${result.user_id}/${result.id}`);
+            }
+            setSearchQuery("");
+            setFilteredProfiles([]);
+        } catch (error) {
+            console.error('Navigation error:', error);
+            // Пробуем альтернативный способ навигации через window.location
+            if (result.type === 'profile') {
+                window.location.href = `/profile/${result.user_id}`;
+            } else {
+                window.location.href = `/post/${result.user_id}/${result.id}`;
+            }
+        }
+    }, [router]);
     
     return (
         <div className="container mx-auto px-4 py-8 max-w-7xl">

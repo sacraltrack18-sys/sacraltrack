@@ -1,7 +1,7 @@
 "use client"
 {/* COMMENT SECTION HEAD */}
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react";
 import Comments from "@/app/components/post/Comments"
 import CommentsHeader from "@/app/components/post/CommentsHeader"
 import Link from "next/link"
@@ -55,7 +55,8 @@ const StatsCard = ({ icon, value, label }: { icon: React.ReactNode, value: strin
     </div>
 )
 
-export default function Post({ params }: PostPageTypes) {
+export default function Post(props: PostPageTypes) {
+    const params = use(props.params);
     const { postById, setPostById, setPostsByUser } = usePostStore()
     const { setLikesByPost, likesByPost } = useLikeStore()
     const { setCommentsByPost, commentsByPost } = useCommentStore()
@@ -63,25 +64,27 @@ export default function Post({ params }: PostPageTypes) {
     const [imageError, setImageError] = useState(false)
     const router = useRouter()
 
+    const { postId, userId } = params;
+
     const imageUrl = postById?.image_url ? useCreateBucketUrl(postById.image_url) : ''
     const m3u8Url = postById?.m3u8_url ? useCreateBucketUrl(postById.m3u8_url) : ''
-    const isPlaying = currentAudioId === params.postId
+    const isPlaying = currentAudioId === postId
 
     useEffect(() => { 
         const loadData = async () => {
             try {
                 await Promise.all([
-                    setPostById(params.postId),
-                    setCommentsByPost(params.postId),
-                    setLikesByPost(params.postId),
-        setPostsByUser(params.userId) 
+                    setPostById(postId),
+                    setCommentsByPost(postId),
+                    setLikesByPost(postId),
+                    setPostsByUser(userId) 
                 ])
             } catch (error) {
                 console.error('Error loading data:', error)
             }
         }
         loadData()
-    }, [params.postId, params.userId])
+    }, [postId, userId])
 
     useEffect(() => {
         if (imageUrl) {
@@ -172,13 +175,15 @@ export default function Post({ params }: PostPageTypes) {
                         <ClientOnly>
                             {m3u8Url && (
                                 <div className="px-8 mb-6">
-                                    <div className="glass-effect rounded-xl p-5 shadow-lg hover-lift">
-                                        <AudioPlayer 
-                                            m3u8Url={m3u8Url}
-                                            isPlaying={isPlaying}
-                                            onPlay={() => setCurrentAudioId(params.postId)}
-                                            onPause={() => setCurrentAudioId(null)}
-                                        />
+                                    <div className="bg-white-600 p-3 rounded-md shadow border flex gap-4 mt-3">
+                                        <div className="w-1/3">
+                                            <AudioPlayer
+                                                m3u8Url={m3u8Url}
+                                                isPlaying={isPlaying}
+                                                onPlay={() => postId ? setCurrentAudioId(postId) : null}
+                                                onPause={() => setCurrentAudioId(null)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -208,9 +213,9 @@ export default function Post({ params }: PostPageTypes) {
                     <div className="border-t border-[#2E2469]/30">
                         <div className="bg-[#24183D] rounded-b-2xl animate-fadeInUp animation-delay-200">
                             <ClientOnly>
-                                {postById && (
+                                {postById && postId && (
                                     <div className="p-8">
-                                        <Comments params={params}/>
+                                        <Comments params={{ userId, postId }}/>
                                     </div>
                                 )}
                             </ClientOnly>

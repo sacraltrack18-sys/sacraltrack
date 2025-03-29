@@ -43,17 +43,19 @@ export default function Comments({ params }: CommentsCompTypes) {
     ]
 
     useEffect(() => {
+        if (!params) return;
+        
         const loadComments = async () => {
             await setCommentsByPost(params.postId)
             setPostComments(getCommentsByPostId(params.postId))
         }
         
         loadComments()
-    }, [params.postId])
+    }, [params?.postId])
 
     const addComment = async () => {
         if (!userContext?.user) return setIsLoginOpen(true)
-        if (!comment.trim()) return
+        if (!comment.trim() || !params?.postId) return
 
         try {
             setIsSubmitting(true)
@@ -81,7 +83,7 @@ export default function Comments({ params }: CommentsCompTypes) {
     }
 
     const deleteComment = async (commentId: string) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return
+        if (!confirm('Are you sure you want to delete this comment?') || !params?.postId) return
 
         try {
             setIsDeleting(commentId)

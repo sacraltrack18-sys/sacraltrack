@@ -15,6 +15,12 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
         if (!userContext?.user) {
             router.push('/');
         }
+        
+        // Очистка при размонтировании
+        return () => {
+            // Здесь можно добавить любую необходимую очистку состояния
+            console.log('PeopleLayout unmounted');
+        };
     }, [userContext?.user, router]);
 
     return (

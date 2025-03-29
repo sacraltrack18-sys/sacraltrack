@@ -32,19 +32,19 @@ interface RecommendationTrack {
 // Skeleton component for recommendations
 const RecommendationSkeleton = () => {
   return (
-    <div className="bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/80 rounded-xl overflow-hidden p-4 w-full shadow-lg border border-white/5 animate-pulse mb-3">
+    <div className="bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/80 rounded-xl overflow-hidden p-4 w-full shadow-xl border border-purple-500/10 animate-pulse">
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 bg-purple-700/30 rounded-lg"></div>
+        <div className="relative w-16 h-16 bg-purple-700/30 rounded-lg shadow-md overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-transparent"></div>
+        </div>
         <div className="flex-1">
           <div className="h-4 w-3/4 bg-white/10 rounded mb-2"></div>
           <div className="h-3 w-1/2 bg-white/5 rounded"></div>
         </div>
       </div>
-      <div className="mt-3 h-2 w-full bg-white/5 rounded"></div>
-      <div className="mt-2 h-2 w-4/5 bg-white/5 rounded"></div>
-      <div className="mt-4 flex items-center justify-between">
-        <div className="h-8 w-8 rounded-full bg-white/10"></div>
-        <div className="h-6 w-20 rounded-full bg-white/10"></div>
+      <div className="mt-3 flex items-center justify-between">
+        <div className="h-5 w-16 rounded-full bg-[#20DDBB]/10"></div>
+        <div className="h-4 w-4 rounded-full bg-white/10"></div>
       </div>
     </div>
   );
@@ -71,17 +71,19 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
   
   return (
     <motion.div 
-      whileHover={{ y: -3 }}
-      className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden p-4 shadow-lg border border-white/5 hover:border-purple-500/30 transition-all duration-300 mb-3"
+      whileHover={{ y: -3, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden p-4 shadow-xl border border-purple-500/10 hover:border-purple-500/30 transition-all duration-300"
     >
       <div className="flex items-center gap-4">
-        <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 group">
+        <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 group shadow-md">
           <Image 
             src={track.coverUrl} 
             alt={track.title}
             fill
             className="object-cover"
           />
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/30 to-transparent pointer-events-none"></div>
           <button 
             onClick={handlePlay}
             className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200"
@@ -123,7 +125,6 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
           <button className="text-gray-400 hover:text-red-400 transition-colors">
             <FaHeart className="w-4 h-4" />
           </button>
-          <span className="text-gray-500 text-xs">Recommended for you</span>
         </div>
       </div>
     </motion.div>
@@ -174,7 +175,7 @@ const ContentFilter = () => {
           id: 'rec1',
           title: 'Cosmic Harmony',
           artist: 'Nebula Dreams',
-          coverUrl: 'https://images.unsplash.com/photo-1614149162883-504ce4d13909',
+          coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4',
           audioUrl: '/audio/sample1.mp3',
           genre: 'Ambient'
         },
@@ -182,7 +183,7 @@ const ContentFilter = () => {
           id: 'rec2',
           title: 'Electric Soul',
           artist: 'Rhythm Section',
-          coverUrl: 'https://images.unsplash.com/photo-1551817958-d9d86fb29431',
+          coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745',
           audioUrl: '/audio/sample2.mp3',
           genre: 'Electronic'
         }
@@ -206,7 +207,7 @@ const ContentFilter = () => {
           id: 'rec3',
           title: 'Midnight Journey',
           artist: 'Aurora Beats',
-          coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad',
+          coverUrl: 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff',
           audioUrl: '/audio/sample3.mp3',
           genre: 'Downtempo'
         },
@@ -214,7 +215,7 @@ const ContentFilter = () => {
           id: 'rec4',
           title: 'Urban Flow',
           artist: 'City Lights',
-          coverUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e',
+          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f',
           audioUrl: '/audio/sample4.mp3',
           genre: 'Hip Hop'
         }
@@ -226,7 +227,7 @@ const ContentFilter = () => {
   };
   
   return (
-    <div className="bg-gradient-to-br from-[#1A1633]/90 to-[#29234A]/90 backdrop-blur-sm p-4 rounded-xl border border-purple-500/10 shadow-lg">
+    <div>
       {/* Tab buttons */}
       <div className="grid grid-cols-2 gap-2 mb-6">
         <TabButton
@@ -267,11 +268,11 @@ const ContentFilter = () => {
       </div>
       
       {/* Recommendations section */}
-      <div>
+      <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FireIcon className="h-5 w-5 text-[#20DDBB]" />
-            <h3 className="text-white font-bold">Recommended For You</h3>
+            <h3 className="text-white font-bold tracking-wide">Recommended</h3>
           </div>
           
           <button 
@@ -283,7 +284,7 @@ const ContentFilter = () => {
           </button>
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-4">
           {loading ? (
             <>
               <RecommendationSkeleton />
@@ -338,10 +339,10 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       onClick={onClick}
       {...pulseAnimation}
       className={`
-        relative flex-1 py-3 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden
+        relative flex-1 py-3 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden shadow-lg
         ${active 
-          ? `bg-gradient-to-r from-purple-600/70 to-indigo-600/70 text-white shadow-lg shadow-purple-600/20 border border-purple-500/30 ${specialClass}`
-          : `bg-black/10 text-gray-300 hover:bg-black/20 border border-white/5 hover:border-white/20 ${specialClass}`
+          ? `bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-xl shadow-purple-600/30 border border-purple-500/50 ${specialClass}`
+          : `bg-gradient-to-r from-[#1E1A36]/90 to-[#2A2151]/90 backdrop-blur-sm text-gray-300 hover:bg-[#2A2151] border border-white/10 hover:border-white/20 ${specialClass}`
         }
       `}
     >

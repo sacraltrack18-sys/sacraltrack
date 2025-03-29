@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useContext } from "react";
-import CartContext from "@/app/context/CartContext";
+import React from "react";
 
 interface CartSideBarProps {
   handlePayClick: (cartItems: any) => void;
 }
 
 export const CartSideBar: React.FC<CartSideBarProps> = ({ handlePayClick }) => {
-  const { cart } = useContext(CartContext);
+  // Заглушка для корзины без контекста
+  const cart = {
+    cartItems: []
+  };
 
   const amountWithoutTax = cart?.cartItems?.reduce(
     (acc: number, item: any) => acc + item.quantity * item.price,

@@ -346,7 +346,6 @@ export interface CommentsCompTypes {
 
 export interface PostPageTypes {
     params: { userId: string; postId: string; };
-    
 }
 
 export interface ProfilePageTypes {

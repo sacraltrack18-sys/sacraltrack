@@ -246,9 +246,9 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    className="w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg
+                                    className={`w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg
                                            text-white placeholder-white/40 outline-none
-                                           focus:border-[#20DDBB]/30 focus:ring-1 focus:ring-[#20DDBB]/20 transition-all"
+                                           focus:border-[#20DDBB]/30 focus:ring-1 focus:ring-[#20DDBB]/20 transition-all`}
                                 />
                                 <svg 
                                     className="w-4 h-4 text-white/40 absolute left-3 top-1/2 transform -translate-y-1/2" 

@@ -102,7 +102,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             >
     			{/*	TOP 100 <RightSideBar /> 
                 <TechMessage />*/}
-                <div className="hidden lg:block sticky top-[80px]">
+                <div className="hidden lg:block sticky top-[80px] pt-[20px]">
                     <ContentFilter />
                 </div>
                 </motion.div>

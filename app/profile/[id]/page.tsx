@@ -13,8 +13,13 @@ import { PostWithProfile } from "@/app/types";
 import PaidPosts from "@/app/components/profile/PaidPosts";
 import ProfileComponents from "@/app/layouts/includes/ProfileComponents";
 import useDownloadsStore from '@/app/stores/downloadsStore';
+import React from 'react';
 
 export default function Profile({ params }: ProfilePageTypes) {
+  // Use React.use() to await params before accessing
+  const resolvedParams = React.use(params);
+  const userId = resolvedParams.id;
+  
   const [visiblePosts, setVisiblePosts] = useState<PostWithProfile[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -42,9 +47,9 @@ export default function Profile({ params }: ProfilePageTypes) {
   }, [loading, postsByUser.length, visiblePosts.length]);
 
   useEffect(() => {
-    setCurrentProfile(params?.id)
-    setPostsByUser(params?.id)
-  }, [params.id, setCurrentProfile]);
+    setCurrentProfile(userId)
+    setPostsByUser(userId)
+  }, [userId, setCurrentProfile]);
 
   useEffect(() => {
     if (postsByUser.length > 0) {
@@ -59,7 +64,7 @@ export default function Profile({ params }: ProfilePageTypes) {
 
   return (
     <>
-      <ProfileLayout params={{ params }}>
+      <ProfileLayout params={{ params: { id: userId } }}>
       <div className="pt-[90px] lg:pr-0 w-full max-w-[1200px] ">
         <ClientOnly>
           {!hidePostUser && (
@@ -70,9 +75,9 @@ export default function Profile({ params }: ProfilePageTypes) {
                   ref={index === visiblePosts.length - 1 ? lastPostRef : null}
                 >
                   <PostUser
-                    params={{ userId: params.id, postId: post.id }}
+                    params={{ userId: userId, postId: post.id }}
                     post={post}
-                    userId={params.id}
+                    userId={userId}
                   />
                 </div>
               ))}
@@ -83,7 +88,7 @@ export default function Profile({ params }: ProfilePageTypes) {
        
           {showPaidPosts && (
             <div className="mt-4">
-            {/*  <PaidPosts userId={params.id} /> */}
+            {/*  <PaidPosts userId={userId} /> */}
             </div>
           )}
 

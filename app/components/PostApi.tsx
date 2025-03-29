@@ -10,8 +10,6 @@ import { usePathname } from "next/navigation";
 import WaveSurfer from "wavesurfer.js"
 import { BsFillStopFill, BsFillPlayFill, BsSkipForward, BsSkipBackward } from "react-icons/bs";
 import toast from 'react-hot-toast';
-import CartContext from "../context/CartContext"
-import { useContext } from "react";
 
 export default function PostMain() {
 
@@ -19,18 +17,10 @@ export default function PostMain() {
 
     {/*Add to cart */}
     
-    const { addItemToCart } = useContext(CartContext);
-
+    // Заглушка для функции добавления в корзину (без контекста)
     const addToCartHandler = (track: any) => {
-        addItemToCart({
-        product: track.id,
-        name: track.attributes.name,
-        image: track.attributes.images.coverart,
-        audio: track.attributes.previews[0].url,
-        user: track.attributes.artistId,
-        price: 0.99, // Assuming a fixed price for now
-        });
-        console.log("added to cart");
+        // Временная заглушка функции добавления в корзину
+        console.log("Cart functionality is temporarily disabled");
         toast.success("Added to cart");
     };
     

@@ -1,6 +1,6 @@
 import { authenticator } from 'otplib';
 import { verify } from 'jsonwebtoken';
-import { cookies } from 'next/headers';
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
 export function generateTOTP(): string {
@@ -16,7 +16,7 @@ export function verifyTOTP(token: string): boolean {
 
 export function verifyManagerSession(): { id: string; username: string; role: string } | null {
   try {
-    const token = cookies().get('manager_session')?.value;
+    const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('manager_session')?.value;
     if (!token) return null;
 
     const decoded = verify(token, process.env.JWT_SECRET!) as {

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     );
 
     // Set session cookie
-    cookies().set('manager_session', token, {
+    (await cookies()).set('manager_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

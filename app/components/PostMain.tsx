@@ -88,6 +88,12 @@ interface PostImageProps {
 
 // Sound wave animation component
 const SoundWave = memo(() => {
+  // Store random values in refs to ensure consistent renders
+  const randomValues = useRef([...Array(5)].map(() => ({
+    height: 8 + Math.floor(Math.random() * 8),
+    duration: (0.8 + Math.random() * 0.5).toFixed(2)
+  })));
+
   return (
     <div className="flex items-center justify-center space-x-1 h-12 absolute bottom-4 left-0 right-0 pointer-events-none">
       {[...Array(5)].map((_, i) => (
@@ -96,11 +102,11 @@ const SoundWave = memo(() => {
           className="w-1 bg-white/70 rounded-full"
           initial={{ height: 4 }}
           animate={{ 
-            height: [4, 12 + Math.random() * 8, 4],
+            height: [4, randomValues.current[i].height, 4],
             opacity: [0.4, 0.8, 0.4]
           }}
           transition={{
-            duration: 0.8 + Math.random() * 0.5,
+            duration: Number(randomValues.current[i].duration),
             repeat: Infinity,
             repeatType: "reverse",
             delay: i * 0.1
@@ -113,19 +119,92 @@ const SoundWave = memo(() => {
 
 SoundWave.displayName = 'SoundWave';
 
+// Optimized image loading with intersection observer
+const LazyImage = memo(({ src, alt, className, onError, fallback }: { 
+  src: string; 
+  alt: string; 
+  className?: string; 
+  onError?: () => void;
+  fallback?: React.ReactNode;
+}) => {
+  // Use refs for client-side state to prevent hydration mismatch
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const imgRef = useRef(null);
+
+  // Track client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => {
+      if (imgRef.current) {
+        observer.disconnect();
+      }
+    };
+  }, [isMounted]);
+
+  const handleError = () => {
+    setHasError(true);
+    if (onError) onError();
+  };
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+  };
+
+  // Always render the image for SSR, but control visibility with CSS
+  return (
+    <div ref={imgRef} className={`${className || ''} relative overflow-hidden`}>
+      {isMounted && (!isInView || !isLoaded) && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-r from-[#2E2469]/50 to-[#351E43]/50 animate-pulse" />
+      )}
+      
+      <img
+        src={src}
+        alt={alt}
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+        className={`${className || ''} ${isLoaded || !isMounted ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+      />
+      
+      {hasError && fallback}
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
+
 const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text, genre }: PostHeaderProps) => (
     <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
             <Link href={`/profile/${profile.user_id}`} aria-label={`Visit ${profile.name}'s profile`}>
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300">
-                    <img
-                        className="w-full h-full object-cover"
+                    <LazyImage
                         src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
                         alt={`${profile.name}'s profile picture`}
                         onError={() => setAvatarError(true)}
-                        loading="lazy"
-                        width={48}
-                        height={48}
+                        className="w-full h-full object-cover"
                     />
                 </div>
             </Link>
@@ -147,6 +226,40 @@ const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text
 
 PostHeader.displayName = 'PostHeader';
 
+// Extracted PlayButton component to improve performance
+const PlayButton = memo(({ isPlaying, onTogglePlay }: { isPlaying: boolean; onTogglePlay: () => void }) => (
+  <button 
+      onClick={onTogglePlay}
+      className="absolute inset-0 md:hidden flex items-center justify-center"
+      aria-label={isPlaying ? 'Pause track' : 'Play track'}
+      type="button"
+  >
+      <div className={`
+          w-20 h-20 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center
+          transform transition-all duration-300 ${isPlaying ? 'scale-90 bg-[#20DDBB]/30' : 'scale-100'}
+      `}>
+          {isPlaying ? (
+              <FaPause className="text-white text-2xl" aria-hidden="true" />
+          ) : (
+              <FaPlay className="text-white text-2xl ml-1" aria-hidden="true" />
+          )}
+      </div>
+  </button>
+));
+
+PlayButton.displayName = 'PlayButton';
+
+// Fallback for when image fails to load
+const PostImageFallback = memo(() => (
+  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]">
+    <div className="text-white/60 text-5xl">
+      <HiMusicNote />
+    </div>
+  </div>
+));
+
+PostImageFallback.displayName = 'PostImageFallback';
+
 const PostImage = memo(({ 
     imageUrl, 
     imageError, 
@@ -157,97 +270,54 @@ const PostImage = memo(({
     onReact,
     reactions = {},
     currentReaction
-}: PostImageProps) => (
-    <div className="relative w-full group">
-        <div 
-            className="w-full aspect-square bg-cover bg-center relative overflow-hidden transition-transform duration-300"
-            style={{ 
-                backgroundImage: imageError ? 
-                    'linear-gradient(45deg, #2E2469, #351E43)' : 
-                    `url(${imageUrl})`
-            }}
-            aria-label={`Track artwork for ${post.trackname}`}
-            role="img"
-        >
-            {imageError && <PostImageFallback />}
-            
-            {/* Mobile Play Button (only shows on smaller screens) */}
-            <button 
-                onClick={onTogglePlay}
-                className="absolute inset-0 md:hidden flex items-center justify-center"
-                aria-label={isPlaying ? 'Pause track' : 'Play track'}
-                type="button"
+}: PostImageProps) => {
+    // Use a ref and useCallback for event handlers to avoid unnecessary re-renders
+    const togglePlayRef = useRef(onTogglePlay);
+    useEffect(() => {
+        togglePlayRef.current = onTogglePlay;
+    }, [onTogglePlay]);
+
+    const handleTogglePlay = useCallback(() => {
+        togglePlayRef.current();
+    }, []);
+
+    // Memoize background style to avoid recalculations
+    const backgroundStyle = useMemo(() => ({
+        backgroundImage: imageError ? 
+            'linear-gradient(45deg, #2E2469, #351E43)' : 
+            `url(${imageUrl})`
+    }), [imageUrl, imageError]);
+
+    return (
+        <div className="relative w-full group">
+            <div 
+                className="w-full aspect-square bg-cover bg-center relative overflow-hidden transition-transform duration-300"
+                style={backgroundStyle}
+                aria-label={`Track artwork for ${post.trackname}`}
+                role="img"
             >
-                <div className={`
-                    w-20 h-20 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center
-                    transform transition-all duration-300 ${isPlaying ? 'scale-90 bg-[#20DDBB]/30' : 'scale-100'}
-                `}>
-                    {isPlaying ? (
-                        <FaPause className="text-white text-2xl" aria-hidden="true" />
-                    ) : (
-                        <FaPlay className="text-white text-2xl ml-1" aria-hidden="true" />
+                {imageError && <PostImageFallback />}
+                
+                {/* Mobile Play Button (only shows on smaller screens) */}
+                <PlayButton isPlaying={isPlaying} onTogglePlay={handleTogglePlay} />
+                
+                {/* Reactions Panel */}
+                {onReact && <PostImageReactions post={post} onReact={onReact} reactions={reactions} />}
+                
+                {/* Current Reaction Effect */}
+                <AnimatePresence>
+                    {currentReaction && (
+                        <ReactionEffect type={currentReaction} />
                     )}
-                </div>
-            </button>
-            
-            {/* Reactions Panel */}
-            {onReact && <PostImageReactions post={post} onReact={onReact} reactions={reactions} />}
-            
-            {/* Current Reaction Effect */}
-            <AnimatePresence>
-                {currentReaction && (
-                    <ReactionEffect type={currentReaction} />
-                )}
-            </AnimatePresence>
-            
-            {/* Audio waves when playing */}
-            <AnimatePresence>
+                </AnimatePresence>
+                
                 {isPlaying && <SoundWave />}
-            </AnimatePresence>
-            
-            {/* Floating Comments */}
-            {comments.length > 0 && (
-                <FloatingComments comments={comments.map(comment => ({
-                    id: comment.id,
-                    text: comment.text,
-                    created_at: comment.created_at,
-                    profile: comment.profile
-                }))} />
-            )}
-        </div>
-    </div>
-));
-
-PostImage.displayName = 'PostImage';
-
-const PostImageFallback = memo(() => (
-    <div className="absolute inset-0 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-            <Image 
-                src="/images/T-logo.svg" 
-                alt="Default image" 
-                width={64}
-                height={64}
-                className="opacity-20"
-                priority={false}
-            />
-            <div className="mt-4 w-32 h-[1px] bg-white/10"></div>
-            <div className="mt-4 space-y-2">
-                {[...Array(3)].map((_, i) => (
-                    <div 
-                        key={i} 
-                        className="h-1 bg-white/10 rounded"
-                        style={{
-                            width: `${Math.random() * 100 + 100}px`
-                        }}
-                    ></div>
-                ))}
             </div>
         </div>
-    </div>
-));
+    );
+});
 
-PostImageFallback.displayName = 'PostImageFallback';
+PostImage.displayName = 'PostImage';
 
 const PostMainSkeleton = memo(() => (
   <div className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto shadow-lg shadow-black/20">
