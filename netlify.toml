@@ -1,0 +1,15 @@
+[build]
+  command = "npm run netlify-build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22.14.0"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Команда для установки с использованием флага, чтобы игнорировать конфликты зависимостей
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Переопределение команды установки
+[build.lifecycle]
+  onInstall = "npm install --legacy-peer-deps" 

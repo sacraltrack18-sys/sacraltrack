@@ -23,7 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import { database, Query } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface UserCardProps {
     user: {
@@ -277,7 +277,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         <motion.button
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            onClick={() => isFriend ? onRemoveFriend(user.user_id) : onAddFriend(user.user_id)}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    isFriend ? onRemoveFriend(user.user_id) : onAddFriend(user.user_id);
+                                } catch (error) {
+                                    console.error('Friend action error:', error);
+                                }
+                            }}
                             className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-xl transition-colors ${
                                 isFriend 
                                     ? 'bg-red-600/80 text-white hover:bg-red-700' 
@@ -299,7 +307,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         <motion.button
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            onClick={() => setShowRatingModal(true)}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    setShowRatingModal(true);
+                                } catch (error) {
+                                    console.error('Rating modal error:', error);
+                                }
+                            }}
                             className="flex-1 flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#1A1C2E] text-white hover:bg-[#2A2D42] transition-colors"
                         >
                             <StarIcon className="w-5 h-5 mr-2 text-yellow-500" />
@@ -317,14 +333,27 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center"
-                        onClick={() => setShowRatingModal(false)}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                                setShowRatingModal(false);
+                            } catch (error) {
+                                console.error('Error closing modal:', error);
+                                // Альтернативный способ закрытия
+                                window.location.reload();
+                            }
+                        }}
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             className="bg-gradient-to-br from-[#252742] to-[#1E2136] rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl border border-purple-500/20"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }}
                         >
                             <h3 className="text-xl font-bold text-white mb-6">Rate {user.name}</h3>
                             
@@ -359,7 +388,17 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.97 }}
                                     className="flex-1 py-3 rounded-xl bg-[#1A1C2E] text-white hover:bg-[#2A2D42] transition-colors"
-                                    onClick={() => setShowRatingModal(false)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        try {
+                                            setShowRatingModal(false);
+                                        } catch (error) {
+                                            console.error('Error closing modal:', error);
+                                            // Альтернативный способ закрытия
+                                            window.location.reload();
+                                        }
+                                    }}
                                 >
                                     Cancel
                                 </motion.button>
@@ -371,7 +410,18 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                             ? 'bg-gradient-to-r from-[#20DDBB] to-[#0A947B] text-white' 
                                             : 'bg-gray-600 text-gray-300 cursor-not-allowed'
                                     }`}
-                                    onClick={rating > 0 ? handleRateSubmit : undefined}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (rating > 0) {
+                                            try {
+                                                handleRateSubmit();
+                                            } catch (error) {
+                                                console.error('Rating submission error:', error);
+                                                setShowRatingModal(false);
+                                            }
+                                        }
+                                    }}
                                     disabled={rating === 0}
                                 >
                                     Submit
@@ -456,7 +506,22 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                 
                 <div className="space-y-4">
                     {users.map((user, index) => (
-                        <Link key={user.user_id} href={`/profile/${user.user_id}`}>
+                        <Link 
+                            key={user.user_id} 
+                            href={`/profile/${user.user_id}`}
+                            prefetch={true}
+                            onClick={(e) => {
+                                // Обработка ошибок навигации
+                                if (typeof window !== 'undefined') {
+                                    e.preventDefault();
+                                    try {
+                                        window.location.href = `/profile/${user.user_id}`;
+                                    } catch (error) {
+                                        console.error('Navigation error in TopRankingUsers:', error);
+                                    }
+                                }
+                            }}
+                        >
                             <motion.div 
                                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
                                 whileHover={{ x: 5 }}
@@ -519,6 +584,28 @@ export default function PeoplePage() {
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
     const router = useRouter();
+    const pathname = usePathname();
+    
+    // Очистка состояния при изменении маршрута
+    useEffect(() => {
+        // Функция для очистки всех модальных окон и состояний
+        const cleanupState = () => {
+            // Здесь можно сбросить любые открытые модальные окна или состояния
+            console.log('Route changed, cleaning up state');
+            
+            // Перезагрузить страницу при попытке перехода
+            if (typeof window !== 'undefined' && pathname !== '/people') {
+                console.log('Navigating away from people page');
+            }
+        };
+        
+        cleanupState();
+        
+        // Очистка при размонтировании компонента
+        return () => {
+            console.log('PeoplePage component unmounted');
+        };
+    }, [pathname]);
     
     // Toggle sort direction
     const toggleSortDirection = () => {
