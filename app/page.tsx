@@ -215,12 +215,17 @@ export default function Home() {
     if (combinedFeed.length === 0) return [];
     
     if (activeFilter === 'all') {
+      console.log("[FILTER-DEBUG] Showing ALL content");
       return combinedFeed;
     } else if (activeFilter === 'vibe') {
+      console.log("[FILTER-DEBUG] Filtering for VIBE content only");
       return combinedFeed.filter(item => item.type === 'vibe');
     } else if (activeFilter === 'sacral') {
+      console.log("[FILTER-DEBUG] Filtering for SACRAL content only");
+      // For sacral filter, we're specifically looking for post-type content
       return combinedFeed.filter(item => item.type === 'post');
     } else if (activeFilter === 'world') {
+      console.log("[FILTER-DEBUG] Filtering for WORLD content only");
       // For world content, we check for posts that have 'world' in their genre
       return combinedFeed.filter(item => 
         item.type === 'post' && 
@@ -228,6 +233,7 @@ export default function Home() {
         item.data.genre.toLowerCase().includes('world')
       );
     }
+    console.log("[FILTER-DEBUG] Using default all content");
     return combinedFeed;
   }, [combinedFeed, activeFilter]);
 

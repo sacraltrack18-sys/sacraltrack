@@ -145,6 +145,21 @@ const ContentFilter = () => {
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useUser() || { user: null };
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    handleResize(); // Set initial state
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
   
   // Map the context filter to the component's internal type
   const mapFilterToType = (filter: string): ContentType => {
@@ -160,6 +175,7 @@ const ContentFilter = () => {
   
   // Handle tab change and update context
   const handleTabChange = (tab: ContentType) => {
+    console.log("[FILTER] Setting active filter to:", tab);
     setActiveFilter(tab);
   };
   
@@ -228,76 +244,137 @@ const ContentFilter = () => {
   
   return (
     <div>
-      {/* Tab buttons */}
-      <div className="grid grid-cols-2 gap-2 mb-6">
-        <TabButton
-          active={activeTab === 'all'}
-          onClick={() => handleTabChange('all')}
-          icon={<SparklesIcon className="w-5 h-5" />}
-          label="All Content"
-          description="Show everything"
-          isSpecial={false}
-        />
-        
-        <TabButton
-          active={activeTab === 'vibe'}
-          onClick={() => handleTabChange('vibe')}
-          icon={<SparklesIcon className="w-5 h-5" />}
-          label="Vibe"
-          description="User moments"
-          isSpecial={false}
-        />
-        
-        <TabButton
-          active={activeTab === 'sacral'}
-          onClick={() => handleTabChange('sacral')}
-          icon={<MusicalDiamondIcon />}
-          label="Sacral"
-          description="Platform tracks"
-          isSpecial={true}
-        />
-        
-        <TabButton
-          active={activeTab === 'world'}
-          onClick={() => handleTabChange('world')}
-          icon={<FaGlobeAmericas className="w-5 h-5" />}
-          label="World"
-          description="Global hits"
-          isSpecial={false}
-        />
-      </div>
+      {/* Tab buttons - mobile version is more compact */}
+      {isMobile ? (
+        <div className="flex gap-2 justify-between overflow-x-auto pb-1">
+          <MobileTabButton
+            active={activeTab === 'all'}
+            onClick={() => handleTabChange('all')}
+            icon={<SparklesIcon className="w-4 h-4" />}
+            label="All"
+          />
+          
+          <MobileTabButton
+            active={activeTab === 'vibe'}
+            onClick={() => handleTabChange('vibe')}
+            icon={<SparklesIcon className="w-4 h-4" />}
+            label="Vibe"
+          />
+          
+          <MobileTabButton
+            active={activeTab === 'sacral'}
+            onClick={() => handleTabChange('sacral')}
+            icon={<MusicalDiamondIcon className="w-4 h-4" />}
+            label="Sacral"
+          />
+          
+          <MobileTabButton
+            active={activeTab === 'world'}
+            onClick={() => handleTabChange('world')}
+            icon={<FaGlobeAmericas className="w-4 h-4" />}
+            label="World"
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 mb-6">
+          <TabButton
+            active={activeTab === 'all'}
+            onClick={() => handleTabChange('all')}
+            icon={<SparklesIcon className="w-5 h-5" />}
+            label="All Content"
+            description="Show everything"
+            isSpecial={false}
+          />
+          
+          <TabButton
+            active={activeTab === 'vibe'}
+            onClick={() => handleTabChange('vibe')}
+            icon={<SparklesIcon className="w-5 h-5" />}
+            label="Vibe"
+            description="User moments"
+            isSpecial={false}
+          />
+          
+          <TabButton
+            active={activeTab === 'sacral'}
+            onClick={() => handleTabChange('sacral')}
+            icon={<MusicalDiamondIcon />}
+            label="Sacral Track"
+            description="Platform tracks"
+            isSpecial={true}
+          />
+          
+          <TabButton
+            active={activeTab === 'world'}
+            onClick={() => handleTabChange('world')}
+            icon={<FaGlobeAmericas className="w-5 h-5" />}
+            label="World Tracks"
+            description="Global hits"
+            isSpecial={false}
+          />
+        </div>
+      )}
       
-      {/* Recommendations section */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <FireIcon className="h-5 w-5 text-[#20DDBB]" />
-            <h3 className="text-white font-bold tracking-wide">Recommended</h3>
+      {/* Recommendations section - hide on mobile */}
+      {!isMobile && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FireIcon className="h-5 w-5 text-[#20DDBB]" />
+              <h3 className="text-white font-bold tracking-wide">Recommended</h3>
+            </div>
+            
+            <button 
+              onClick={refreshRecommendations}
+              className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+              disabled={loading}
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
           
-          <button 
-            onClick={refreshRecommendations}
-            className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
-            disabled={loading}
-          >
-            <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="space-y-4">
+            {loading ? (
+              <>
+                <RecommendationSkeleton />
+                <RecommendationSkeleton />
+              </>
+            ) : (
+              recommendations.map(track => (
+                <RecommendationCard key={track.id} track={track} />
+              ))
+            )}
+          </div>
         </div>
-        
-        <div className="space-y-4">
-          {loading ? (
-            <>
-              <RecommendationSkeleton />
-              <RecommendationSkeleton />
-            </>
-          ) : (
-            recommendations.map(track => (
-              <RecommendationCard key={track.id} track={track} />
-            ))
-          )}
-        </div>
-      </div>
+      )}
     </div>
+  );
+};
+
+// Mobile tab button component
+interface MobileTabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}
+
+const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps) => {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={`
+        flex-1 py-2 px-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-1
+        ${active 
+          ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-md'
+          : 'bg-[#1A1C2E]/80 text-gray-400'
+        }
+      `}
+    >
+      {icon}
+      <span className="text-xs font-medium">{label}</span>
+    </motion.button>
   );
 };
 

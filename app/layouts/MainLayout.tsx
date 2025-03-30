@@ -102,11 +102,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             >
     			{/*	TOP 100 <RightSideBar /> 
                 <TechMessage />*/}
-                <div className="hidden lg:block sticky top-[80px] pt-[20px]">
+                <div className="sticky top-[80px] pt-[20px]">
                     <ContentFilter />
                 </div>
                 </motion.div>
 			</div>
+
+            {/* Mobile filter for smaller screens */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F1225]/90 backdrop-blur-lg px-4 py-3 border-t border-white/10">
+                <ContentFilter />
+            </div>
 
             {/* Onboarding Button */}
             <motion.button
