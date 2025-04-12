@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { database, ID, Query } from '@/libs/AppWriteClient';
 import { toast } from 'react-hot-toast';
 import { useProfileStore } from './profile';
+import { account } from '@/libs/AppWriteClient';
 
 // Утилита для создания нотификаций о друзьях
 const createFriendNotification = async (
@@ -98,9 +99,9 @@ interface FriendsStore {
     removeFriend: (friendId: string) => Promise<void>;
     acceptFriendRequest: (requestId: string) => Promise<void>;
     rejectFriendRequest: (requestId: string) => Promise<void>;
-    loadFriends: () => Promise<void>;
-    loadPendingRequests: () => Promise<void>;
-    loadSentRequests: () => Promise<void>;
+    loadFriends: (currentUserId?: string) => Promise<void>;
+    loadPendingRequests: (currentUserId?: string) => Promise<void>;
+    loadSentRequests: (currentUserId?: string) => Promise<void>;
 }
 
 export const useFriendsStore = create<FriendsStore>((set, get) => ({
@@ -116,9 +117,23 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
             // Сначала пробуем использовать переданный userId, затем из localStorage
             let userId = currentUserId;
             if (!userId) {
-                const localStorageUserId = localStorage.getItem('userId');
-                if (localStorageUserId) {
-                    userId = localStorageUserId;
+                const storedUserId = localStorage.getItem('userId');
+                if (storedUserId) {
+                    userId = storedUserId;
+                }
+            }
+            
+            // If userId is still not found, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
                 }
             }
             
@@ -188,7 +203,23 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
     removeFriend: async (friendId: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from localStorage first
+            let userId = localStorage.getItem('userId');
+            
+            // If userId is not in localStorage, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) throw new Error('User not authenticated');
             
             // Проверяем оба направления дружбы
@@ -250,7 +281,23 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
     acceptFriendRequest: async (requestId: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from localStorage first
+            let userId = localStorage.getItem('userId');
+            
+            // If userId is not in localStorage, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) throw new Error('User not authenticated');
 
             // Находим запрос на дружбу
@@ -305,7 +352,23 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
     rejectFriendRequest: async (requestId: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from localStorage first
+            let userId = localStorage.getItem('userId');
+            
+            // If userId is not in localStorage, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) throw new Error('User not authenticated');
 
             // Находим запрос на дружбу
@@ -340,10 +403,34 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         }
     },
 
-    loadFriends: async () => {
+    loadFriends: async (currentUserId?: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from passed parameter first
+            let userId = currentUserId;
+            
+            // Try to get userId from localStorage if not passed as parameter
+            if (!userId) {
+                const storedUserId = localStorage.getItem('userId');
+                if (storedUserId) {
+                    userId = storedUserId;
+                }
+            }
+            
+            // If userId is still not found, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) {
                 set({ friends: [] });
                 return;
@@ -400,10 +487,34 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         }
     },
 
-    loadPendingRequests: async () => {
+    loadPendingRequests: async (currentUserId?: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from passed parameter first
+            let userId = currentUserId;
+            
+            // Try to get userId from localStorage if not passed as parameter
+            if (!userId) {
+                const storedUserId = localStorage.getItem('userId');
+                if (storedUserId) {
+                    userId = storedUserId;
+                }
+            }
+            
+            // If userId is still not found, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) {
                 set({ pendingRequests: [] });
                 return;
@@ -446,10 +557,34 @@ export const useFriendsStore = create<FriendsStore>((set, get) => ({
         }
     },
 
-    loadSentRequests: async () => {
+    loadSentRequests: async (currentUserId?: string) => {
         try {
             set({ loading: true, error: null });
-            const userId = localStorage.getItem('userId');
+            // Try to get userId from passed parameter first
+            let userId = currentUserId;
+            
+            // Try to get userId from localStorage if not passed as parameter
+            if (!userId) {
+                const storedUserId = localStorage.getItem('userId');
+                if (storedUserId) {
+                    userId = storedUserId;
+                }
+            }
+            
+            // If userId is still not found, try to get it from the current session
+            if (!userId) {
+                try {
+                    const currentAccount = await account.get();
+                    if (currentAccount) {
+                        userId = currentAccount.$id;
+                        // Store it in localStorage for future use
+                        localStorage.setItem('userId', userId);
+                    }
+                } catch (error) {
+                    console.error('Error getting current user:', error);
+                }
+            }
+            
             if (!userId) {
                 set({ sentRequests: [] });
                 return;

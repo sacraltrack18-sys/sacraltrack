@@ -467,17 +467,39 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       // Validate file type
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
+        setIsLoading(false);
+        return;
+      }
+
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size exceeds 5MB limit');
+        setIsLoading(false);
         return;
       }
 
       console.log(`Selected file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
+      // Убедимся, что файл действительно содержит данные
+      if (file.size === 0) {
+        setError('Selected file appears to be empty');
+        setIsLoading(false);
+        return;
+      }
+
       // Используем оригинальный файл без оптимизации
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
       setSelectedFile(file);
+      
+      // Сохраняем копию файла для загрузки
+      const photoFileCopy = new File([file], file.name, {
+        type: file.type,
+        lastModified: file.lastModified
+      });
+      setPhotoFile(photoFileCopy);
 
-      console.log(`Using original file without optimization: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+      console.log(`Using original file for upload: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
     } catch (err) {
       console.error('Error processing image:', err);
@@ -502,17 +524,39 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       // Validate file type
       if (!file.type.startsWith('image/')) {
         setError('Please drop an image file');
+        setIsLoading(false);
+        return;
+      }
+
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size exceeds 5MB limit');
+        setIsLoading(false);
         return;
       }
 
       console.log(`Dropped file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
+      // Убедимся, что файл действительно содержит данные
+      if (file.size === 0) {
+        setError('Dropped file appears to be empty');
+        setIsLoading(false);
+        return;
+      }
+
       // Используем оригинальный файл без оптимизации
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
       setSelectedFile(file);
+      
+      // Сохраняем копию файла для загрузки
+      const photoFileCopy = new File([file], file.name, {
+        type: file.type,
+        lastModified: file.lastModified
+      });
+      setPhotoFile(photoFileCopy);
 
-      console.log(`Using original file without optimization: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+      console.log(`Using original file for upload: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
     } catch (err) {
       console.error('Error processing image:', err);
@@ -658,8 +702,8 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             });
             
             // Простая проверка на валидность файла
-            if (!(photoFile instanceof File)) {
-              console.warn('Photo file is not a valid File instance, creating new File from preview...');
+            if (!(photoFile instanceof File) || photoFile.size === 0) {
+              console.warn('Photo file is not a valid File instance or has size 0, creating new File from preview...');
               
               try {
                 // Если у нас есть превью-изображение, создаем из него файл
@@ -672,18 +716,19 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                   const extension = fileType.split('/')[1] || 'jpg';
                   const newFileName = `vibe_photo_${Date.now()}.${extension}`;
                   
-                  // Создаем новый File объект
-                  const newFile = new File([blob], newFileName, { type: fileType });
-                  console.log('Created new File from preview:', {
+                  // Создаем новый File объект с правильными параметрами
+                  const newFile = new File([blob], newFileName, { 
+                    type: fileType,
+                    lastModified: Date.now()
+                  });
+                  console.log('Created new File from preview for upload:', {
                     name: newFile.name,
                     type: newFile.type,
-                    size: newFile.size
+                    size: newFile.size,
+                    lastModified: newFile.lastModified
                   });
                   
-                  // Заменяем photoFile на новый File объект
-                  setPhotoFile(newFile);
-                  
-                  // Загружаем вайб с новым файлом
+                  // Загружаем вайб с новым файлом напрямую
                   const result = await createVibePost({
                     user_id: user.id,
                     type: selectedTab,

@@ -463,11 +463,16 @@ export const useVibeStore = create<VibeStore>()(
                   throw new Error('Storage client is not available');
                 }
 
-                // Проверка переменных окружения
+                // Проверка значения BUCKET_ID
+                const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID;
+                if (!bucketId) {
+                  throw new Error('Storage bucket ID is not defined in environment variables');
+                }
+                
                 console.log('Environment variables check:', {
-                  bucket_id: process.env.NEXT_PUBLIC_BUCKET_ID || 'NOT SET',
-                  bucket_id_length: (process.env.NEXT_PUBLIC_BUCKET_ID || '').length,
-                  project_id: (process.env.NEXT_PUBLIC_PROJECT_ID || '').slice(0, 4) + '...',
+                  bucket_id: bucketId,
+                  bucket_id_length: bucketId.length,
+                  project_id: (process.env.NEXT_PUBLIC_ENDPOINT || '').slice(0, 4) + '...'
                 });
 
                 // Проверяем аутентификацию пользователя
@@ -479,11 +484,20 @@ export const useVibeStore = create<VibeStore>()(
                 console.log('Prepared file name:', fileName);
                 
                 // Прямая загрузка файла без дополнительной обработки
-                console.log('Starting Appwrite storage.createFile call...');
+                console.log('Starting Appwrite storage.createFile call with bucketId:', bucketId);
                 
                 try {
+                  // Проверка параметров перед вызовом
+                  console.log('createFile parameters check:', {
+                    bucketId,
+                    fileId: uniqueFileId,
+                    fileExists: !!vibeData.media,
+                    fileSize: vibeData.media.size,
+                    fileType: vibeData.media.type
+                  });
+                  
                   const file = await storage.createFile(
-                    process.env.NEXT_PUBLIC_BUCKET_ID!,
+                    bucketId,
                     uniqueFileId,
                     vibeData.media,
                     [
@@ -523,7 +537,7 @@ export const useVibeStore = create<VibeStore>()(
                 // Проверяем, что файл действительно загружен
                 try {
                   const fileCheck = await storage.getFile(
-                    process.env.NEXT_PUBLIC_BUCKET_ID!,
+                    bucketId,
                     fileId
                   );
                   console.log('File verification successful:', {
@@ -551,7 +565,6 @@ export const useVibeStore = create<VibeStore>()(
               console.log('Creating vibe without media file (text only)');
             }
             
-            // Создание документа вайба
             console.log('Creating record in vibes collection, collection ID:', process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS);
             
             // Используем ID.unique() из Appwrite
@@ -577,10 +590,22 @@ export const useVibeStore = create<VibeStore>()(
             console.log('Document data for creation:', documentData);
             
             try {
+              // Проверка переменных окружения для базы данных и коллекции
+              const databaseId = process.env.NEXT_PUBLIC_DATABASE_ID;
+              const collectionId = process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS;
+              
+              if (!databaseId) {
+                throw new Error('Database ID is not defined in environment variables');
+              }
+              
+              if (!collectionId) {
+                throw new Error('Vibe posts collection ID is not defined in environment variables');
+              }
+              
               // Создаем документ с вайбом
               const response = await database.createDocument(
-                process.env.NEXT_PUBLIC_DATABASE_ID || '',
-                process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS || '',
+                databaseId,
+                collectionId,
                 vibePostId,
                 documentData,
                 [

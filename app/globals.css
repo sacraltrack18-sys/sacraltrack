@@ -516,3 +516,34 @@
     animation: pulse-glow 2s ease-in-out infinite;
   }
 }
+
+/* Плавная прокрутка для контента */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Обеспечивает плавное взаимодействие контента с нижними панелями */
+.smooth-scroll-container {
+  transition: transform 0.3s ease;
+}
+
+/* Стилизация для z-индексов */
+.fixed-bottom-panel {
+  z-index: 50;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Адаптивный отступ для контента */
+@media (max-width: 768px) {
+  .content-with-bottom-nav {
+    padding-bottom: 80px;
+  }
+}

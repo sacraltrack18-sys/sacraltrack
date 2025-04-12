@@ -188,6 +188,10 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
       whileHover={{ scale: 1.02 }}
       onHoverStart={handleHoverStart}
       onHoverEnd={handleHoverEnd}
+      style={{ 
+        transformOrigin: 'center bottom',
+        willChange: 'transform, opacity'
+      }}
     >
       <Link href={`/profile/${profile.user_id}`}>
         <div className="relative w-full h-[200px] overflow-hidden">

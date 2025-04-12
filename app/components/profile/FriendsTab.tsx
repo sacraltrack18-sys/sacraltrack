@@ -360,16 +360,19 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
         try {
             setIsLoading(true);
             
+            // Get the user ID from context
+            const userId = contextUser?.user?.id;
+            
             // If viewing own profile, load all lists
             if (isOwner) {
                 await Promise.all([
-                    loadFriends(),
-                    loadPendingRequests(),
-                    loadSentRequests()
+                    loadFriends(userId),
+                    loadPendingRequests(userId),
+                    loadSentRequests(userId)
                 ]);
             } else {
                 // If viewing another profile, only load friends list
-                await loadFriends();
+                await loadFriends(userId);
             }
         } catch (error) {
             console.error('Error fetching friends data:', error);

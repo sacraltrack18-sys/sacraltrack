@@ -123,7 +123,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto mt-[80px] px-4 md:px-8">
+		<div className="w-full mx-auto mt-[80px] px-4 md:px-8 smooth-scroll-container">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -134,7 +134,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                     )}
                     
                     {/* Main content area */}
-                    <div className="flex-1">
+                    <div className="flex-1 pb-[80px] md:pb-0 content-with-bottom-nav">
                         <AnimatePresence mode="wait">
                             {showPurchases && isProfileOwner ? (
                                 <motion.div
@@ -269,9 +269,15 @@ export default function ProfileLayout({ children, params }: { children: React.Re
         </div>
 
         <motion.div 
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            className="fixed bottom-0 left-0 right-0 bg-[#24183D]/95 backdrop-blur-xl border-t border-white/5"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ 
+                type: "spring", 
+                stiffness: 260, 
+                damping: 20,
+                duration: 0.5 
+            }}
+            className="fixed bottom-0 left-0 right-0 bg-[#24183D]/95 backdrop-blur-xl border-t border-white/5 z-50 shadow-lg fixed-bottom-panel"
         >
             <div className="max-w-screen-xl mx-auto">
                 <div className="flex items-center justify-between p-4">

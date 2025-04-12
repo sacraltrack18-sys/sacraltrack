@@ -85,6 +85,11 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           console.log('Setting user data:', userData);
         }
         
+        // Store userId in localStorage for friend features
+        if (typeof window !== 'undefined' && userData.id) {
+          localStorage.setItem('userId', userData.id);
+        }
+        
         setUser(userData);
         
         // Dispatch auth state change event with new user data
@@ -281,6 +286,11 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       
       // Dispatch auth state change with null user
       dispatchAuthStateChange(null);
+      
+      // Clear user ID from localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('userId');
+      }
       
       // Clear user data cache
       clearUserCache();

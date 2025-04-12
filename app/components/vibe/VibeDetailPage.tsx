@@ -58,6 +58,54 @@ interface VibeComment {
   isOptimistic?: boolean;
 }
 
+// Move the useComments hook outside the component
+const useComments = (vibeId: string) => {
+  const [comments, setComments] = useState<VibeComment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchComments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const fetchedComments = await getVibeComments(vibeId);
+      if (fetchedComments) {
+        setComments(fetchedComments);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [vibeId]);
+
+  const addComment = useCallback((comment: VibeComment, replaceId?: string) => {
+    if (replaceId) {
+      setComments(prevComments => 
+        prevComments.map(c => c.id === replaceId ? comment : c)
+      );
+    } else {
+      setComments(prevComments => [...prevComments, comment]);
+    }
+  }, []);
+
+  const deleteComment = useCallback((commentId: string) => {
+    setComments(prevComments => prevComments.filter(c => c.id !== commentId));
+  }, []);
+
+  const addEmojiToComment = useCallback((emoji: string) => {
+    // This function adds an emoji to the comment text
+    return emoji;
+  }, []);
+
+  return { 
+    comments, 
+    fetchComments, 
+    addComment, 
+    deleteComment, 
+    addEmojiToComment, 
+    isLoading: loading 
+  };
+};
+
 const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const router = useRouter();
   const { user } = useUser() || { user: null };
@@ -88,53 +136,6 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const [showEmojiPanel, setShowEmojiPanel] = useState(true);
   
   const { openShareModal } = useShareVibeContext();
-  
-  const useComments = (vibeId: string) => {
-    const [comments, setComments] = useState<VibeComment[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchComments = useCallback(async () => {
-      setLoading(true);
-      try {
-        const fetchedComments = await getVibeComments(vibeId);
-        if (fetchedComments) {
-          setComments(fetchedComments);
-        }
-      } catch (error) {
-        console.error('Error fetching comments:', error);
-      } finally {
-        setLoading(false);
-      }
-    }, [vibeId]);
-
-    const addComment = useCallback((comment: VibeComment, replaceId?: string) => {
-      if (replaceId) {
-        setComments(prevComments => 
-          prevComments.map(c => c.id === replaceId ? comment : c)
-        );
-      } else {
-        setComments(prevComments => [...prevComments, comment]);
-      }
-    }, []);
-
-    const deleteComment = useCallback((commentId: string) => {
-      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
-    }, []);
-
-    const addEmojiToComment = useCallback((emoji: string) => {
-      // This function adds an emoji to the comment text
-      return emoji;
-    }, []);
-
-    return { 
-      comments, 
-      fetchComments, 
-      addComment, 
-      deleteComment, 
-      addEmojiToComment, 
-      isLoading: loading 
-    };
-  };
   
   const { 
     comments, 

@@ -299,6 +299,25 @@ const ProfileMenu = () => {
               </div>
 
               <div className="px-6 pt-3 pb-3 mt-2 border-t border-white/10">
+                <Link 
+                  href="/terms"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    router.push("/terms");
+                  }}
+                  className="flex items-center gap-2 mb-3 text-white/90
+                          transition-all duration-200 group
+                          hover:text-white"
+                >
+                  <div className="flex items-center justify-center">
+                    <DocumentTextIcon className="w-4 h-4 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" />
+                  </div>
+                  <span className="text-[13px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">Terms</span>
+                </Link>
+                <div className="w-full h-px bg-white/10 mb-3"></div>
                 <p className="text-[12px] text-[#818BAC] font-medium">
                   All rights © 2025 SACRAL TRACK
                 </p>

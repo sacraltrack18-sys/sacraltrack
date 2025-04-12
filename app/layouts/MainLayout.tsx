@@ -61,7 +61,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <AuthObserver />
             <OnboardingGuide />
 
-		<div className="flex mx-auto w-full px-0">
+		<div className="flex mx-auto w-full px-0 smooth-scroll-container">
 			
 			<div className="hidden md:flex w-[350px] relative">
 			<motion.div
@@ -87,7 +87,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 initial={{ opacity: 0, y: -100 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full"
+                className="w-full pb-[80px] md:pb-0 content-with-bottom-nav"
             >
 				{children}
 				</motion.div>
@@ -110,9 +110,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 			</div>
 
             {/* Mobile filter for smaller screens */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F1225]/90 backdrop-blur-lg px-4 py-3 pb-4 border-t border-white/10">
+            <motion.div 
+                initial={{ y: 100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ 
+                    type: "spring", 
+                    stiffness: 260, 
+                    damping: 20,
+                    duration: 0.5 
+                }}
+                className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0F1225]/90 backdrop-blur-lg px-4 py-3 pb-4 border-t border-white/10 shadow-lg fixed-bottom-panel"
+            >
                 <ContentFilter />
-            </div>
+            </motion.div>
 
             {/* Onboarding Button */}
             <motion.button

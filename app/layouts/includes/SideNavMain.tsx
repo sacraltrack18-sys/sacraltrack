@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { ProfilePageTypes } from "@/app/types"
 import { useProfileStore } from "@/app/stores/profile"
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl"
+import { motion } from "framer-motion"
 
 
 
@@ -26,13 +27,21 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
  
     return (
         <>
-                    <div 
+                    <motion.div 
                         id="SideNavMain" 
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ 
+                            type: "spring", 
+                            stiffness: 260, 
+                            damping: 20,
+                            duration: 0.5 
+                        }}
                         className={`
-                            fixed bottom-[20px] md:top-[83px] z-[99] bg-[#272B43] md:pt-[10px]  
+                            fixed bottom-[20px] md:top-[83px] z-[999] bg-[#272B43]/95 md:pt-[10px]  
                             overflow-hidden md:p-[20px] rounded-2xl justify-bottom
                             md:flex md:flex-col items-center w-[40%] md:w-[44%] md:z-0 md:h-[276px] h-[80px] 
-                            shadow-[0_20px_20px_rgba(0,0,0,0.2)]
+                            shadow-[0_20px_20px_rgba(0,0,0,0.3)] backdrop-blur-xl border border-white/5 fixed-bottom-panel
                         `}
                     >   
 
@@ -74,7 +83,7 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
                         <div className="pb-2"></div>
                         </div>
 
-                        </div>
+                        </motion.div>
                         </>
 )
 }

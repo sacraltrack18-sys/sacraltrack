@@ -96,7 +96,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
       
       {/* Mobile Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1A1C2E]/90 backdrop-blur-md border-t border-purple-900/10 z-40">
+      <motion.nav 
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 260, 
+          damping: 20,
+          duration: 0.5 
+        }}
+        className="fixed bottom-0 left-0 right-0 bg-[#1A1C2E]/90 backdrop-blur-md border-t border-purple-900/10 z-50 shadow-lg fixed-bottom-panel"
+      >
         <div className="container mx-auto px-4 py-1">
           <div className="flex justify-around">
             <NavLink 
@@ -131,7 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             />
           </div>
         </div>
-      </nav>
+      </motion.nav>
     </div>
   );
 };

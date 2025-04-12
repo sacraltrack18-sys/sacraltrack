@@ -40,6 +40,15 @@ try {
     if (!process.env.NEXT_PUBLIC_ENDPOINT) {
         throw new Error('NEXT_PUBLIC_ENDPOINT is not set');
     }
+    if (!process.env.NEXT_PUBLIC_BUCKET_ID) {
+        console.error('[APPWRITE-CONFIG] ERROR: NEXT_PUBLIC_BUCKET_ID is not set');
+    }
+
+    console.log('[APPWRITE-CONFIG] Initializing with parameters:', {
+        endpoint: APPWRITE_CONFIG.endpoint,
+        projectId: APPWRITE_CONFIG.projectId,
+        bucketId: APPWRITE_CONFIG.storageId,
+    });
 
     // Set up client with improved options for WebSocket stability
     client

@@ -26,7 +26,7 @@ import toast from 'react-hot-toast';
 import { database, Query } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
 import { useRouter, usePathname } from 'next/navigation';
-import { FaTrophy } from 'react-icons/fa';
+import { FaTrophy, FaStar, FaMedal, FaCrown } from 'react-icons/fa';
 
 interface UserCardProps {
     user: {
@@ -473,42 +473,134 @@ const FilterDropdown = ({
     );
 };
 
-// Компонент скелетона для карточек топ-пользователей
-const TopUserSkeleton = () => (
-  <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-white/5 to-purple-500/5 animate-pulse">
-      {/* Аватар скелетон */}
-      <div className="relative">
-          <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-50 blur-sm"></div>
-          <div className="w-12 h-12 rounded-full bg-gradient-to-b from-purple-900/30 to-blue-900/30 border border-white/10 relative"></div>
-      </div>
-      
-      {/* Контентная часть */}
-      <div className="flex-1">
-          <div className="h-4 w-24 bg-gradient-to-r from-white/10 to-purple-500/10 rounded-md mb-2"></div>
-          <div className="h-3 w-16 bg-gradient-to-r from-white/5 to-purple-500/5 rounded-md"></div>
-      </div>
-      
-      {/* Значок ранга */}
-      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600/20 to-indigo-600/20 flex items-center justify-center border border-white/10"></div>
-  </div>
-);
+// Добавляем новые типы для вкладок
+const TabTypes = {
+  USERS: 'users',
+  ARTISTS: 'artists'
+} as const;
 
-// Функция для получения музыкального инструмента
-const getMusicInstrument = () => {
-    // Возвращаем пустую строку
-    return '';
-};
+type TabType = typeof TabTypes[keyof typeof TabTypes];
 
-// Стильная музыкальная панель рейтинга топ-пользователей
+// Модифицируем TopRankingUsersPanel с добавлением вкладок
 const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
-    const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
     const router = useRouter();
-    
+    const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+    const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
+    const [artistRanking, setArtistRanking] = useState<any[]>([]);
+    const [isLoadingArtists, setIsLoadingArtists] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === TabTypes.ARTISTS) {
+            loadTopArtists();
+        }
+    }, [activeTab]);
+
+    const loadTopArtists = async () => {
+        setIsLoadingArtists(true);
+        try {
+            // Получаем список всех пользователей
+            const profilesResponse = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!
+            );
+            
+            // Для каждого пользователя получаем его релизы (посты)
+            const artistsWithData = await Promise.all(
+                profilesResponse.documents.map(async (profile) => {
+                    // Получаем треки пользователя
+                    const tracksResponse = await database.listDocuments(
+                        process.env.NEXT_PUBLIC_DATABASE_ID!,
+                        process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
+                        [Query.equal('user_id', profile.user_id)]
+                    );
+                    
+                    const tracks = tracksResponse.documents;
+                    const trackIds = tracks.map(track => track.$id);
+                    
+                    if (trackIds.length === 0) {
+                        return null; // Если нет треков, не считаем за артиста
+                    }
+                    
+                    // Получаем лайки всех треков этого артиста
+                    const likesResponse = await database.listDocuments(
+                        process.env.NEXT_PUBLIC_DATABASE_ID!,
+                        process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE!,
+                        [Query.equal('post.user_id', profile.user_id)]
+                    );
+                    
+                    // Получаем покупки всех треков этого артиста
+                    const purchasesResponse = await database.listDocuments(
+                        process.env.NEXT_PUBLIC_DATABASE_ID!,
+                        process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
+                        [Query.equal('author_id', profile.user_id)]
+                    );
+                    
+                    // Получаем рейтинги пользователя
+                    const ratingsResponse = await database.listDocuments(
+                        process.env.NEXT_PUBLIC_DATABASE_ID!,
+                        process.env.NEXT_PUBLIC_COLLECTION_ID_USER_RATINGS!,
+                        [Query.equal('userId', profile.user_id)]
+                    );
+                    
+                    // Рассчитываем среднюю оценку
+                    const totalRatings = ratingsResponse.documents.length;
+                    const averageRating = totalRatings > 0
+                        ? ratingsResponse.documents.reduce((sum, doc) => {
+                            const rating = typeof doc.rating === 'string' 
+                                ? parseFloat(doc.rating) 
+                                : doc.rating;
+                            return sum + (rating || 0);
+                        }, 0) / totalRatings
+                        : 0;
+                    
+                    // Рассчитываем рейтинг артиста
+                    // Формула: 
+                    // - Количество релизов * 15
+                    // - Количество лайков * 5
+                    // - Количество покупок * 25
+                    // - Средний рейтинг * 20
+                    const releasesScore = tracks.length * 15;
+                    const likesScore = likesResponse.documents.length * 5;
+                    const purchasesScore = purchasesResponse.documents.length * 25;
+                    const ratingScore = averageRating * 20;
+                    
+                    const artistScore = releasesScore + likesScore + purchasesScore + ratingScore;
+                    
+                    return {
+                        $id: profile.$id,
+                        user_id: profile.user_id,
+                        name: profile.name,
+                        username: profile.username || profile.name,
+                        image: profile.image,
+                        stats: {
+                            totalReleases: tracks.length,
+                            totalLikes: likesResponse.documents.length,
+                            totalPurchases: purchasesResponse.documents.length,
+                            averageRating: averageRating,
+                            artistScore: artistScore
+                        }
+                    };
+                })
+            );
+            
+            // Отфильтровываем null и сортируем по рейтингу артиста
+            const filteredArtists = artistsWithData
+                .filter((artist): artist is NonNullable<typeof artist> => artist !== null)
+                .sort((a, b) => b.stats.artistScore - a.stats.artistScore)
+                .slice(0, 10); // Топ-10 артистов
+            
+            setArtistRanking(filteredArtists);
+        } catch (error) {
+            console.error('Error loading top artists:', error);
+        } finally {
+            setIsLoadingArtists(false);
+        }
+    };
+
     const handleImageError = (userId: string) => {
         setImageErrors(prev => ({ ...prev, [userId]: true }));
     };
     
-    // Функция для получения градиента цвета в зависимости от позиции в рейтинге
     const getRankGradient = (index: number) => {
         if (index === 0) return 'from-yellow-400 to-amber-600';      // 1-е место - золото
         if (index === 1) return 'from-slate-300 to-slate-400';       // 2-е место - серебро
@@ -516,29 +608,32 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
         return 'from-purple-600 to-indigo-700';                      // Остальные места
     };
     
-    // Функция для получения иконки в зависимости от позиции в рейтинге
     const getRankIcon = (index: number) => {
-        return (index + 1).toString();      // Номер для всех позиций
+        switch (index) {
+            case 0: return <FaCrown className="text-yellow-500" />;
+            case 1: return <FaStar className="text-gray-300" />;
+            case 2: return <FaMedal className="text-amber-600" />;
+            default: return <span className="text-gray-400">{index + 1}</span>;
+        }
     };
     
-    // Функция для получения рейтинга в виде звезд
     const getRatingStars = (rating: number) => {
+        const totalStars = 5;
         const fullStars = Math.floor(rating);
         const hasHalfStar = rating % 1 >= 0.5;
-        const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+        const emptyStars = totalStars - fullStars - (hasHalfStar ? 1 : 0);
         
         return (
-            <div className="flex items-center">
+            <div className="flex gap-0.5 items-center ml-1">
                 {[...Array(fullStars)].map((_, i) => (
-                    <svg key={`full-${i}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-yellow-400">
+                    <svg key={`full-${i}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-yellow-500">
                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
                     </svg>
                 ))}
                 
                 {hasHalfStar && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-yellow-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-yellow-500">
                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                        <path fill="#1A1C2E" d="M12 18.354l4.627 2.826c.996.608 2.231-.29 1.96-1.425l-1.257-5.273 4.117-3.527c.887-.76.415-2.212-.749-2.305l-5.404-.433-2.082-5.007c-.448-1.077-1.976-1.077-2.424 0l-2.082 5.007-5.404.433c-1.164.093-1.636 1.545-.749 2.305l4.117 3.527-1.257 5.273c-.271 1.136.964 2.033 1.96 1.425L12 18.354z" clipRule="evenodd" />
                     </svg>
                 )}
                 
@@ -550,132 +645,252 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
             </div>
         );
     };
+
+    // Возвращаем ранг пользователя на основе очков
+    const getUserRank = (score: number) => {
+        if (score >= 500) return { name: 'Legend', color: 'text-pink-500' };
+        if (score >= 300) return { name: 'Master', color: 'text-purple-500' };
+        if (score >= 150) return { name: 'Advanced', color: 'text-blue-500' };
+        if (score >= 50) return { name: 'Experienced', color: 'text-teal-500' };
+        return { name: 'Beginner', color: 'text-gray-500' };
+    };
     
+    // Рассчитываем ранг пользователя (для вкладки Top Users)
+    const calculateUserRank = (user: any) => {
+        // Рассчитываем очки на основе рейтинга из базы и статистики
+        const friendsScore = (user.stats?.totalFollowers || 0) * 10;
+        const tracksScore = (user.stats?.totalTracks || 0) * 15;
+        const likesScore = (user.stats?.totalLikes || 0) * 5;
+        
+        const totalScore = friendsScore + tracksScore + likesScore;
+        const rank = getUserRank(totalScore);
+        
+        return {
+            ...user,
+            score: totalScore,
+            rank: rank.name,
+            rankColor: rank.color
+        };
+    };
+    
+    // Рендерим вкладки
     return (
-        <div className="space-y-3 relative">
-            {/* Удалены декоративные музыкальные волны на фоне */}
+        <>
+            {/* Вкладки */}
+            <div className="flex mb-4 bg-[#1A1E36] rounded-xl p-1 overflow-hidden">
+                <button 
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === TabTypes.USERS 
+                            ? 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 text-white' 
+                            : 'text-gray-400 hover:text-white'
+                    }`}
+                    onClick={() => setActiveTab(TabTypes.USERS)}
+                >
+                    Top Users
+                </button>
+                <button 
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === TabTypes.ARTISTS 
+                            ? 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 text-white' 
+                            : 'text-gray-400 hover:text-white'
+                    }`}
+                    onClick={() => setActiveTab(TabTypes.ARTISTS)}
+                >
+                    Top Artists
+                </button>
+            </div>
             
-            {/* Удалены музыкальные ноты на фоне */}
-            
-            {/* Удалены анимированные звуковые волны внизу */}
-            
-            {users.length > 0 ? (
+            {/* Содержимое вкладки Top Users */}
+            {activeTab === TabTypes.USERS && users.length > 0 && (
                 <>
-                    {users.map((user, index) => (
-                        <motion.div 
-                            key={user.id || user.$id || index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            onClick={() => router.push(`/profile/${user.user_id}`)}
-                            className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
-                            whileHover={{ 
-                                scale: 1.02,
-                                backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                            }}
-                        >
-                            {/* Позиционный индикатор на фоне */}
-                            {index < 3 && (
-                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
-                            )}
-                            
-                            {/* Аватар с бордером в зависимости от рейтинга */}
-                            <div className="relative">
-                                <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
-                                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
-                                    <Image 
-                                        src={imageErrors[user.user_id] ? '/images/placeholders/user-placeholder.svg' : (user.image || '/images/placeholders/user-placeholder.svg')}
-                                        alt={user.name} 
-                                        width={48} 
-                                        height={48}
-                                        className="object-cover"
-                                        onError={() => handleImageError(user.user_id)}
-                                    />
-                                    
-                                    {/* Стилизованный оверлей для аватара */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                                </div>
-                                
-                                {/* Музыкальная иконка для пользователей в топ-3 */}
+                    {users.map((user, index) => {
+                        const rankedUser = calculateUserRank(user);
+                        return (
+                            <motion.div 
+                                key={user.id || user.$id || index}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                onClick={() => router.push(`/profile/${user.user_id}`)}
+                                className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
+                                whileHover={{ 
+                                    scale: 1.02,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                                }}
+                            >
+                                {/* Позиционный индикатор на фоне */}
                                 {index < 3 && (
-                                    <div className="absolute -bottom-1 -left-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full w-5 h-5 flex items-center justify-center border border-white/20 text-[8px]">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-white">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
-                                        </svg>
-                                    </div>
+                                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
                                 )}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                    <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
-                                        {user.name}
-                                    </p>
-                                    
-                                    {/* Звездный рейтинг */}
-                                    {user.stats?.averageRating > 0 && getRatingStars(user.stats.averageRating)}
+                                
+                                {/* Аватар с бордером в зависимости от рейтинга */}
+                                <div className="relative">
+                                    <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
+                                    <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
+                                        <Image 
+                                            src={imageErrors[user.user_id] ? '/images/placeholders/user-placeholder.svg' : (user.image || '/images/placeholders/user-placeholder.svg')}
+                                            alt={user.name} 
+                                            width={48} 
+                                            height={48}
+                                            className="object-cover"
+                                            onError={() => handleImageError(user.user_id)}
+                                        />
+                                        
+                                        {/* Стилизованный оверлей для аватара */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                                    </div>
                                 </div>
                                 
-                                <div className="flex items-center text-xs text-gray-400 mt-0.5">
-                                    {/* Имя пользователя */}
-                                    <span className="truncate">
-                                        {user.username ? `@${user.username}` : `User`}
-                                    </span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                                            {user.name}
+                                        </p>
+                                        
+                                        {/* Звездный рейтинг */}
+                                        {user.stats?.averageRating > 0 && getRatingStars(user.stats.averageRating)}
+                                    </div>
                                     
-                                    {/* Статистика */}
-                                    <span className="mx-1.5 text-gray-600">•</span>
-                                    <div className="flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                        </svg>
-                                        {user.stats?.totalFollowers || 0}
+                                    <div className="flex items-center text-xs text-gray-400 mt-0.5">
+                                        {/* Имя пользователя */}
+                                        <span className="truncate">
+                                            {user.username ? `@${user.username}` : `User`}
+                                        </span>
+                                        
+                                        {/* Ранг пользователя */}
+                                        <span className="mx-1.5 text-gray-600">•</span>
+                                        <span className={`${rankedUser.rankColor}`}>{rankedUser.rank}</span>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            {/* Ранговый значок */}
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
-                                {getRankIcon(index)}
-                            </div>
-                        </motion.div>
-                    ))}
+                                
+                                {/* Значок позиции */}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
+                                    {getRankIcon(index)}
+                                </div>
+                            </motion.div>
+                        );
+                    })}
                 </>
-            ) : (
-                <div className="text-center py-8">
-                    <p className="text-white/60">No ranked users yet</p>
-                    <p className="text-white/40 text-sm mt-2">Users will appear here once they receive ratings</p>
-                    
-                    {/* Примеры скелетонов для статического отображения */}
-                    <div className="mt-6 space-y-3">
-                        {[1, 2, 3].map((i) => (
-                            <TopUserSkeleton key={`example-${i}`} />
-                        ))}
-                    </div>
-                </div>
             )}
             
-            {/* Музыкальные стили для анимации */}
-            <style jsx>{`
-                @keyframes pulse {
-                    0% {
-                        transform: scale(0.95);
-                        opacity: 0.7;
-                    }
-                    50% {
-                        transform: scale(1);
-                        opacity: 1;
-                    }
-                    100% {
-                        transform: scale(0.95);
-                        opacity: 0.7;
-                    }
-                }
-                
-                .animate-slow-pulse {
-                    animation: pulse 4s infinite;
-                }
-            `}</style>
-        </div>
+            {/* Содержимое вкладки Top Artists */}
+            {activeTab === TabTypes.ARTISTS && (
+                isLoadingArtists ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-white/5 to-purple-500/5 animate-pulse">
+                                <div className="relative">
+                                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-50 blur-sm"></div>
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-purple-900/30 to-blue-900/30 border border-white/10 relative"></div>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="h-4 w-24 bg-gradient-to-r from-white/10 to-purple-500/10 rounded-md mb-2"></div>
+                                    <div className="h-3 w-16 bg-gradient-to-r from-white/5 to-purple-500/5 rounded-md"></div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600/20 to-indigo-600/20 flex items-center justify-center border border-white/10"></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    artistRanking.length > 0 ? (
+                        <>
+                            {artistRanking.map((artist, index) => (
+                                <motion.div 
+                                    key={artist.$id || index}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                    onClick={() => router.push(`/profile/${artist.user_id}`)}
+                                    className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
+                                    whileHover={{ 
+                                        scale: 1.02,
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                                    }}
+                                >
+                                    {/* Позиционный индикатор на фоне */}
+                                    {index < 3 && (
+                                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
+                                    )}
+                                    
+                                    {/* Аватар с бордером в зависимости от рейтинга */}
+                                    <div className="relative">
+                                        <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
+                                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
+                                            <Image 
+                                                src={imageErrors[artist.user_id] ? '/images/placeholders/user-placeholder.svg' : (artist.image || '/images/placeholders/user-placeholder.svg')}
+                                                alt={artist.name} 
+                                                width={48} 
+                                                height={48}
+                                                className="object-cover"
+                                                onError={() => handleImageError(artist.user_id)}
+                                            />
+                                            
+                                            {/* Стилизованный оверлей для аватара */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                                        </div>
+                                        
+                                        {/* Музыкальная иконка для артистов в топ-3 */}
+                                        {index < 3 && (
+                                            <div className="absolute -bottom-1 -left-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full w-5 h-5 flex items-center justify-center border border-white/20 text-[8px]">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-white">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                                                {artist.name}
+                                            </p>
+                                            
+                                            {/* Звездный рейтинг */}
+                                            {artist.stats?.averageRating > 0 && getRatingStars(artist.stats.averageRating)}
+                                        </div>
+                                        
+                                        <div className="flex items-center text-xs text-gray-400 mt-0.5">
+                                            {/* Статистика артиста */}
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                                    </svg>
+                                                    {artist.stats.totalReleases}
+                                                </span>
+                                                
+                                                <span className="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                    </svg>
+                                                    {artist.stats.totalLikes}
+                                                </span>
+                                                
+                                                <span className="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                    </svg>
+                                                    {artist.stats.totalPurchases}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Значок позиции */}
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
+                                        {getRankIcon(index)}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </>
+                    ) : (
+                        <div className="text-center py-6 text-gray-400">
+                            Нет данных об артистах
+                        </div>
+                    )
+                )
+            )}
+        </>
     );
 };
 
@@ -1112,53 +1327,89 @@ export default function PeoplePage() {
     }, [router]);
     
     return (
-        <div className="container mx-auto px-4 py-12 max-w-7xl bg-gradient-to-b from-[#1A1C2E]/80 to-[#252840]/80 relative z-10">
-            <div className="flex flex-col md:flex-row justify-between items-start mb-12 gap-6 relative">
-                <div>
-                    <h1 className="text-4xl font-bold text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-purple-300 flex items-center">
+        <div className="container mx-auto px-4 py-6 max-w-7xl relative z-10">
+            {/* Улучшенный заголовок с анимированным фоном */}
+            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-6 relative">
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="relative z-10"
+                >
+                    <h1 className="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] flex items-center">
                         Music People
                     </h1>
-                    <p className="text-[#A6B1D0] flex items-center">
+                    <p className="text-[#A6B1D0] flex items-center text-lg">
                         Connect with musical people all over the planet
-                        <span className="ml-2 text-lg">🎵</span>
+                        <motion.span 
+                            className="ml-2 text-lg"
+                            animate={{ y: [0, -5, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
+                        >
+                            🎵
+                        </motion.span>
                     </p>
+                    
+                    {/* Декоративный элемент под заголовком */}
+                    <div className="absolute -bottom-3 left-0 w-24 h-1 bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] rounded-full"></div>
+                </motion.div>
+                
+                {/* Декоративный аудио эквалайзер */}
+                <div className="hidden md:flex items-end gap-1 h-12 absolute right-4 top-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <motion.div
+                            key={i}
+                            className="w-1 bg-gradient-to-t from-[#20DDBB] to-[#5D59FF] rounded-full"
+                            animate={{ 
+                                height: [10, 12 + Math.random() * 20, 10],
+                                opacity: [0.5, 0.8, 0.5]
+                            }}
+                            transition={{ 
+                                duration: 1 + Math.random(),
+                                repeat: Infinity,
+                                repeatType: "reverse",
+                                delay: i * 0.2
+                            }}
+                        />
+                    ))}
                 </div>
-                
-                {/* Убраны декоративные музыкальные элементы */}
-                
-                {/* Убраны музыкальные звуковые волны возле заголовка */}
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-3">
-                    {/* Фильтры с глассэффектом и поисковой строкой */}
-                    <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl mb-6 border border-white/10 shadow-md">
-                        <div className="flex items-center gap-4">
+                    {/* Улучшенный блок фильтров с glass эффектом */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="bg-white/5 backdrop-blur-md p-5 rounded-xl mb-6 border border-white/10 shadow-lg"
+                    >
+                        <div className="flex flex-wrap items-center gap-4">
                             {/* Поисковая строка */}
-                            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+                            <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[250px]">
                                 <div className="relative flex-1">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon className="h-5 w-5 text-purple-400" />
+                                        <MagnifyingGlassIcon className="h-5 w-5 text-[#20DDBB]" />
                                     </div>
                                     <input
                                         type="text"
                                         placeholder="Search people..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-white/5 backdrop-blur-md text-white border border-purple-500/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent shadow-md"
+                                        className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
                                     />
                                 </div>
                                 <motion.button
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.97 }}
                                     type="submit"
-                                    className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium py-2.5 px-6 rounded-xl hover:shadow-lg hover:shadow-purple-600/20 transition-all duration-300"
+                                    className="bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-medium py-2.5 px-6 rounded-xl hover:shadow-lg hover:shadow-[#20DDBB]/20 transition-all duration-300"
                                 >
                                     Search
                                 </motion.button>
                             </form>
                             
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <FilterDropdown 
                                     options={[
                                         { value: 'name', label: 'Name' },
@@ -1181,39 +1432,59 @@ export default function PeoplePage() {
                                     label="Show"
                                 />
                                 
-                                <button
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
                                     onClick={toggleSortDirection}
-                                    className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-lg transition-colors border border-white/10"
+                                    className="flex items-center justify-center bg-white/5 hover:bg-white/10 text-white p-2.5 rounded-lg transition-colors border border-white/10"
                                 >
                                     {sortDirection === 'asc' ? (
-                                        <ArrowUpIcon className="w-5 h-5" />
+                                        <ArrowUpIcon className="w-5 h-5 text-[#20DDBB]" />
                                     ) : (
-                                        <ArrowDownIcon className="w-5 h-5" />
+                                        <ArrowDownIcon className="w-5 h-5 text-[#5D59FF]" />
                                     )}
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                     
-                    {/* Сетка пользователей */}
+                    {/* Сетка пользователей с улучшенной анимацией */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {isLoading ? (
                             Array.from({ length: 6 }).map((_, index) => (
-                                <UserCardSkeleton key={index} />
+                                <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                                >
+                                    <UserCardSkeleton />
+                                </motion.div>
                             ))
                         ) : filteredProfiles.length > 0 ? (
-                            filteredProfiles.map(profile => (
-                                <UserCard
+                            filteredProfiles.map((profile, index) => (
+                                <motion.div
                                     key={profile.$id}
-                                    user={profile}
-                                    isFriend={isFriend(profile.user_id)}
-                                    onAddFriend={handleAddFriend}
-                                    onRemoveFriend={handleRemoveFriend}
-                                    onRateUser={handleRateUser}
-                                />
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                                >
+                                    <UserCard
+                                        user={profile}
+                                        isFriend={isFriend(profile.user_id)}
+                                        onAddFriend={handleAddFriend}
+                                        onRemoveFriend={handleRemoveFriend}
+                                        onRateUser={handleRateUser}
+                                    />
+                                </motion.div>
                             ))
                         ) : (
-                            <div className="col-span-full flex flex-col items-center justify-center p-12 text-center">
+                            <motion.div 
+                                className="col-span-full flex flex-col items-center justify-center p-12 text-center"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
                                 <div className="text-gray-400 mb-4 text-6xl">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1221,19 +1492,24 @@ export default function PeoplePage() {
                                 </div>
                                 <p className="text-white text-xl mb-4">No users found</p>
                                 <p className="text-gray-400 max-w-md">Try changing your search or filters to find people to connect with.</p>
-                            </div>
+                            </motion.div>
                         )}
                     </div>
                     
-                    {/* Кнопка "Загрузить еще" с глассэффектом */}
+                    {/* Кнопка "Загрузить еще" с улучшенным стилем */}
                     {hasMoreProfiles && !isLoading && filteredProfiles.length > 0 && (
-                        <div className="mt-8 flex justify-center">
+                        <motion.div 
+                            className="mt-10 flex justify-center"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 }}
+                        >
                             <motion.button
                                 whileHover={{ scale: 1.03 }}
                                 whileTap={{ scale: 0.97 }}
                                 onClick={loadMoreProfiles}
                                 disabled={isLoadingMore}
-                                className="py-2.5 px-6 rounded-xl backdrop-blur-sm bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all duration-300 shadow-md flex items-center space-x-2"
+                                className="py-2.5 px-8 rounded-xl backdrop-blur-sm bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 border border-white/10 text-white hover:bg-white/10 transition-all duration-300 shadow-md flex items-center space-x-2"
                             >
                                 {isLoadingMore ? (
                                     <>
@@ -1250,22 +1526,25 @@ export default function PeoplePage() {
                                     </>
                                 )}
                             </motion.button>
-                        </div>
+                        </motion.div>
                     )}
                 </div>
                 
                 {/* Боковая панель с топ пользователями */}
                 <div className="lg:col-span-1">
-                    <div className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-4 shadow-lg">
+                    <motion.div 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5"
+                    >
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                 <FaTrophy className="text-[#20DDBB]" />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#20DDBB] to-[#5D59FF]">
-                                    Top Rated Artists
+                                    Music Rankings
                                 </span>
                             </h2>
-                            
-                            {/* Убрана ссылка View Full Rankings */}
                         </div>
                         
                         {isLoading ? (
@@ -1274,25 +1553,25 @@ export default function PeoplePage() {
                                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-white/5 to-purple-500/5 animate-pulse">
                                         {/* Аватар скелетон */}
                                         <div className="relative">
-                                            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-50 blur-sm"></div>
+                                            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 opacity-50 blur-sm"></div>
                                             <div className="w-12 h-12 rounded-full bg-gradient-to-b from-purple-900/30 to-blue-900/30 border border-white/10 relative"></div>
                                         </div>
                                         
                                         {/* Контентная часть */}
                                         <div className="flex-1">
-                                            <div className="h-4 w-24 bg-gradient-to-r from-white/10 to-purple-500/10 rounded-md mb-2"></div>
-                                            <div className="h-3 w-16 bg-gradient-to-r from-white/5 to-purple-500/5 rounded-md"></div>
+                                            <div className="h-4 w-24 bg-gradient-to-r from-white/10 to-[#20DDBB]/10 rounded-md mb-2"></div>
+                                            <div className="h-3 w-16 bg-gradient-to-r from-white/5 to-[#5D59FF]/5 rounded-md"></div>
                                         </div>
                                         
                                         {/* Значок ранга */}
-                                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600/20 to-indigo-600/20 flex items-center justify-center border border-white/10"></div>
+                                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center border border-white/10"></div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <TopRankingUsersPanel users={topRankedUsers} />
                         )}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>
