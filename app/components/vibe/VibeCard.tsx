@@ -290,9 +290,22 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   
   // Функция для быстрой вставки эмодзи
   const insertEmoji = (emoji: string) => {
-    setCommentText(prev => prev + emoji);
-    setPreviewEmoji(emoji);
-    setTimeout(() => setPreviewEmoji(null), 500);
+    try {
+      // Проверка типа и формата эмодзи
+      if (typeof emoji !== 'string') {
+        console.error('Invalid emoji format:', emoji);
+        return;
+      }
+      
+      // Безопасно добавляем эмодзи к комментарию
+      setCommentText(prev => prev + emoji);
+      
+      // Визуальная обратная связь с анимацией
+      setPreviewEmoji(emoji);
+      setTimeout(() => setPreviewEmoji(null), 500);
+    } catch (error) {
+      console.error('Error inserting emoji:', error);
+    }
   };
 
   // Создаем обертку для addComment, чтобы правильно обрабатывать наш интерфейс

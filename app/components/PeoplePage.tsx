@@ -49,9 +49,9 @@ interface UserCardProps {
     onRateUser: (userId: string, rating: number) => void;
 }
 
-// Компонент скелетона для карточек пользователей
+// Component skeleton for user cards
 const UserCardSkeleton = () => {
-  // Генерация разной высоты и задержки для аудио-волн
+  // Generate different heights and delays for audio waves
   const audioWaves = Array.from({ length: 12 }).map(() => ({
     height: Math.max(5, Math.floor(Math.random() * 20)),
     delay: Math.random() * 0.8
@@ -63,26 +63,26 @@ const UserCardSkeleton = () => {
     animate={{ opacity: 1 }}
     className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative"
   >
-    {/* Градиентный фон с музыкальной тематикой */}
-    <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-indigo-900 via-purple-900 to-blue-900 animate-pulse">
-      {/* Декоративные наушники */}
+    {/* Gradient background with music theme */}
+    <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-cyan-900 via-purple-900 to-blue-900 animate-pulse">
+      {/* Decorative headphones */}
       <div className="absolute top-3 right-3 opacity-40">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-10 h-10 text-cyan-400">
           <path fill="currentColor" d="M12,1A9,9 0 0,1 21,10V17A3,3 0 0,1 18,20H15V12H19V10A7,7 0 0,0 12,3A7,7 0 0,0 5,10V12H9V20H6A3,3 0 0,1 3,17V10A9,9 0 0,1 12,1Z" />
         </svg>
       </div>
       
-      {/* Музыкальные круги */}
+      {/* Music circles */}
       <div className="absolute top-[40%] left-[15%] w-16 h-16 rounded-full border-2 border-purple-400/30 opacity-20"></div>
-      <div className="absolute top-[20%] right-[20%] w-20 h-20 rounded-full border-2 border-blue-400/30 opacity-20"></div>
-      <div className="absolute bottom-[50%] left-[30%] w-28 h-28 rounded-full border-2 border-cyan-400/20 opacity-10"></div>
+      <div className="absolute top-[20%] right-[20%] w-20 h-20 rounded-full border-2 border-cyan-400/30 opacity-20"></div>
+      <div className="absolute bottom-[50%] left-[30%] w-28 h-28 rounded-full border-2 border-pink-400/20 opacity-10"></div>
       
-      {/* Музыкальные ноты */}
+      {/* Music notes */}
       <div className="absolute top-[20%] left-[25%] text-white/20 text-2xl">♪</div>
       <div className="absolute top-[30%] right-[25%] text-white/20 text-2xl">♫</div>
       <div className="absolute top-[50%] right-[15%] text-white/10 text-3xl">♬</div>
       
-      {/* Анимированные волны (имитация звуковых волн) */}
+      {/* Animated waves (sound wave imitation) */}
       <div className="absolute top-[40%] left-0 right-0 flex justify-center space-x-1">
         {audioWaves.map((wave, i) => (
           <div 
@@ -96,7 +96,7 @@ const UserCardSkeleton = () => {
         ))}
       </div>
       
-      {/* Центральный эквалайзер */}
+      {/* Central equalizer */}
       <div className="absolute top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
         <div className="flex items-end justify-center space-x-1 h-8">
           {[...Array(8)].map((_, i) => (
@@ -112,7 +112,7 @@ const UserCardSkeleton = () => {
         </div>
       </div>
       
-      {/* Музыкальная иконка */}
+      {/* Music icon */}
       <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 opacity-10">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-28 w-28 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
@@ -120,19 +120,19 @@ const UserCardSkeleton = () => {
       </div>
     </div>
     
-    {/* Стильная стеклянная область внизу */}
-    <div className="absolute bottom-0 left-0 right-0 backdrop-blur-md bg-black/30 border-t border-white/10 p-4 bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-blue-900/40">
+    {/* Stylish glass area at bottom */}
+    <div className="absolute bottom-0 left-0 right-0 backdrop-blur-md bg-black/30 border-t border-white/10 p-4 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-blue-900/40">
       <div className="flex justify-between items-center">
-        <div className="h-6 w-32 bg-white/10 rounded-lg animate-pulse mb-2 bg-gradient-to-r from-purple-400/20 to-blue-400/20"></div>
+        <div className="h-6 w-32 bg-white/10 rounded-lg animate-pulse mb-2 bg-gradient-to-r from-cyan-400/20 to-purple-400/20"></div>
         <div className="flex items-center space-x-1">
           <div className="text-cyan-400/40 text-xl">🎧</div>
           <div className="h-6 w-10 bg-white/10 rounded-full animate-pulse bg-gradient-to-r from-pink-400/20 to-purple-400/20"></div>
         </div>
       </div>
       
-      <div className="h-4 w-24 bg-white/10 rounded-lg animate-pulse mb-4 bg-gradient-to-r from-indigo-400/20 to-purple-400/20"></div>
+      <div className="h-4 w-24 bg-white/10 rounded-lg animate-pulse mb-4 bg-gradient-to-r from-cyan-400/20 to-purple-400/20"></div>
       
-      {/* Стильная анимированная статистика */}
+      {/* Stylish animated statistics */}
       <div className="flex items-center gap-4 mt-2">
         <div className="flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-purple-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,21 +147,21 @@ const UserCardSkeleton = () => {
           <div className="h-3 w-10 bg-white/10 rounded-lg animate-pulse"></div>
         </div>
         <div className="flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-yellow-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-teal-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
           </svg>
           <div className="h-3 w-10 bg-white/10 rounded-lg animate-pulse"></div>
         </div>
       </div>
       
-      {/* Стилизованное био */}
+      {/* Stylized bio */}
       <div className="mt-3 h-10">
-        <div className="h-3 w-full bg-white/10 rounded-lg animate-pulse mb-2 bg-gradient-to-r from-violet-400/20 to-indigo-400/20"></div>
-        <div className="h-3 w-4/5 bg-white/10 rounded-lg animate-pulse bg-gradient-to-r from-indigo-400/20 to-blue-400/20"></div>
+        <div className="h-3 w-full bg-white/10 rounded-lg animate-pulse mb-2 bg-gradient-to-r from-purple-400/20 to-cyan-400/20"></div>
+        <div className="h-3 w-4/5 bg-white/10 rounded-lg animate-pulse bg-gradient-to-r from-cyan-400/20 to-pink-400/20"></div>
       </div>
     </div>
     
-    {/* Стильные музыкальные кнопки */}
+    {/* Stylish music buttons */}
     <div className="absolute bottom-4 right-4 flex gap-3">
       <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500/30 to-purple-500/30 border border-white/10 flex items-center justify-center animate-pulse">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white/30" viewBox="0 0 20 20" fill="currentColor">
@@ -236,23 +236,23 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
         toast.success('Rating submitted successfully!');
     };
     
-    // Улучшенная функция для получения цвета на основе рейтинга
+    // Improved function to get color based on rating
     const getRatingColor = (rating: number) => {
         if (rating >= 4.5) return 'from-yellow-400 to-yellow-600';
-        if (rating >= 3.5) return 'from-green-400 to-green-600';
-        if (rating >= 2.5) return 'from-blue-400 to-blue-600';
-        if (rating >= 1.5) return 'from-orange-400 to-orange-600';
+        if (rating >= 3.5) return 'from-teal-400 to-emerald-600';
+        if (rating >= 2.5) return 'from-blue-400 to-indigo-600';
+        if (rating >= 1.5) return 'from-purple-400 to-pink-600';
         return 'from-red-400 to-red-600';
     };
     
     return (
         <motion.div
-            className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative group"
+            className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative group backdrop-blur-sm"
             whileHover={{ y: -5, transition: { duration: 0.2 } }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
         >
-            {/* Фото на весь размер карточки с затемнением */}
+            {/* Background image with darkening */}
             <div className="absolute inset-0 w-full h-full">
                 <Image
                     src={imageError ? '/images/placeholders/user-placeholder.svg' : (user.image || '/images/placeholders/user-placeholder.svg')}
@@ -264,7 +264,25 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60" />
             </div>
             
-            {/* Стильный стеклянный эффект для контентной части */}
+            {/* Glass overlay to make it more stylish */}
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 to-purple-900/20 backdrop-blur-[2px] opacity-40 group-hover:opacity-60 transition-opacity" />
+            
+            {/* Rating button at top right */}
+            <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowRatingModal(true);
+                    }}
+                    className="backdrop-blur-lg bg-gradient-to-r from-cyan-500/30 to-teal-500/30 hover:from-cyan-500/50 hover:to-teal-500/50 border border-white/20 rounded-full p-2.5 transition-colors duration-200 shadow-lg"
+                >
+                    <StarIcon className="w-5 h-5 text-white" />
+                </motion.button>
+            </div>
+            
+            {/* Content area with glass effect */}
             <div 
                 className="absolute bottom-0 left-0 right-0 cursor-pointer"
                 onClick={(e) => {
@@ -272,24 +290,24 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                     router.push(`/profile/${user.user_id}`);
                 }}
             >
-                <div className="backdrop-blur-md bg-black/30 border-t border-white/10 p-4 transition-all duration-300">
+                <div className="backdrop-blur-md bg-black/30 border-t border-white/10 p-4 transition-all duration-300 bg-gradient-to-r from-blue-900/40 via-purple-900/40 to-pink-900/40">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                        <h3 className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-400 group-hover:to-purple-400 transition-colors">
                             {user.name}
                         </h3>
                         
-                        {/* Рейтинг */}
+                        {/* Rating */}
                         <div className="flex items-center">
-                            <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRatingColor(user.stats.averageRating)} text-white`}>
+                            <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRatingColor(user.stats.averageRating)} text-white shadow-md border border-white/10`}>
                                 <StarIcon className="w-3 h-3 mr-1" />
                                 {user.stats.averageRating.toFixed(1)}
                             </div>
                         </div>
                     </div>
                     
-                    <p className="text-purple-400 font-medium">@{displayUsername}</p>
+                    <p className="text-cyan-400 font-medium">@{displayUsername}</p>
                     
-                    {/* Компактная статистика */}
+                    {/* Compact statistics */}
                     <div className="flex items-center gap-4 mt-2 text-white/80 text-sm">
                         <div className="flex items-center">
                             <UsersIcon className="w-4 h-4 mr-1 text-purple-400" />
@@ -305,27 +323,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         </div>
                     </div>
                     
-                    {/* Био с ограничением по высоте */}
+                    {/* Bio with height limit */}
                     <div className="mt-2 text-white/90 text-sm line-clamp-2 h-10 overflow-hidden">
                         {user.bio || "No bio available."}
                     </div>
                 </div>
             </div>
 
-            {/* Прозрачные кнопки действий внизу */}
-            <div className="absolute bottom-4 right-4 flex gap-3" onClick={(e) => e.stopPropagation()}>
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowRatingModal(true);
-                    }}
-                    className="backdrop-blur-lg bg-white/10 hover:bg-white/20 border border-white/20 rounded-full p-2.5 transition-colors duration-200"
-                >
-                    <StarIcon className="w-5 h-5 text-yellow-400" />
-                </motion.button>
-                
+            {/* Add/Remove friend button at bottom */}
+            <div className="absolute bottom-4 right-4" onClick={(e) => e.stopPropagation()}>
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -337,17 +343,17 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             console.error('Friend action error:', error);
                         }
                     }}
-                    className={`backdrop-blur-lg border border-white/20 rounded-full p-2.5 transition-colors duration-200 ${
+                    className={`backdrop-blur-lg border border-white/20 rounded-full p-2.5 transition-colors duration-200 shadow-lg ${
                         isFriend 
-                            ? 'bg-red-600/40 hover:bg-red-600/60 text-white' 
-                            : 'bg-purple-600/40 hover:bg-purple-600/60 text-white'
+                            ? 'bg-gradient-to-r from-pink-600/40 to-purple-600/40 hover:from-pink-600/60 hover:to-purple-600/60 text-white' 
+                            : 'bg-gradient-to-r from-cyan-600/40 to-teal-600/40 hover:from-cyan-600/60 hover:to-teal-600/60 text-white'
                     }`}
                 >
                     {isFriend ? <UserMinusIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                 </motion.button>
             </div>
 
-            {/* Modal для рейтинга (оставляем тот же код) */}
+            {/* Rating modal */}
             <AnimatePresence>
                 {showRatingModal && (
                     <motion.div
@@ -364,7 +370,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-[#1E2136] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-purple-500/20"
+                            className="bg-gradient-to-br from-[#1E2136] to-[#141625] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/10 backdrop-blur-md"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <h3 className="text-2xl font-bold text-white mb-4">Rate {user.name}</h3>
@@ -405,7 +411,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                                     onClick={handleRateSubmit}
                                     disabled={rating === 0}
                                 >
@@ -498,16 +504,16 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
     const loadTopArtists = async () => {
         setIsLoadingArtists(true);
         try {
-            // Получаем список всех пользователей
+            // Get list of all users
             const profilesResponse = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!
             );
             
-            // Для каждого пользователя получаем его релизы (посты)
+            // For each user, get their releases (posts)
             const artistsWithData = await Promise.all(
                 profilesResponse.documents.map(async (profile) => {
-                    // Получаем треки пользователя
+                    // Get user tracks
                     const tracksResponse = await database.listDocuments(
                         process.env.NEXT_PUBLIC_DATABASE_ID!,
                         process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
@@ -518,31 +524,31 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                     const trackIds = tracks.map(track => track.$id);
                     
                     if (trackIds.length === 0) {
-                        return null; // Если нет треков, не считаем за артиста
+                        return null; // If no tracks, don't count as artist
                     }
                     
-                    // Получаем лайки всех треков этого артиста
+                    // Get likes for all this artist's tracks
                     const likesResponse = await database.listDocuments(
                         process.env.NEXT_PUBLIC_DATABASE_ID!,
                         process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE!,
                         [Query.equal('post.user_id', profile.user_id)]
                     );
                     
-                    // Получаем покупки всех треков этого артиста
+                    // Get purchases for all this artist's tracks
                     const purchasesResponse = await database.listDocuments(
                         process.env.NEXT_PUBLIC_DATABASE_ID!,
                         process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
                         [Query.equal('author_id', profile.user_id)]
                     );
                     
-                    // Получаем рейтинги пользователя
+                    // Get user ratings
                     const ratingsResponse = await database.listDocuments(
                         process.env.NEXT_PUBLIC_DATABASE_ID!,
                         process.env.NEXT_PUBLIC_COLLECTION_ID_USER_RATINGS!,
                         [Query.equal('userId', profile.user_id)]
                     );
                     
-                    // Рассчитываем среднюю оценку
+                    // Calculate average rating
                     const totalRatings = ratingsResponse.documents.length;
                     const averageRating = totalRatings > 0
                         ? ratingsResponse.documents.reduce((sum, doc) => {
@@ -553,12 +559,12 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                         }, 0) / totalRatings
                         : 0;
                     
-                    // Рассчитываем рейтинг артиста
-                    // Формула: 
-                    // - Количество релизов * 15
-                    // - Количество лайков * 5
-                    // - Количество покупок * 25
-                    // - Средний рейтинг * 20
+                    // Calculate artist rating
+                    // Formula: 
+                    // - Number of releases * 15
+                    // - Number of likes * 5
+                    // - Number of purchases * 25
+                    // - Average rating * 20
                     const releasesScore = tracks.length * 15;
                     const likesScore = likesResponse.documents.length * 5;
                     const purchasesScore = purchasesResponse.documents.length * 25;
@@ -583,11 +589,11 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                 })
             );
             
-            // Отфильтровываем null и сортируем по рейтингу артиста
+            // Filter out nulls and sort by artist score
             const filteredArtists = artistsWithData
                 .filter((artist): artist is NonNullable<typeof artist> => artist !== null)
                 .sort((a, b) => b.stats.artistScore - a.stats.artistScore)
-                .slice(0, 10); // Топ-10 артистов
+                .slice(0, 10); // Top 10 artists
             
             setArtistRanking(filteredArtists);
         } catch (error) {
@@ -602,10 +608,10 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
     };
     
     const getRankGradient = (index: number) => {
-        if (index === 0) return 'from-yellow-400 to-amber-600';      // 1-е место - золото
-        if (index === 1) return 'from-slate-300 to-slate-400';       // 2-е место - серебро
-        if (index === 2) return 'from-amber-700 to-amber-800';       // 3-е место - бронза
-        return 'from-purple-600 to-indigo-700';                      // Остальные места
+        if (index === 0) return 'from-yellow-400 to-amber-600';      // 1st place - gold
+        if (index === 1) return 'from-slate-300 to-slate-400';       // 2nd place - silver
+        if (index === 2) return 'from-amber-700 to-amber-800';       // 3rd place - bronze
+        return 'from-cyan-600 to-teal-700';                      // Other places
     };
     
     const getRankIcon = (index: number) => {
@@ -646,18 +652,18 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
         );
     };
 
-    // Возвращаем ранг пользователя на основе очков
+    // Return user rank based on score
     const getUserRank = (score: number) => {
-        if (score >= 500) return { name: 'Legend', color: 'text-pink-500' };
-        if (score >= 300) return { name: 'Master', color: 'text-purple-500' };
-        if (score >= 150) return { name: 'Advanced', color: 'text-blue-500' };
+        if (score >= 500) return { name: 'Legend', color: 'text-purple-500' };
+        if (score >= 300) return { name: 'Master', color: 'text-pink-500' };
+        if (score >= 150) return { name: 'Advanced', color: 'text-cyan-500' };
         if (score >= 50) return { name: 'Experienced', color: 'text-teal-500' };
         return { name: 'Beginner', color: 'text-gray-500' };
     };
     
-    // Рассчитываем ранг пользователя (для вкладки Top Users)
+    // Calculate user rank (for Top Users tab)
     const calculateUserRank = (user: any) => {
-        // Рассчитываем очки на основе рейтинга из базы и статистики
+        // Calculate points based on ratings from the database and statistics
         const friendsScore = (user.stats?.totalFollowers || 0) * 10;
         const tracksScore = (user.stats?.totalTracks || 0) * 15;
         const likesScore = (user.stats?.totalLikes || 0) * 5;
@@ -676,12 +682,12 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
     // Рендерим вкладки
     return (
         <>
-            {/* Вкладки */}
-            <div className="flex mb-4 bg-[#1A1E36] rounded-xl p-1 overflow-hidden">
+            {/* Tabs */}
+            <div className="flex mb-4 bg-[#1A1E36] rounded-xl p-1 overflow-hidden shadow-lg border border-white/5">
                 <button 
                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                         activeTab === TabTypes.USERS 
-                            ? 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 text-white' 
+                            ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white shadow-sm' 
                             : 'text-gray-400 hover:text-white'
                     }`}
                     onClick={() => setActiveTab(TabTypes.USERS)}
@@ -691,7 +697,7 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                 <button 
                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                         activeTab === TabTypes.ARTISTS 
-                            ? 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 text-white' 
+                            ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white shadow-sm' 
                             : 'text-gray-400 hover:text-white'
                     }`}
                     onClick={() => setActiveTab(TabTypes.ARTISTS)}
@@ -700,7 +706,7 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                 </button>
             </div>
             
-            {/* Содержимое вкладки Top Users */}
+            {/* Top Users Tab Content */}
             {activeTab === TabTypes.USERS && users.length > 0 && (
                 <>
                     {users.map((user, index) => {
@@ -712,21 +718,24 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.1 }}
                                 onClick={() => router.push(`/profile/${user.user_id}`)}
-                                className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
+                                className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative overflow-hidden"
                                 whileHover={{ 
                                     scale: 1.02,
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                                    backgroundColor: 'rgba(255, 255, 255, 0.05)'
                                 }}
                             >
-                                {/* Позиционный индикатор на фоне */}
+                                {/* Glass-like background effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-pink-900/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                
+                                {/* Position indicator background */}
                                 {index < 3 && (
-                                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
+                                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 border border-white/5 -z-10"></div>
                                 )}
                                 
-                                {/* Аватар с бордером в зависимости от рейтинга */}
-                                <div className="relative">
+                                {/* Avatar with ranking-based border */}
+                                <div className="relative z-10">
                                     <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
-                                    <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
+                                    <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-blue-900/50 to-purple-900/50">
                                         <Image 
                                             src={imageErrors[user.user_id] ? '/images/placeholders/user-placeholder.svg' : (user.image || '/images/placeholders/user-placeholder.svg')}
                                             alt={user.name} 
@@ -736,35 +745,35 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                             onError={() => handleImageError(user.user_id)}
                                         />
                                         
-                                        {/* Стилизованный оверлей для аватара */}
+                                        {/* Stylized overlay for avatar */}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
                                     </div>
                                 </div>
                                 
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 z-10">
                                     <div className="flex items-center gap-1.5">
-                                        <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                                        <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-400 group-hover:to-purple-400 transition-colors">
                                             {user.name}
                                         </p>
                                         
-                                        {/* Звездный рейтинг */}
+                                        {/* Star rating */}
                                         {user.stats?.averageRating > 0 && getRatingStars(user.stats.averageRating)}
                                     </div>
                                     
                                     <div className="flex items-center text-xs text-gray-400 mt-0.5">
-                                        {/* Имя пользователя */}
+                                        {/* Username */}
                                         <span className="truncate">
                                             {user.username ? `@${user.username}` : `User`}
                                         </span>
                                         
-                                        {/* Ранг пользователя */}
+                                        {/* User rank */}
                                         <span className="mx-1.5 text-gray-600">•</span>
                                         <span className={`${rankedUser.rankColor}`}>{rankedUser.rank}</span>
                                     </div>
                                 </div>
                                 
-                                {/* Значок позиции */}
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
+                                {/* Position badge */}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20 z-10`}>
                                     {getRankIcon(index)}
                                 </div>
                             </motion.div>
@@ -773,21 +782,26 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                 </>
             )}
             
-            {/* Содержимое вкладки Top Artists */}
+            {/* Top Artists Tab Content */}
             {activeTab === TabTypes.ARTISTS && (
                 isLoadingArtists ? (
                     <div className="space-y-4">
                         {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-white/5 to-purple-500/5 animate-pulse">
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-cyan-900/10 via-purple-900/10 to-pink-900/10 animate-pulse backdrop-blur-[1px] border border-white/5">
                                 <div className="relative">
-                                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-50 blur-sm"></div>
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-purple-900/30 to-blue-900/30 border border-white/10 relative"></div>
+                                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-50 blur-sm"></div>
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-cyan-900/30 to-purple-900/30 border border-white/10 relative"></div>
                                 </div>
                                 <div className="flex-1">
-                                    <div className="h-4 w-24 bg-gradient-to-r from-white/10 to-purple-500/10 rounded-md mb-2"></div>
-                                    <div className="h-3 w-16 bg-gradient-to-r from-white/5 to-purple-500/5 rounded-md"></div>
+                                    <div className="h-4 w-24 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-md mb-2"></div>
+                                    <div className="h-3 w-32 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-md"></div>
+                                    <div className="flex gap-2 mt-2">
+                                        <div className="h-2 w-8 bg-gradient-to-r from-cyan-400/10 to-teal-400/10 rounded-full"></div>
+                                        <div className="h-2 w-8 bg-gradient-to-r from-pink-400/10 to-purple-400/10 rounded-full"></div>
+                                        <div className="h-2 w-8 bg-gradient-to-r from-purple-400/10 to-blue-400/10 rounded-full"></div>
+                                    </div>
                                 </div>
-                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600/20 to-indigo-600/20 flex items-center justify-center border border-white/10"></div>
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-600/20 to-teal-600/20 flex items-center justify-center border border-white/10 shadow-md"></div>
                             </div>
                         ))}
                     </div>
@@ -801,21 +815,24 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.1 }}
                                     onClick={() => router.push(`/profile/${artist.user_id}`)}
-                                    className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
+                                    className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative overflow-hidden"
                                     whileHover={{ 
                                         scale: 1.02,
-                                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                                        backgroundColor: 'rgba(255, 255, 255, 0.05)'
                                     }}
                                 >
-                                    {/* Позиционный индикатор на фоне */}
+                                    {/* Glass-like background effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-pink-900/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    
+                                    {/* Position indicator background */}
                                     {index < 3 && (
-                                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
+                                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 border border-white/5 -z-10"></div>
                                     )}
                                     
-                                    {/* Аватар с бордером в зависимости от рейтинга */}
-                                    <div className="relative">
+                                    {/* Avatar with ranking-based border */}
+                                    <div className="relative z-10">
                                         <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
-                                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
+                                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-blue-900/50 to-purple-900/50">
                                             <Image 
                                                 src={imageErrors[artist.user_id] ? '/images/placeholders/user-placeholder.svg' : (artist.image || '/images/placeholders/user-placeholder.svg')}
                                                 alt={artist.name} 
@@ -825,13 +842,13 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                                 onError={() => handleImageError(artist.user_id)}
                                             />
                                             
-                                            {/* Стилизованный оверлей для аватара */}
+                                            {/* Stylized overlay for avatar */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
                                         </div>
                                         
-                                        {/* Музыкальная иконка для артистов в топ-3 */}
+                                        {/* Music icon for top 3 artists */}
                                         {index < 3 && (
-                                            <div className="absolute -bottom-1 -left-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full w-5 h-5 flex items-center justify-center border border-white/20 text-[8px]">
+                                            <div className="absolute -bottom-1 -left-1 bg-gradient-to-br from-cyan-600 to-teal-600 rounded-full w-5 h-5 flex items-center justify-center border border-white/20 text-[8px] shadow-lg">
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-white">
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
                                                 </svg>
@@ -839,21 +856,21 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                         )}
                                     </div>
                                     
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 z-10">
                                         <div className="flex items-center gap-1.5">
-                                            <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                                            <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-400 group-hover:to-purple-400 transition-colors">
                                                 {artist.name}
                                             </p>
                                             
-                                            {/* Звездный рейтинг */}
+                                            {/* Star rating */}
                                             {artist.stats?.averageRating > 0 && getRatingStars(artist.stats.averageRating)}
                                         </div>
                                         
                                         <div className="flex items-center text-xs text-gray-400 mt-0.5">
-                                            {/* Статистика артиста */}
+                                            {/* Artist statistics */}
                                             <div className="flex items-center gap-2">
                                                 <span className="flex items-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                                     </svg>
                                                     {artist.stats.totalReleases}
@@ -867,7 +884,7 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                                 </span>
                                                 
                                                 <span className="flex items-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                     {artist.stats.totalPurchases}
@@ -876,8 +893,8 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                                         </div>
                                     </div>
                                     
-                                    {/* Значок позиции */}
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
+                                    {/* Position badge */}
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20 z-10`}>
                                         {getRankIcon(index)}
                                     </div>
                                 </motion.div>
@@ -885,7 +902,7 @@ const TopRankingUsersPanel = ({ users }: { users: any[] }) => {
                         </>
                     ) : (
                         <div className="text-center py-6 text-gray-400">
-                            Нет данных об артистах
+                            No artist data available
                         </div>
                     )
                 )
@@ -913,9 +930,9 @@ export default function PeoplePage() {
     const router = useRouter();
     const pathname = usePathname();
     
-    // Очистка состояния при изменении маршрута
+    // Clear state when route changes
     useEffect(() => {
-        // Только логируем отладочную информацию
+        // Just log debug info
         const logDebugInfo = () => {
             console.log('Route changed, pathname:', pathname);
         };
@@ -1241,75 +1258,50 @@ export default function PeoplePage() {
         }
     };
     
-    // Обработка добавления друга с корректной обработкой запросов
+    // Handle add friend
     const handleAddFriend = async (userId: string) => {
-        if (!user?.user?.id) {
-            toast.error('You need to be logged in to add friends');
-            return;
-        }
-        
         try {
-            console.log('Calling addFriend with friendId:', userId, 'currentUserId:', user.user.id);
-            await addFriend(userId, user.user.id);
-            
-            // Обновляем состояние, чтобы отобразить изменения в UI
-            await loadFriends();
+            await addFriend(userId);
+            toast.success('Friend request sent!');
         } catch (error) {
             console.error('Error adding friend:', error);
-            toast.error('Failed to send friend request');
+            toast.error('Failed to send friend request. Please try again.');
         }
     };
     
-    // Обработка удаления друга
+    // Handle remove friend
     const handleRemoveFriend = async (userId: string) => {
-        if (!user?.user?.id) {
-            toast.error('You need to be logged in to remove friends');
-            return;
-        }
-        
         try {
             await removeFriend(userId);
-            toast.success('Friend removed!');
-            
-            // Обновляем состояние, чтобы отобразить изменения в UI
-            await loadFriends();
+            toast.success('Friend removed successfully.');
         } catch (error) {
             console.error('Error removing friend:', error);
-            toast.error('Failed to remove friend');
+            toast.error('Failed to remove friend. Please try again.');
         }
     };
     
-    // Функция для инициализации данных
+    // Load initial data
     useEffect(() => {
         const initializeData = async () => {
-            setIsLoading(true);
             try {
-                // Проверяем конфигурацию Appwrite
-                const configResult = checkAppwriteConfig();
-                if (!configResult.isValid) {
-                    console.error("Invalid Appwrite configuration:", configResult.missingVars);
-                    setError("Configuration error. Please contact support.");
-                    return;
-                }
+                // Check if Appwrite is configured
+                await checkAppwriteConfig();
                 
-                // Загружаем профили пользователей, друзей и топ пользователей
+                // Load data asynchronously
                 await Promise.all([
                     loadUsers(),
-                    loadFriends(),       // Загружаем друзей
-                    loadSentRequests(),  // Загружаем отправленные запросы
+                    loadFriends(),
+                    loadSentRequests(),
                     loadTopUsers()
                 ]);
-                
-                setIsLoading(false);
             } catch (error) {
-                console.error("Error initializing data:", error);
-                setError("Failed to load data. Please try again later.");
-                setIsLoading(false);
+                console.error('Initialization error:', error);
+                setError('Failed to initialize app. Please try again later.');
             }
         };
         
         initializeData();
-    }, [sortBy, filterBy]); // Убираем зависимости функций, оставляем только необходимые переменные
+    }, []);
     
     // Handle click on search result - с обработкой ошибок
     const handleSearchResultClick = useCallback((result: any) => {

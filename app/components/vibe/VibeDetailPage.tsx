@@ -15,7 +15,8 @@ import {
   ArrowLeftIcon,
   DocumentDuplicateIcon,
   MusicalNoteIcon,
-  XMarkIcon
+  XMarkIcon,
+  FaceSmileIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import useDeviceDetect from '@/app/hooks/useDeviceDetect';
@@ -83,7 +84,7 @@ const useComments = (vibeId: string) => {
         prevComments.map(c => c.id === replaceId ? comment : c)
       );
     } else {
-      setComments(prevComments => [...prevComments, comment]);
+      setComments(prevComments => [comment, ...prevComments]);
     }
   }, []);
 
@@ -133,7 +134,6 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showEmojiPanel, setShowEmojiPanel] = useState(true);
   
   const { openShareModal } = useShareVibeContext();
   
@@ -146,6 +146,54 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     isLoading: commentsLoading 
   } = useComments(vibe.id);
   const [commentText, setCommentText] = useState('');
+  
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  
+  // Обновим функцию sanitizeText для безопасной работы с эмодзи
+  const sanitizeText = (text: string): string => {
+    try {
+      // Проверяем, что текст - строка
+      if (typeof text !== 'string') {
+        return '';
+      }
+      
+      // Ограничиваем длину текста
+      let safeText = text.slice(0, 1000);
+      
+      // Удаляем или заменяем потенциально проблемные символы
+      safeText = safeText.trim();
+      
+      // Экранируем специальные символы для безопасной передачи на сервер
+      // Не изменяем эмодзи, но обрабатываем другие специальные символы
+      // Эта функция-заглушка, в реальном коде нужна более тщательная обработка
+      const escapeSpecialChars = (str: string) => {
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      };
+      
+      return escapeSpecialChars(safeText);
+    } catch (error) {
+      console.error('Error sanitizing text:', error);
+      return '';
+    }
+  };
+  
+  // Добавим функцию для отображения комментариев с эмодзи
+  const renderCommentText = (text: string): React.ReactNode => {
+    try {
+      if (typeof text !== 'string') return '';
+      
+      // Здесь мы просто возвращаем текст как есть
+      // В реальном приложении может потребоваться более сложная логика
+      // например, преобразование URL в ссылки или разбор разметки
+      return text;
+    } catch (error) {
+      console.error('Error rendering comment text:', error);
+      return text;
+    }
+  };
   
   useEffect(() => {
     const checkLikeStatus = async () => {
@@ -181,6 +229,22 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       setCommentsCount(comments.length);
     }
   }, [comments]);
+
+  // Добавить useEffect для обработки клика вне панели эмодзи
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showEmojiPicker &&
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   const handleLikeToggle = async () => {
     if (!user?.id) {
@@ -306,7 +370,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         isOptimistic: true
       };
       
-      // Optimistically add comment to UI
+      // Optimistically add comment to UI (будет добавлен в начало списка)
       addComment(optimisticComment);
       
       // Optimistically update counter
@@ -319,7 +383,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       const { data, error } = await addVibeComment({
         user_id: user.id,
         vibe_id: vibe.id,
-        text: text
+        text: sanitizeText(text)
       });
       
       if (error) {
@@ -327,25 +391,45 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       }
       
       if (data) {
-        // Replace optimistic comment with real one from server
-        const serverComment: VibeComment = {
-          id: data.id,
-          user_id: data.user_id,
-          vibe_id: data.vibe_id,
-          text: data.text,
-          created_at: data.created_at,
-          profile: {
-            id: user.id,
-            name: user.name || 'You',
-            image: user.image || undefined
+        try {
+          // Безопасное создание объекта комментария с проверкой типов
+          const serverComment: VibeComment = {
+            id: typeof data.id === 'string' ? data.id : optimisticId,
+            user_id: typeof data.user_id === 'string' ? data.user_id : user.id,
+            vibe_id: typeof data.vibe_id === 'string' ? data.vibe_id : vibe.id,
+            text: typeof data.text === 'string' ? data.text : text,
+            created_at: typeof data.created_at === 'string' ? data.created_at : new Date().toISOString(),
+            profile: {
+              id: user.id,
+              name: user.name || 'You',
+              image: user.image || undefined
+            }
+          };
+          
+          // Replace the optimistic comment with the real one
+          addComment(serverComment, optimisticId);
+          
+          // Refresh vibe stats to ensure counts are accurate
+          try {
+            await refreshVibeStats();
+          } catch (statsError) {
+            console.error('Error refreshing stats:', statsError);
+            // Не выбрасываем ошибку здесь, чтобы не прерывать успешное добавление комментария
           }
-        };
-        
-        // Replace the optimistic comment with the real one
-        addComment(serverComment, optimisticId);
-        
-        // Refresh vibe stats to ensure counts are accurate
-        refreshVibeStats();
+          
+          // Убедимся, что новый комментарий виден в UI
+          // Плавно прокрутим к верхнему комментарию если не на мобильном устройстве
+          if (!isMobile && document.querySelector('.comments-container')) {
+            document.querySelector('.comments-container')?.scrollTo({
+              top: 0,
+              behavior: 'smooth'
+            });
+          }
+        } catch (processingError) {
+          console.error('Error processing server response:', processingError);
+          // Даже если произошла ошибка при обработке ответа, комментарий уже добавлен на сервере
+          // Поэтому не будем удалять оптимистичный комментарий
+        }
       }
       
     } catch (error) {
@@ -367,8 +451,23 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   };
 
   const handleAddEmoji = (emoji: string) => {
-    setCommentText(prev => prev + emoji);
-    setShowEmojiPicker(false);
+    // Добавляем эмодзи к текущему тексту комментария
+    setCommentText(prev => {
+      try {
+        // Проверяем, что эмодзи является корректной строкой
+        if (typeof emoji !== 'string') {
+          console.error('Invalid emoji format:', emoji);
+          return prev;
+        }
+        // Безопасное добавление эмодзи
+        return prev + emoji;
+      } catch (error) {
+        console.error('Error adding emoji:', error);
+        return prev;
+      }
+    });
+    // Не закрываем панель после выбора эмодзи, чтобы пользователь мог добавить несколько эмодзи
+    // setShowEmojiPicker(false);
   };
 
   const handleGoBack = () => {
@@ -441,33 +540,134 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   return (
     <div className="min-h-screen pt-[70px] pb-20 md:pb-10 bg-gradient-to-br from-[#24183D] to-[#0F172A] text-white">
       <div className="w-full max-w-7xl mx-auto p-4 md:p-8">
-        {/* Back button and share */}
-        <div className="flex justify-between items-center mb-6">
-          <motion.button 
-            onClick={handleGoBack}
-            whileHover={{ 
-              scale: 1.05,
-              backgroundColor: 'rgba(255, 255, 255, 0.15)'
-            }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 text-[#20DDBB] transition-all duration-300 px-4 py-2 rounded-lg bg-white/5 hover:text-white backdrop-blur-sm border border-white/10"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-            <span className="font-medium">Back</span>
-          </motion.button>
+        {/* Top navigation and action bar */}
+        <div className="flex flex-col space-y-4 mb-6">
+          {/* Back button and user info */}
+          <div className="flex justify-between items-center">
+            <motion.button 
+              onClick={handleGoBack}
+              whileHover={{ 
+                scale: 1.05,
+                backgroundColor: 'rgba(255, 255, 255, 0.15)'
+              }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 text-[#20DDBB] transition-all duration-300 px-4 py-2 rounded-lg bg-white/5 hover:text-white backdrop-blur-sm border border-white/10"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+              <span className="font-medium">Back</span>
+            </motion.button>
+            
+            <Link href={`/profile/${vibe.user_id}`} className="flex items-center group">
+              <motion.div 
+                whileHover={{ scale: 1.05 }}
+                className="w-10 h-10 rounded-full overflow-hidden mr-3 border-2 border-[#20DDBB]/30 group-hover:border-[#20DDBB]/80 transition-all duration-300"
+              >
+                <Image 
+                  src={vibe.profile?.image ? getProfileImageUrl(vibe.profile.image) : '/images/placeholders/user-placeholder.svg'} 
+                  alt={vibe.profile?.name || 'User'}
+                  className="w-full h-full object-cover"
+                  width={40}
+                  height={40}
+                />
+              </motion.div>
+              <div>
+                <h3 className="font-semibold text-white group-hover:text-[#20DDBB] transition-colors">
+                  {vibe.profile?.name || 'Unknown User'}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {new Date(vibe.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+            </Link>
+          </div>
           
-          <motion.button 
-            onClick={handleShare}
-            whileHover={{ 
-              scale: 1.05,
-              backgroundColor: 'rgba(255, 255, 255, 0.15)'
-            }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 text-[#20DDBB] transition-all duration-300 px-4 py-2 rounded-lg bg-white/5 hover:text-white backdrop-blur-sm border border-white/10"
+          {/* Action buttons and mood badge - MOVED TO TOP */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="flex items-center flex-wrap gap-4 p-3 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10"
           >
-            <ShareIcon className="w-5 h-5" />
-            <span className="font-medium">Share</span>
-          </motion.button>
+            {/* Mood badge */}
+            {vibe.mood && (
+              <motion.div 
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center px-3 py-1.5 rounded-full bg-[#20DDBB]/20 text-[#20DDBB] text-sm backdrop-blur-sm border border-[#20DDBB]/20 hover:border-[#20DDBB]/40 transition-all duration-300"
+              >
+                <span className="mr-1">🎭</span>
+                {vibe.mood}
+              </motion.div>
+            )}
+            
+            <div className="flex-grow"></div>
+            
+            {/* Like button */}
+            <motion.button 
+              onClick={handleLikeToggle}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center space-x-2 group"
+            >
+              <motion.div
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                animate={isLiked ? { 
+                  scale: [1, 1.4, 1],
+                  rotate: [0, 15, -15, 0],
+                } : {}}
+                transition={{ duration: 0.5 }}
+                className={`p-2 rounded-full ${isLiked 
+                  ? 'bg-gradient-to-br from-red-500/30 to-pink-500/30 shadow-lg shadow-red-500/20' 
+                  : 'bg-white/5 backdrop-blur-sm group-hover:bg-white/10'}`}
+              >
+                {isLiked ? (
+                  <HeartIconSolid className="h-5 w-5 text-red-500" />
+                ) : (
+                  <HeartIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+                )}
+              </motion.div>
+              <span className={`text-sm font-medium ${isLiked ? 'text-red-400' : 'text-gray-400 group-hover:text-white'}`}>
+                {likesCount}
+              </span>
+            </motion.button>
+            
+            {/* Comments count */}
+            <div className="flex items-center space-x-2 group">
+              <motion.div
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-full bg-white/5 backdrop-blur-sm group-hover:bg-white/10"
+              >
+                <ChatBubbleLeftIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+              </motion.div>
+              <span className="text-sm font-medium text-gray-400 group-hover:text-white">
+                {commentsCount}
+              </span>
+            </div>
+            
+            {/* Share button */}
+            <motion.button 
+              onClick={handleShare}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center space-x-2 group"
+            >
+              <motion.div
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-full bg-white/5 backdrop-blur-sm group-hover:bg-white/10"
+              >
+                <ShareIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+              </motion.div>
+              <span className="text-sm font-medium text-gray-400 group-hover:text-white">
+                Share
+              </span>
+            </motion.button>
+          </motion.div>
         </div>
         
         <div className="flex flex-col md:flex-row gap-6 md:gap-8">
@@ -478,35 +678,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             transition={{ duration: 0.5 }}
             className="w-full md:w-3/5"
           >
-            {/* User info */}
-            <div className="flex items-center mb-4">
-              <Link href={`/profile/${vibe.user_id}`} className="flex items-center group">
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="w-12 h-12 rounded-full overflow-hidden mr-3 border-2 border-[#20DDBB]/30 group-hover:border-[#20DDBB]/80 transition-all duration-300"
-                >
-                  <Image 
-                    src={vibe.profile?.image ? getProfileImageUrl(vibe.profile.image) : '/images/placeholders/user-placeholder.svg'} 
-                    alt={vibe.profile?.name || 'User'}
-                    className="w-full h-full object-cover"
-                    width={48}
-                    height={48}
-                  />
-                </motion.div>
-                <div>
-                  <h3 className="font-semibold text-white group-hover:text-[#20DDBB] transition-colors">
-                    {vibe.profile?.name || 'Unknown User'}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    {new Date(vibe.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
-              </Link>
-            </div>
+            {/* User info - MOVED TO TOP */}
             
             {/* Vibe content */}
             <div className="mb-6 rounded-xl shadow-xl overflow-hidden shadow-[#20DDBB]/5">
@@ -525,97 +697,23 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
               </motion.div>
             )}
             
-            {/* Tags & Mood */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {vibe.mood && (
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="inline-flex items-center px-3 py-1 rounded-full bg-[#20DDBB]/20 text-[#20DDBB] text-sm backdrop-blur-sm border border-[#20DDBB]/20 hover:border-[#20DDBB]/40 transition-all duration-300"
-                >
-                  <span className="mr-1">🎭</span>
-                  {vibe.mood}
-                </motion.div>
-              )}
-              
-              {vibe.tags && typeof vibe.tags === 'string' && vibe.tags.split(',').map((tag, index) => (
-                <motion.div 
-                  key={index} 
-                  whileHover={{ scale: 1.05 }}
-                  className="inline-flex items-center px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-sm backdrop-blur-sm border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300"
-                >
-                  <span className="mr-1">#</span>
-                  {tag.trim()}
-                </motion.div>
-              ))}
-            </div>
-            
-            {/* Action buttons */}
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="flex items-center justify-around md:justify-start md:space-x-8 mb-8 pb-6 border-b border-white/10"
-            >
-              <motion.button 
-                onClick={handleLikeToggle}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex flex-col md:flex-row items-center md:space-x-2 group"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  animate={isLiked ? { 
-                    scale: [1, 1.4, 1],
-                    rotate: [0, 15, -15, 0],
-                  } : {}}
-                  transition={{ duration: 0.5 }}
-                  className={`p-2 rounded-full ${isLiked 
-                    ? 'bg-gradient-to-br from-red-500/30 to-pink-500/30 shadow-lg shadow-red-500/20' 
-                    : 'bg-white/5 backdrop-blur-sm group-hover:bg-white/10'}`}
-                >
-                  {isLiked ? (
-                    <HeartIconSolid className="h-6 w-6 text-red-500" />
-                  ) : (
-                    <HeartIcon className="h-6 w-6 text-gray-400 group-hover:text-white transition-colors" />
-                  )}
-                </motion.div>
-                <span className={`text-sm font-medium mt-1 md:mt-0 ${isLiked ? 'text-red-400' : 'text-gray-400 group-hover:text-white'}`}>
-                  {likesCount} {likesCount === 1 ? 'like' : 'likes'}
-                </span>
-              </motion.button>
-              
-              <div className="flex flex-col md:flex-row items-center md:space-x-2 group">
-                <motion.div
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 rounded-full bg-white/5 backdrop-blur-sm group-hover:bg-white/10"
-                >
-                  <ChatBubbleLeftIcon className="h-6 w-6 text-gray-400 group-hover:text-white transition-colors" />
-                </motion.div>
-                <span className="text-sm font-medium mt-1 md:mt-0 text-gray-400 group-hover:text-white">
-                  {commentsCount} {commentsCount === 1 ? 'comment' : 'comments'}
-                </span>
+            {/* Tags */}
+            {vibe.tags && typeof vibe.tags === 'string' && vibe.tags.split(',').length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-8">
+                {vibe.tags.split(',').map((tag, index) => (
+                  <motion.div 
+                    key={index} 
+                    whileHover={{ scale: 1.05 }}
+                    className="inline-flex items-center px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-sm backdrop-blur-sm border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300"
+                  >
+                    <span className="mr-1">#</span>
+                    {tag.trim()}
+                  </motion.div>
+                ))}
               </div>
-              
-              <motion.button 
-                onClick={handleShare}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex flex-col md:flex-row items-center md:space-x-2 group"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 rounded-full bg-white/5 backdrop-blur-sm group-hover:bg-white/10"
-                >
-                  <ShareIcon className="h-6 w-6 text-gray-400 group-hover:text-white transition-colors" />
-                </motion.div>
-                <span className="text-sm font-medium mt-1 md:mt-0 text-gray-400 group-hover:text-white">
-                  Share
-                </span>
-              </motion.button>
-            </motion.div>
+            )}
+            
+            {/* Action buttons - REMOVED FROM HERE AND MOVED TO TOP */}
           </motion.div>
           
           {/* Right column - Comments */}
@@ -643,7 +741,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             </div>
             
             {/* Comments list */}
-            <div className="overflow-y-auto max-h-[calc(100vh-350px)] md:max-h-[calc(100vh-300px)] p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/30">
+            <div className="overflow-y-auto max-h-[calc(100vh-350px)] md:max-h-[calc(100vh-300px)] p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/30 comments-container">
               {commentsLoading && comments.length === 0 ? (
                 <div className="flex justify-center items-center py-10">
                   <div className="relative h-12 w-12">
@@ -722,7 +820,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                             </span>
                             </div>
                           </div>
-                          <p className="text-sm text-white/90">{comment.text}</p>
+                          <p className="text-sm text-white/90">{renderCommentText(comment.text)}</p>
                         </div>
                       </div>
                       
@@ -793,60 +891,6 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             {/* Comment input */}
             <div className="p-4 border-t border-white/10 bg-gradient-to-r from-[#1A1A2E] to-[#1A1A2E]/90">
               <form onSubmit={handleSubmitComment} className="flex flex-col">
-                {/* Emoji panel */}
-                <motion.div 
-                  className="mb-3"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <motion.button
-                    type="button"
-                    onClick={() => setShowEmojiPanel(!showEmojiPanel)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="mb-2 text-sm text-[#20DDBB] hover:text-white transition-colors flex items-center gap-1"
-                  >
-                    <span className="flex items-center">
-                      {showEmojiPanel ? 
-                        <><span className="mr-1">🎵</span> Hide emojis</> : 
-                        <><span className="mr-1">🎵</span> Show emojis</>
-                      }
-                    </span>
-                  </motion.button>
-                  
-                  <AnimatePresence>
-                    {showEmojiPanel && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-3 p-2 bg-gradient-to-r from-[#1E1A36]/80 to-[#2A2151]/80 rounded-lg border border-white/5"
-                      >
-                        <p className="text-xs text-gray-400 mb-1.5">Quick emojis:</p>
-                        <div className="flex flex-wrap gap-1.5 justify-center">
-                          {['🎵', '🎶', '🎸', '🥁', '🎤', '🎧', '🎷', '🎹', '🎺', '🎻', '🔥', '🤩', '❤️', '👏', '🙌', '💯', '🕺', '💃', '🎼', '🎙️'].map((emoji) => (
-                            <motion.button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleAddEmoji(emoji)}
-                              whileHover={{ 
-                                scale: 1.3, 
-                                rotate: [0, 5, -5, 0],
-                                backgroundColor: 'rgba(32, 221, 187, 0.3)'
-                              }}
-                              whileTap={{ scale: 0.9 }}
-                              className="text-xl md:text-2xl p-1.5 hover:bg-gradient-to-r from-[#20DDBB]/30 to-[#20DDBB]/20 rounded-full transition-all shadow-sm hover:shadow-[#20DDBB]/20"
-                            >
-                              {emoji}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-
                 <div className="flex items-center">
                   <div className="flex-shrink-0 mr-3">
                     <motion.div 
@@ -867,9 +911,25 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                       type="text"
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Add your musical thoughts..."
-                      className="w-full bg-white/5 text-white placeholder-gray-500 rounded-full py-2 px-4 pr-16 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] border border-white/10 transition-all duration-300 hover:border-white/20 focus:border-[#20DDBB]/50"
+                      placeholder="Поделитесь своими музыкальными мыслями..."
+                      className="w-full bg-white/5 text-white placeholder-gray-500 rounded-full py-2 px-4 pr-24 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] border border-white/10 transition-all duration-300 hover:border-white/20 focus:border-[#20DDBB]/50"
                     />
+                    
+                    {/* Emoji button - Добавляем кнопку эмодзи в поле ввода */}
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`absolute right-12 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full transition-all ${
+                        showEmojiPicker 
+                          ? 'bg-[#20DDBB]/30 text-[#20DDBB]' 
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <FaceSmileIcon className="h-5 w-5" />
+                    </motion.button>
+                    
                     {/* Submit button */}
                     <motion.button
                       type="submit"
@@ -899,6 +959,57 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                     </motion.button>
                   </div>
                 </div>
+                
+                {/* Emoji Picker Panel - Новая панель эмодзи */}
+                <AnimatePresence>
+                  {showEmojiPicker && (
+                    <motion.div 
+                      ref={emojiPickerRef}
+                      initial={{ opacity: 0, y: 10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: 10, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-2 p-3 bg-gradient-to-r from-[#1E1A36]/90 to-[#2A2151]/90 rounded-xl border border-white/10 shadow-xl relative z-20"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-xs text-gray-300 font-medium">Выберите эмодзи</p>
+                        <motion.button
+                          type="button"
+                          onClick={() => setShowEmojiPicker(false)}
+                          className="p-1 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </motion.button>
+                      </div>
+                      
+                      <div className="grid grid-cols-8 gap-2 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#20DDBB]/20">
+                        {[
+                          '🎵', '🎶', '🎸', '🥁', '🎤', '🎧', '🎷', '🎹', 
+                          '🎺', '🎻', '🔥', '🤩', '❤️', '👏', '🙌', '💯', 
+                          '🕺', '💃', '🎼', '🎙️', '😊', '😍', '🥳', '🔊',
+                          '⭐', '✨', '🌟', '💫', '💥', '💪', '👍', '🤘',
+                          '💖', '🎊', '🎉', '🚀', '💨', '🌈', '🧡', '💛'
+                        ].map((emoji) => (
+                          <motion.button
+                            key={`picker-${emoji}`}
+                            type="button"
+                            onClick={() => handleAddEmoji(emoji)}
+                            whileHover={{ 
+                              scale: 1.2, 
+                              backgroundColor: 'rgba(32, 221, 187, 0.3)'
+                            }}
+                            whileTap={{ scale: 0.9 }}
+                            className="text-xl md:text-2xl p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                          >
+                            {emoji}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </form>
             </div>
           </motion.div>
