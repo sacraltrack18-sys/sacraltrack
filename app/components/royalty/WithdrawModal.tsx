@@ -339,256 +339,179 @@ export default function WithdrawModal({
 
   // Render the withdrawal form based on the selected method
   const renderWithdrawalForm = () => {
-    switch (method) {
-      case 'bank_transfer':
-        return (
-          <>
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="holderName" className="block text-sm font-medium text-white mb-1">
-                Account Holder Name
-              </label>
-              <input
-                id="holderName"
-                type="text"
-                value={details.holderName}
-                onChange={(e) => setDetails({ ...details, holderName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="John Smith"
-              />
-              {fieldErrors.holderName && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.holderName}</p>
-              )}
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="bankName" className="block text-sm font-medium text-white mb-1">
-                Bank Name
-              </label>
-              <input
-                id="bankName"
-                type="text"
-                value={details.bankName}
-                onChange={(e) => setDetails({ ...details, bankName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="Enter bank name"
-              />
-              {fieldErrors.bankName && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.bankName}</p>
-              )}
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="accountNumber" className="block text-sm font-medium text-white mb-1">
-                Account Number
-              </label>
-              <input
-                id="accountNumber"
-                type="text"
-                value={details.accountNumber}
-                onChange={(e) => setDetails({ ...details, accountNumber: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="Enter account number"
-              />
-              {fieldErrors.accountNumber && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.accountNumber}</p>
-              )}
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="swiftBic" className="block text-sm font-medium text-white mb-1">
-                SWIFT/BIC Code
-              </label>
-              <input
-                id="swiftBic"
-                type="text"
-                value={details.swiftBic}
-                onChange={(e) => setDetails({ ...details, swiftBic: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="Enter SWIFT/BIC code"
-              />
-              {fieldErrors.swiftBic && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.swiftBic}</p>
-              )}
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="accountIban" className="block text-sm font-medium text-white mb-1">
-                IBAN (Optional)
-              </label>
-              <input
-                id="accountIban"
-                type="text"
-                value={details.accountIban}
-                onChange={(e) => setDetails({ ...details, accountIban: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="Enter IBAN (if applicable)"
-              />
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="routingNumber" className="block text-sm font-medium text-white mb-1">
-                Routing Number (Optional)
-              </label>
-              <input
-                id="routingNumber"
-                type="text"
-                value={details.routingNumber}
-                onChange={(e) => setDetails({ ...details, routingNumber: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="Enter routing number"
-              />
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="bankAddress" className="block text-sm font-medium text-white mb-1">
-                Bank Address (Optional)
-              </label>
-              <textarea
-                id="bankAddress"
-                value={details.bankAddress}
-                onChange={(e) => setDetails({ ...details, bankAddress: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent h-20 resize-none"
-                placeholder="Enter bank address"
-              />
-            </motion.div>
-          </>
-        );
-      case 'paypal':
-        return (
-          <motion.div variants={formItemVariants} className="mb-4">
-            <label htmlFor="paypalEmail" className="block text-sm font-medium text-white mb-1">
-              PayPal Email
-            </label>
-            <input
-              id="paypalEmail"
-              type="email"
-              value={details.email}
-              onChange={(e) => setDetails({ ...details, email: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-              placeholder="your-email@example.com"
+    return (
+      <motion.form
+        onSubmit={handleSubmit}
+        className="text-gray-100 space-y-5"
+        variants={staggeredFormVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Секция выбора метода */}
+        <motion.div variants={formItemVariants} className="mb-6">
+          <div className="mb-2 flex justify-between items-center">
+            <label className="text-sm font-medium text-gray-300">Withdrawal Method</label>
+            <FaInfoCircle
+              className="text-[#20DDBB] text-sm cursor-help"
+              data-tooltip-id="method-tooltip"
+              data-tooltip-content="Choose your preferred method to withdraw your royalty earnings"
             />
-            {fieldErrors.email && (
-              <p className="text-red-400 text-xs mt-1">{fieldErrors.email}</p>
-            )}
-          </motion.div>
-        );
-      case 'card':
-        return (
-          <>
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="cardholderName" className="block text-sm font-medium text-white mb-1">
-                Cardholder Name
-              </label>
-              <input
-                id="cardholderName"
-                type="text"
-                value={details.holderName}
-                onChange={(e) => setDetails({ ...details, holderName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="John Smith"
-              />
-              {fieldErrors.holderName && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.holderName}</p>
-              )}
-            </motion.div>
-
-            <motion.div variants={formItemVariants} className="mb-4">
-              <label htmlFor="cardNumber" className="block text-sm font-medium text-white mb-1">
-                Card Number
-              </label>
-              <input
-                id="cardNumber"
-                type="text"
-                value={details.cardNumber}
-                onChange={(e) => {
-                  // Format card number with spaces for readability
-                  const value = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
-                  const formatted = value.replace(/(.{4})/g, '$1 ').trim();
-                  setDetails({ ...details, cardNumber: formatted });
-                }}
-                maxLength={19} // 16 digits + 3 spaces
-                className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                placeholder="1234 5678 9012 3456"
-              />
-              {fieldErrors.cardNumber && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.cardNumber}</p>
-              )}
-            </motion.div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <motion.div variants={formItemVariants}>
-                <label htmlFor="cardExpiry" className="block text-sm font-medium text-white mb-1">
-                  Expiry Date
-                </label>
+          </div>
+          
+          <div className="flex gap-3">
+            {withdrawalMethods.map((withdrawMethod) => (
+              <div key={withdrawMethod.id} className="flex-1">
                 <input
-                  id="cardExpiry"
-                  type="text"
-                  value={details.cardExpiry}
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\D/g, '');
-                    if (value.length > 4) value = value.slice(0, 4);
-                    
-                    if (value.length > 2) {
-                      value = `${value.slice(0, 2)}/${value.slice(2)}`;
+                  type="radio"
+                  id={`method-${withdrawMethod.id}`}
+                  className="hidden peer"
+                  checked={withdrawMethod.id === method}
+                  onChange={() => setMethod(withdrawMethod.id)}
+                />
+                <label
+                  htmlFor={`method-${withdrawMethod.id}`}
+                  data-tooltip-id={`${withdrawMethod.id}-tooltip`}
+                  data-tooltip-content={withdrawMethod.tooltip}
+                  onClick={() => setMethod(withdrawMethod.id)}
+                  className={`
+                    flex flex-col items-center justify-center py-4 px-2 rounded-lg cursor-pointer border transition-all duration-200
+                    ${withdrawMethod.id === method 
+                      ? 'bg-gradient-to-br from-[#20DDBB]/10 to-[#1f2942] border-[#20DDBB]/30 shadow-lg shadow-[#20DDBB]/5' 
+                      : 'bg-[#1f2942]/60 border-white/5 hover:bg-[#1f2942]/80 hover:border-[#20DDBB]/10'
                     }
-                    
-                    setDetails({ ...details, cardExpiry: value });
-                  }}
-                  maxLength={5} // MM/YY
-                  className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                  placeholder="MM/YY"
-                />
-                {fieldErrors.cardExpiry && (
-                  <p className="text-red-400 text-xs mt-1">{fieldErrors.cardExpiry}</p>
-                )}
-              </motion.div>
-
-              <motion.div variants={formItemVariants}>
-                <label htmlFor="cardCVV" className="block text-sm font-medium text-white mb-1">
-                  CVV
+                  `}
+                >
+                  <div className={`p-2.5 rounded-full mb-2 ${
+                    withdrawMethod.id === method 
+                      ? 'bg-[#20DDBB]/15 text-[#20DDBB]' 
+                      : 'bg-[#1A2338]/60 text-gray-400'
+                  }`}>
+                    {withdrawMethod.icon}
+                  </div>
+                  <span className={`text-sm font-medium ${
+                    withdrawMethod.id === method ? 'text-[#20DDBB]' : 'text-gray-300'
+                  }`}>
+                    {withdrawMethod.name}
+                  </span>
                 </label>
-                <input
-                  id="cardCVV"
-                  type="text"
-                  value={details.cardCVV}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    setDetails({ ...details, cardCVV: value });
-                  }}
-                  maxLength={4}
-                  className="w-full px-3 py-2 rounded-lg bg-[#1A2338]/80 border border-[#3f2d63]/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent"
-                  placeholder="123"
-                />
-                {fieldErrors.cardCVV && (
-                  <p className="text-red-400 text-xs mt-1">{fieldErrors.cardCVV}</p>
-                )}
-              </motion.div>
+                <Tooltip id={`${withdrawMethod.id}-tooltip`} />
+              </div>
+            ))}
+          </div>
+        </motion.div>
+        
+        {/* Поле ввода суммы */}
+        <motion.div variants={formItemVariants} className="mb-6">
+          <div className="mb-2 flex justify-between items-center">
+            <label className="text-sm font-medium text-gray-300">
+              Amount (USD)
+            </label>
+            <div className="flex items-center gap-1">
+              <FaMoneyBillWave className="text-[#20DDBB] text-sm" />
+              <span className="text-[#20DDBB] text-sm font-medium">
+                Available: ${availableBalance?.toFixed(2) || '0.00'}
+              </span>
             </div>
-          </>
-        );
-      default:
-        return null;
-    }
+          </div>
+          
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+              <FaMoneyBillWave className="text-gray-400" />
+            </div>
+            <input
+              type="number"
+              step="0.01"
+              className={`bg-[#1f2942]/80 border ${
+                amountError ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+              } text-white py-3 px-10 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              placeholder="0.00"
+              value={amount}
+              onChange={handleAmountChange}
+              onBlur={() => {
+                if (amount && !amountError) {
+                  setAmount(parseFloat(amount).toFixed(2));
+                }
+              }}
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none">
+              <span className="text-gray-400 font-medium">USD</span>
+            </div>
+          </div>
+          
+          {amountError && (
+            <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+              <FaInfoCircle /> {amountError}
+            </p>
+          )}
+        </motion.div>
+
+        {/* ... вставка полей ввода в зависимости от выбранного метода ... */}
+
+        {/* Кнопка отправки */}
+        <motion.div variants={formItemVariants} className="pt-4">
+          <button
+            type="submit"
+            disabled={isSubmitting || !!amountError}
+            className={`
+              w-full flex items-center justify-center gap-2 py-3 px-6 rounded-lg text-white font-medium
+              transition-all duration-200
+              ${isSubmitting || !!amountError
+                ? 'bg-gray-600/50 cursor-not-allowed opacity-70'
+                : 'bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 hover:shadow-lg hover:shadow-[#20DDBB]/20'
+              }
+            `}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Processing...</span>
+              </>
+            ) : (
+              <>
+                <span>Request Withdrawal</span>
+                <FaArrowRight />
+              </>
+            )}
+          </button>
+        </motion.div>
+      </motion.form>
+    );
   };
 
   // Render the success state after withdrawal is completed
   const renderSuccessState = () => (
-    <motion.div 
-      className="text-center p-6" 
-      initial={{ opacity: 0 }} 
+    <motion.div
+      className="text-center py-8"
+      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ delay: 0.3 }}
     >
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-        <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
+      <div className="mb-6 inline-flex p-5 rounded-full bg-[#20DDBB]/10 text-[#20DDBB]">
+        <FaWallet className="w-12 h-12" />
       </div>
-      <h3 className="text-xl font-bold text-white mb-2">Withdrawal Successful!</h3>
-      <p className="text-[#9BA3BF] text-sm mb-6">
-        Your withdrawal request for ${amount} has been successfully submitted. 
-        Please allow 1-3 business days for processing.
+      
+      <h3 className="text-xl font-bold text-white mb-2">Withdrawal Requested</h3>
+      <p className="text-gray-400 mb-6 max-w-xs mx-auto">
+        Your withdrawal request has been submitted successfully and is now being processed.
       </p>
+      
+      <div className="mb-6 px-6 py-5 rounded-lg bg-[#1f2942]/60 border border-[#20DDBB]/10 text-left">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-gray-400">Method</span>
+          <span className="text-white font-medium capitalize">{method.replace('_', ' ')}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400">Amount</span>
+          <span className="text-[#20DDBB] font-semibold">${parseFloat(amount).toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <button
+        onClick={onClose}
+        className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-lg bg-[#1f2942]/80 border border-white/10 text-white font-medium hover:bg-[#1f2942] transition-all duration-200"
+      >
+        <span>Close</span>
+      </button>
     </motion.div>
   );
 
@@ -658,134 +581,7 @@ export default function WithdrawModal({
               {operationCompleted ? (
                 renderSuccessState()
               ) : (
-                <form onSubmit={handleSubmit}>
-                  {/* Available Balance */}
-                  <div className="bg-gradient-to-r from-[#1A2338]/80 to-[#1A2338]/60 backdrop-blur-lg p-4 rounded-xl mb-6 border border-[#3f2d63]/30 shadow-inner">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-[#3f2d63]/30 flex items-center justify-center mr-2">
-                          <FaWallet className="text-[#20DDBB] text-sm" />
-                        </div>
-                        <span className="text-[#9BA3BF]">Available Balance:</span>
-                      </div>
-                      <span className="text-white font-bold text-lg bg-gradient-to-r from-[#20DDBB] to-white bg-clip-text text-transparent">${(availableBalance || 0).toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Withdrawal Amount */}
-                  <motion.div variants={formItemVariants} className="mb-6">
-                    <label htmlFor="amount" className="block text-sm font-medium text-white mb-1">
-                      Amount to Withdraw
-                </label>
-                <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-gray-400">$</span>
-                  <input
-                        id="amount"
-                    type="number"
-                    value={amount}
-                    onChange={handleAmountChange}
-                        className={`w-full px-6 py-2.5 rounded-xl bg-[#1A2338]/90 border ${
-                          amountError ? 'border-red-500' : 'border-[#3f2d63]/70'
-                        } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#583d8c] focus:border-transparent`}
-                    placeholder="0.00"
-                    step="0.01"
-                        min="0.01"
-                        max={availableBalance}
-                  />
-                  </div>
-                    {amountError && <p className="text-red-400 text-xs mt-1">{amountError}</p>}
-              </motion.div>
-
-                  {/* Withdrawal Method Selection */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-white mb-2">
-                      Withdrawal Method
-                </label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {withdrawalMethods.map((withdrawalMethod) => (
-                        <motion.button
-                          key={withdrawalMethod.id}
-                      type="button"
-                          onClick={() => setMethod(withdrawalMethod.id)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
-                            method === withdrawalMethod.id
-                              ? 'bg-gradient-to-br from-[#20DDBB]/20 via-[#4e9ab3]/20 to-[#3f2d63]/50 border border-[#20DDBB]/40 shadow-lg shadow-[#20DDBB]/10'
-                              : 'bg-[#1A2338]/80 border border-[#3f2d63]/30 hover:border-[#3f2d63]/50'
-                          }`}
-                          whileHover={{ 
-                            y: -5, 
-                            boxShadow: method === withdrawalMethod.id 
-                              ? '0 15px 30px -5px rgba(32, 221, 187, 0.3)' 
-                              : '0 10px 25px -5px rgba(0, 0, 0, 0.2)'
-                          }}
-                          whileTap={{ y: 0 }}
-                          data-tooltip-id={`tooltip-${withdrawalMethod.id}`}
-                          data-tooltip-content={withdrawalMethod.tooltip}
-                        >
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 backdrop-blur-sm ${
-                            method === withdrawalMethod.id
-                              ? 'bg-gradient-to-r from-[#20DDBB]/40 to-[#4e9ab3]/30 text-[#20DDBB] animate-glow'
-                              : 'bg-[#1A2338]/90 text-gray-400'
-                          }`}>
-                            {withdrawalMethod.icon}
-                          </div>
-                          <span className={`text-sm font-medium ${
-                            method === withdrawalMethod.id ? 'text-white' : 'text-gray-400'
-                          }`}>
-                            {withdrawalMethod.name}
-                          </span>
-                        </motion.button>
-                      ))}
-                      {withdrawalMethods.map((withdrawalMethod) => (
-                        <Tooltip key={withdrawalMethod.id} id={`tooltip-${withdrawalMethod.id}`} />
-                  ))}
-                </div>
-                  </div>
-
-                  {/* Dynamic Form Fields Based on Selected Method */}
-              <motion.div 
-                    variants={staggeredFormVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {renderWithdrawalForm()}
-              </motion.div>
-              
-                  {/* Submit Button */}
-                  <motion.div variants={formItemVariants} className="flex justify-end mt-6">
-                <button
-                  type="submit"
-                      disabled={isSubmitting || !amount || Number(amount) <= 0 || Number(amount) > (availableBalance || 0)}
-                      className={`rounded-full bg-gradient-to-r from-[#20DDBB]/90 via-[#4e9ab3] to-[#3f2d63]/90 px-6 py-3.5 text-white 
-                        font-medium flex items-center gap-2 transition-all border border-[#20DDBB]/30 backdrop-blur-lg
-                        shadow-xl animate-gradient relative overflow-hidden group ${
-                        isSubmitting || !amount || Number(amount) <= 0 || Number(amount) > (availableBalance || 0)
-                          ? 'opacity-60 cursor-not-allowed'
-                          : 'hover:shadow-[0_0_30px_rgba(32,221,187,0.5)] hover:scale-105'
-                      }`}
-                    >
-                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 
-                        group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-500"></span>
-                      
-                      <div className="flex items-center relative z-10">
-                  {isSubmitting ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                          </>
-                  ) : (
-                          <>
-                            Withdraw ${amount || '0.00'}
-                            <FaArrowRight className="text-sm ml-1 animate-floatY" />
-                          </>
-                  )}
-                      </div>
-                    </button>
-              </motion.div>
-                </form>
+                renderWithdrawalForm()
               )}
             </div>
           </motion.div>

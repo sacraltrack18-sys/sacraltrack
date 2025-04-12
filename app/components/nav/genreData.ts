@@ -48,7 +48,6 @@ export const genres: Genre[] = [
   { id: "genre-35", name: "Dubstep" },
   { id: "genre-36", name: "Riddim" },
   { id: "genre-37", name: "Melodic Dubstep" },
-  { id: "genre-38", name: "Bass House" },
   { id: "genre-39", name: "Future Bass" },
   { id: "genre-40", name: "Trap" },
   { id: "genre-41", name: "Bass / Club" },
@@ -86,7 +85,6 @@ export const genres: Genre[] = [
   { id: "genre-63", name: "Ethnic" },
   
   // Afro
-  { id: "genre-64", name: "Afro House" },
   { id: "genre-65", name: "Afro Tech" },
   { id: "genre-66", name: "Afro Pop" },
   { id: "genre-67", name: "Afro / Tribal" },
@@ -94,14 +92,21 @@ export const genres: Genre[] = [
   // Minimal / Deep Tech
   { id: "genre-68", name: "Minimal" },
   { id: "genre-69", name: "Deep Tech" },
-  { id: "genre-70", name: "Minimal / Deep Tech" },
-  { id: "genre-71", name: "Deep House" },
-  { id: "genre-72", name: "Tech House" },
-  
-  // Melodic House & Techno
-  { id: "genre-73", name: "Melodic House & Techno" },
-  { id: "genre-74", name: "Progressive House" },
-  { id: "genre-75", name: "Melodic Techno" },
-  { id: "genre-76", name: "Deep House" },
-  { id: "genre-77", name: "Tech House" }
-]; 
+  { id: "genre-78", name: "Lo-Fi" },
+  { id: "genre-79", name: "House" }
+];
+
+// Функция для удаления дублирующихся жанров
+const removeDuplicateGenres = (): Genre[] => {
+  const seenNames = new Set<string>();
+  return genres.filter(genre => {
+    if (seenNames.has(genre.name.toLowerCase())) {
+      return false; // Пропускаем дублирующиеся жанры
+    }
+    seenNames.add(genre.name.toLowerCase());
+    return true;
+  });
+};
+
+// Экспортируем массив уникальных жанров
+export const uniqueGenres = removeDuplicateGenres(); 

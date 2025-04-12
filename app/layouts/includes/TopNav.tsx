@@ -20,6 +20,7 @@ import React from 'react'
 import toast from "react-hot-toast"
 import useNotifications, { Notification } from "@/app/hooks/useNotifications"
 import { TutorialStep } from "@/app/components/TutorialGuide"
+import { MusicalNoteIcon } from "@heroicons/react/24/outline"
 
 // Import the smaller components
 import GenreSelector from "@/app/components/nav/GenreSelector"
@@ -238,189 +239,8 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
             };
 
      /* Genres */
-    const [showGenresPopup, setShowGenresPopup] = useState(false);
+    // Оставляем только selectedGenre, так как логика выбора жанров перенесена в GenreSelector
     const { setSelectedGenre, selectedGenre } = useContext(GenreContext);
-
-    const handleGenresClick = () => {
-        setShowGenresPopup(!showGenresPopup);
-    };
-    
-
-    const handleGenreSelect = (genreName: string) => {
-        const normalizedGenre = genreName.toLowerCase();
-        setSelectedGenre(normalizedGenre);
-        setShowGenresPopup(false);
-        
-        // Show toast notification
-        toast.custom((t) => (
-            <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.3 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                className={`${
-                    t.visible ? 'animate-enter' : 'animate-leave'
-                } max-w-md w-full bg-[#24183D]/90 backdrop-blur-xl shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
-            >
-                <div className="flex-1 w-0 p-4">
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0 pt-0.5">
-                            <div className="w-10 h-10 rounded-full bg-[#20DDBB]/20 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-3 flex-1">
-                            <p className="text-sm font-medium text-white">
-                                Genre selected
-                            </p>
-                            <button 
-                                onClick={() => {
-                                    toast.dismiss(t.id);
-                                    setShowGenresPopup(true);
-                                }}
-                                className="mt-1 text-sm relative group cursor-pointer"
-                            >
-                                <span className="text-[#20DDBB] group-hover:text-white transition-colors duration-200">
-                                    {genreName}
-                                </span>
-                                <span className="absolute -bottom-0.5 left-0 w-0 h-[1px] bg-white 
-                                      group-hover:w-full transition-all duration-300"></span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex border-l border-white/10">
-                    <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="w-10 h-full flex items-center justify-center rounded-r-lg 
-                                 text-white hover:text-[#20DDBB] transition-colors duration-150"
-                    >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                            <path 
-                                fill="none" 
-                                stroke="currentColor" 
-                                strokeWidth="2" 
-                                strokeLinecap="round" 
-                                d="M6 18L18 6M6 6l12 12">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
-            </motion.div>
-        ), {
-            duration: 3000,
-            position: 'top-center',
-        });
-    };
-
-      const genres: Genre[] = [
-        { id: "genre-all", name: "All" },
-        // Our unique genres
-        { id: "genre-1", name: "Instrumental" },
-        { id: "genre-2", name: "K-pop" },
-        { id: "genre-3", name: "Meditative" },
-        { id: "genre-4", name: "Acapella" },
-        { id: "genre-5", name: "Ai" },
-        { id: "genre-6", name: "Films" },
-        { id: "genre-7", name: "Games" },
-        { id: "genre-8", name: "Jazz" },
-        { id: "genre-9", name: "Street music" },
-        { id: "genre-10", name: "Poetry" },
-        { id: "genre-11", name: "Rap" },
-        
-        // House
-        { id: "genre-12", name: "Deep House" },
-        { id: "genre-13", name: "Tech House" },
-        { id: "genre-14", name: "Progressive House" },
-        { id: "genre-15", name: "Melodic House & Techno" },
-        { id: "genre-16", name: "Future House" },
-        { id: "genre-17", name: "Bass House" },
-        { id: "genre-18", name: "Afro House" },
-        
-        // Techno
-        { id: "genre-19", name: "Peak Time / Driving Techno" },
-        { id: "genre-20", name: "Melodic Techno" },
-        { id: "genre-21", name: "Deep Techno" },
-        { id: "genre-22", name: "Minimal / Deep Tech" },
-        { id: "genre-23", name: "Deep / Hypnotic Techno" },
-        { id: "genre-24", name: "Techno" },
-        { id: "genre-25", name: "Techno (Peak Time / Driving)" },
-        { id: "genre-26", name: "Techno (Melodic)" },
-        
-        // Trance
-        { id: "genre-27", name: "Uplifting Trance" },
-        { id: "genre-28", name: "Psy-Trance" },
-        { id: "genre-29", name: "Tech-Trance" },
-        { id: "genre-30", name: "Progressive Trance" },
-        { id: "genre-31", name: "Vocal Trance" },
-        { id: "genre-32", name: "Hard Trance" },
-        { id: "genre-33", name: "Trance (Main Floor)" },
-        { id: "genre-34", name: "Trance (Deep / Hypnotic)" },
-        
-        // Dubstep / Bass
-        { id: "genre-35", name: "Dubstep" },
-        { id: "genre-36", name: "Riddim" },
-        { id: "genre-37", name: "Melodic Dubstep" },
-        { id: "genre-38", name: "Bass House" },
-        { id: "genre-39", name: "Future Bass" },
-        { id: "genre-40", name: "Trap" },
-        { id: "genre-41", name: "Bass / Club" },
-        { id: "genre-42", name: "Bass Music" },
-        { id: "genre-43", name: "UK Garage / Bassline" },
-        
-        // Breaks
-        { id: "genre-44", name: "Breaks" },
-        { id: "genre-45", name: "Breakbeat" },
-        { id: "genre-46", name: "Breakbeat / UK Bass" },
-        { id: "genre-47", name: "Electro (Classic / Detroit / Modern)" },
-        
-        // Hard Dance
-        { id: "genre-48", name: "Hardcore / Hard Techno" },
-        { id: "genre-49", name: "Hardstyle / Hardcore" },
-        
-        // Indie Dance / Nu Disco
-        { id: "genre-50", name: "Indie Dance" },
-        { id: "genre-51", name: "Nu Disco" },
-        { id: "genre-52", name: "Disco" },
-        { id: "genre-53", name: "Indie Dance / Nu Disco" },
-        { id: "genre-54", name: "Disco / Nu Disco" },
-        
-        // Electronica / Downtempo
-        { id: "genre-55", name: "Electronica" },
-        { id: "genre-56", name: "Downtempo" },
-        { id: "genre-57", name: "IDM" },
-        { id: "genre-58", name: "Leftfield" },
-        { id: "genre-59", name: "Ambient" },
-        { id: "genre-60", name: "Chillout" },
-        { id: "genre-61", name: "Trip Hop" },
-        { id: "genre-62", name: "Experimental" },
-        
-        // Ethnic
-        { id: "genre-63", name: "Ethnic" },
-        
-        // Afro
-        { id: "genre-64", name: "Afro House" },
-        { id: "genre-65", name: "Afro Tech" },
-        { id: "genre-66", name: "Afro Pop" },
-        { id: "genre-67", name: "Afro / Tribal" },
-        
-        // Minimal / Deep Tech
-        { id: "genre-68", name: "Minimal" },
-        { id: "genre-69", name: "Deep Tech" },
-        { id: "genre-70", name: "Minimal / Deep Tech" },
-        { id: "genre-71", name: "Deep House" },
-        { id: "genre-72", name: "Tech House" },
-        
-        // Melodic House & Techno
-        { id: "genre-73", name: "Melodic House & Techno" },
-        { id: "genre-74", name: "Progressive House" },
-        { id: "genre-75", name: "Melodic Techno" },
-        { id: "genre-76", name: "Deep House" },
-        { id: "genre-77", name: "Tech House" }
-      ];
-      
-  
 
     // Add new state for tutorial with localStorage handling on component mount only
     const [hasSeenTutorial, setHasSeenTutorial] = useState<boolean>(false);
@@ -519,7 +339,32 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                     
                     {/* Genres - Only visible on home page */}
                     <div className="flex items-center">
+                        {/* Используем компонент GenreSelector вместо ручной кнопки */}
                         <GenreSelector isHomePage={isHomePage} />
+                        
+                        {/* Кнопка сброса жанров */}
+                        {selectedGenre !== 'all' && (
+                            <button
+                                className="ml-2 md:ml-4 text-[13px] flex items-center px-2.5 py-1 rounded-full bg-[#20DDBB]/20 text-[#20DDBB] hover:bg-[#20DDBB]/30 transition-all duration-150"
+                                onClick={() => {
+                                    setSelectedGenre('all');
+                                    toast.success("Showing all genres", {
+                                        icon: "🎵",
+                                        style: {
+                                            backgroundColor: '#24183D',
+                                            color: '#fff',
+                                            border: '1px solid rgba(255,255,255,0.1)'
+                                        }
+                                    });
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3 h-3 mr-1">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span className="hidden md:inline">All Genres</span>
+                                <span className="inline md:hidden">Reset</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Search Bar - Only visible on home page */}
@@ -535,7 +380,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
                         {/* Notification Bell */}
                         <NotificationBell />
-
+                        
                         {/* Profile Section */}
                         <ProfileMenu />
                     </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Client, Databases } from 'appwrite';
-import { APPWRITE_CONFIG } from '@/app/config/appwrite';
+import { database } from '@/libs/AppWriteClient';
+import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 
 export interface TrackStatistics {
   plays_count: number;
@@ -39,14 +39,8 @@ const useTrackStatistics = (trackId: string) => {
         setIsLoading(true);
         setError(null);
 
-        const client = new Client()
-          .setEndpoint(APPWRITE_CONFIG.endpoint)
-          .setProject(APPWRITE_CONFIG.projectId);
-        
-        const databases = new Databases(client);
-
         // Fetch track statistics
-        const statsDoc = await databases.getDocument(
+        const statsDoc = await database.getDocument(
           APPWRITE_CONFIG.databaseId,
           APPWRITE_CONFIG.statisticsCollectionId,
           trackId
@@ -58,14 +52,14 @@ const useTrackStatistics = (trackId: string) => {
 
         let analyticsDoc;
         try {
-          analyticsDoc = await databases.getDocument(
+          analyticsDoc = await database.getDocument(
             APPWRITE_CONFIG.databaseId,
             APPWRITE_CONFIG.analyticsCollectionId,
             analyticsId
           );
         } catch (error) {
           // If no analytics exist for today, create a new document
-          analyticsDoc = await databases.createDocument(
+          analyticsDoc = await database.createDocument(
             APPWRITE_CONFIG.databaseId,
             APPWRITE_CONFIG.analyticsCollectionId,
             analyticsId,

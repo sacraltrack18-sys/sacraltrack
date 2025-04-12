@@ -1,30 +1,121 @@
 "use client";
 
-import React from "react";
-import { ArrowTrendingUpIcon } from "@heroicons/react/24/outline";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { BsVinyl } from "react-icons/bs";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
-import { useRouter } from "next/navigation";
 
 const ReleaseButton = () => {
+  const router = useRouter();
   const userContext = useUser();
   const { setIsLoginOpen } = useGeneralStore();
-  const router = useRouter();
-  
-  const handleRelease = () => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClick = () => {
     if (!userContext?.user) return setIsLoginOpen(true);
-    router.push('/upload');
+    router.push("/upload");
   };
-  
+
+  const baseButtonClass = "relative flex h-10 items-center justify-center rounded-full md:rounded-2xl px-3 md:px-4 group transition-all duration-300 mr-4 cursor-pointer";
+  const baseIconClass = "z-10 flex h-5 w-5 items-center justify-center";
+  const baseVinylClass = "h-5 w-5 text-blue-400 group-hover:text-indigo-400 transition-all duration-500";
+
   return (
-    <button 
+    <motion.button
+      onClick={handleClick}
+      className={baseButtonClass}
+      whileHover={{ 
+        scale: 1.05,
+        boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)"
+      }}
+      whileTap={{ scale: 0.95 }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
       id="release-button"
-      onClick={handleRelease}
-      className="flex items-center rounded-2xl py-[6px] px-2 md:px-[15px] transition-transform hover:scale-105 active:scale-95"
     >
-      <ArrowTrendingUpIcon className="w-[24px] h-[24px] text-green-400" />
-      <span className="ml-2 font-medium text-[13px] hidden md:inline">RELEASE</span>
-    </button>
+      <motion.div 
+        className="absolute inset-0 rounded-full md:rounded-2xl"
+        style={{
+          background: isHovered 
+            ? "linear-gradient(90deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.3))" 
+            : "linear-gradient(90deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))"
+        }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      <motion.div 
+        className="absolute inset-0 rounded-full md:rounded-2xl border"
+        style={{
+          borderColor: isHovered 
+            ? "rgba(59, 130, 246, 0.6)" 
+            : "rgba(59, 130, 246, 0.3)"
+        }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      <div className={baseIconClass}>
+        <motion.div
+          animate={{ 
+            rotate: isHovered ? 360 : 0,
+            scale: isHovered ? 1.2 : 1
+          }}
+          transition={{ 
+            rotate: { duration: 0.8, ease: "easeInOut" },
+            scale: { duration: 0.3 }
+          }}
+        >
+          <BsVinyl className={baseVinylClass} />
+        </motion.div>
+      </div>
+      
+      <motion.span 
+        className="ml-1.5 text-white font-semibold text-sm tracking-wider"
+        animate={{
+          x: isHovered ? 2 : 0,
+          color: isHovered ? "#93c5fd" : "#ffffff"
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        Release
+      </motion.span>
+      
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute w-8 h-8 rounded-full border-2 border-blue-500/30"
+              animate={{
+                rotate: 360,
+                scale: [1, 1.2, 1],
+              }}
+              transition={{
+                rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+                scale: { duration: 1, repeat: Infinity, ease: "easeInOut" }
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            className="absolute inset-0 rounded-full md:rounded-2xl border border-blue-500/50"
+            initial={{ opacity: 0.8, scale: 1 }}
+            animate={{ opacity: 0, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 };
 

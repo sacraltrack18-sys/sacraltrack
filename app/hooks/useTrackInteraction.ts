@@ -1,7 +1,7 @@
 "use client";
 
-import { Client, Databases, ID } from 'appwrite';
-import { APPWRITE_CONFIG } from '@/app/config/appwrite';
+import { database, ID } from '@/libs/AppWriteClient';
+import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 
 interface InteractionData {
   track_id: string;
@@ -24,16 +24,10 @@ interface InteractionData {
 }
 
 const useTrackInteraction = () => {
-  const client = new Client()
-    .setEndpoint(APPWRITE_CONFIG.endpoint)
-    .setProject(APPWRITE_CONFIG.projectId);
-  
-  const databases = new Databases(client);
-
   const recordInteraction = async (data: InteractionData) => {
     try {
       // Record the interaction
-      await databases.createDocument(
+      await database.createDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.interactionsCollectionId,
         ID.unique(),
@@ -45,13 +39,13 @@ const useTrackInteraction = () => {
 
       // Update track statistics
       const statsKey = `${data.interaction_type}s_count`;
-      const currentStats = await databases.getDocument(
+      const currentStats = await database.getDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.statisticsCollectionId,
         data.track_id
       );
 
-      await databases.updateDocument(
+      await database.updateDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.statisticsCollectionId,
         data.track_id,
@@ -65,14 +59,14 @@ const useTrackInteraction = () => {
       const analyticsId = `${data.track_id}_${today}`;
 
       try {
-        const currentAnalytics = await databases.getDocument(
+        const currentAnalytics = await database.getDocument(
           APPWRITE_CONFIG.databaseId,
           APPWRITE_CONFIG.analyticsCollectionId,
           analyticsId
         );
 
         // Update existing analytics document
-        await databases.updateDocument(
+        await database.updateDocument(
           APPWRITE_CONFIG.databaseId,
           APPWRITE_CONFIG.analyticsCollectionId,
           analyticsId,
@@ -98,7 +92,7 @@ const useTrackInteraction = () => {
         );
       } catch (error) {
         // If document doesn't exist, create new one
-        await databases.createDocument(
+        await database.createDocument(
           APPWRITE_CONFIG.databaseId,
           APPWRITE_CONFIG.analyticsCollectionId,
           analyticsId,

@@ -2,11 +2,25 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import {
+  ArrowRightOnRectangleIcon,
+  CogIcon,
+  MegaphoneIcon,
+  MusicalNoteIcon,
+  ChevronDownIcon,
+  DocumentTextIcon,
+  UserGroupIcon
+} from '@heroicons/react/24/outline';
+import { PlusCircleIcon } from '@heroicons/react/24/solid';
+import Image from 'next/image';
+import { getProfileImageUrl } from '@/app/utils/imageUtils';
 
 const ProfileMenu = () => {
   const userContext = useUser();
@@ -14,6 +28,7 @@ const ProfileMenu = () => {
   const { setIsLoginOpen } = useGeneralStore();
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
 
   // Handle click outside menu
   useEffect(() => {
@@ -30,19 +45,6 @@ const ProfileMenu = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
-
-  // Helper function for profile image URL with error handling
-  const getProfileImageUrl = (imageId: string) => {
-    if (!imageId || imageId.trim() === '') {
-      return '/images/placeholders/user-placeholder.svg';
-    }
-    try {
-      return createBucketUrl(imageId, 'user');
-    } catch (error) {
-      console.error('Error in getProfileImageUrl:', error);
-      return '/images/placeholders/user-placeholder.svg';
-    }
-  };
 
   if (!userContext?.user?.id) {
     return (
@@ -152,9 +154,151 @@ const ProfileMenu = () => {
                 </Link>
               </div>
 
-              <MenuItems setShowMenu={setShowMenu} logout={userContext?.logout} />
+              <div className="px-3 py-2">
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    toast.success('Messages feature is under development and will be available soon. Thank you for using Sacral Track!', {
+                      duration: 5000,
+                      style: {
+                        background: '#333',
+                        color: '#fff',
+                        borderRadius: '10px',
+                      },
+                      icon: '💬',
+                    });
+                  }}
+                  className="w-full flex items-center gap-4 p-3 text-white/90 
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-[#20DDBB]/5 text-left"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
+                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" 
+                            className="stroke-current" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">Messages</span>
+                    <span className="text-[10px] text-white/50 italic">under construction</span>
+                  </div>
+                </button>
 
-              <div className="px-6 pt-3 mt-2 border-t border-white/10">
+                <Link 
+                  href="/royalty"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    router.push("/royalty");
+                  }}
+                  className="flex items-center gap-4 p-3 text-white/90 
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-[#20DDBB]/5"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
+                            className="stroke-current" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </div>
+                  <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">Royalty</span>
+                </Link>
+
+                <Link 
+                  href="/people"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    router.push("/people");
+                  }}
+                  className="flex items-center gap-4 p-3 text-white/90
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-[#20DDBB]/5"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
+                      <path d="M16 3.23c2.51 2.48 2.51 6.5 0 9-2.51 2.48-6.57 2.48-9.08 0-2.51-2.48-2.51-6.5 0-9 2.51-2.48 6.57-2.48 9.08 0z"
+                            className="stroke-current" strokeWidth="1.5" fill="none"/>
+                      <path d="M17.82 21c0-3.47-2.85-6.29-6.36-6.29S5.1 17.53 5.1 21"
+                            className="stroke-current" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </div>
+                  <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">People</span>
+                </Link>
+
+                <Link 
+                  href="/news"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    router.push("/news");
+                  }}
+                  className="flex items-center gap-4 p-3 text-white/90
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-[#20DDBB]/5"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
+                      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"
+                            className="stroke-current" strokeWidth="1.5" fill="none" 
+                            strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">News</span>
+                </Link>
+
+                {/* Support Button - Neutral Color */}
+                <a 
+                  href="http://t.me/sashaplayra"
+                  target="_blank"
+                  onClick={() => setShowMenu(false)}
+                  className="w-full flex items-center gap-4 p-3 text-white/90
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-gray-500/10"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z" fill="#2AABEE"/>
+                      <path d="M9.80675 17.7853C9.49369 17.7853 9.52478 17.6733 9.40048 17.3752L8.23096 13.5159L17.1379 8.1793" fill="#2AABEE"/>
+                      <path d="M9.80673 17.7852C10.0467 17.7852 10.1561 17.6704 10.2976 17.5339L12 15.8946L10.0383 14.7751" fill="#2AABEE"/>
+                      <path d="M10.0383 14.7756L14.8482 18.2959C15.2967 18.5402 15.6235 18.4132 15.7317 17.7857L17.6635 8.36579C17.8227 7.59892 17.3919 7.29651 16.9637 7.49104L5.50906 11.9429C4.76029 12.1972 4.76494 12.5598 5.37162 12.7031L8.29006 13.5755L15.0474 9.24555C15.3016 9.09912 15.5345 9.17926 15.344 9.34283" fill="white"/>
+                    </svg>
+                  </div>
+                  <span className="text-[14px] font-medium group-hover:text-[#2AABEE] 
+                                transition-colors">Telegram Support</span>
+                </a>
+
+                <button 
+                  onClick={() => { 
+                    userContext?.logout && userContext.logout();
+                    setShowMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-3 text-white/90
+                          rounded-xl transition-all duration-200 group relative
+                          hover:text-white hover:bg-[#20DDBB]/5"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
+                                  group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
+                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+                            className="stroke-current" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </div>
+                  <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
+                                transition-colors">Logout</span>
+                </button>
+              </div>
+
+              <div className="px-6 pt-3 pb-3 mt-2 border-t border-white/10">
                 <p className="text-[12px] text-[#818BAC] font-medium">
                   All rights © 2025 SACRAL TRACK
                 </p>
@@ -166,96 +310,5 @@ const ProfileMenu = () => {
     </div>
   );
 };
-
-interface MenuItemsProps {
-  setShowMenu: (show: boolean) => void;
-  logout?: () => void;
-}
-
-// Extract menu items to separate component to improve maintainability
-const MenuItems = React.memo(({ setShowMenu, logout }: MenuItemsProps) => {
-  return (
-    <div className="px-3 py-2">
-      <Link 
-        href="/royalty"
-        onClick={() => setShowMenu(false)}
-        className="flex items-center gap-4 p-3 text-white/90 
-                rounded-xl transition-all duration-200 group relative
-                hover:text-white hover:bg-[#20DDBB]/5"
-      >
-        <div className="w-10 h-10 flex items-center justify-center">
-          <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                        group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
-                  className="stroke-current" strokeWidth="1.5" fill="none"/>
-          </svg>
-        </div>
-        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                      transition-colors">Royalty</span>
-      </Link>
-
-      <Link 
-        href="/people"
-        onClick={() => setShowMenu(false)}
-        className="flex items-center gap-4 p-3 text-white/90
-                rounded-xl transition-all duration-200 group relative
-                hover:text-white hover:bg-[#20DDBB]/5"
-      >
-        <div className="w-10 h-10 flex items-center justify-center">
-          <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                        group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-            <path d="M16 3.23c2.51 2.48 2.51 6.5 0 9-2.51 2.48-6.57 2.48-9.08 0-2.51-2.48-2.51-6.5 0-9 2.51-2.48 6.57-2.48 9.08 0z"
-                  className="stroke-current" strokeWidth="1.5" fill="none"/>
-            <path d="M17.82 21c0-3.47-2.85-6.29-6.36-6.29S5.1 17.53 5.1 21"
-                  className="stroke-current" strokeWidth="1.5" fill="none"/>
-          </svg>
-        </div>
-        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                      transition-colors">People</span>
-      </Link>
-
-      <Link 
-        href="/news"
-        onClick={() => setShowMenu(false)}
-        className="flex items-center gap-4 p-3 text-white/90
-                rounded-xl transition-all duration-200 group relative
-                hover:text-white hover:bg-[#20DDBB]/5"
-      >
-        <div className="w-10 h-10 flex items-center justify-center">
-          <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                        group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"
-                  className="stroke-current" strokeWidth="1.5" fill="none" 
-                  strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                      transition-colors">News</span>
-      </Link>
-
-      <button 
-        onClick={() => { 
-          logout && logout();
-          setShowMenu(false);
-        }}
-        className="w-full flex items-center gap-4 p-3 text-white/90
-                rounded-xl transition-all duration-200 group relative
-                hover:text-white hover:bg-[#20DDBB]/5"
-      >
-        <div className="w-10 h-10 flex items-center justify-center">
-          <svg className="w-6 h-6 group-hover:scale-110 transition-transform fill-current 
-                        group-hover:text-[#20DDBB]" viewBox="0 0 24 24">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
-                  className="stroke-current" strokeWidth="1.5" fill="none"/>
-          </svg>
-        </div>
-        <span className="text-[14px] font-medium group-hover:text-[#20DDBB] 
-                      transition-colors">Log Out</span>
-      </button>
-    </div>
-  );
-});
-
-MenuItems.displayName = 'MenuItems';
 
 export default ProfileMenu; 

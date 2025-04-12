@@ -95,12 +95,18 @@ const checkEnvironmentVariables = () => {
  * Enhanced hook for creating optimized bucket URLs with caching
  */
 const useCreateBucketUrl = (fileId: string, type: 'user' | 'track' | 'banner' = 'track') => {
-    if (!fileId || fileId.trim() === '') {
+    // Важная проверка на null, undefined или пустую строку
+    if (!fileId || fileId === null || fileId === undefined || fileId.trim() === '') {
+        debugLog('Empty fileId provided, returning placeholder');
         return getPlaceholderImage(type);
     }
 
     // If the fileId is already a full URL or a placeholder path, return it as is
     if (fileId.startsWith('http') || fileId.startsWith('/images/')) {
+        // Дополнительно проверяем, есть ли параметр output=webp в URL
+        if (fileId.startsWith('http') && !fileId.includes('output=')) {
+            return `${fileId}${fileId.includes('?') ? '&' : '?'}output=webp`;
+        }
         return fileId;
     }
     
@@ -127,17 +133,48 @@ const useCreateBucketUrl = (fileId: string, type: 'user' | 'track' | 'banner' = 
         return getPlaceholderImage(type);
     }
     
-    // Construct the optimal storage URL using the file ID and environment variables
-    const imageUrl = `${url}/storage/buckets/${bucketId}/files/${fileId}/view?project=${endpoint}`;
-    
-    // Cache the URL with timestamp
-    optimizedUrlCache.set(cacheKey, {
-        url: imageUrl,
-        timestamp: Date.now()
-    });
-    
-    debugLog('Generated new URL for', cacheKey);
-    return imageUrl;
+    try {
+        // Проверка корректности fileId - не должен быть пустым
+        const trimmedFileId = fileId.trim();
+        if (!trimmedFileId) {
+            debugLog('Empty fileId after trim, returning placeholder');
+            return getPlaceholderImage(type);
+        }
+        
+        // Убедимся, что в нем нет слешей или других проблемных символов
+        if (trimmedFileId.includes('/') || trimmedFileId.includes('\\')) {
+            debugLog('Invalid fileId with slashes:', trimmedFileId);
+            return getPlaceholderImage(type);
+        }
+        
+        // Дополнительно проверяем, что ID не содержит двойных слешей и не является пустым
+        if (!trimmedFileId || trimmedFileId === 'undefined' || trimmedFileId === 'null') {
+            debugLog('Invalid fileId (undefined/null as string), returning placeholder');
+            return getPlaceholderImage(type);
+        }
+        
+        // Всегда добавляем output=webp для изображений для обеспечения правильного отображения
+        const imageUrl = `${url}/storage/buckets/${bucketId}/files/${trimmedFileId}/view?project=${endpoint}`;
+        const finalUrl = `${imageUrl}&output=webp`;
+        
+        // Дополнительная проверка на двойной слеш в URL
+        if (finalUrl.includes('/files//view')) {
+            debugLog('Generated URL with invalid double slash - using placeholder');
+            return getPlaceholderImage(type);
+        }
+        
+        // Cache the URL with timestamp
+        optimizedUrlCache.set(cacheKey, {
+            url: finalUrl,
+            timestamp: Date.now()
+        });
+        
+        debugLog('Generated new URL for', { fileId, cacheKey, finalUrl });
+        return finalUrl;
+    } catch (error) {
+        debugLog('Error generating URL:', error);
+        return getPlaceholderImage(type);
+    }
 }
 
 export default useCreateBucketUrl;

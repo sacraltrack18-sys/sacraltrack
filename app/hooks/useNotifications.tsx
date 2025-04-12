@@ -17,7 +17,9 @@ interface Notification {
   action_url?: string;
   related_document_id?: string;
   created_at: string;
+  createdAt?: string;
   read: boolean;
+  isRead?: boolean;
 }
 
 interface NotificationData {
@@ -196,8 +198,10 @@ const useNotifications = () => {
         sender_id: doc.sender_id,
         action_url: doc.action_url,
         related_document_id: doc.related_document_id,
-        created_at: doc.created_at,
-        read: doc.read
+        created_at: doc.created_at || doc.$createdAt,
+        createdAt: doc.created_at || doc.$createdAt,
+        read: doc.read,
+        isRead: doc.read
       })) as Notification[];
 
       setNotifications(notifications);

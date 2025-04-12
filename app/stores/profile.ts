@@ -309,10 +309,10 @@ export const useProfileStore = create<ProfileStore>()(
                                         name: 'Unknown User',
                                         image: '/images/placeholders/user-placeholder.svg',
                                         bio: '',
-                                        total_likes: '0',
-                                        total_followers: '0',
-                                        average_rating: '0',
-                                        total_ratings: '0',
+                                        total_likes: 0,
+                                        total_followers: 0,
+                                        average_rating: 0,
+                                        total_ratings: 0,
                                         created_at: new Date().toISOString(),
                                         updated_at: new Date().toISOString()
                                     }
@@ -454,10 +454,10 @@ export const useProfileStore = create<ProfileStore>()(
                         if (data.settings) updateData.settings = data.settings;
                         if (data.social_links) updateData.social_links = data.social_links;
                         if (data.stats) {
-                            if (data.stats.totalLikes !== undefined) updateData.total_likes = data.stats.totalLikes.toString();
-                            if (data.stats.totalFollowers !== undefined) updateData.total_followers = data.stats.totalFollowers.toString();
-                            if (data.stats.averageRating !== undefined) updateData.average_rating = data.stats.averageRating.toString();
-                            if (data.stats.totalRatings !== undefined) updateData.total_ratings = data.stats.totalRatings.toString();
+                            if (data.stats.totalLikes !== undefined) updateData.total_likes = data.stats.totalLikes;
+                            if (data.stats.totalFollowers !== undefined) updateData.total_followers = data.stats.totalFollowers;
+                            if (data.stats.averageRating !== undefined) updateData.average_rating = data.stats.averageRating;
+                            if (data.stats.totalRatings !== undefined) updateData.total_ratings = data.stats.totalRatings;
                         }
                         updateData.updated_at = new Date().toISOString();
                         

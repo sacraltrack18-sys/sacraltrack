@@ -44,30 +44,21 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setTimeout(() => { checkingRef.current = false }, 1000); // Защита от частых вызовов
     
     try {
-      // Заменяем прямое использование cookies() на проверку через account API
+      // Проверяем наличие существующей сессии без вызова getSession('current'),
+      // который может вызвать ошибку 401 для гостей
       try {
-        // Проверяем наличие существующей сессии
-        const currentSession = await account.getSession('current');
+        // Используем account.get() напрямую, что выбросит ошибку если нет сессии
+        const currentUser = await account.get();
         
-        // Если нет активной сессии
-        if (!currentSession) {
+        if (!currentUser) {
           setUser(null);
           dispatchAuthStateChange(null);
           return null;
         }
-      } catch (sessionError: any) {
-        // Если возникла ошибка при проверке сессии, скорее всего пользователь не авторизован
-        console.error('Error checking session:', sessionError?.message);
-          setUser(null);
-          dispatchAuthStateChange(null);
-        return null;
-      }
 
-      try {
-        const promise = await account.get() as any;
         // В production только важные логи
         if (process.env.NODE_ENV === 'development') {
-        console.log('User account:', promise);
+          console.log('User account:', currentUser);
         }
 
         // В production только важные логи
@@ -75,7 +66,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           console.log('Getting user profile...');
         }
         
-        const profile = await useGetProfileByUserId(promise?.$id);
+        const profile = await useGetProfileByUserId(currentUser.$id);
         
         // В production только важные логи
         if (process.env.NODE_ENV === 'development') {
@@ -83,8 +74,8 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         }
 
         const userData = { 
-          id: promise?.$id, 
-          name: promise?.name,  
+          id: currentUser.$id, 
+          name: currentUser.name,  
           bio: profile?.bio, 
           image: profile?.image 
         };
@@ -103,18 +94,21 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         router.refresh();
         
         return userData;
-      } catch (accountError: any) {
-        console.error('Error getting user account:', accountError?.message);
         
-        // Если ошибка связана с отсутствием прав доступа
-        if (accountError?.message?.includes('missing scope')) {
-          console.log('Failed to get account due to missing scope');
+      } catch (error: any) {
+        // Если ошибка 401, пользователь не авторизован - это нормальная ситуация
+        if (error?.code === 401 || (error?.message && error?.message.includes('missing scope'))) {
+          console.log('User not authenticated:', error?.message);
           setUser(null);
           dispatchAuthStateChange(null);
           return null;
         }
         
-        throw accountError;
+        // Другие ошибки логируем
+        console.error('Error checking user authentication:', error);
+        setUser(null);
+        dispatchAuthStateChange(null);
+        return null;
       }
     } catch (error) {
       console.error('Error in checkUser:', error);
@@ -248,35 +242,15 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       
       // Handle specific AppWrite error codes
       if (error.code === 429 || (error.message && error.message.toLowerCase().includes('rate limit'))) {
-        throw new Error('Too many attempts. Please wait a few minutes before trying again.');
-      } else if (error.code === 409) {
-        throw new Error('This email is already registered. Please try logging in or use a different email.');
-      } else if (error.code === 400) {
-        if (error.message.includes('password')) {
-          throw new Error('Password must be at least 8 characters long and contain at least one number.');
-        } else if (error.message.includes('email')) {
-          throw new Error('Please enter a valid email address.');
-        } else if (error.message.includes('name')) {
-          throw new Error('Please enter a valid name.');
-        }
-      } else if (error.code === 401 && error.type === 'user_session_already_exists') {
-        throw new Error('Please log out before creating a new account.');
-      } else if (error.code === 503) {
-        throw new Error('Service temporarily unavailable. Please try again later.');
-      } else if (error.code === 'undefined_endpoint') {
-        throw new Error('API endpoint is not configured correctly. Please contact support.');
+        throw new Error('Too many registration attempts. Please try again later.');
       }
       
-      // Log the full error for debugging
-      console.error('Detailed error information:', {
-        code: error.code,
-        message: error.message,
-        type: error.type,
-        response: error.response
-      });
+      if (error.code === 409) {
+        throw new Error('Email already exists. Try logging in instead.');
+      }
       
-      // Generic error message as fallback
-      throw new Error('Registration failed. Please try again later. ' + error.message);
+      // Re-throw the error with a clear message
+      throw new Error(error.message || 'Registration failed. Please try again.');
     }
   };
 

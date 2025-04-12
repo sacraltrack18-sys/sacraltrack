@@ -222,7 +222,7 @@ export interface Profile {
   website?: string;
   role?: string;
   verified?: boolean;
-  social_links?: SocialLinks;
+  social_links?: SocialLinks | string;
   total_likes?: string;
   total_followers?: string;
   average_rating?: string;
@@ -354,7 +354,7 @@ export interface ProfileType {
   likes_count?: number;
   post_count?: number;
   role?: string;
-  social_links?: {
+  social_links?: SocialLinks | string | {
     twitter?: string;
     instagram?: string;
     soundcloud?: string;

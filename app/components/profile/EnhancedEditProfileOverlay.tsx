@@ -18,7 +18,7 @@ import useGeolocation from '@/app/hooks/useGeolocation';
 
 // Icons
 import { FaTwitter, FaInstagram, FaSoundcloud, FaYoutube, FaTelegram } from 'react-icons/fa';
-import { BsCheck, BsLink45Deg, BsImage, BsX, BsVinylFill } from 'react-icons/bs';
+import { BsCheck, BsLink45Deg, BsImage, BsX, BsVinylFill, BsTag } from 'react-icons/bs';
 import { IoMdMusicalNotes } from 'react-icons/io';
 import { MdLocationOn, MdOutlineWorkOutline, MdVerified, MdClose } from 'react-icons/md';
 import { IoCheckmarkCircle, IoImageOutline } from 'react-icons/io5';
@@ -87,7 +87,8 @@ const roleOptions = [
   { id: 'producer', label: 'Producer' },
   { id: 'dj', label: 'DJ' },
   { id: 'vocalist', label: 'Vocalist' },
-  { id: 'listener', label: 'Listener' }
+  { id: 'listener', label: 'Listener' },
+  { id: 'label', label: 'Label' }
 ];
 
 const genreOptions = [
@@ -198,13 +199,23 @@ const EnhancedEditProfileOverlay: React.FC = () => {
       setRole(currentProfile.role || '');
       
       if (currentProfile.social_links) {
-        setSocialLinks({
-          twitter: currentProfile.social_links.twitter || '',
-          instagram: currentProfile.social_links.instagram || '',
-          soundcloud: currentProfile.social_links.soundcloud || '',
-          youtube: currentProfile.social_links.youtube || '',
-          telegram: currentProfile.social_links.telegram || ''
-        });
+        try {
+          // Пытаемся разобрать JSON-строку
+          const parsedLinks = typeof currentProfile.social_links === 'string' 
+            ? JSON.parse(currentProfile.social_links) 
+            : currentProfile.social_links;
+          
+          setSocialLinks({
+            twitter: parsedLinks.twitter || '',
+            instagram: parsedLinks.instagram || '',
+            soundcloud: parsedLinks.soundcloud || '',
+            youtube: parsedLinks.youtube || '',
+            telegram: parsedLinks.telegram || ''
+          });
+        } catch (error) {
+          console.error('Failed to parse social links:', error);
+          setSocialLinks(initialSocialLinks);
+        }
       } else {
         setSocialLinks(initialSocialLinks);
       }
@@ -290,21 +301,20 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     setUploadProgress(0);
   };
   
-  // Handle location detection
+  // Обработчик автоматического определения локации
   const handleDetectLocation = async () => {
     try {
       setIsDetectingLocation(true);
-      const detectedLocation = await getCurrentLocation();
+      const detectedLocation = await getCurrentLocation(true);
       if (detectedLocation) {
         setLocation(detectedLocation);
-        setFormTouched(true);
-        toast.custom(() => (
-          <SuccessToast message="Location detected successfully" />
-        ), { duration: 2000 });
+        toast.success('Your location has been detected!');
+      } else {
+        toast.error('Could not detect your location');
       }
     } catch (error) {
-      console.error('Error detecting location:', error);
-      toast.error('Failed to detect your location. Please enter it manually.');
+      console.warn('Error detecting location:', error);
+      toast.error('Could not detect your location');
     } finally {
       setIsDetectingLocation(false);
     }
@@ -342,15 +352,35 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         return;
       }
       
-      // Filter out empty social links
-      const filteredSocialLinks = Object.entries(socialLinks).reduce((acc, [key, value]) => {
-        if (value.trim()) {
-          return { ...acc, [key]: value.trim() };
-        }
-        return acc;
-      }, {});
+      // Корректная обработка социальных ссылок
+      let validatedSocialLinks: Record<string, string> | undefined = undefined;
       
-      // Prepare profile data without updated_at
+      // Проверяем и валидируем социальные ссылки
+      if (Object.values(socialLinks).some(link => link && link.trim())) {
+        validatedSocialLinks = {};
+        
+        // Проходим по всем ссылкам и валидируем их
+        Object.entries(socialLinks).forEach(([platform, url]) => {
+          if (url && url.trim()) {
+            // Ограничиваем длину ссылки до 300 символов
+            const trimmedUrl = url.trim().substring(0, 300);
+            validatedSocialLinks![platform] = trimmedUrl;
+          }
+        });
+      }
+      
+      // Проверяем, пуст ли объект социальных ссылок
+      const hasSocialLinks = validatedSocialLinks && Object.keys(validatedSocialLinks).length > 0;
+      
+      // Преобразуем объект social_links в строку JSON
+      const socialLinksString = hasSocialLinks ? JSON.stringify(validatedSocialLinks) : undefined;
+      
+      // Проверяем, что длина строки не превышает 300 символов
+      const finalSocialLinks = socialLinksString && socialLinksString.length > 300 
+        ? JSON.stringify({ note: "Too many social links to save" }) 
+        : socialLinksString;
+      
+      // Prepare profile data
       const profileData = {
         id: currentProfile?.$id || '',
         user_id: currentProfile?.user_id || contextUser?.user?.id || '',
@@ -360,7 +390,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         location: location.trim(),
         website: website.trim(),
         role: role.trim(),
-        social_links: Object.keys(filteredSocialLinks).length ? filteredSocialLinks : undefined,
+        social_links: finalSocialLinks,
         updated_at: new Date().toISOString()
       };
       
@@ -664,6 +694,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                             {option.id === 'dj' && <BsVinylFill className="text-[#20DDBB]" />}
                             {option.id === 'vocalist' && <FaMicrophone className="text-[#20DDBB]" />}
                             {option.id === 'listener' && <FaHeadphones className="text-[#20DDBB]" />}
+                            {option.id === 'label' && <BsTag className="text-[#20DDBB]" />}
                             {option.label}
                           </motion.button>
                         ))}
@@ -713,9 +744,9 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                                 transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-gradient-to-br from-[#24183D]/95 to-[#1A1E36]/95 rounded-xl shadow-xl border border-white/10 overflow-hidden"
+                                className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-gradient-to-br from-[#24183D]/95 to-[#1A1E36]/95 rounded-xl shadow-xl border border-white/10 overflow-hidden max-h-[80vh]"
                                 style={{ 
-                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 20px -3px rgba(32, 221, 187, 0.25)" 
+                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 20px -3px rgba(32, 221, 187, 0.25)"
                                 }}
                               >
                                 {/* Modal header */}
@@ -763,7 +794,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                                 </div>
                                 
                                 {/* Genre list with enhanced styling */}
-                                <div className="max-h-[300px] overflow-y-auto py-2 custom-scrollbar">
+                                <div className="max-h-[400px] overflow-y-auto py-2 custom-scrollbar">
                                   {filteredGenres.length === 0 ? (
                                     <div className="px-3 py-6 text-center text-white/40 text-sm">
                                       No genres found matching "{searchTerm}"

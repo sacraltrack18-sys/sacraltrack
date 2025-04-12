@@ -9,14 +9,29 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = React.useState<boolean>(false);
 
-    const togglePlayPause = () => {
+    const togglePlayPause = async () => {
         if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.pause();
-            } else {
-                audioRef.current.play();
+            try {
+                if (isPlaying) {
+                    // Проверяем, не на паузе ли уже аудио
+                    if (!audioRef.current.paused) {
+                        audioRef.current.pause();
+                    }
+                } else {
+                    // Проверяем, не воспроизводится ли уже аудио
+                    if (audioRef.current.paused) {
+                        const playPromise = audioRef.current.play();
+                        if (playPromise !== undefined) {
+                            await playPromise;
+                        }
+                    }
+                }
+                setIsPlaying(!isPlaying);
+            } catch (error) {
+                console.error('Error toggling audio playback:', error);
+                // В случае ошибки сбрасываем состояние воспроизведения
+                setIsPlaying(false);
             }
-            setIsPlaying(!isPlaying);
         }
     };
 

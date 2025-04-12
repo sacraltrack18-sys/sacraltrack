@@ -95,8 +95,9 @@ const useGeolocation = () => {
 
   /**
    * Определяет местоположение пользователя и получает его название
+   * @param {boolean} silent - если true, не будет выбрасывать исключение при ошибке
    */
-  const getCurrentLocation = async () => {
+  const getCurrentLocation = async (silent = false) => {
     setLocationData(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
@@ -116,17 +117,57 @@ const useGeolocation = () => {
       return locationName;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error getting location:', errorMessage);
       
-      setLocationData({
-        latitude: null,
-        longitude: null,
-        locationName: null,
-        isLoading: false,
-        error: errorMessage
-      });
+      // Используем более информативное сообщение и не логируем, если пользователь просто отклонил доступ к геолокации
+      if (error instanceof GeolocationPositionError) {
+        let userFriendlyMessage;
+        switch (error.code) {
+          case GeolocationPositionError.PERMISSION_DENIED:
+            userFriendlyMessage = 'Location access denied by user';
+            break;
+          case GeolocationPositionError.POSITION_UNAVAILABLE:
+            userFriendlyMessage = 'Location information unavailable';
+            break;
+          case GeolocationPositionError.TIMEOUT:
+            userFriendlyMessage = 'Location request timed out';
+            break;
+          default:
+            userFriendlyMessage = errorMessage;
+        }
+        
+        // Для ошибки типа "пользователь не дал разрешения" не логируем как ошибку
+        if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
+          console.log('User denied location permission');
+        } else {
+          console.error('Error getting location:', userFriendlyMessage);
+        }
+        
+        setLocationData({
+          latitude: null,
+          longitude: null,
+          locationName: null,
+          isLoading: false,
+          error: userFriendlyMessage
+        });
+      } else {
+        // Для других ошибок логируем и устанавливаем ошибку
+        console.warn('Error getting location:', errorMessage);
+        
+        setLocationData({
+          latitude: null,
+          longitude: null,
+          locationName: null,
+          isLoading: false,
+          error: errorMessage
+        });
+      }
       
-      throw error;
+      // Выбрасываем ошибку только если не в тихом режиме
+      if (!silent) {
+        throw error;
+      }
+      
+      return null;
     }
   };
 

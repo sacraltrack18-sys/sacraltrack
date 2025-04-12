@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
-        domains: ['localhost', 'sacraltrack.space', 'cloud.appwrite.io'],
         remotePatterns: [
             {
                 protocol: 'https',
@@ -126,9 +125,10 @@ const nextConfig = {
         
         return config;
     },
-    // Disable type checking during builds for now
+    // Enable type checking during builds
     typescript: {
-        ignoreBuildErrors: true,
+        // Проверять типы при сборке
+        ignoreBuildErrors: false,
     },
 };
 

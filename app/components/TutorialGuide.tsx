@@ -189,7 +189,7 @@ const TutorialGuide: React.FC<TutorialGuideProps> = ({ steps, isFirstVisit = tru
                     )}
 
                     <div className="relative z-10">
-                        <p className="text-white text-sm mb-4 leading-relaxed">{steps[currentStepIndex].message}</p>
+                        <div className="text-white text-sm mb-4 leading-relaxed">{steps[currentStepIndex].message}</div>
                         
                         <div className="flex justify-between items-center">
                             <div className="flex gap-1">

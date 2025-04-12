@@ -6,11 +6,12 @@ interface GenreSelectorProps {
     setGenre: (genre: string) => void;
 }
 
+// Удаляем дублирующиеся жанры из массива
 const genres = [
-    // Our unique genres
+    // Unique genres
     "Instrumental",
     "K-pop",
-    "Meditative",
+    "Meditative", 
     "Acapella",
     "Ai",
     "Films",
@@ -53,7 +54,6 @@ const genres = [
     "Dubstep",
     "Riddim",
     "Melodic Dubstep",
-    "Bass House",
     "Future Bass",
     "Trap",
     "Bass / Club",
@@ -91,30 +91,24 @@ const genres = [
     "Ethnic",
     
     // Afro
-    "Afro House",
     "Afro Tech",
     "Afro Pop",
     "Afro / Tribal",
     
-    // Minimal / Deep Tech
+    // Minimal
     "Minimal",
     "Deep Tech",
-    "Minimal / Deep Tech",
-    "Deep House",
-    "Tech House",
-    
-    // Melodic House & Techno
-    "Melodic House & Techno",
-    "Progressive House",
-    "Melodic Techno",
-    "Deep House",
-    "Tech House"
+    "Lo-Fi",
+    "House"
 ];
+
+// Создаем массив уникальных жанров
+const uniqueGenres = Array.from(new Set(genres));
 
 // Group genres by first letter for better organization
 const groupGenresByFirstLetter = () => {
     const grouped: Record<string, string[]> = {};
-    genres.forEach(genre => {
+    uniqueGenres.forEach(genre => {
         const firstLetter = genre.charAt(0).toUpperCase();
         if (!grouped[firstLetter]) {
             grouped[firstLetter] = [];
@@ -154,8 +148,8 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
 
     // Filter genres based on search term
     const filteredGenres = searchTerm.trim() === '' 
-        ? genres 
-        : genres.filter(g => g.toLowerCase().includes(searchTerm.toLowerCase()));
+        ? uniqueGenres 
+        : uniqueGenres.filter(g => g.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Handle genre selection
     const handleSelectGenre = (selectedGenre: string) => {
@@ -171,6 +165,12 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
         } else if (e.key === 'Enter' && filteredGenres.length > 0 && searchTerm.trim() !== '') {
             handleSelectGenre(filteredGenres[0]);
         }
+    };
+
+    // Обработчик для очистки выбранного жанра
+    const handleClearGenre = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Предотвращаем открытие/закрытие выпадающего списка
+        setGenre('');
     };
 
     return (
@@ -192,17 +192,14 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
                 <span>{genre || 'Select a genre'}</span>
                 <div className="flex items-center">
                     {genre && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setGenre('');
-                            }}
-                            className="mr-2 text-white/40 hover:text-white/70 transition-colors"
+                        <span 
+                            onClick={handleClearGenre}
+                            className="mr-2 text-white/40 hover:text-white/70 transition-colors cursor-pointer"
                         >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
-                        </button>
+                        </span>
                     )}
                     <svg 
                         className={`w-5 h-5 text-white/40 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
@@ -280,8 +277,8 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
                             ) : searchTerm.trim() !== '' ? (
                                 // Search results
                                 <ul className="py-1">
-                                    {filteredGenres.map((genreName) => (
-                                        <li key={genreName}>
+                                    {filteredGenres.map((genreName, index) => (
+                                        <li key={`search-${genreName}-${index}`}>
                                             <button
                                                 type="button"
                                                 onClick={() => handleSelectGenre(genreName)}
@@ -298,13 +295,13 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
                             ) : (
                                 // Grouped genres when not searching
                                 Object.entries(groupedGenres).map(([letter, groupGenres]) => (
-                                    <div key={letter} className="mb-2">
+                                    <div key={`group-${letter}`} className="mb-2">
                                         <div className="px-4 py-1 text-xs font-semibold text-[#20DDBB]/70 uppercase tracking-wider">
                                             {letter}
                                         </div>
                                         <ul>
-                                            {(groupGenres as string[]).map((genreName) => (
-                                                <li key={genreName}>
+                                            {(groupGenres as string[]).map((genreName, index) => (
+                                                <li key={`${letter}-${genreName}-${index}`}>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleSelectGenre(genreName)}
@@ -328,9 +325,9 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({ genre, setGenre }) => {
                         <div className="p-3 border-t border-white/10 bg-[#2A184B]/40 backdrop-blur-md">
                             <div className="flex flex-wrap gap-2">
                                 <span className="text-xs text-white/40 pt-1">Popular:</span>
-                                {['House', 'Techno', 'Lo-Fi', 'Ambient', 'Bass'].map((tag) => (
+                                {['House', 'Techno', 'Lo-Fi', 'Ambient', 'Bass'].map((tag, index) => (
                                     <button
-                                        key={tag}
+                                        key={`tag-${tag}-${index}`}
                                         onClick={() => handleSelectGenre(tag)}
                                         className="px-2.5 py-1 bg-[#20DDBB]/5 hover:bg-[#20DDBB]/15 text-white/80 hover:text-white
                                                text-xs rounded-full transition-all border border-[#20DDBB]/20

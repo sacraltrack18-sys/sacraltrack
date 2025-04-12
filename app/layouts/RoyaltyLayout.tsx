@@ -163,32 +163,6 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
           z-index: 0;
         }
         
-        /* Support button */
-        .support-button {
-          position: fixed;
-          bottom: 5px;
-          right: 5px;
-          background: linear-gradient(to right, rgba(63, 45, 99, 0.8), rgba(88, 61, 140, 0.8));
-          backdrop-filter: blur(4px);
-          color: white;
-          border-radius: 9999px;
-          width: 5rem;
-          height: 5rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          border: 1px solid rgba(88, 61, 140, 0.5);
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-          z-index: 50;
-          transition: all 0.3s ease;
-        }
-        
-        .support-button:hover {
-          transform: scale(1.05) translateY(-5px);
-          box-shadow: 0 10px 25px rgba(77, 99, 181, 0.4);
-        }
-        
         /* Плавающий фон */
         .gradient-bg {
           position: fixed;
@@ -255,7 +229,7 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
           background-color: rgba(36, 24, 61, 0.4) !important;
         }
         
-        /* Стили для карточек в дашборде роялти */
+        /* Стили для карточек в дашборде роялти - более нейтральные */
         [class*="royalty-dashboard"] [class*="card"],
         [class*="royalty-card"],
         [class*="dashboard-card"],
@@ -263,7 +237,7 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
         [class*="transaction-card"] {
           background-color: rgba(26, 35, 56, 0.5) !important;
           backdrop-filter: blur(6px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.03);
           transition: all 0.3s ease;
         }
         
@@ -273,8 +247,22 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
         [class*="stat-card"]:hover,
         [class*="transaction-card"]:hover {
           background-color: rgba(36, 24, 61, 0.6) !important;
-          box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        /* Стили для всех карточек на roylalty странице */
+        .gradient-border,
+        .gradient-card,
+        [class*="gradient-"] {
+          border: 1px solid rgba(255, 255, 255, 0.03) !important;
+        }
+        
+        .gradient-border:hover,
+        .gradient-card:hover,
+        [class*="gradient-"]:hover {
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+          border: 1px solid rgba(255, 255, 255, 0.05) !important;
         }
         
         /* Специальные стили для карточки верификации */
@@ -300,18 +288,6 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
           }
         }
       `}</style>
-      
-      {/* Enhanced Support Button with Glass Effect */}
-      <a
-        href="http://t.me/sashaplayra"
-        target="_blank"
-        className="support-button"
-      >   
-        <div className="flex flex-col items-center">
-          <img src="/images/tel.svg" className="w-5 h-5 mb-1 drop-shadow-md" alt="" />
-          <span className="text-xs font-medium">Support</span>
-        </div>
-      </a>
     </div>
   );
 };

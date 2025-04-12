@@ -894,9 +894,11 @@ export const useRoyaltyManagement = () => {
     if (!userId) return;
 
     try {
-      await createNotification(userId, 'withdrawal', {
-        amount: amount,
-        message: message
+      await createNotification(userId, {
+        type: 'withdrawal',
+        title: `Withdrawal ${status}`,
+        message: message,
+        amount: amount
       });
 
       // Update local state for immediate UI feedback

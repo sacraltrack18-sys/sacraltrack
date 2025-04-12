@@ -48,65 +48,38 @@ const itemVariants = {
   show: { opacity: 1, y: 0 }
 };
 
-// Updated gradient border styles with hover effect and blue tones
+// Updated gradient border styles with financial & music theme - more subtle version
 const gradientBorderStyles = `
-  @keyframes borderGradientAnimation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  
   .gradient-border {
     position: relative;
     z-index: 0;
     border-radius: 0.75rem;
     overflow: hidden;
-    border: 1px solid rgba(63, 45, 99, 0.3);
     transition: all 0.3s ease;
-  }
-  
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    z-index: -2;
-    left: -50%;
-    top: -50%;
-    width: 200%;
-    height: 200%;
-    background-color: transparent;
-    background-repeat: no-repeat;
-    background-size: 50% 50%, 50% 50%;
-    background-position: 0 0, 100% 0, 100% 100%, 0 100%;
-    background-image: linear-gradient(#3f2d63, #583d8c), 
-                      linear-gradient(#4e377a, #5a6bbd),
-                      linear-gradient(#583d8c, #3f2d63),
-                      linear-gradient(#4d63b5, #4e377a);
-    animation: borderGradientAnimation 4s linear infinite;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
   .gradient-border::after {
     content: '';
     position: absolute;
     z-index: -1;
-    left: 1px;
-    top: 1px;
-    width: calc(100% - 2px);
-    height: calc(100% - 2px);
-    background: #1A2338;
-    border-radius: 0.7rem;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #1A2338, #1f2942);
+    border-radius: 0.75rem;
   }
   
-  /* Only show gradient on hover */
-  .gradient-border:hover::before {
-    opacity: 1;
+  /* Very subtle border by default - more neutral color */
+  .gradient-border {
+    border: 1px solid rgba(255, 255, 255, 0.03);
   }
   
-  /* Add subtle box shadow on hover for additional effect */
+  /* Add subtle box shadow on hover for additional effect - more neutral */
   .gradient-border:hover {
-    box-shadow: 0 0 15px rgba(77, 99, 181, 0.3);
-    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
 `;
 
@@ -122,24 +95,24 @@ const StatsCard = ({
 }: StatsCardProps) => (
   <motion.div
     variants={itemVariants}
-    whileHover={{ y: -5 }}
+    whileHover={{ y: -2 }}
     className={`gradient-border transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${className}`}
     onClick={onClick}
     data-tooltip-id={tooltip ? `tooltip-${title.replace(/\s+/g, '-').toLowerCase()}` : undefined}
     data-tooltip-content={tooltip}
   >
-    <div className="bg-[#1A2338]/60 p-6 rounded-xl h-full backdrop-blur-md">
+    <div className="bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 p-6 rounded-xl h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-lg bg-[#3f2d63]/30 text-violet-300 text-xl">
+          <div className="p-3 rounded-lg bg-gradient-to-br from-[#20DDBB]/5 to-[#3f2d63]/5 text-[#20DDBB] text-xl">
             {icon}
           </div>
-          <h3 className="text-white font-bold">{title}</h3>
+          <h3 className="text-white font-medium text-sm tracking-wide uppercase">{title}</h3>
         </div>
         
         {trend && (
           <div className={`flex items-center text-xs px-2 py-1 rounded-full ${
-            trend.isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+            trend.isPositive ? 'bg-[#20DDBB]/5 text-[#20DDBB]' : 'bg-red-500/5 text-red-400'
           }`}>
             {trend.isPositive ? <BsArrowUp className="mr-1" /> : <BsArrowDown className="mr-1" />}
             {Math.abs(trend.value)}%
@@ -147,7 +120,7 @@ const StatsCard = ({
         )}
       </div>
       
-      <p className="text-3xl font-bold text-white mb-1">
+      <p className="text-3xl font-semibold text-white mb-1">
         {value}
       </p>
       

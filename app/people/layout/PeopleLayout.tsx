@@ -24,16 +24,17 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
     }, [userContext?.user, router]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-[#0F111A] via-[#171923] to-[#0F111A]">
+        <div className="min-h-screen bg-gradient-to-b from-[#161824] via-[#1F2339] to-[#161824]">
             <TopNav params={{ id: userContext?.user?.id as string }} />
             
-            {/* Декоративное фоновое оформление без заголовка */}
-            <div className="relative h-16 bg-gradient-to-r from-purple-900/20 to-indigo-900/20 overflow-hidden">
-                <div className="absolute inset-0 bg-[url('/images/grid-pattern.svg')] opacity-10"></div>
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#171923] to-transparent"></div>
+            {/* Фоновые элементы и узоры */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-purple-600 rounded-full filter blur-[150px] opacity-10 transform translate-x-1/4 -translate-y-1/4"></div>
+                <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-blue-600 rounded-full filter blur-[150px] opacity-10 transform -translate-x-1/4 translate-y-1/4"></div>
+                <div className="absolute top-1/3 left-1/4 w-1/4 h-1/4 bg-indigo-600 rounded-full filter blur-[120px] opacity-10"></div>
             </div>
             
-            <div className="flex mx-auto w-full px-0">
+            <div className="flex mx-auto w-full px-0 relative">
                 <div className="flex justify-center w-full px-0">
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
@@ -41,16 +42,7 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
                         transition={{ duration: 0.5 }}
                         className="w-full max-w-7xl mx-auto px-4 py-8"
                     >
-                        {/* Floating notification indicator */}
-                        <div className="fixed bottom-6 right-6 z-10">
-                            <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                <NotificationBell />
-                            </motion.div>
-                        </div>
+                        {/* Removed Floating notification indicator */}
                         
                         {children}
                     </motion.div>

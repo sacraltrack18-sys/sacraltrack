@@ -1,27 +1,16 @@
+"use client";
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoNotificationsOutline } from 'react-icons/io5';
 import { BsPersonPlus, BsPersonCheck, BsMusicNote } from 'react-icons/bs';
 import { AiOutlineHeart } from 'react-icons/ai';
 import { FaCoins } from 'react-icons/fa';
-import useNotifications from '@/app/hooks/useNotifications';
+import useNotifications, { Notification } from '@/app/hooks/useNotifications';
 
 interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-// Define Notification type based on the useNotifications hook
-interface Notification {
-  id: string;
-  user_id: string;
-  type: string;
-  title: string;
-  message: string;
-  amount?: string;
-  track_id?: string;
-  created_at: string;
-  read: boolean;
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
@@ -77,14 +66,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                 No notifications
               </div>
             ) : (
-              notifications.map((notification: Notification) => (
+              notifications.map((notification) => (
                 <motion.div
                   key={notification.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className={`p-4 border-b border-[#2E2469] cursor-pointer hover:bg-[#2E2469]/20 transition-colors ${
-                    notification.read ? 'opacity-50' : ''
+                    notification.isRead ? 'opacity-50' : ''
                   }`}
                   onClick={() => handleNotificationClick(notification.id)}
                 >
@@ -95,7 +84,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                     <div>
                       <p className="text-white text-sm">{notification.title || notification.message}</p>
                       <p className="text-[#818BAC] text-xs mt-1">
-                        {new Date(notification.created_at).toLocaleDateString('en-US', {
+                        {new Date(notification.createdAt || Date.now()).toLocaleDateString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit',
                           month: 'short',

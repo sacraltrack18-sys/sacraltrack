@@ -123,16 +123,34 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
     ? format(new Date(getProfileProperty('joined_date', '')), 'MMMM yyyy')
     : null;
 
+  // Получаем социальные ссылки из профиля
+  const getSocialLinks = (profile: any) => {
+    if (!profile || !profile.social_links) return null;
+    
+    try {
+      // Если social_links - строка, пытаемся распарсить JSON
+      if (typeof profile.social_links === 'string') {
+        return JSON.parse(profile.social_links);
+      }
+      // Если это уже объект, просто возвращаем его
+      return profile.social_links;
+    } catch (error) {
+      console.error('Error parsing social links:', error);
+      return null;
+    }
+  };
+
   // Social links rendering
   const renderSocialLinks = () => {
-    if (!getProfileProperty('social_links', null)) return null;
+    const socialLinks = getSocialLinks(profile);
+    if (!socialLinks) return null;
     
     const socialIcons = [
-      { key: 'twitter', Icon: FaTwitter, link: getProfileProperty('social_links.twitter', ''), color: '#1DA1F2' },
-      { key: 'instagram', Icon: FaInstagram, link: getProfileProperty('social_links.instagram', ''), color: '#E1306C' },
-      { key: 'soundcloud', Icon: FaSoundcloud, link: getProfileProperty('social_links.soundcloud', ''), color: '#FF5500' },
-      { key: 'youtube', Icon: FaYoutube, link: getProfileProperty('social_links.youtube', ''), color: '#FF0000' },
-      { key: 'telegram', Icon: FaTelegram, link: getProfileProperty('social_links.telegram', ''), color: '#0088CC' },
+      { key: 'twitter', Icon: FaTwitter, link: socialLinks.twitter, color: '#1DA1F2' },
+      { key: 'instagram', Icon: FaInstagram, link: socialLinks.instagram, color: '#E1306C' },
+      { key: 'soundcloud', Icon: FaSoundcloud, link: socialLinks.soundcloud, color: '#FF5500' },
+      { key: 'youtube', Icon: FaYoutube, link: socialLinks.youtube, color: '#FF0000' },
+      { key: 'telegram', Icon: FaTelegram, link: socialLinks.telegram, color: '#0088CC' },
     ].filter(item => item.link);
     
     if (socialIcons.length === 0) return null;
@@ -461,7 +479,6 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 bio
               ) : isOwner ? (
                 <span className="italic text-[#A6B1D0]/50 hover:text-[#20DDBB]/70 transition-colors">
-                  Share your thoughts or tell about yourself...
                 </span>
               ) : (
                 <span className="italic text-[#A6B1D0]/50">

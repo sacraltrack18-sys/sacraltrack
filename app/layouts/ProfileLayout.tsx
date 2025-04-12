@@ -123,7 +123,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto mt-[60px] px-4 md:px-8">
+		<div className="w-full mx-auto mt-[80px] px-4 md:px-8">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -285,7 +285,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                             onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
                         >
                         <img 
-                            src={currentProfile?.image ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
+                            src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
                             alt={currentProfile?.name || 'Profile'} 
                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                             />

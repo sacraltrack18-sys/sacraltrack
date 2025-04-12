@@ -1,11 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef, createContext, useMemo, useCallback } from "react"
+import { useEffect, useState, useRef, createContext, useMemo, useCallback, useContext } from "react"
 import { usePostStore } from "@/app/stores/post"
 import { useVibeStore } from "@/app/stores/vibeStore"
 import ClientOnly from "./components/ClientOnly"
 import PostMain from "./components/PostMain"
-import VibeCard from "./components/vibe/VibeCard"
 import { VibeCardSkeleton } from "./components/vibe/VibeCard"
 import { GenreProvider } from "@/app/context/GenreContext";
 import { useRouter } from "next/navigation";
@@ -14,30 +13,15 @@ import { useInView } from 'react-intersection-observer';
 import MainLayout from "./layouts/MainLayout"
 import { AnimatePresence } from 'framer-motion';
 import { motion } from 'framer-motion';
-import { ContentFilterProvider } from "@/app/context/ContentFilterContext";
-import { showOnboarding } from "./components/onboarding/OnboardingGuide";
+import { ContentFilterProvider, ContentFilterContext } from "@/app/context/ContentFilterContext";
+import { OnboardingProvider, useOnboarding } from "@/app/context/OnboardingContext";
 import { FaInfoCircle } from "react-icons/fa";
+import { PostMainSkeleton } from "./components/PostMain";
+import { ErrorBoundary } from "react-error-boundary";
+import SafeVibeCard from "./components/vibe/SafeVibeCard";
 
 // Lazy load components that are not needed immediately
 const OnboardingGuide = lazy(() => import('./components/onboarding/OnboardingGuide'));
-
-// Skeleton loaders for content
-const PostMainSkeleton = () => (
-  <div className="rounded-lg overflow-hidden bg-[#1A2338]/80 backdrop-blur-md mb-4">
-    <div className="p-4 flex items-center gap-3">
-      <div className="w-12 h-12 rounded-full bg-[#374151]"></div>
-      <div className="flex-1">
-        <div className="h-4 w-24 bg-[#374151] rounded mb-2"></div>
-        <div className="h-3 w-32 bg-[#374151] rounded"></div>
-      </div>
-    </div>
-    <div className="aspect-square bg-[#202A45]"></div>
-    <div className="p-4">
-      <div className="h-4 w-full bg-[#374151] rounded mb-2"></div>
-      <div className="h-4 w-2/3 bg-[#374151] rounded"></div>
-    </div>
-  </div>
-);
 
 // Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
 interface FeedItem {
@@ -46,32 +30,86 @@ interface FeedItem {
   created_at: string;
 }
 
+// Main Home component
 export default function Home() {
+  return (
+    <OnboardingProvider>
+      <HomeContent />
+    </OnboardingProvider>
+  );
+}
+
+function HomeContent() {
+  const onboardingContext = useOnboarding();
+
+  useEffect(() => {
+    // Wrap in try-catch to handle potential undefined context
+    try {
+      // Проверяем, что контекст и функция showOnboarding существуют
+      if (onboardingContext && typeof onboardingContext.showOnboarding === 'function') {
+        const isOnboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
+        if (!isOnboardingCompleted) {
+          // Add small delay to ensure context is ready
+          setTimeout(() => {
+            onboardingContext.showOnboarding();
+          }, 0);
+        }
+      } else {
+        console.warn('Onboarding context or showOnboarding function is not available');
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+    }
+  }, [onboardingContext]);
+
+  return (
+    <>
+      <ContentFilterProvider>
+        <GenreProvider>
+          <HomePageContent />
+        </GenreProvider>
+      </ContentFilterProvider>
+
+      <Suspense fallback={null}>
+        <OnboardingGuide />
+      </Suspense>
+    </>
+  );
+}
+
+// Content component that uses the context
+function HomePageContent() {
   const router = useRouter();
   const [refreshInterval, setRefreshInterval] = useState(10000); // 10 seconds
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const refreshCountRef = useRef(0); // Refresh counter
   const MAX_AUTO_REFRESHES = 1; // Maximum number of auto-refreshes
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Debounce reference
   
-  // Content filtering
-  const [activeFilter, setActiveFilter] = useState('all');
+  // Get activeFilter from ContentFilterContext
+  const filterContext = useContext(ContentFilterContext);
+  const activeFilter = filterContext?.activeFilter || 'all';
+  
+  // Безопасно получаем значения из store с дефолтными значениями если они undefined
+  const postStore = usePostStore();
+  const vibeStore = useVibeStore();
   
   const { 
-    allPosts, 
+    allPosts = [], 
     loadMorePosts,
     setAllPosts, 
-    isLoading: isLoadingPosts, 
-    hasMore: hasMorePosts,
-    selectedGenre 
-  } = usePostStore();
+    isLoading: isLoadingPosts = false, 
+    hasMore: hasMorePosts = false,
+    selectedGenre = 'all' 
+  } = postStore || {};
 
   const {
-    allVibePosts,
+    allVibePosts = [],
     fetchAllVibes,
     loadMoreVibes,
-    isLoadingVibes,
-    hasMore: hasMoreVibes
-  } = useVibeStore();
+    isLoadingVibes = false,
+    hasMore: hasMoreVibes = false
+  } = vibeStore || {};
 
   // Объединенный стейт для ленты
   const [combinedFeed, setCombinedFeed] = useState<FeedItem[]>([]);
@@ -133,10 +171,20 @@ export default function Home() {
       setIsLoading(true);
       
       try {
-        // Load posts first for better LCP
-        await setAllPosts();
-        // Then load vibes
-        fetchAllVibes();
+        // Проверяем, что функции существуют перед их вызовом
+        if (typeof setAllPosts === 'function') {
+          // Load posts first for better LCP
+          await setAllPosts();
+        } else {
+          console.error('setAllPosts is not a function');
+        }
+        
+        if (typeof fetchAllVibes === 'function') {
+          // Then load vibes
+          await fetchAllVibes();
+        } else {
+          console.error('fetchAllVibes is not a function');
+        }
       } catch (error) {
         console.error("Error loading initial content:", error);
       } finally {
@@ -146,27 +194,40 @@ export default function Home() {
     };
     
     loadInitialContent();
-  }, [selectedGenre]);
+  }, [selectedGenre, setAllPosts, fetchAllVibes]);
 
   // Auto-refresh optimization
   useEffect(() => {
     if (!autoRefreshEnabled) return;
     
     const refreshContent = async () => {
+      // Only refresh if data is stale or needed
       if (refreshCountRef.current >= MAX_AUTO_REFRESHES) {
         setAutoRefreshEnabled(false);
         return;
       }
       
-      setIsLoading(true);
+      // Don't set loading state for background refreshes to avoid re-renders
       try {
-        await Promise.all([
-          setAllPosts(),
-          fetchAllVibes()
-        ]);
-      } finally {
-        setIsLoading(false);
-        refreshCountRef.current += 1;
+        // Проверяем функции перед вызовом
+        const promises = [];
+        
+        if (typeof setAllPosts === 'function') {
+          promises.push(setAllPosts());
+        }
+        
+        if (typeof fetchAllVibes === 'function') {
+          promises.push(fetchAllVibes());
+        }
+        
+        // Use Promise.all if both functions exist
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          refreshCountRef.current += 1;
+          console.log("[REFRESH] Completed refresh #" + refreshCountRef.current);
+        }
+      } catch (error) {
+        console.error("[REFRESH] Error during refresh:", error);
       }
     };
     
@@ -174,144 +235,166 @@ export default function Home() {
     return () => clearInterval(intervalId);
   }, [refreshInterval, selectedGenre, autoRefreshEnabled, setAllPosts, fetchAllVibes]);
 
-  // Optimized infinite scroll with throttling
+  // Optimized infinite scroll with throttling and debouncing
   useEffect(() => {
-    // Throttle function to prevent too many requests
-    let isThrottled = false;
+    // Skip if necessary conditions aren't met
+    if (!inView || !hasMore || isLoading || isLoadingPosts || isLoadingVibes) {
+      return;
+    }
     
-    const handleLoadMore = async () => {
-      if (inView && hasMore && !isLoading && !isLoadingPosts && !isLoadingVibes && !isThrottled) {
-        console.log("[DEBUG-PAGE] Loading more content...");
-        isThrottled = true;
-        setIsLoading(true);
-        
-        try {
-          // Load more posts first if available
-          if (hasMorePosts) {
-            await loadMorePosts();
-          }
-          
-          // Then load more vibes if available
-          if (hasMoreVibes) {
-            await loadMoreVibes();
-          }
-        } catch (error) {
-          console.error("Error loading more content:", error);
-        } finally {
-          setIsLoading(false);
-          // Reset throttle after a delay
-          setTimeout(() => {
-            isThrottled = false;
-          }, 500);
+    // Clear any existing timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    
+    // Set a new timeout for debouncing
+    loadTimeoutRef.current = setTimeout(async () => {
+      console.log("[DEBUG-PAGE] Loading more content...");
+      setIsLoading(true);
+      
+      try {
+        // Load more posts first if available
+        if (hasMorePosts && typeof loadMorePosts === 'function') {
+          await loadMorePosts();
         }
+        
+        // Then load more vibes if available
+        if (hasMoreVibes && typeof loadMoreVibes === 'function') {
+          await loadMoreVibes();
+        }
+      } catch (error) {
+        console.error("Error loading more content:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300); // 300ms debounce delay
+    
+    // Clean up the timeout
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
     };
-
-    handleLoadMore();
   }, [inView, hasMore, isLoading, hasMorePosts, hasMoreVibes, isLoadingPosts, isLoadingVibes, loadMorePosts, loadMoreVibes]);
 
   // Filter content based on active filter - use useMemo to cache results
   const filteredFeed = useMemo(() => {
     if (combinedFeed.length === 0) return [];
     
+    // Only log when development mode is enabled
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[FILTER-DEBUG] Active filter:", activeFilter);
+      console.log("[FILTER-DEBUG] Combined feed items:", combinedFeed.length);
+      console.log("[FILTER-DEBUG] Posts:", combinedFeed.filter(item => item.type === 'post').length);
+      console.log("[FILTER-DEBUG] Vibes:", combinedFeed.filter(item => item.type === 'vibe').length);
+    }
+    
     if (activeFilter === 'all') {
-      console.log("[FILTER-DEBUG] Showing ALL content");
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[FILTER-DEBUG] Showing ALL content");
+      }
       return combinedFeed;
     } else if (activeFilter === 'vibe') {
-      console.log("[FILTER-DEBUG] Filtering for VIBE content only");
-      return combinedFeed.filter(item => item.type === 'vibe');
+      const vibeItems = combinedFeed.filter(item => item.type === 'vibe');
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[FILTER-DEBUG] Showing", vibeItems.length, "vibe items");
+      }
+      return vibeItems;
     } else if (activeFilter === 'sacral') {
-      console.log("[FILTER-DEBUG] Filtering for SACRAL content only");
-      // For sacral filter, we're specifically looking for post-type content
-      return combinedFeed.filter(item => item.type === 'post');
+      const postItems = combinedFeed.filter(item => item.type === 'post');
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[FILTER-DEBUG] Showing", postItems.length, "post items");
+      }
+      return postItems;
     } else if (activeFilter === 'world') {
-      console.log("[FILTER-DEBUG] Filtering for WORLD content only");
-      // For world content, we check for posts that have 'world' in their genre
-      return combinedFeed.filter(item => 
+      const worldItems = combinedFeed.filter(item => 
         item.type === 'post' && 
         item.data.genre && 
         item.data.genre.toLowerCase().includes('world')
       );
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[FILTER-DEBUG] Showing", worldItems.length, "world items");
+      }
+      return worldItems;
     }
-    console.log("[FILTER-DEBUG] Using default all content");
     return combinedFeed;
   }, [combinedFeed, activeFilter]);
 
-  // Ensure we have a consistent UI whether JS is enabled or not
   return (
-    <>
-      <ContentFilterProvider>
-        <GenreProvider>
-          <MainLayout>
-            <div className="mt-[80px] w-full ml-auto">
-              <div className="max-w-[800px] mx-auto px-2 md:px-0">
-                {/* Initial loading skeleton */}
-                {isLoading && !initialContentLoaded && (
-                  <div className="space-y-4 p-4">
-                    {Array(3).fill(0).map((_, index) => (
-                      <PostMainSkeleton key={`skeleton-${index}`} />
-                    ))}
-                  </div>
-                )}
-                
-                {/* No content message - wrapped in ClientOnly to prevent hydration mismatch */}
-                <ClientOnly>
-                  {initialContentLoaded && filteredFeed.length === 0 && !isLoading && (
-                    <div className="text-center py-8 text-white">
-                      <FaInfoCircle className="text-[#20DDBB] text-3xl mx-auto mb-2" />
-                      <p className="text-lg font-medium">No content found</p>
-                      <p className="text-[#818BAC] mt-1">Try selecting a different filter or genre</p>
-                    </div>
-                  )}
-                </ClientOnly>
-                
-                {/* Feed content - wrapped in ClientOnly to prevent hydration mismatch */}
-                <ClientOnly>
-                  {filteredFeed.map((item, index) => (
+    <MainLayout>
+      <div className="mt-[80px] w-full ml-auto">
+        <div className="max-w-[800px] mx-auto px-2 md:px-0">
+          {/* Initial loading skeleton */}
+          {isLoading && !initialContentLoaded && (
+            <div className="space-y-4 p-4">
+              {Array(3).fill(0).map((_, index) => (
+                <PostMainSkeleton key={`skeleton-${index}`} />
+              ))}
+            </div>
+          )}
+          
+          {/* No content message - wrapped in ClientOnly to prevent hydration mismatch */}
+          <ClientOnly>
+            {initialContentLoaded && filteredFeed.length === 0 && !isLoading && (
+              <div className="text-center py-8 text-white">
+                <FaInfoCircle className="text-[#20DDBB] text-3xl mx-auto mb-2" />
+                <p className="text-lg font-medium">No content found</p>
+                <p className="text-[#818BAC] mt-1">Try selecting a different filter or genre</p>
+              </div>
+            )}
+          </ClientOnly>
+          
+          {/* Feed content - wrapped in ClientOnly to prevent hydration mismatch */}
+          <ClientOnly>
+            {filteredFeed.length > 0 && (
+              <>
+                {filteredFeed.map((item, index) => {
+                  // Логируем данные только в режиме разработки и только для первого элемента
+                  if (process.env.NODE_ENV === 'development' && index === 0 && item.type === 'post') {
+                    console.log("[DEBUG-POSTMAIN]", index, item.data);
+                  }
+                  
+                  return (
                     <div 
                       key={`${item.type}-${item.data.id}`} 
-                      className="my-4"
+                      className={`my-4 ${item.type === 'vibe' ? 'flex justify-center' : ''}`}
                     >
                       {item.type === 'post' ? (
-                        /* Cast post to any to avoid type issues */
-                        <PostMain post={item.data as any} />
+                        <PostMain post={item.data} />
                       ) : (
-                        <VibeCard vibe={item.data} />
+                        <ErrorBoundary fallback={<div className="bg-[#1A1A2E] p-4 rounded-xl text-white">Could not display this vibe</div>}>
+                          <SafeVibeCard vibe={item.data} />
+                        </ErrorBoundary>
                       )}
                     </div>
-                  ))}
-                </ClientOnly>
-                
-                {/* Infinite scroll loading indicator */}
-                <ClientOnly>
-                  {(isLoading || isLoadingPosts || isLoadingVibes) && initialContentLoaded && (
-                    <div className="py-4 flex justify-center">
-                      <div className="w-8 h-8 border-t-2 border-b-2 border-[#20DDBB] rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                </ClientOnly>
-                
-                {/* End of content message */}
-                <ClientOnly>
-                  {!hasMore && initialContentLoaded && filteredFeed.length > 0 && (
-                    <div className="text-center py-8 text-[#818BAC]">
-                      You've reached the end of your feed
-                    </div>
-                  )}
-                </ClientOnly>
-                
-                {/* Infinite scroll trigger */}
-                <div ref={ref} className="h-10 mb-8" />
+                  );
+                })}
+              </>
+            )}
+          </ClientOnly>
+          
+          {/* Infinite scroll loading indicator */}
+          <ClientOnly>
+            {(isLoading || isLoadingPosts || isLoadingVibes) && initialContentLoaded && (
+              <div className="py-4 flex justify-center">
+                <div className="w-8 h-8 border-t-2 border-b-2 border-[#20DDBB] rounded-full animate-spin"></div>
               </div>
-            </div>
-          </MainLayout>
-        </GenreProvider>
-      </ContentFilterProvider>
-
-      {/* Lazy load Onboarding guide with Suspense */}
-      <Suspense fallback={null}>
-        {typeof showOnboarding === 'function' ? null : showOnboarding ? <OnboardingGuide /> : null}
-      </Suspense>
-    </>
+            )}
+          </ClientOnly>
+          
+          {/* End of content message */}
+          <ClientOnly>
+            {!hasMore && initialContentLoaded && filteredFeed.length > 0 && (
+              <div className="text-center py-8 text-[#818BAC]">
+                You've reached the end of your feed
+              </div>
+            )}
+          </ClientOnly>
+          
+          {/* Infinite scroll trigger */}
+          <div ref={ref} className="h-10 mb-8" />
+        </div>
+      </div>
+    </MainLayout>
   );
 }

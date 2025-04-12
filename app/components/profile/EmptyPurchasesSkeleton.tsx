@@ -70,7 +70,7 @@ const EmptyPurchasesSkeleton: React.FC<EmptyPurchasesSkeletonProps> = ({ isOwner
             transition={{ delay: 0.5 }}
             className="pt-4"
           >
-            <Link href="/explore">
+            <Link href="/">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

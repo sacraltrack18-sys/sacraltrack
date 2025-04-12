@@ -32,10 +32,29 @@ const useChangeUserImage = async (file: File, cropper: any, currentImage: string
         // Масштабируем изображение
         const resizedImage = image.resize({ width: Math.round(width), height: Math.round(height) });
         
+        // Проверяем поддержку WebP браузером
+        const isWebPSupported = typeof window !== 'undefined' && 
+            !!(window.OffscreenCanvas || 
+            (document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0));
+        
+        // Определяем формат вывода и MIME-тип
+        const outputFormat = isWebPSupported ? 'webp' : 'jpeg';
+        const mimeType = isWebPSupported ? 'image/webp' : 'image/jpeg';
+        
+        console.log(`Using ${outputFormat} format for profile image optimization`);
+        
+        // Параметры оптимизации
+        const quality = 0.85; // Хорошее качество, но с компрессией
+        
         // Конвертируем в blob для загрузки
-        const blob = await resizedImage.toBlob();
+        const blob = await resizedImage.toBlob(mimeType, quality);
         const arrayBuffer = await blob.arrayBuffer();
-        const finalFile = new File([arrayBuffer], file.name, { type: blob.type });
+        
+        // Генерируем правильное расширение файла
+        const fileExt = isWebPSupported ? '.webp' : '.jpg';
+        const fileName = `profile_${audioId}${fileExt}`;
+        
+        const finalFile = new File([arrayBuffer], fileName, { type: mimeType });
 
         // Загружаем файл
         const result = await storage.createFile(

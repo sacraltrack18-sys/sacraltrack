@@ -188,8 +188,8 @@ export const useWithdrawalManagement = () => {
         // Send notification to user
         await createNotification(
           userId,
-          'withdrawal',
           {
+            type: 'withdrawal',
             title: 'Withdrawal Request Rejected',
             message: `Your withdrawal request for $${withdrawal.amount} has been rejected. The funds have been returned to your available balance. Please try again or contact support if you need assistance.`,
             amount: withdrawal.amount.toString()
@@ -445,8 +445,8 @@ export const useWithdrawalManagement = () => {
           // Send notification to user
           await createNotification(
             userId,
-            'withdrawal',
             {
+              type: 'withdrawal',
               title: 'Withdrawal Request Approved',
               message: `Your withdrawal request for $${withdrawal.amount} has been approved and is being processed.`,
               amount: withdrawal.amount.toString()

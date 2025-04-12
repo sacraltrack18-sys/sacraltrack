@@ -6,8 +6,6 @@ import { useVibeStore, VibePostWithProfile } from '@/app/stores/vibeStore';
 import VibeCard, { VibeCardSkeleton } from '@/app/components/vibe/VibeCard';
 import { MdOutlineMusicNote } from 'react-icons/md';
 import { VibeUploader } from '@/app/components/vibe/VibeUploader';
-import { HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 interface UserVibesProps {
   userId: string;
@@ -43,20 +41,9 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
         <div className="flex items-center">
           <MdOutlineMusicNote className="text-purple-500 w-6 h-6 mr-2" />
           <h2 className="text-2xl font-bold text-white">
-            {isProfileOwner ? 'Your Musical Vibes' : 'Musical Vibes'}
+            {isProfileOwner ? 'My Vibes' : 'Musical Vibes'}
           </h2>
         </div>
-        {isProfileOwner && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowVibeUploader(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full 
-                      shadow-lg shadow-purple-600/20 flex items-center"
-          >
-            <span className="mr-1 text-lg">+</span> New Vibe
-          </motion.button>
-        )}
       </div>
 
       {/* Отображение вайбов */}
@@ -84,7 +71,6 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
                 transition={{ duration: 0.3 }}
               >
                 <VibeCard vibe={vibe} />
-                <VibeCounter vibe={vibe} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -103,17 +89,6 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
               ? 'Share your musical journey with photos, videos, and creative content.'
               : 'This user hasn\'t shared any musical vibes yet.'}
           </p>
-          {isProfileOwner && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowVibeUploader(true)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full 
-                       shadow-lg shadow-purple-600/20"
-            >
-              Create First Vibe
-            </motion.button>
-          )}
         </div>
       )}
 
@@ -124,38 +99,6 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
           onSuccess={handleVibeUploaderSuccess}
         />
       )}
-    </div>
-  );
-};
-
-const VibeCounter = ({ vibe }: { vibe: VibePostWithProfile }) => {
-  const { userLikedVibes } = useVibeStore();
-  const isLiked = userLikedVibes.includes(vibe.id);
-  
-  // Получаем значения лайков и комментариев
-  const likesCount = Array.isArray(vibe.stats) 
-    ? parseInt(vibe.stats[0], 10) || 0
-    : (vibe.stats?.total_likes || 0);
-    
-  const commentsCount = Array.isArray(vibe.stats)
-    ? parseInt(vibe.stats[1], 10) || 0
-    : (vibe.stats?.total_comments || 0);
-  
-  return (
-    <div className="flex items-center space-x-4 mt-1 text-sm">
-      <div className={`flex items-center space-x-1 ${isLiked ? 'text-red-400' : 'text-gray-400'}`}>
-        {isLiked ? (
-          <HeartIconSolid className="h-4 w-4" />
-        ) : (
-          <HeartIcon className="h-4 w-4" />
-        )}
-        <span>{likesCount}</span>
-      </div>
-      
-      <div className="flex items-center space-x-1 text-gray-400">
-        <ChatBubbleLeftIcon className="h-4 w-4" />
-        <span>{commentsCount}</span>
-      </div>
     </div>
   );
 };

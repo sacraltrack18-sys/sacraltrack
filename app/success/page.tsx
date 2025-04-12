@@ -79,11 +79,29 @@ function SuccessPageContent() {
   const [isClient, setIsClient] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
   const [activeButton, setActiveButton] = useState<'profile' | 'explore' | null>(null)
+  const [showError, setShowError] = useState(false)
 
   // Проверяем, что мы на клиенте
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Эффект для задержки отображения ошибки
+  useEffect(() => {
+    if (error) {
+      // Задержка перед отображением ошибки для избежания мерцания
+      const timer = setTimeout(() => {
+        // Показываем ошибку только если покупка всё ещё не обработана успешно
+        if (!isProcessed) {
+          setShowError(true);
+        }
+      }, 500); // 500мс задержки
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowError(false);
+    }
+  }, [error, isProcessed]);
 
   useEffect(() => {
     // Если мы не на клиенте, не выполняем код
@@ -112,13 +130,13 @@ function SuccessPageContent() {
 
     const handlePaymentSuccess = async () => {
       try {
-        console.log("Starting handlePaymentSuccess...")
+        console.log("Starting handlePaymentSuccess with sessionId:", sessionId);
 
         if (!sessionId) {
-          setError("Session ID is missing")
-          setIsLoading(false)
-          console.log("Session ID is missing")
-          return
+          setError("Session ID is missing");
+          setIsLoading(false);
+          console.error("Session ID is missing");
+          return;
         }
 
         // Проверяем ID пользователя из контекста или из localStorage
@@ -129,86 +147,147 @@ function SuccessPageContent() {
           const urlUserId = searchParams.get("user_id");
           if (urlUserId) {
             currentUserId = urlUserId;
+            console.log("Using user ID from URL:", urlUserId);
           }
         }
         
-        if (!currentUserId) {
-          setError("User information is missing")
-          setIsLoading(false)
-          return
-        }
-        
-        setUserId(currentUserId);
-
-        console.log("Session ID:", sessionId)
-        console.log("User ID:", currentUserId)
-        console.log("User context:", userContext);
-        console.log("Session ID from URL:", sessionId);
-
-        // Get session information from Stripe
-        const response = await fetch(`/api/verify_payment?session_id=${sessionId}`)
-        const data = await response.json()
-
-        console.log("API response data:", data);
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Payment verification failed')
-        }
-
-        // Если в ответе API есть user_id, используем его
-        if (data.session?.metadata?.userId) {
-          currentUserId = data.session.metadata.userId;
-          setUserId(data.session.metadata.userId);
-        }
-
-        const { trackId, authorId } = data.session.metadata
-        const amount = (data.session.amount_total / 100).toString() // Convert cents to dollars and to string
-
-        if (!trackId || !authorId) {
-          setError("Track information is missing")
-          setIsLoading(false)
-          return
-        }
-
+        // Try to get userId from session metadata even if we don't have it yet
         try {
-          // Create purchase record
-          const purchaseResult = await createPurchase({
-            user_id: currentUserId as string,
-            track_id: trackId,
-            author_id: authorId,
-            amount: amount,
-            session_id: sessionId
-          })
+          const response = await fetch(`/api/verify_payment?session_id=${sessionId}`);
+          const data = await response.json();
           
-          console.log("Purchase record created successfully.")
-          setIsProcessed(true)
-        } catch (purchaseError: any) {
-          // If the error is due to duplicate purchase, we can consider it a success
-          if (purchaseError.message?.includes('Purchase already exists')) {
-            console.log("Purchase was already processed successfully.")
-            setIsProcessed(true)
-            return
+          console.log("API response data:", data);
+          
+          if (!response.ok) {
+            throw new Error(data.error || 'Payment verification failed');
           }
-          throw purchaseError
+          
+          // Use userId from session metadata if available
+          if (data.session?.metadata?.userId) {
+            currentUserId = data.session.metadata.userId;
+            if (currentUserId) {
+              setUserId(currentUserId || null);
+              console.log("Using user ID from session metadata:", currentUserId);
+            }
+          }
+          
+          const { trackId, authorId } = data.session.metadata;
+          const amount = (data.session.amount_total / 100).toString(); // Convert cents to dollars and to string
+          
+          if (!trackId || !authorId) {
+            setError("Track information is missing");
+            setIsLoading(false);
+            console.error("Track information is missing", data.session.metadata);
+            return;
+          }
+          
+          // If we still don't have a userId, we can't continue
+          if (!currentUserId) {
+            setError("User information is missing");
+            setIsLoading(false);
+            console.error("User information is missing");
+            return;
+          }
+          
+          try {
+            // Create purchase record
+            console.log("Creating purchase record with:", {
+              user_id: currentUserId,
+              track_id: trackId,
+              author_id: authorId,
+              amount: amount,
+              session_id: sessionId
+            });
+            
+            const purchaseResult = await createPurchase({
+              user_id: currentUserId,
+              track_id: trackId,
+              author_id: authorId,
+              amount: amount,
+              session_id: sessionId
+            });
+            
+            console.log("Purchase record created successfully:", purchaseResult);
+            // Успешно создана запись о покупке
+            setIsProcessed(true);
+            // Сразу очищаем любые ошибки
+            setError(null);
+            
+          } catch (purchaseError: any) {
+            console.log("Purchase error encountered:", purchaseError);
+            
+            // Проверяем все возможные признаки, что это ошибка дублирования покупки
+            const isDuplicate = 
+              purchaseError.name === 'DuplicatePurchaseError' ||
+              (purchaseError.isDuplicatePurchase === true) ||
+              (typeof purchaseError.message === 'string' && 
+               (purchaseError.message.includes('Purchase already exists') || 
+                purchaseError.message.includes('already processed') ||
+                purchaseError.message.includes('duplicate')));
+            
+            if (isDuplicate) {
+              console.log("This is a duplicate purchase - treating as success");
+              // Это дубликат покупки, считаем как успешную обработку
+              setIsProcessed(true);
+              // Очищаем ошибку
+              setError(null);
+              return;
+            }
+            
+            // Это другой тип ошибки
+            console.error("Error is not related to duplicate purchase:", purchaseError);
+            throw purchaseError;
+          }
+        } catch (err: any) {
+          console.error("Error processing payment success:", err);
+          
+          // Проверяем, связана ли ошибка с дубликатом покупки
+          const isDuplicate = 
+            err.name === 'DuplicatePurchaseError' ||
+            (err.isDuplicatePurchase === true) ||
+            (typeof err.message === 'string' && 
+             (err.message.includes('Purchase already exists') || 
+              err.message.includes('already processed') ||
+              err.message.includes('duplicate')));
+              
+          if (isDuplicate) {
+            // Если это дубликат, отмечаем обработку как успешную
+            console.log("Duplicate purchase detected - treating as success");
+            setIsProcessed(true);
+            setError(null);
+          } else {
+            // Иначе устанавливаем ошибку
+            setError(err.message || "An error occurred while processing the payment.");
+          }
         }
-
-      } catch (err: any) {
-        console.error("Error processing payment success:", err)
-        console.error("Error details:", err);
-        // Only set error if it's not a duplicate purchase case
-        if (!err.message?.includes('Purchase already exists')) {
-          setError("An error occurred while processing the payment.")
+      } catch (outerError: any) {
+        console.error("Outer error in handlePaymentSuccess:", outerError);
+        
+        // Проверяем, связана ли внешняя ошибка с дубликатом покупки
+        const isDuplicate = 
+          outerError.name === 'DuplicatePurchaseError' ||
+          (outerError.isDuplicatePurchase === true) ||
+          (typeof outerError.message === 'string' && 
+           (outerError.message.includes('Purchase already exists') || 
+            outerError.message.includes('already processed') ||
+            outerError.message.includes('duplicate')));
+            
+        if (isDuplicate) {
+          // Если это дубликат, отмечаем обработку как успешную
+          console.log("Duplicate purchase detected in outer error - treating as success");
+          setIsProcessed(true);
+          setError(null);
         } else {
-          // Если ошибка связана с дубликатом покупки, считаем это успехом
-          setIsProcessed(true)
+          setError("An unexpected error occurred processing your payment");
         }
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    handlePaymentSuccess()
-  }, [sessionId, userContext, createPurchase, isProcessed, isClient, searchParams])
+    // Call the payment success handler
+    handlePaymentSuccess();
+  }, [sessionId, userContext, createPurchase, isProcessed, isClient, searchParams]);
 
   const handleNavigateHome = () => {
     setIsNavigating(true)
@@ -398,7 +477,7 @@ function SuccessPageContent() {
     )
   }
 
-  // Show loading state while user context initializes
+  // Показываем загрузку, пока инициализируется контекст пользователя
   if (userContext === undefined) {
     return (
       <div className="flex justify-center items-center h-screen p-[20px]">
@@ -427,8 +506,14 @@ function SuccessPageContent() {
     )
   }
   
-  // Only show error if we have an error and it's not a duplicate purchase
-  if ((error || createPurchaseError) && !error?.includes('Purchase already exists') && !isProcessed) {
+  // Проверяем наличие ошибки, которая НЕ связана с дубликатом покупки
+  const errorMessage = error || (createPurchaseError?.message || '');
+  const isDuplicatePurchaseError = errorMessage.includes('Purchase already exists') || 
+                                   errorMessage.includes('already processed') ||
+                                   errorMessage.includes('DuplicatePurchaseError');
+  
+  // Показываем ошибку только если: нужно показать ошибку И это НЕ дубликат покупки И покупка НЕ обработана успешно
+  if (showError && !isDuplicatePurchaseError && !isProcessed) {
     return (
       <div className="flex justify-center items-center h-screen p-[20px] bg-gradient-to-b from-[#1a1a2e] to-[#16213e]">
         <AnimatePresence>

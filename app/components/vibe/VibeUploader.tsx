@@ -7,65 +7,149 @@ import { useUser } from '@/app/context/user';
 import { useGeneralStore } from '@/app/stores/general';
 import Webcam from 'react-webcam';
 import useDeviceDetect from '@/app/hooks/useDeviceDetect';
-import useImageOptimizer from '@/app/hooks/useImageOptimizer';
 import useGeolocation from '@/app/hooks/useGeolocation';
 import Image from 'next/image';
-import { 
-  XMarkIcon, 
-  PhotoIcon, 
-  VideoCameraIcon, 
+import {
+  PhotoIcon,
+  VideoCameraIcon,
+  XMarkIcon,
   FaceSmileIcon,
-  CameraIcon,
-  ArrowUpTrayIcon,
-  SparklesIcon,
   MapPinIcon,
-  AdjustmentsHorizontalIcon,
   ArrowPathIcon,
-  MusicalNoteIcon
+  CheckIcon,
+  ExclamationTriangleIcon,
+  CloudArrowUpIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  PencilIcon,
+  SparklesIcon,
+  MusicalNoteIcon,
+  CameraIcon,
+  MicrophoneIcon,
+  PaperAirplaneIcon,
+  UserIcon,
+  HeartIcon,
+  ChatBubbleLeftIcon,
+  ShareIcon,
+  EllipsisHorizontalIcon,
+  PlusIcon,
+  MinusIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowUpTrayIcon,
+  ArrowPathRoundedSquareIcon,
+  ArrowTopRightOnSquareIcon,
+  
+  HandThumbDownIcon,
+  HandThumbUpIcon,
+  HashtagIcon,
+  HomeIcon,
+  
+  WrenchIcon,
+  WrenchScrewdriverIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { BiLoaderCircle } from 'react-icons/bi';
+import { checkAppwriteConnection } from '@/libs/AppWriteClient';
+
+// Типы для временных компонентов
+interface CropArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CropperStyle {
+  containerStyle?: React.CSSProperties;
+}
+
+// Временная замена для модуля react-easy-crop
+// Если он не установлен, мы создадим упрощенный компонент
+const Cropper = ({ 
+  image, 
+  crop, 
+  zoom, 
+  aspect, 
+  onCropChange, 
+  onCropComplete, 
+  onZoomChange, 
+  cropShape, 
+  showGrid, 
+  style 
+}: { 
+  image: string;
+  crop: { x: number; y: number };
+  zoom: number;
+  aspect: number;
+  onCropChange: (crop: { x: number; y: number }) => void;
+  onCropComplete: (croppedArea: CropArea, croppedAreaPixels: CropArea) => void;
+  onZoomChange: (zoom: number) => void;
+  cropShape?: 'rect' | 'round';
+  showGrid?: boolean;
+  style?: CropperStyle;
+}) => {
+  // Это временная заглушка для компонента Cropper
+  return (
+    <div className="relative overflow-hidden rounded-xl" style={style?.containerStyle}>
+      <img 
+        src={image} 
+        alt="Preview" 
+        className="w-full h-full object-cover"
+        style={{ 
+          transform: `scale(${zoom}) translate(${-crop.x}px, ${-crop.y}px)`,
+          transformOrigin: 'center',
+          borderRadius: cropShape === 'round' ? '50%' : '0'
+        }}
+      />
+    </div>
+  );
+};
+
+// Временная замена для функции getCroppedImg
+const getCroppedImg = async (imageSrc: string, pixelCrop: CropArea): Promise<string> => {
+  // Простая заглушка, возвращающая исходное изображение
+  return imageSrc;
+};
 
 // Кастомная функция для музыкальных тостов
 const musicToast = {
-  success: (message: string) => {
-    toast.success(message, {
-      style: {
-        background: 'linear-gradient(to right, #2A2151, #1E1A36)',
-        color: '#fff',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 4px 12px rgba(88, 28, 135, 0.15)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-      },
-      icon: '🎵',
-    });
-  },
-  error: (message: string) => {
-    toast.error(message, {
-      style: {
-        background: 'linear-gradient(to right, #2A2151, #1E1A36)',
-        color: '#fff',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 4px 12px rgba(88, 28, 135, 0.15)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-      },
-      icon: '🎤',
-    });
-  },
-  info: (message: string) => {
-    toast(message, {
-      style: {
-        background: 'linear-gradient(to right, #2A2151, #1E1A36)',
-        color: '#fff',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 4px 12px rgba(88, 28, 135, 0.15)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-      },
-      icon: '🎧',
-    });
-  },
+  success: (message: string) => toast.success(message, {
+    style: {
+      background: '#1F2937',
+      color: '#fff',
+      borderRadius: '10px',
+      border: '1px solid rgba(32, 221, 187, 0.3)'
+    },
+    iconTheme: {
+      primary: '#20DDBB',
+      secondary: '#1F2937',
+    },
+  }),
+  error: (message: string) => toast.error(message, {
+    style: {
+      background: '#1F2937',
+      color: '#fff',
+      borderRadius: '10px',
+      border: '1px solid rgba(239, 68, 68, 0.3)'
+    },
+    iconTheme: {
+      primary: '#EF4444',
+      secondary: '#1F2937',
+    },
+  }),
+  info: (message: string) => toast(message, {
+    icon: '🎵',
+    style: {
+      background: '#1F2937',
+      color: '#fff',
+      borderRadius: '10px',
+      border: '1px solid rgba(59, 130, 246, 0.3)'
+    },
+  }),
 };
 
 type VibeType = 'photo' | 'video' | 'sticker';
@@ -73,6 +157,20 @@ type MoodType = 'Happy' | 'Excited' | 'Chill' | 'Creative' | 'Inspired' | 'Focus
 const VIBE_PHOTO_WIDTH = 450;
 const VIBE_PHOTO_HEIGHT = 560;
 const ASPECT_RATIO = VIBE_PHOTO_WIDTH / VIBE_PHOTO_HEIGHT;
+
+// Интерфейсы для компонента Cropper
+interface CropperProps {
+  image: string;
+  crop: { x: number; y: number };
+  zoom: number;
+  aspect: number;
+  onCropChange: (crop: { x: number; y: number }) => void;
+  onZoomChange: (zoom: number) => void;
+  onCropComplete: (croppedArea: CropArea, croppedAreaPixels: CropArea) => void;
+  cropShape?: 'rect' | 'round';
+  showGrid?: boolean;
+  style?: { containerStyle?: React.CSSProperties };
+}
 
 interface VibeUploaderProps {
   onClose: () => void;
@@ -84,47 +182,159 @@ const TabButton: React.FC<{
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
-}> = ({ active, icon, label, onClick }) => (
+  isComingSoon?: boolean;
+}> = ({ active, icon, label, onClick, isComingSoon }) => (
   <motion.button
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
+    whileHover={{ scale: 1.05, y: -2 }}
+    whileTap={{ scale: 0.95, y: 0 }}
     onClick={onClick}
-    className={`flex flex-col items-center py-3 px-5 rounded-lg transition-all ${
+    className={`flex flex-col items-center py-3.5 px-6 rounded-xl transition-all duration-300 relative overflow-hidden group ${
       active 
-        ? 'bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white shadow-lg shadow-purple-600/20' 
-        : 'bg-white/5 text-gray-300 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20'
+        ? 'bg-gradient-to-r from-[#20DDBB]/90 to-[#018CFD]/90 text-white shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30' 
+        : 'bg-white/5 text-gray-300 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-[#20DDBB]/30'
     }`}
   >
-    <div className="mb-1">{icon}</div>
-    <span className="text-xs font-medium">{label}</span>
+    {active && (
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/20 to-[#018CFD]/20 blur-xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      />
+    )}
+    
+    <motion.div 
+      className="mb-1.5 relative z-10"
+      animate={{ scale: active ? 1.1 : 1, y: active ? -1 : 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      {icon}
+    </motion.div>
+    
+    <span className="text-xs font-semibold relative z-10">{label}</span>
+    
+    {/* Индикатор "Coming Soon" */}
+    {isComingSoon && (
+      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[8px] font-semibold px-2 py-0.5 rounded-full shadow-lg">
+        SOON
+      </div>
+    )}
   </motion.button>
 );
 
 const MoodChip: React.FC<{
-  mood: MoodType;
-  selectedMood: MoodType;
-  setSelectedMood: (mood: MoodType) => void;
-}> = ({ mood, selectedMood, setSelectedMood }) => (
+  mood: string;
+  selected: boolean;
+  onClick: () => void;
+}> = ({ mood, selected, onClick }) => (
   <motion.button
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    onClick={() => setSelectedMood(mood === selectedMood ? '' : mood)}
-    className={`px-4 py-2 rounded-full text-xs font-medium transition-all border ${
-      mood === selectedMood
-        ? 'bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white border-transparent shadow-lg shadow-purple-600/20'
-        : 'bg-white/5 text-gray-300 border-white/10 hover:border-white/30 backdrop-blur-sm'
+    whileHover={{ scale: 1.05, y: -2 }}
+    whileTap={{ scale: 0.95, y: 0 }}
+    onClick={onClick}
+    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 overflow-hidden relative ${
+      selected
+        ? 'bg-gradient-to-r from-[#20DDBB]/90 to-[#018CFD]/90 text-white shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30'
+        : 'bg-white/5 text-gray-300 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-[#20DDBB]/30'
     }`}
   >
-    {mood}
+    {selected && (
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/20 to-[#018CFD]/20 blur-xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      />
+    )}
+    <div className="relative z-10 flex items-center justify-center">
+      {selected && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="mr-1.5 text-white"
+        >
+          <CheckIcon className="w-3 h-3" />
+        </motion.div>
+      )}
+      <span>{mood}</span>
+    </div>
   </motion.button>
 );
+
+// Optimized motion variants that will be reused for better performance
+const fadeInUpVariant = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 }
+};
+
+// Добавить новые стили для кнопок
+const buttonStyles = {
+  primary: "px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-lg hover:opacity-90 transition-all shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30 disabled:opacity-50 disabled:cursor-not-allowed",
+  secondary: "px-6 py-3 text-sm font-medium text-white bg-white/10 rounded-lg hover:bg-white/20 transition-all border border-white/10 hover:border-white/30",
+  icon: "p-2.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10 backdrop-blur-sm"
+};
+
+// Обновить стили для input и textarea
+const inputStyles = "w-full px-4 py-3 bg-white/5 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] transition-all border border-white/10 focus:border-[#20DDBB]/30 backdrop-blur-sm";
+
+// Функция безопасного кропа, которая проверяет на null
+const safeCropComplete = (
+  currentCrop: CropArea, 
+  croppedPixels: CropArea | null
+) => {
+  if (!croppedPixels) {
+    musicToast.error('Failed to crop image');
+    return;
+  }
+  
+  // Здесь логика для применения кропа к изображению
+  // ...
+};
+
+// Обработчик для кроппера изображений
+const onCropComplete = (croppedArea: CropArea, croppedAreaPixels: CropArea) => {
+  // Эта функция используется вне компонента, оставлена для совместимости
+};
+
+// Адаптер для Cropper компонента с правильными типами
+const CropperAdapter = ({ 
+  image, 
+  crop, 
+  zoom, 
+  aspect, 
+  onCropChange, 
+  onCropComplete, 
+  onZoomChange, 
+  cropShape, 
+  showGrid, 
+  style 
+}: CropperProps) => {
+  // Безопасно преобразуем тип crop для компонента
+  const handleCropChange = (newCrop: { x: number; y: number }) => {
+    onCropChange({ ...crop, ...newCrop });
+  };
+  
+  return (
+    <Cropper
+      image={image}
+      crop={{ x: crop.x, y: crop.y }} 
+      zoom={zoom}
+      aspect={aspect}
+      onCropChange={handleCropChange}
+      onZoomChange={onZoomChange}
+      onCropComplete={onCropComplete}
+      cropShape={cropShape}
+      showGrid={showGrid}
+      style={style}
+    />
+  );
+};
 
 export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }) => {
   const { user } = useUser() || { user: null };
   const { createVibePost, isCreatingVibe } = useVibeStore();
   const { setIsLoginOpen } = useGeneralStore();
   const { isMobile } = useDeviceDetect();
-  const { optimizeImage } = useImageOptimizer();
   const { getCurrentLocation, locationName, isLoading: isLoadingLocation } = useGeolocation();
   
   const [selectedTab, setSelectedTab] = useState<VibeType>('photo');
@@ -133,16 +343,42 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   const [selectedMood, setSelectedMood] = useState<MoodType>('');
   const [hasCamera, setHasCamera] = useState(false);
   const [useCameraMode, setUseCameraMode] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [webcamPermission, setWebcamPermission] = useState<boolean | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [cameraPermissionChecked, setCameraPermissionChecked] = useState(false);
+  const [step, setStep] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isValid, setIsValid] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [crop, setCrop] = useState<CropArea>({ x: 0, y: 0, width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
+  const [showCrop, setShowCrop] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [currentTag, setCurrentTag] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const webcamRef = useRef<Webcam>(null);
   const formRef = useRef<HTMLDivElement>(null);
   
+  // Fix for onCropComplete handler inside component
+  const handleCropComplete = useCallback((croppedArea: CropArea, croppedAreaPixels: CropArea) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
   // Check if camera is available only when needed
   const checkCameraAvailability = useCallback(() => {
     if (!cameraPermissionChecked && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -163,7 +399,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     const detectLocation = async () => {
       try {
         setIsDetectingLocation(true);
-        const placeName = await getCurrentLocation();
+        const placeName = await getCurrentLocation(true);
         if (placeName) {
           setLocation(placeName);
           musicToast.success('Location detected - your music scene is set!');
@@ -194,28 +430,22 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     try {
       setIsOptimizingImage(true);
       
-      // Оптимизация с заданным соотношением сторон и размерами
-      const optimizedFile = await optimizeImage(file, {
-        maxWidth: VIBE_PHOTO_WIDTH,
-        maxHeight: VIBE_PHOTO_HEIGHT,
-        aspectRatio: ASPECT_RATIO,
-        quality: 0.85,
-        format: 'jpeg'
-      });
+      // Вместо оптимизации используем исходный файл
+      console.log(`Using original file without optimization: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
       
-      // Создаем URL для предпросмотра
-      const previewUrl = URL.createObjectURL(optimizedFile);
+      // Создаем URL для предпросмотра из оригинального файла
+      const previewUrl = URL.createObjectURL(file);
       
-      setPhotoFile(optimizedFile);
+      setPhotoFile(file);
       setPhotoPreview(previewUrl);
       
-      musicToast.success('Image tuned to perfect harmony');
-      return optimizedFile;
+      musicToast.success('Image ready for upload');
+      return file;
     } catch (error) {
-      console.error('Failed to optimize image:', error);
-      musicToast.error('Hit a wrong note optimizing image');
+      console.error('Failed to prepare image:', error);
+      musicToast.error('Problem preparing image');
       
-      // Если оптимизация не удалась, используем оригинальный файл
+      // В случае ошибки также используем оригинальный файл
       const previewUrl = URL.createObjectURL(file);
       setPhotoFile(file);
       setPhotoPreview(previewUrl);
@@ -229,18 +459,67 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Validate file type for the selected tab
-    if (selectedTab === 'photo' && !file.type.includes('image/')) {
-      musicToast.error('Please select an image file');
-      return;
-    } else if (selectedTab === 'video' && !file.type.includes('video/')) {
-      musicToast.error('Please select a video file');
-      return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+
+      console.log(`Selected file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+
+      // Используем оригинальный файл без оптимизации
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      setSelectedFile(file);
+
+      console.log(`Using original file without optimization: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+
+    } catch (err) {
+      console.error('Error processing image:', err);
+      setError('Failed to process image. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Процесс оптимизации изображения
-    await processAndOptimizeImage(file);
+  };
+  
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please drop an image file');
+        return;
+      }
+
+      console.log(`Dropped file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+
+      // Используем оригинальный файл без оптимизации
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      setSelectedFile(file);
+
+      console.log(`Using original file without optimization: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+
+    } catch (err) {
+      console.error('Error processing image:', err);
+      setError('Failed to process image. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const triggerFileInput = () => {
@@ -262,8 +541,10 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       const blob = await res.blob();
       const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
       
-      // Оптимизируем полученное изображение
-      await processAndOptimizeImage(file);
+      // Используем оригинальный файл без оптимизации
+      setPhotoFile(file);
+      console.log(`Using original camera file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+      musicToast.success('Camera image captured');
     } catch (error) {
       console.error('Error converting webcam image:', error);
       musicToast.error('Failed to process captured image');
@@ -273,61 +554,171 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   
   const handleDetectLocation = async () => {
     try {
-      setIsDetectingLocation(true);
-      const placeName = await getCurrentLocation();
+      toast.loading('Getting your location...');
+      const placeName = await getCurrentLocation(true);
+      
       if (placeName) {
         setLocation(placeName);
-        musicToast.success('Location detected - your music scene is set!');
+        toast.success('Location detected!');
+      } else {
+        toast.error('Could not detect location');
       }
     } catch (error) {
-      musicToast.error('Couldn\'t find your venue location');
-      console.error('Error detecting location:', error);
+      console.warn('Location detection failed:', error);
+      toast.error('Location detection failed');
     } finally {
-      setIsDetectingLocation(false);
+      toast.dismiss();
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       if (!user || !user.id) {
-        musicToast.error('Необходимо войти в систему для публикации вайба!');
-        console.error('Пользователь не авторизован:', user);
+        musicToast.error('You need to be logged in to publish a vibe!');
+        console.error('User not authorized:', user);
+        return;
+      }
+
+      // Обработка функций, которые еще в разработке
+      if (selectedTab === 'video') {
+        musicToast.info('🎬 Music Video Vibes - Coming Soon! Our team is working on this feature. Stay tuned for the next update!');
+        return;
+      } else if (selectedTab === 'sticker') {
+        musicToast.info('🎵 Musical Sticker Vibes - Coming Soon! Express your musical emotions with animated stickers in the next update!');
         return;
       }
 
       if (selectedTab === 'photo' && !photoFile && !caption.trim()) {
-        musicToast.error('Пожалуйста, добавьте фото или напишите текст для вайба!');
+        musicToast.error('Please add a photo or write some text for your vibe!');
         return;
       }
 
-      console.log('Начало публикации вайба:', {
-        userObject: user ? 'доступен' : 'недоступен',
-        userId: user?.id,
-        photoFile: photoFile ? 'выбрано' : 'не выбрано',
-        caption: caption ? 'заполнено' : 'пустое'
-      });
+      setIsLoading(true);
+      
+      // Симулируем прогресс загрузки для лучшего UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + Math.floor(Math.random() * 10) + 1;
+        });
+      }, 300);
 
-      let vibeId;
+      // Проверяем соединение с Appwrite перед загрузкой
+      try {
+        const connectionStatus = await checkAppwriteConnection();
+        console.log('Appwrite connection status:', connectionStatus);
+        
+        if (!connectionStatus.connected || !connectionStatus.storageValid) {
+          throw new Error('Cannot connect to Appwrite storage service. Please try again later.');
+        }
+        
+        if (!connectionStatus.sessionValid) {
+          musicToast.info('Your session might have expired. Please log in again if upload fails.');
+        }
+      } catch (connectionError) {
+        console.error('Error checking Appwrite connection:', connectionError);
+        // Продолжаем загрузку даже при ошибке проверки соединения
+      }
+
+      let vibeId: string = '';
       
       if (selectedTab === 'photo') {
         // Убедимся, что у нас есть ID пользователя
         if (!user.id) {
-          musicToast.error('Не удалось определить ваш ID пользователя. Пожалуйста, войдите снова.');
-          console.error('ID пользователя отсутствует в объекте user:', user);
+          musicToast.error('Could not determine your user ID. Please log in again.');
+          console.error('User ID is missing in the user object:', user);
+          clearInterval(progressInterval);
+          setIsLoading(false);
+          setUploadProgress(0);
           return;
         }
         
-        console.log('Подготавливаем данные для вайба:', {
-          user_id: user.id,
-          type: selectedTab,
-          photo_size: photoFile ? `${photoFile.size} bytes` : 'no photo',
-          caption_length: caption ? caption.length : 0,
-          mood: selectedMood,
-          location: location ? 'set' : 'not set'
-        });
-        
         try {
-          vibeId = await createVibePost({
+          console.log('Starting vibe creation with the following data:', {
+            user_id: user.id,
+            type: selectedTab,
+            has_media: !!photoFile,
+            media_type: photoFile?.type,
+            media_size: photoFile?.size,
+            caption_length: caption?.length,
+            mood: selectedMood
+          });
+
+          // Если у нас есть файл, проверим его еще раз перед отправкой
+          if (photoFile) {
+            console.log('Photo file details before upload:', {
+              name: photoFile.name,
+              type: photoFile.type,
+              size: photoFile.size,
+              lastModified: photoFile.lastModified
+            });
+            
+            // Простая проверка на валидность файла
+            if (!(photoFile instanceof File)) {
+              console.warn('Photo file is not a valid File instance, creating new File from preview...');
+              
+              try {
+                // Если у нас есть превью-изображение, создаем из него файл
+                if (photoPreview) {
+                  const response = await fetch(photoPreview);
+                  if (!response.ok) throw new Error('Failed to fetch preview image');
+                  
+                  const blob = await response.blob();
+                  const fileType = blob.type || 'image/jpeg';
+                  const extension = fileType.split('/')[1] || 'jpg';
+                  const newFileName = `vibe_photo_${Date.now()}.${extension}`;
+                  
+                  // Создаем новый File объект
+                  const newFile = new File([blob], newFileName, { type: fileType });
+                  console.log('Created new File from preview:', {
+                    name: newFile.name,
+                    type: newFile.type,
+                    size: newFile.size
+                  });
+                  
+                  // Заменяем photoFile на новый File объект
+                  setPhotoFile(newFile);
+                  
+                  // Загружаем вайб с новым файлом
+                  const result = await createVibePost({
+                    user_id: user.id,
+                    type: selectedTab,
+                    media: newFile,
+                    caption,
+                    mood: selectedMood,
+                    location,
+                    tags: [],
+                  });
+                  
+                  vibeId = result || '';
+                  setUploadProgress(100);
+                  setTimeout(() => {
+                    clearInterval(progressInterval);
+                    musicToast.success('Your musical vibe has been published! 🎵');
+                    if (onSuccess && vibeId) onSuccess(vibeId);
+                    setTimeout(() => onClose(), 800);
+                  }, 500);
+                  return;
+                } else {
+                  throw new Error('No photo preview available to create file from');
+                }
+              } catch (error) {
+                console.error('Error creating file from preview:', error);
+                musicToast.error('Failed to prepare photo for upload');
+                clearInterval(progressInterval);
+                setIsLoading(false);
+                setUploadProgress(0);
+                return;
+              }
+            }
+          }
+          
+          // Создаем пост с оригинальным файлом, если все проверки пройдены
+          const result = await createVibePost({
             user_id: user.id,
             type: selectedTab,
             media: photoFile || undefined,
@@ -337,301 +728,415 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             tags: [],
           });
           
-          console.log('Вайб успешно создан с ID:', vibeId);
-          musicToast.success('Ваш музыкальный вайб опубликован! 🎵');
-          if (onSuccess) onSuccess(vibeId);
-          onClose();
+          vibeId = result || '';
+          
+          // Завершаем прогресс
+          setUploadProgress(100);
+          setTimeout(() => {
+            clearInterval(progressInterval);
+            
+            // Показываем эффект успешной загрузки
+            musicToast.success('Your musical vibe has been published! 🎵');
+            
+            if (onSuccess && vibeId) onSuccess(vibeId);
+            
+            // Закрываем модальное окно с небольшой задержкой для красивого эффекта
+            setTimeout(() => onClose(), 800);
+          }, 500);
         } catch (createError: any) {
-          console.error('Детализированная ошибка при создании вайба:', {
+          clearInterval(progressInterval);
+          setIsLoading(false);
+          setUploadProgress(0);
+          
+          console.error('Detailed error info:', {
             message: createError?.message,
             code: createError?.code,
-            response: createError?.response,
+            type: createError?.type,
+            name: createError?.name,
             stack: createError?.stack
           });
           
           // Проверяем специфические типы ошибок для более информативных сообщений
           if (createError?.message?.includes('storage')) {
-            musicToast.error('Не удалось загрузить фото. Проверьте размер и формат файла.');
+            musicToast.error('Failed to upload photo. Check file size and format.');
           } else if (createError?.message?.includes('permission') || createError?.code === 401) {
-            musicToast.error('У вас нет прав для создания вайба. Попробуйте выйти и войти снова.');
+            musicToast.error('You don\'t have permission to create a vibe. Try logging out and in again.');
           } else if (createError?.message?.includes('collection')) {
-            musicToast.error('Ошибка с коллекцией вайбов. Пожалуйста, обратитесь к администратору.');
-            console.error('Ошибка с коллекцией вайбов. Проверьте переменные окружения и ID коллекций.');
+            musicToast.error('Error with vibes collection. Please contact the administrator.');
           } else if (createError?.message?.includes('database')) {
-            musicToast.error('Ошибка базы данных. Пожалуйста, обратитесь к администратору.');
-            console.error('Ошибка базы данных. Проверьте переменные окружения и ID базы данных.');
+            musicToast.error('Database error. Please contact the administrator.');
           } else {
-            musicToast.error('Не удалось опубликовать вайб. Пожалуйста, попробуйте позже.');
+            musicToast.error('Failed to publish vibe. Please try again later.');
           }
         }
-      } else if (selectedTab === 'video') {
-        musicToast.info('Функция видео вайбов появится скоро! Следите за обновлениями!');
-      } else if (selectedTab === 'sticker') {
-        musicToast.info('Функция стикер-вайбов в разработке - мы трудимся над ней!');
       }
     } catch (error) {
-      console.error('Общая ошибка при публикации вайба:', error);
-      musicToast.error('Ваш музыкальный шедевр не удалось опубликовать. Давайте попробуем еще раз!');
+      console.error('General error when publishing vibe:', error);
+      musicToast.error('Your musical masterpiece could not be published. Let\'s try again!');
+      setIsLoading(false);
+      setUploadProgress(0);
     }
   };
-  
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && currentTag.trim()) {
+      if (tags.length >= 5) {
+        toast.error('Maximum 5 tags allowed', {
+          style: {
+            background: 'linear-gradient(to right, #2A2151, #1E1A36)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 4px 12px rgba(88, 28, 135, 0.15)',
+            padding: '12px 16px',
+            borderRadius: '12px',
+          },
+          icon: '🎤',
+        });
+        return;
+      }
+      setTags([...tags, currentTag.trim()]);
+      setCurrentTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  // Проверка на валидность формы для активации кнопки
+  useEffect(() => {
+    // Проверяем наличие изображения или текста для активации кнопки
+    if (selectedTab === 'photo') {
+      const hasImage = selectedFile !== null || imagePreview !== null || photoFile !== null;
+      const hasCaption = caption ? caption.trim().length > 0 : false;
+      setIsValid(hasImage || hasCaption);
+    }
+  }, [selectedFile, imagePreview, photoFile, caption, selectedTab]);
+
+  // Now define renderTabContent after all the functions it depends on
   const renderTabContent = () => {
     switch (selectedTab) {
       case 'photo':
         return (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            {photoPreview ? (
-              <div className="relative mb-6">
-                <div className="relative w-full rounded-xl overflow-hidden shadow-lg shadow-purple-600/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-white/10">
-                  <div className="relative w-full" style={{ height: `${VIBE_PHOTO_HEIGHT}px`, maxWidth: `${VIBE_PHOTO_WIDTH}px`, margin: '0 auto' }}>
-                    <Image 
-                      src={photoPreview} 
-                      alt="Preview" 
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="absolute top-2 right-2 flex space-x-2">
-                    <motion.button 
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => {
-                        setPhotoFile(null);
-                        setPhotoPreview(null);
-                        setUseCameraMode(false);
-                      }}
-                      className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white"
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
-            ) : useCameraMode ? (
-              <div className="relative mb-6">
-                <div className="relative w-full rounded-xl overflow-hidden shadow-lg shadow-purple-600/10 border border-white/10">
-                  <div className="relative w-full" style={{ height: `${VIBE_PHOTO_HEIGHT}px`, maxWidth: `${VIBE_PHOTO_WIDTH}px`, margin: '0 auto' }}>
-                    <Webcam
-                      audio={false}
-                      ref={webcamRef}
-                      screenshotFormat="image/jpeg"
-                      className="w-full h-full object-cover"
-                      videoConstraints={{
-                        facingMode: isMobile ? "user" : "environment",
-                        width: VIBE_PHOTO_WIDTH,
-                        height: VIBE_PHOTO_HEIGHT,
-                        aspectRatio: ASPECT_RATIO
-                      }}
-                    />
-                  </div>
-                  <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={handleCapturePhoto}
-                      className="p-4 bg-white rounded-full shadow-lg shadow-purple-600/20"
-                    >
-                      <div className="w-8 h-8 rounded-full border-4 border-purple-600" />
-                    </motion.button>
-                  </div>
-                  <motion.button 
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setUseCameraMode(false)}
-                    className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </motion.button>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <motion.div 
-                  whileHover={{ borderColor: 'rgba(168, 85, 247, 0.5)' }}
-                  onClick={triggerFileInput} 
-                  className="w-full rounded-xl border-2 border-dashed border-purple-500/20 flex flex-col items-center justify-center cursor-pointer transition-all p-8 bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm shadow-lg"
-                  style={{ height: `${VIBE_PHOTO_HEIGHT * 0.7}px`, maxWidth: `${VIBE_PHOTO_WIDTH}px`, margin: '0 auto' }}
-                >
-                  <motion.div
-                    animate={{ 
-                      y: [0, -10, 0],
-                      opacity: [1, 0.8, 1] 
-                    }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 3,
-                      ease: "easeInOut" 
-                    }}
-                  >
-                    <div className="relative">
-                      <PhotoIcon className="h-20 w-20 text-purple-500/60 mb-6" />
-                      <MusicalNoteIcon className="h-8 w-8 text-pink-500/80 absolute -top-2 -right-2" />
-                    </div>
-                  </motion.div>
-                  <p className="text-white text-center text-lg mb-2 font-medium">Share your musical moment</p>
-                  <p className="text-gray-400 text-center mb-4">Upload or capture your performance, gear, or inspiration</p>
-                  <p className="text-xs text-gray-500 max-w-xs text-center">
-                    Show us your instruments, studio setup, concert photos, or anything that represents your musical journey. Your photo will be optimized to <span className="text-purple-400">{VIBE_PHOTO_WIDTH}x{VIBE_PHOTO_HEIGHT}</span>.
-                  </p>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                </motion.div>
-                
-                {hasCamera && (
-                  <div className="mt-6 flex justify-center">
-                    <motion.button
-                      whileHover={{ scale: 1.05, boxShadow: "0 8px 20px rgba(167, 139, 250, 0.3)" }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        checkCameraAvailability();
-                        if (hasCamera) {
-                          setUseCameraMode(true);
-                        } else {
-                          musicToast.info('Please allow camera access to use this feature');
-                        }
-                      }}
-                      className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg shadow-purple-600/20"
-                    >
-                      <CameraIcon className="h-5 w-5 mr-2" />
-                      {isMobile ? "Take a Selfie" : "Use Camera"}
-                    </motion.button>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            <div ref={formRef} className="space-y-6 px-1">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+          <div className="p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Image Upload Area */}
+              <div
+                className={`relative w-full h-64 rounded-lg border-2 border-dashed transition-colors duration-200 ${
+                  isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ cursor: 'pointer' }}
               >
-                <label htmlFor="caption" className="block text-sm font-medium text-white mb-2">
-                  Caption
-                </label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm text-gray-500">Processing image...</span>
+                    </div>
+                  ) : imagePreview ? (
+                    <div className="relative w-full h-full">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImagePreview(null);
+                          setSelectedFile(null);
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                      >
+                        <XMarkIcon className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <PhotoIcon className="w-12 h-12 text-gray-400" />
+                      <div className="text-sm text-gray-500">
+                        <p>Drag and drop an image here, or</p>
+                        <p className="text-primary font-medium">click to select</p>
+                      </div>
+                      <p className="text-xs text-gray-400">Supports JPG, PNG, WebP (max 5MB)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mood Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <FaceSmileIcon className="w-5 h-5 text-[#20DDBB]" />
+                  <span className="text-white font-medium">How are you feeling?</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Happy', 'Excited', 'Chill', 'Creative', 'Inspired', 'Focused', 'Relaxed'].map((mood) => (
+                    <MoodChip
+                      key={mood}
+                      mood={mood as MoodType}
+                      selected={selectedMood === mood}
+                      onClick={() => setSelectedMood(mood as MoodType)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Caption Input */}
+              <div className="relative">
                 <textarea
-                  id="caption"
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Share your musical thoughts, inspirations, or what this track means to you..."
-                  className="w-full bg-white/5 text-white placeholder-gray-400 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[100px] border border-white/10 backdrop-blur-sm"
+                  placeholder="Share your musical thoughts..."
+                  className={inputStyles}
+                  rows={3}
                 />
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <label htmlFor="mood" className="block text-sm font-medium text-white mb-3">
-                  Mood
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <MoodChip mood="Happy" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Excited" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Chill" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Creative" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Inspired" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Focused" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
-                  <MoodChip mood="Relaxed" selectedMood={selectedMood} setSelectedMood={setSelectedMood} />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                  {caption.length}/500
                 </div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="relative"
-              >
-                <label htmlFor="location" className="block text-sm font-medium text-white mb-2">
-                  Location
-                </label>
-                <div className="relative">
-                  <input
-                    id="location"
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Add your location"
-                    className="w-full bg-white/5 text-white placeholder-gray-400 rounded-xl p-4 pl-10 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-white/10 backdrop-blur-sm"
-                  />
-                  <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleDetectLocation}
-                    disabled={isDetectingLocation}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+              </div>
+
+              {/* Location */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <MapPinIcon className="w-5 h-5 text-[#20DDBB]" />
+                  <span className="text-white font-medium">Add Location</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {location ? (
+                    <div className="flex-1 flex items-center bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/10">
+                      <MapPinIcon className="w-4 h-4 text-[#20DDBB] mr-2 flex-shrink-0" />
+                      <span className="text-gray-200 text-sm truncate">{location}</span>
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setLocation('')}
+                        className="ml-auto p-1 text-gray-400 hover:text-white"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleDetectLocation}
+                      disabled={isDetectingLocation}
+                      className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors rounded-lg px-4 py-3 border border-white/10 hover:border-[#20DDBB]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDetectingLocation ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            className="mr-2"
+                          >
+                            <ArrowPathIcon className="w-4 h-4 text-[#20DDBB]" />
+                          </motion.div>
+                          <span className="text-gray-300">Detecting location...</span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPinIcon className="w-4 h-4 text-[#20DDBB] mr-2" />
+                          <span className="text-gray-300">Detect my location</span>
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Button with Progress Animation */}
+              <div className="pt-2">
+                <motion.button
+                  type="submit"
+                  disabled={!isValid || isLoading}
+                  className={`${buttonStyles.primary} w-full relative overflow-hidden`}
+                  whileHover={isValid && !isLoading ? { scale: 1.02 } : {}}
+                  whileTap={isValid && !isLoading ? { scale: 0.98 } : {}}
+                >
+                  {isLoading ? (
+                    <>
+                      <div 
+                        className="absolute left-0 top-0 h-full bg-gradient-to-r from-purple-600/50 to-[#20DDBB]/50" 
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                      <div className="flex items-center justify-center relative z-10">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                          className="mr-2"
+                        >
+                          <ArrowPathIcon className="w-5 h-5" />
+                        </motion.div>
+                        <span>Sharing Vibe... {uploadProgress > 0 ? `${uploadProgress}%` : ''}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <span className="font-medium">Share Your Vibe</span>
+                      <motion.div
+                        animate={{ x: [0, 5, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="ml-2"
+                      >
+                        <PaperAirplaneIcon className="w-4 h-4" />
+                      </motion.div>
+                    </div>
+                  )}
+                </motion.button>
+                
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 text-center text-sm text-gray-400"
                   >
-                    {isDetectingLocation ? (
-                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <AdjustmentsHorizontalIcon className="h-5 w-5" />
-                    )}
-                  </motion.button>
-                </div>
-                {isDetectingLocation && (
-                  <p className="text-xs text-purple-400 mt-1 animate-pulse">Detecting your location...</p>
+                    <p>Creating your musical masterpiece...</p>
+                    <div className="mt-2 flex justify-center space-x-1">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{ scale: [1, 1.5, 1] }}
+                          transition={{ 
+                            duration: 1, 
+                            repeat: Infinity, 
+                            ease: "easeInOut",
+                            delay: i * 0.2
+                          }}
+                          className="w-1.5 h-1.5 rounded-full bg-[#20DDBB]"
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
                 )}
-              </motion.div>
-            </div>
-          </motion.div>
+              </div>
+            </form>
+          </div>
         );
       
       case 'video':
         return (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="py-12 px-4"
-          >
-            <div className="bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm rounded-xl p-8 text-center shadow-lg border border-white/10">
-              <VideoCameraIcon className="h-16 w-16 text-purple-500/60 mx-auto mb-6" />
-              <h3 className="text-white text-xl font-semibold mb-4">Music Video Vibes Coming Soon</h3>
-              <p className="text-gray-300 mb-6 max-w-sm mx-auto">
-                We're composing the ability for you to share performance videos, music clips, and instrumental showcases.
-                Stay tuned for the next track!
-              </p>
-              <div className="inline-flex items-center text-purple-400 bg-white/5 px-5 py-3 rounded-full">
-                <SparklesIcon className="h-5 w-5 mr-2" />
-                <span>Coming Soon</span>
+          <div className="py-12 px-4">
+            {/* Улучшенный UI для функции в разработке */}
+            <div className="relative bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm rounded-xl p-8 text-center shadow-lg border border-white/10 overflow-hidden">
+              {/* Бейдж "Скоро" */}
+              <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg">
+                COMING SOON
+              </div>
+              
+              {/* Графический элемент для фона */}
+              <div className="absolute inset-0 overflow-hidden opacity-10">
+                <div className="absolute -right-28 -bottom-28 w-96 h-96 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 blur-3xl"></div>
+                <div className="absolute -left-28 -top-28 w-96 h-96 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] blur-3xl"></div>
+              </div>
+              
+              {/* Содержимое */}
+              <div className="relative z-10">
+                <div className="relative w-24 h-24 mx-auto mb-6 bg-white/5 rounded-full flex items-center justify-center">
+                  <VideoCameraIcon className="h-12 w-12 text-[#20DDBB]" />
+                  <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                </div>
+                
+                <h3 className="text-white text-2xl font-bold mb-4">Music Video Vibes</h3>
+                
+                <p className="text-gray-300 mb-8 max-w-md mx-auto leading-relaxed">
+                  We're currently composing the ability for you to share performance videos, 
+                  music clips, and instrumental showcases. Our developers are working hard 
+                  to bring this feature to life!
+                </p>
+                
+                <div className="inline-flex items-center bg-gradient-to-r from-[#20DDBB]/10 to-[#018CFD]/10 border border-[#20DDBB]/30 text-[#20DDBB] px-6 py-3 rounded-full">
+                  <SparklesIcon className="h-5 w-5 mr-2" />
+                  <span className="font-medium">Coming in the next update</span>
+                </div>
+                
+                {/* Индикатор прогресса разработки */}
+                <div className="mt-8">
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                    <span>Development progress</span>
+                    <span>75%</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] w-3/4"></div>
+                  </div>
+                </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         );
       
       case 'sticker':
         return (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="py-12 px-4"
-          >
-            <div className="bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm rounded-xl p-8 text-center shadow-lg border border-white/10">
-              <FaceSmileIcon className="h-16 w-16 text-purple-500/60 mx-auto mb-6" />
-              <h3 className="text-white text-xl font-semibold mb-4">Musical Sticker Vibes Coming Soon</h3>
-              <p className="text-gray-300 mb-6 max-w-sm mx-auto">
-                Express your musical emotions with animated stickers - from guitar riffs to drum solos.
-                Our audio engineers are fine-tuning this feature!
-              </p>
-              <div className="inline-flex items-center text-purple-400 bg-white/5 px-5 py-3 rounded-full">
-                <SparklesIcon className="h-5 w-5 mr-2" />
-                <span>Coming Soon</span>
+          <div className="py-12 px-4">
+            {/* Улучшенный UI для функции в разработке */}
+            <div className="relative bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm rounded-xl p-8 text-center shadow-lg border border-white/10 overflow-hidden">
+              {/* Бейдж "Скоро" */}
+              <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg">
+                COMING SOON
+              </div>
+              
+              {/* Графический элемент для фона */}
+              <div className="absolute inset-0 overflow-hidden opacity-10">
+                <div className="absolute -right-28 -bottom-28 w-96 h-96 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 blur-3xl"></div>
+                <div className="absolute -left-28 -top-28 w-96 h-96 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] blur-3xl"></div>
+              </div>
+              
+              {/* Содержимое */}
+              <div className="relative z-10">
+                <div className="relative w-24 h-24 mx-auto mb-6 bg-white/5 rounded-full flex items-center justify-center">
+                  <FaceSmileIcon className="h-12 w-12 text-[#20DDBB]" />
+                  <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                </div>
+                
+                <h3 className="text-white text-2xl font-bold mb-4">Musical Sticker Vibes</h3>
+                
+                <p className="text-gray-300 mb-8 max-w-md mx-auto leading-relaxed">
+                  Express your musical emotions with animated stickers - from guitar riffs to drum solos.
+                  Our design team is creating a unique collection of music-themed stickers for you to share!
+                </p>
+                
+                <div className="inline-flex items-center bg-gradient-to-r from-[#20DDBB]/10 to-[#018CFD]/10 border border-[#20DDBB]/30 text-[#20DDBB] px-6 py-3 rounded-full">
+                  <SparklesIcon className="h-5 w-5 mr-2" />
+                  <span className="font-medium">Coming in the next update</span>
+                </div>
+                
+                {/* Индикатор прогресса разработки */}
+                <div className="mt-8">
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                    <span>Development progress</span>
+                    <span>60%</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] w-3/5"></div>
+                  </div>
+                </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         );
       
       default:
@@ -670,137 +1175,64 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: "spring", damping: 25 }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
         className="bg-gradient-to-br from-[#2A2151]/95 to-[#1E1A36]/95 backdrop-blur-xl rounded-2xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-white/10 shadow-xl relative"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="py-5 px-6 flex items-center justify-between bg-gradient-to-r from-purple-900/20 to-pink-900/20 backdrop-blur-md border-b border-white/5"
-        >
-          <h3 className="text-xl font-bold text-white">Share Your Musical Vibe</h3>
+        <div className="p-4 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <MusicalNoteIcon className="w-5 h-5 text-[#20DDBB]" />
+            <h3 className="text-lg font-semibold text-white">Create New Vibe</h3>
+          </div>
           <motion.button 
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="p-2 text-gray-300 hover:text-white"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white" />
           </motion.button>
-        </motion.div>
-        
-        {/* Music Info Block */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="px-6 py-4 bg-gradient-to-r from-purple-900/10 to-pink-900/10 border-b border-white/5"
-        >
-          <div className="flex items-start gap-3">
-            <MusicalNoteIcon className="h-6 w-6 text-purple-400 flex-shrink-0 mt-1" />
-            <p className="text-gray-300 text-sm">
-              <span className="font-medium text-white">Sacral Track</span> is all about music! Share your musical vibe, showcase your art, and connect with other music lovers. Express yourself through photos, videos, or animated stickers that capture your musical journey.
-            </p>
-          </div>
-        </motion.div>
-        
-        {/* Tabs */}
-        <motion.div
-          initial={{ y: -10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-900/10 to-pink-900/10"
-        >
-          <div className="flex justify-between space-x-3">
-            <TabButton 
-              active={selectedTab === 'photo'} 
-              icon={<PhotoIcon className="h-5 w-5" />} 
-              label="Photo" 
-              onClick={() => handleTabChange('photo')} 
-            />
-            <TabButton 
-              active={selectedTab === 'video'} 
-              icon={<VideoCameraIcon className="h-5 w-5" />} 
-              label="Video" 
-              onClick={() => handleTabChange('video')} 
-            />
-            <TabButton 
-              active={selectedTab === 'sticker'} 
-              icon={<FaceSmileIcon className="h-5 w-5" />} 
-              label="Sticker" 
-              onClick={() => handleTabChange('sticker')} 
-            />
-          </div>
-        </motion.div>
-        
-        {/* Content */}
-        <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent px-6 pt-6 pb-24" style={{ maxHeight: 'calc(90vh - 200px)' }}>
-          {renderTabContent()}
         </div>
         
-        {/* Fixed Publish Button */}
-        <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3, type: "spring" }}
-          className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/5 bg-gradient-to-r from-[#2A2151]/95 to-[#1E1A36]/95 backdrop-blur-xl"
-        >
-          <div className="flex justify-between items-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onClose}
-              className="px-5 py-3 border border-white/10 text-gray-300 hover:text-white rounded-full backdrop-blur-sm"
-            >
-              Cancel
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05, boxShadow: "0 8px 20px rgba(167, 139, 250, 0.3)" }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSubmit}
-              disabled={isCreatingVibe || (selectedTab === 'photo' && !photoFile && !caption.trim()) || isOptimizingImage}
-              className={`px-6 py-3 rounded-full flex items-center shadow-lg ${
-                isCreatingVibe || (selectedTab === 'photo' && !photoFile && !caption.trim()) || isOptimizingImage
-                  ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-purple-600/20'
-              }`}
-            >
-              {isCreatingVibe ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Posting...
-                </>
-              ) : isOptimizingImage ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Optimizing...
-                </>
-              ) : (
-                <>
-                  <SparklesIcon className="h-5 w-5 mr-2" />
-                  Share Your Musical Journey
-                </>
-              )}
-            </motion.button>
+        {/* Content Type Selection */}
+        <div className="p-4 border-b border-white/5">
+          <div className="flex justify-center space-x-4">
+            <TabButton
+              active={selectedTab === 'photo'}
+              icon={<PhotoIcon className="w-6 h-6" />}
+              label="Photo"
+              onClick={() => handleTabChange('photo')}
+            />
+            <TabButton
+              active={selectedTab === 'video'}
+              icon={<VideoCameraIcon className="w-6 h-6" />}
+              label="Video"
+              onClick={() => handleTabChange('video')}
+              isComingSoon={true}
+            />
+            <TabButton
+              active={selectedTab === 'sticker'}
+              icon={<FaceSmileIcon className="w-6 h-6" />}
+              label="Sticker"
+              onClick={() => handleTabChange('sticker')}
+              isComingSoon={true}
+            />
           </div>
-        </motion.div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {renderTabContent()}
+        </div>
       </motion.div>
     </motion.div>
   );

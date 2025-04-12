@@ -187,15 +187,30 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
   }, [uploadController]);
 
   // Audio player functions
-  const handleAudioPlay = () => {
+  const handleAudioPlay = async () => {
     if (!audioElement.current) return;
     
-    if (isAudioPlaying) {
-      audioElement.current.pause();
-    } else {
-      audioElement.current.play();
+    try {
+      if (isAudioPlaying) {
+        // Проверяем, не на паузе ли уже аудио
+        if (!audioElement.current.paused) {
+          audioElement.current.pause();
+        }
+      } else {
+        // Проверяем, не воспроизводится ли уже аудио
+        if (audioElement.current.paused) {
+          const playPromise = audioElement.current.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+        }
+      }
+      setIsAudioPlaying(!isAudioPlaying);
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      // В случае ошибки сбрасываем состояние воспроизведения
+      setIsAudioPlaying(false);
     }
-    setIsAudioPlaying(!isAudioPlaying);
   };
 
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -395,11 +410,49 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
           if (!response.ok) {
             const errorText = await response.text();
             console.error('Server error response:', errorText);
+            
+            // Формируем понятное сообщение об ошибке в зависимости от кода статуса
+            let errorMessage = `Server error: ${response.status}`;
+            
+            if (response.status === 500) {
+              // Для 500 ошибок даем более подробное пояснение
+              errorMessage = 'The server encountered an error while processing your audio. Please try a different audio file or contact support.';
+              console.error('Server 500 error. Full response:', errorText);
+              
+              // Логируем в консоль всю доступную информацию
+              console.error('Upload 500 error details:', {
+                status: response.status,
+                statusText: response.statusText,
+                responseText: errorText.substring(0, 500) + (errorText.length > 500 ? '...' : ''),
+                trackId: documentId,
+                audioFileName: fileAudio.name,
+                audioFileSize: fileAudio.size,
+                audioFileType: fileAudio.type
+              });
+            } else if (response.status === 413) {
+              // Для ошибки слишком большого файла
+              errorMessage = 'The audio file is too large. Please try a smaller file.';
+            } else if (response.status === 422) {
+              // Для ошибок валидации
+              errorMessage = 'There was a problem with the audio file format. Please ensure it is a valid WAV file.';
+            } else {
+              // Для других ошибок пытаемся извлечь сообщение из JSON, если возможно
+              try {
+                const errorResponse = JSON.parse(errorText);
+                errorMessage = errorResponse.error || errorResponse.message || errorMessage;
+              } catch (parseError) {
+                // Если не удалось распарсить JSON, используем текст ответа
+                errorMessage = `Server error (${response.status}): ${errorText.substring(0, 100)}`;
+              }
+            }
+                  
+            toast.error(errorMessage, { id: toastId });
             throw new Error(`Server error: ${response.status} - ${errorText}`);
           }
           
           if (!response.body) {
             console.error('Server response has no body');
+            toast.error('Server response has no body', { id: toastId });
             throw new Error('Server response has no body');
           }
           
@@ -414,373 +467,143 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
           
           console.log('Starting to read response stream...');
           
-          // Set timeout to detect stalled processing
+          // Initialize timeout to handle stalled uploads
           timeoutId = setTimeout(() => {
-            if (!receivedAnyData) {
-              console.error('No data received from server after 15 seconds');
-              toast.error('Processing appears to be stalled. No data received from server.', { id: toastId });
-              
-              // Close reader and reject promise
-              reader.cancel('Processing timeout').catch(console.error);
-            }
-          }, 15000);
+            console.error('Audio processing timeout after 60 seconds of inactivity');
+            toast.error('Audio processing timed out. Please try again or use a different audio file.', { id: toastId });
+            reader.cancel('Timeout after 60 seconds of inactivity');
+          }, 60000); // 60 second timeout
           
-          while (true) {
-            console.log('Reading chunk from stream...');
-            const { done, value } = await reader.read();
-            
-            if (done) {
-              console.log('Stream reading complete');
-              clearTimeout(timeoutId);
-              break;
-            }
-            
-            if (!value || value.length === 0) {
-              console.warn('Received empty chunk');
-              continue;
-            }
-            
-            receivedAnyData = true;
-            const chunk = decoder.decode(value, {stream: true});
-            console.log('Received chunk of size:', value.length, 'bytes');
-            console.log('Chunk data (first 100 chars):', chunk.substring(0, 100));
-            
-            buffer += chunk;
-            
-            // Check for common FFmpeg errors in the raw chunk
-            if (chunk.includes('Conversion failed') || 
-                chunk.includes('Error initializing') || 
-                chunk.includes('Cannot find FFmpeg')) {
-              console.error('FFmpeg error detected in server response:', chunk);
-              toast.error('Audio processing failed: FFmpeg error', { id: toastId });
-              clearTimeout(timeoutId);
-              throw new Error('FFmpeg error detected in server response');
-            }
-            
-            // Process complete events in buffer
-            const messages = [];
-            let startIdx = 0;
-            
+          try {
             while (true) {
-              const dataPrefix = 'data: ';
-              const dataIdx = buffer.indexOf(dataPrefix, startIdx);
-              if (dataIdx === -1) break;
+              const { done, value } = await reader.read();
               
-              const dataStart = dataIdx + dataPrefix.length;
-              const dataEnd = buffer.indexOf('\n\n', dataStart);
-              
-              if (dataEnd === -1) {
-                console.log('Incomplete message, waiting for more data');
-                break; // Incomplete message
+              // Clear and reset timeout on any data received
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                  console.error('Audio processing timeout after 60 seconds of inactivity');
+                  toast.error('Audio processing timed out. Please try again.', { id: toastId });
+                  reader.cancel('Timeout after 60 seconds of inactivity');
+                }, 60000);
               }
               
-              const jsonStr = buffer.substring(dataStart, dataEnd);
-              console.log('Found complete message, length:', jsonStr.length);
-              
-              try {
-                const jsonData = JSON.parse(jsonStr);
-                console.log('Parsed message type:', jsonData.type, 'stage:', jsonData.stage);
-                messages.push(jsonData);
-                startIdx = dataEnd + 2;
-              } catch (e) {
-                console.error('Error parsing JSON in SSE:', e);
-                console.error('Problematic JSON:', jsonStr.substring(0, 200) + '...');
-                startIdx = dataEnd + 2;
+              if (done) {
+                console.log('Reader done');
+                break;
               }
-            }
-            
-            // Remove processed messages from buffer
-            if (startIdx > 0) {
-              buffer = buffer.substring(startIdx);
-            }
-            
-            // Process all extracted messages
-            console.log('Processing', messages.length, 'extracted messages');
-            for (const update of messages) {
-              if (update.type === 'progress') {
-                // Map server stages to UI stages
-                let displayStage = update.stage;
-                if (update.stage.includes('convert')) {
-                  displayStage = 'Converting updated audio to MP3';
-                } else if (update.stage.includes('segment')) {
-                  displayStage = 'Segmenting updated audio';
-                } else if (update.stage.includes('Preparing segment')) {
-                  displayStage = 'Preparing updated segments';
-                } else if (update.stage.includes('playlist')) {
-                  displayStage = 'Creating updated playlist';
-                }
+              
+              receivedAnyData = true;
+              const chunk = decoder.decode(value, { stream: true });
+              buffer += chunk;
+              
+              // Process complete events in buffer
+              const messages = [];
+              let startIdx = 0;
+              
+              while (true) {
+                const dataPrefix = 'data: ';
+                const dataIdx = buffer.indexOf(dataPrefix, startIdx);
+                if (dataIdx === -1) break;
                 
-                console.log(`Progress update: ${displayStage} - ${update.progress}%`);
-                setProcessingStage(displayStage);
-                setProcessingProgress(update.progress);
-                toast.loading(`${displayStage}: ${Math.round(update.progress)}%`, { id: toastId });
-              } else if (update.type === 'error') {
-                // Server-side error occurred
-                console.error('Server error:', update.error, update.details);
-                toast.error(`Server error: ${update.error}`, { id: toastId });
-                throw new Error(`Server processing error: ${update.error}`);
-              } else if (update.type === 'complete') {
-                console.log('Received complete message, processing results');
-                // Processing complete
-                setProcessingStage('Update processing complete');
-                setProcessingProgress(100);
-                toast.success('Audio update processing completed!', { id: toastId });
+                const dataStart = dataIdx + dataPrefix.length;
+                const dataEnd = buffer.indexOf('\n\n', dataStart);
                 
-                // Prepare to upload to Appwrite
-                setProcessingStage('Updating storage files');
-                setProcessingProgress(0);
+                if (dataEnd === -1) break; // Incomplete message
                 
-                const result = update.result;
-                
-                // Check if result data is valid
-                if (!result) {
-                  console.error('No result data received from server');
-                  toast.error('No result data received from server', { id: toastId });
-                  throw new Error('No result data received from server');
-                }
-                
-                // Check for required fields
-                if (!result.mp3File) {
-                  console.error('Missing MP3 file in result data');
-                  toast.error('Missing MP3 file in result data', { id: toastId });
-                  throw new Error('Missing MP3 file in result data');
-                }
-                
-                if (!result.segments || !Array.isArray(result.segments) || result.segments.length === 0) {
-                  console.error('Missing or invalid segments in result data');
-                  toast.error('Missing or invalid segments in result data', { id: toastId });
-                  throw new Error('Missing or invalid segments in result data');
-                }
-                
-                if (!result.m3u8Template) {
-                  console.error('Missing m3u8 template in result data');
-                  toast.error('Missing m3u8 template in result data', { id: toastId });
-                  throw new Error('Missing m3u8 template in result data');
-                }
-                
-                console.log('Result data validation passed, proceeding with upload');
-                
-                // Convert MP3 file from data URL
-                const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
-                const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
-                
-                // Upload segments and create playlist
-                const segmentIds = [];
-                const totalSegments = result.segments.length;
-                
-                // Remove old segments if they exist
-                if (postData.segments) {
-                  try {
-                    const oldSegmentIds = JSON.parse(postData.segments);
-                    setProcessingStage('Removing old track segments');
-                    
-                    for (let i = 0; i < oldSegmentIds.length; i++) {
-                      try {
-                        await storage.deleteFile(
-                          process.env.NEXT_PUBLIC_BUCKET_ID!,
-                          oldSegmentIds[i]
-                        );
-                      } catch (error) {
-                        console.warn(`Failed to delete old segment ${oldSegmentIds[i]}:`, error);
-                      }
-                      
-                      const progress = Math.round((i + 1) / oldSegmentIds.length * 100);
-                      setProcessingProgress(progress);
-                    }
-                  } catch (error) {
-                    console.warn('Failed to parse or remove old segments:', error);
-                  }
-                }
-                
-                setProcessingStage('Uploading updated segments');
-                setProcessingProgress(0);
-                
-                for (let i = 0; i < totalSegments; i++) {
-                  const segment = result.segments[i];
-                  
-                  // Convert base64 to Blob
-                  const segmentBlob = await fetch(`data:audio/mp3;base64,${segment.data}`).then(r => r.blob());
-                  const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
-                  
-                  // Upload segment
-                  const segmentUploadResult = await storage.createFile(
-                    process.env.NEXT_PUBLIC_BUCKET_ID!,
-                    ID.unique(),
-                    segmentFile
-                  );
-                  const segmentId = segmentUploadResult.$id;
-                  
-                  segmentIds.push(segmentId);
-                  
-                  // Update progress
-                  const progress = Math.round((i + 1) / totalSegments * 100);
-                  setProcessingProgress(progress);
-                  toast.loading(`Updating segments: ${progress}%`, { id: toastId });
-                }
-                
-                // Create M3U8 playlist from segment IDs
-                setProcessingStage('Creating updated playlist');
-                setProcessingProgress(0);
-                
-                let m3u8Content = result.m3u8Template;
-                
-                // Replace placeholders with actual segment IDs
-                for (let i = 0; i < segmentIds.length; i++) {
-                  const segmentId = segmentIds[i];
-                  const placeholder = `SEGMENT_PLACEHOLDER_${i}`;
-                  m3u8Content = m3u8Content.replace(placeholder, segmentId);
-                }
-                
-                // Create M3U8 file
-                const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
-                
-                // Upload audio files to Appwrite
-                setProcessingStage('Updating track files');
-                setProcessingProgress(0);
-                
-                // If old audio files exist, delete them
-                if (postData.audio_url) {
-                  try {
-                    await storage.deleteFile(
-                      process.env.NEXT_PUBLIC_BUCKET_ID!,
-                      postData.audio_url
-                    );
-                  } catch (error) {
-                    console.warn('Failed to delete old audio file:', error);
-                  }
-                }
-                
-                if (postData.mp3_url) {
-                  try {
-                    await storage.deleteFile(
-                      process.env.NEXT_PUBLIC_BUCKET_ID!,
-                      postData.mp3_url
-                    );
-                  } catch (error) {
-                    console.warn('Failed to delete old MP3 file:', error);
-                  }
-                }
-                
-                if (postData.m3u8_url) {
-                  try {
-                    await storage.deleteFile(
-                      process.env.NEXT_PUBLIC_BUCKET_ID!,
-                      postData.m3u8_url
-                    );
-                  } catch (error) {
-                    console.warn('Failed to delete old M3U8 file:', error);
-                  }
-                }
-                
-                // Upload MP3
-                const mp3Result = await storage.createFile(
-                  process.env.NEXT_PUBLIC_BUCKET_ID!,
-                  ID.unique(),
-                  mp3File
-                );
-                const mp3Id = mp3Result.$id;
-                setProcessingProgress(33);
-                
-                // Upload M3U8
-                const m3u8Result = await storage.createFile(
-                  process.env.NEXT_PUBLIC_BUCKET_ID!,
-                  ID.unique(),
-                  m3u8File
-                );
-                const m3u8Id = m3u8Result.$id;
-                setProcessingProgress(66);
-                
-                // Upload original audio
-                const audioResult = await storage.createFile(
-                  process.env.NEXT_PUBLIC_BUCKET_ID!,
-                  ID.unique(),
-                  fileAudio
-                );
-                const audioId = audioResult.$id;
-                setProcessingProgress(100);
-                
-                // Update database with new audio files
+                const jsonStr = buffer.substring(dataStart, dataEnd);
                 try {
-                  console.log('Updating document:', {
-                    databaseId: process.env.NEXT_PUBLIC_DATABASE_ID,
-                    collectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_POST,
-                    documentId: documentId,
-                    data: {
-                      audio_url: audioId,
-                      mp3_url: mp3Id,
-                      m3u8_url: m3u8Id,
-                      segments: JSON.stringify(segmentIds),
-                      trackname,
-                      genre
-                    }
-                  });
-                  
-                  await database.updateDocument(
-                    process.env.NEXT_PUBLIC_DATABASE_ID!,
-                    process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
-                    documentId,
-                    {
-                      audio_url: audioId,
-                      mp3_url: mp3Id,
-                      m3u8_url: m3u8Id,
-                      segments: JSON.stringify(segmentIds),
-                      trackname,
-                      genre
-                    }
-                  );
-                  
-                  // Ensure track statistics document exists
-                  await ensureTrackStatisticsExist(documentId);
-                  
-                  // Call onUpdate with the updated data
-                  onUpdate({
-                    audio_url: audioId,
-                    mp3_url: mp3Id,
-                    m3u8_url: m3u8Id,
-                    segments: JSON.stringify(segmentIds),
-                    trackname,
-                    genre
-                  });
-                  
-                  // Show success modal
-                  setUpdatedTrackDetails({
-                    trackname,
-                    genre,
-                    image_url: postData.image_url
-                  });
-                  setShowSuccessModal(true);
-                  
-                  // Dismiss the toast notification
-                  toast.dismiss(toastId);
-                  toast.success('Track successfully updated!', { 
-                    style: {
-                      border: '1px solid #20DDBB',
-                      padding: '16px',
-                      color: '#ffffff',
-                      background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                      fontSize: '16px',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                    },
-                    icon: '✓'
-                  });
-                } catch (dbError) {
-                  console.error('Database update error:', dbError);
-                  toast.error(`Database update failed: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`);
-                  throw dbError;
+                  const jsonData = JSON.parse(jsonStr);
+                  messages.push(jsonData);
+                  startIdx = dataEnd + 2;
+                } catch (e) {
+                  console.error('Error parsing JSON in SSE:', e);
+                  console.log('Problematic JSON string:', jsonStr);
+                  startIdx = dataEnd + 2; // Skip this message
                 }
               }
+              
+              // Remove processed messages from buffer
+              if (startIdx > 0) {
+                buffer = buffer.substring(startIdx);
+              }
+              
+              // Process all extracted messages
+              for (const update of messages) {
+                console.log('Received SSE update type:', update.type);
+                
+                // Обработка ошибок сервера
+                if (update.type === 'error') {
+                  const errorMessage = update.message || 'Server error during audio processing';
+                  console.error('Server processing error:', errorMessage);
+                  
+                  // Вывод подробностей ошибки, если они есть
+                  if (update.details) {
+                    console.error('Error details:', update.details);
+                  }
+                  if (update.timestamp) {
+                    console.error('Error timestamp:', update.timestamp);
+                  }
+                  
+                  toast.error(`Error: ${errorMessage}`, { id: toastId });
+                  
+                  // Сбрасываем состояния обработки
+                  setIsProcessing(false);
+                  
+                  // Внимание! Здесь мы хотим выйти из функции, но не можем просто использовать return,
+                  // так как мы внутри цикла. Лучший способ - это выбросить ошибку и поймать ее выше.
+                  throw new Error(errorMessage);
+                }
+                
+                // ... существующая обработка обновлений ...
+                
+              }
             }
+            
+            // ... существующий код ...
+            
+          } catch (error) {
+            // Убираем таймаут, если есть
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = undefined;
+            }
+            
+            // Если не получили никаких данных, это может быть серверная ошибка
+            if (!receivedAnyData) {
+              console.error('No data received from server during audio processing');
+              toast.error('No data received from server. Please try again with a different audio file.', { id: toastId });
+            } else {
+              console.error('Error processing server events:', error);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              toast.error(`Error processing audio: ${errorMessage}`, { id: toastId });
+            }
+            
+            // Отменяем чтение, если ошибка не связана с отменой
+            if (!(error instanceof DOMException && error.name === 'AbortError')) {
+              reader.cancel('Error during processing');
+            }
+            
+            throw error; // Пробрасываем ошибку дальше
           }
+          
+          // ... existing code after successful processing ...
+          
         } catch (error) {
-          console.error('Error processing server stream:', error);
+          // Убираем таймаут, если он был установлен
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
-          toast.error(`Error processing audio: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+          
+          console.error('Error during track update:', error);
+          
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'Unknown error during track update';
+            
+          toast.error(errorMessage, { id: toastId });
           setIsProcessing(false);
-          setUploadController(null);
-          return;
+          return false; // Return unsuccessful update
         }
       } else {
         // Simple update without audio

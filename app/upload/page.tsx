@@ -311,6 +311,23 @@ export default function Upload() {
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Валидация
+        if (!fileAudio) {
+            toast.error('Please select an audio file', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '🎵'
+            });
+            return;
+        }
+        
         console.log("=== Upload Started ===");
 
         // Reset cancelling flag to ensure we're starting fresh
@@ -447,15 +464,81 @@ export default function Upload() {
             
             xhr.onerror = () => {
                 console.error('Network error while uploading file');
-                toast.error('Network error while uploading file', { id: toastId });
+                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
+                    id: toastId,
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
                 setIsProcessing(false);
                 setUploadController(null);
             };
             
             xhr.onload = async () => {
+                // Проверка успешного кода ответа
+                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
+                
                 if (xhr.status !== 200) {
-                    console.error(`Server error: ${xhr.statusText || 'unknown error'}`);
-                    toast.error(`Server error: ${xhr.statusText || 'unknown error'}`, { id: toastId });
+                    console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
+                    
+                    let errorMessage = 'Server error';
+                    let errorDetails = '';
+                    
+                    // Пытаемся извлечь детали ошибки из ответа
+                    try {
+                        // Проверяем, является ли ответ JSON
+                        const contentType = xhr.getResponseHeader('Content-Type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
+                            errorDetails = errorResponse.details || '';
+                        } else {
+                            // Если ответ не JSON, просто берем текст
+                            errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
+                        }
+                    } catch (parseError) {
+                        console.error('Failed to parse error response:', parseError);
+                        // Если не удалось распарсить ответ, используем статус код
+                        errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
+                    }
+                    
+                    // Для 500 ошибок добавляем специальное сообщение
+                    if (xhr.status === 500) {
+                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
+                        console.error(`Server 500 error. Response:`, xhr.responseText);
+                    }
+                    
+                    // Выводим подробную информацию об ошибке в консоль
+                    console.error('Upload error details:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        message: errorMessage,
+                        details: errorDetails,
+                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'empty response'
+                    });
+                    
+                    toast.error(errorMessage, { 
+                        id: toastId,
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️',
+                        duration: 5000
+                    });
+                    
                     setIsProcessing(false);
                     setUploadController(null);
                     return;
@@ -483,8 +566,22 @@ export default function Upload() {
                     // Continue with the rest of the processing...
                     await handleSSEProcessing(reader, decoder, toastId);
                 } catch (error) {
-                    console.error('Error processing server response');
-                    toast.error('Error processing server response', { id: toastId });
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error processing server response:', error);
+                    toast.error(`Error processing server response: ${errorMessage}`, { 
+                        id: toastId,
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️',
+                        duration: 5000
+                    });
                     setIsProcessing(false);
                     setUploadController(null);
                 }
@@ -515,8 +612,21 @@ export default function Upload() {
             xhr.send(formData);
             
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Upload error:', error);
-            toast.error('Failed to upload track');
+            toast.error(`Failed to upload track: ${errorMessage}`, {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️',
+                duration: 5000
+            });
             
             // Reset processing state
             setIsProcessing(false);
@@ -576,6 +686,40 @@ export default function Upload() {
                 // Process all extracted messages
                 for (const update of messages) {
                     console.log('Received update type:', update.type);
+                    
+                    // Обработка ошибок сервера
+                    if (update.type === 'error') {
+                        const errorMessage = update.message || 'Server error during audio processing';
+                        console.error('Server processing error:', errorMessage);
+                        
+                        // Вывод подробностей ошибки, если они есть
+                        if (update.details) {
+                            console.error('Error details:', update.details);
+                        }
+                        if (update.timestamp) {
+                            console.error('Error timestamp:', update.timestamp);
+                        }
+                        
+                        toast.error(`Error: ${errorMessage}`, {
+                            id: toastId,
+                            style: {
+                                border: '1px solid #FF4A4A',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                            },
+                            icon: '⚠️',
+                            duration: 5000
+                        });
+                        
+                        // Сбрасываем состояния обработки
+                        setIsProcessing(false);
+                        setUploadController(null);
+                        return; // Прерываем обработку при ошибке
+                    }
                     
                     if (update.type === 'progress') {
                         // Map server stages to our UI stages
@@ -644,7 +788,7 @@ export default function Upload() {
                         // If this is segmenting stage, add details to stage name for UploadProgress
                         // and update progress value based on actual segment progress
                         if (update.stage.includes('segment') && details?.segmentProgress) {
-                            const segmentCount = 42; // Real segment count from logs
+                            const segmentCount = details?.totalSegments || 42; // Use total segments from details or default to 42
                             const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
                             
                             // Update stage name with segment information for component UploadProgress
@@ -656,8 +800,15 @@ export default function Upload() {
                             console.log(`Segment progress update: ${details.segmentProgress}% (segment ${currentSegment}/${segmentCount})`);
                         }
                         
-                        // If the string contains information about the current segment in "Smooth segment progress: X.YY/Z" format
-                        const smoothSegmentMatch = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/);
+                        // Improved handling for "Smooth segment progress" logs
+                        const smoothSegmentMatch = (
+                            // Try to match from update.stage first
+                            update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/) ||
+                            // Or try to match from details.message if available
+                            (details?.message && typeof details.message === 'string' && 
+                             details.message.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/))
+                        );
+                        
                         if (smoothSegmentMatch) {
                             const currentSegmentFloat = parseFloat(smoothSegmentMatch[1]);
                             const totalSegments = parseFloat(smoothSegmentMatch[2]);
@@ -672,11 +823,33 @@ export default function Upload() {
                             console.log(`Updating progress bar to ${realProgress.toFixed(1)}% based on segment ${currentSegmentFloat}/${totalSegments}`);
                         }
                         
+                        // Look for detailed segmentation log info from consoled messages in details.message
+                        if (details?.message && typeof details.message === 'string') {
+                            // Check for segment creation progress
+                            const segmentProgressMatch = details.message.match(/Segment creation progress: ([0-9.]+)% \((?:processed approximately )?([0-9.]+)\/([0-9.]+)\)/);
+                            if (segmentProgressMatch) {
+                                const percentDone = parseFloat(segmentProgressMatch[1]);
+                                const currentSegment = parseFloat(segmentProgressMatch[2]);
+                                const totalSegments = parseFloat(segmentProgressMatch[3]);
+                                
+                                // Update progress display
+                                setProcessingProgress(percentDone);
+                                setProcessingStage(`Segmenting audio ${Math.floor(currentSegment)}/${Math.floor(totalSegments)}`);
+                                
+                                console.log(`Segmentation progress from message: ${percentDone}% (segment ${currentSegment}/${totalSegments})`);
+                            }
+                        }
+                        
                         // If message about created segment
-                        const createdSegmentMatch = update.stage.match(/Created segment segment_(\d+)\.mp3/);
+                        const createdSegmentMatch = (
+                            update.stage.match(/Created segment segment_(\d+)\.mp3/) || 
+                            (details?.message && typeof details.message === 'string' && 
+                             details.message.match(/Created segment segment_(\d+)\.mp3/))
+                        );
+                        
                         if (createdSegmentMatch) {
                             const segmentNum = parseInt(createdSegmentMatch[1]);
-                            const totalSegments = 42; // Based on logs
+                            const totalSegments = details?.totalSegments || 42; // Based on logs or details
                             const realProgress = ((segmentNum + 1) / totalSegments) * 100;
                             
                             // Update progress and current segment information
@@ -1079,12 +1252,11 @@ export default function Upload() {
                 }
             }
         } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') {
-                return;
-            }
+            // Улучшенная обработка ошибок при чтении потока SSE
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Error processing server-sent events:', error);
             
-            console.error('Error processing SSE:', error);
-            toast.error(error instanceof Error ? error.message : 'Audio processing error', { 
+            toast.error(`Error during track processing: ${errorMessage}`, {
                 id: toastId,
                 style: {
                     border: '1px solid #FF4A4A',
@@ -1095,24 +1267,13 @@ export default function Upload() {
                     borderRadius: '12px',
                     boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
                 },
-                icon: '❌'
+                icon: '⚠️',
+                duration: 5000
             });
             
-            // Also need to reset processing state
+            // Reset processing state
             setIsProcessing(false);
             setUploadController(null);
-            
-            throw error;
-        } finally {
-            // Important: DO NOT reset isProcessing here, 
-            // as this would cause progress window to disappear on successful processing
-            // Reset isProcessing will happen at the right time in other parts of the code
-            
-            // Only if process was cancelled or an error occurred
-            if (isCancelling) {
-                setIsProcessing(false);
-                setUploadController(null);
-            }
         }
     };
 

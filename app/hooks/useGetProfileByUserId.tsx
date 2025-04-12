@@ -3,6 +3,22 @@ import { database, Query } from "@/libs/AppWriteClient"
 // Объект для кеширования профилей
 const profileCache: Record<string, { data: any, timestamp: number }> = {};
 
+// Увеличиваем время кеширования до 15 минут
+const CACHE_DURATION = 15 * 60 * 1000; // 15 минут в миллисекундах
+
+// Функция для очистки устаревших записей кеша
+const cleanExpiredCache = () => {
+  const now = Date.now();
+  Object.keys(profileCache).forEach(key => {
+    if (now - profileCache[key].timestamp > CACHE_DURATION) {
+      delete profileCache[key];
+    }
+  });
+};
+
+// Очищаем кеш каждые 30 минут
+setInterval(cleanExpiredCache, 30 * 60 * 1000);
+
 const useGetProfileByUserId = async (userId: string) => {
     try {
         // В production только важные логи
@@ -23,10 +39,10 @@ const useGetProfileByUserId = async (userId: string) => {
             };
         }
 
-        // Проверяем наличие кеша и его свежесть (не старше 5 минут)
+        // Проверяем наличие кеша и его свежесть
         const cacheEntry = profileCache[userId];
         const now = Date.now();
-        if (cacheEntry && (now - cacheEntry.timestamp < 5 * 60 * 1000)) {
+        if (cacheEntry && (now - cacheEntry.timestamp < CACHE_DURATION)) {
             // В production только важные логи
             if (process.env.NODE_ENV === 'development') {
                 console.log(`[DEBUG-HOOK] Using cached profile for user ID: ${userId}`);
@@ -34,6 +50,7 @@ const useGetProfileByUserId = async (userId: string) => {
             return cacheEntry.data;
         }
 
+        // Если кеш устарел, делаем запрос
         const response = await database.listDocuments(
             String(process.env.NEXT_PUBLIC_DATABASE_ID), 
             String(process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE), 

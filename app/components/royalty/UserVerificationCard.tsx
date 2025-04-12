@@ -21,75 +21,43 @@ import VerificationCodeModal from './VerificationCodeModal';
 import { toast } from 'react-hot-toast';
 import useFirebasePhoneAuth from '@/app/hooks/useFirebasePhoneAuth';
 
-// Updated animated gradient border styles
+// Updated border styles with minimal design - more neutral version
 const gradientBorderStyles = `
-  @keyframes borderGradientAnimation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  
   .gradient-border {
     position: relative;
     z-index: 0;
     border-radius: 0.75rem;
     overflow: hidden;
-    border: 1px solid rgba(63, 45, 99, 0.3);
     transition: all 0.3s ease;
-  }
-  
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    z-index: -2;
-    left: -50%;
-    top: -50%;
-    width: 200%;
-    height: 200%;
-    background-color: transparent;
-    background-repeat: no-repeat;
-    background-size: 50% 50%, 50% 50%;
-    background-position: 0 0, 100% 0, 100% 100%, 0 100%;
-    background-image: linear-gradient(#3f2d63, #583d8c), 
-                      linear-gradient(#4e377a, #5a6bbd),
-                      linear-gradient(#583d8c, #3f2d63),
-                      linear-gradient(#4d63b5, #4e377a);
-    animation: borderGradientAnimation 4s linear infinite;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
   .gradient-border::after {
     content: '';
     position: absolute;
     z-index: -1;
-    left: 1px;
-    top: 1px;
-    width: calc(100% - 2px);
-    height: calc(100% - 2px);
-    background: #1A2338;
-    border-radius: 0.7rem;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #1A2338, #1f2942);
+    border-radius: 0.75rem;
   }
   
-  /* Only show gradient on hover */
-  .gradient-border:hover::before {
-    opacity: 1;
+  /* Very subtle border by default - more neutral color */
+  .gradient-border {
+    border: 1px solid rgba(255, 255, 255, 0.03);
   }
   
-  /* Add subtle box shadow on hover for additional effect */
+  /* Add subtle box shadow on hover for additional effect - more neutral */
   .gradient-border:hover {
-    box-shadow: 0 0 15px rgba(77, 99, 181, 0.3);
-    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
   
-  /* Keep the verification success card always glowing */
-  .always-glow::before {
-    opacity: 0.7 !important;
-  }
-  
+  /* Keep the verification success card always glowing with subtle indicator - less bright */
   .always-glow {
-    box-shadow: 0 0 15px rgba(77, 99, 181, 0.3);
-    border-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 `;
 
@@ -127,18 +95,23 @@ const VerificationStep = ({
       className={`gradient-border mb-3 transition-all duration-300 ${isVerified ? 'always-glow' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-    whileHover={!isVerified ? { scale: 1.02 } : {}}
+      whileHover={!isVerified ? { scale: 1.01, y: -2 } : {}}
     >
       <div className={`relative p-5 rounded-lg transition-all duration-300 ${
         isVerified 
-          ? 'bg-[#1A2338]/60 backdrop-blur-md' 
-          : 'bg-[#1A2338]/50 hover:bg-[#1A2338]/60 backdrop-blur-md'
+          ? 'bg-gradient-to-br from-[#1A2338] to-[#1A2338]/95' 
+          : 'bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 hover:from-[#1A2338] hover:to-[#1f2942]'
       }`}>
-      <div className="flex justify-between items-start">
+        {/* Тонкая декоративная линия сверху для верифицированных карточек - более нейтральная */}
+        {isVerified && (
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent"></div>
+        )}
+        
+        <div className="flex justify-between items-start">
           <div className="flex items-start gap-3">
             <div className={`p-2.5 rounded-lg ${
               isVerified 
-                ? 'bg-[#3f2d63]/30 text-violet-300' 
+                ? 'bg-[#20DDBB]/5 text-[#20DDBB]' 
                 : 'bg-[#1A2338]/80 text-[#818BAC]'
             }`}>
               {icon}
@@ -147,15 +120,15 @@ const VerificationStep = ({
               <h3 className="text-white font-medium text-sm sm:text-base flex items-center">
                 {title}
                 {isVerified && (
-                  <FaCheckCircle className="ml-2 text-xs sm:text-sm text-violet-300" />
+                  <FaCheckCircle className="ml-2 text-xs sm:text-sm text-[#20DDBB]" />
                 )}
               </h3>
               
             {verificationInfo && (
                 <div className="mt-1.5 mb-2">
-                <span className="text-sm font-medium text-violet-300">{verificationInfo}</span>
+                <span className="text-sm font-medium text-[#20DDBB]">{verificationInfo}</span>
                   {isVerified && (
-                    <span className="ml-2 text-xs px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded">verified</span>
+                    <span className="ml-2 text-xs px-1.5 py-0.5 bg-[#20DDBB]/5 text-[#20DDBB] rounded">verified</span>
                   )}
                 </div>
               )}
@@ -168,18 +141,20 @@ const VerificationStep = ({
           
           <div>
             {isVerified ? (
-              <span className="inline-flex items-center justify-center text-xs bg-[#3f2d63]/30 text-violet-300 py-1.5 px-3 rounded-full">
+              <span className="inline-flex items-center justify-center text-xs bg-[#20DDBB]/5 text-[#20DDBB] py-1.5 px-3 rounded-full">
                 Verified
               </span>
             ) : (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={onVerify}
-              disabled={isLoading}
+                disabled={isLoading}
                 className={`
                   relative overflow-hidden group flex items-center gap-1.5 text-xs py-1.5 px-3.5 rounded-full transition-all duration-300
                 ${isLoading
                     ? 'bg-[#1A2338]/50 text-[#818BAC] cursor-not-allowed opacity-70' 
-                    : 'bg-gradient-to-r from-[#3f2d63] to-[#4e377a] text-white hover:shadow-lg hover:shadow-violet-900/20'
+                    : 'bg-gradient-to-r from-[#20DDBB]/70 to-[#20DDBB]/50 text-white hover:shadow-lg hover:shadow-[#1A2338]/20'
                   }
                 `}
               >
@@ -191,7 +166,7 @@ const VerificationStep = ({
                       <FaArrowRight size={10} />
                   </>
                 )}
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
@@ -203,8 +178,8 @@ const EmailDisplay = ({ email }: { email?: string }) => {
   if (!email) return null;
   
   return (
-    <div className="flex items-center gap-2 p-3 mt-3 mb-1 bg-[#252742]/70 rounded-lg border border-[#3f2d63]/40">
-      <FaAt className="text-violet-300" />
+    <div className="flex items-center gap-2 p-3 mt-3 mb-1 bg-[#1f2942]/70 rounded-lg border border-white/5">
+      <FaAt className="text-[#20DDBB]" />
       <div className="text-white text-sm font-medium overflow-hidden text-ellipsis">
         {email}
       </div>

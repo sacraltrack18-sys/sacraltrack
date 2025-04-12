@@ -137,7 +137,7 @@ export const useVibeComments = (vibeId?: string) => {
     return commentText + emoji;
   }, []);
 
-  const addComment = async (text: string) => {
+  const addComment = async (textOrComment: string | VibeComment, replaceId?: string) => {
     if (!vibeId || !user?.id) {
       setError('You must be logged in to comment');
       throw new Error('You must be logged in to comment');
@@ -147,87 +147,72 @@ export const useVibeComments = (vibeId?: string) => {
       setIsLoading(true);
       setError(null);
 
-      const commentId = ID.unique();
-      const currentTime = new Date().toISOString();
+      // Проверяем, получили ли мы готовый объект комментария или только текст
+      if (typeof textOrComment === 'string') {
+        // Если получена строка, создаем новый комментарий
+        const text = textOrComment;
+        const commentId = ID.unique();
+        const currentTime = new Date().toISOString();
 
-      // Оптимистичное обновление UI, добавляем комментарий сразу
-      const optimisticComment: VibeComment = {
-        id: commentId,
-        user_id: user.id,
-        vibe_id: vibeId,
-        text,
-        created_at: currentTime,
-        profile: user ? {
-          user_id: user.id,
-          name: user.name || 'User',
-          image: user.image || '/images/placeholders/user-placeholder.svg',
-          username: undefined
-        } : undefined
-      };
-
-      // Добавляем комментарий в начало списка (т.к. сортировка по убыванию даты)
-      setComments(prevComments => [optimisticComment, ...prevComments]);
-
-      // Create the comment
-      const response = await database.createDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS!,
-        commentId,
-        {
+        // Оптимистичное обновление UI, добавляем комментарий сразу
+        const optimisticComment: VibeComment = {
+          id: commentId,
           user_id: user.id,
           vibe_id: vibeId,
           text,
-          created_at: currentTime
-        }
-      );
-
-      // Update comment count in vibe stats
-      try {
-        const vibeDoc = await database.getDocument(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-          vibeId
-        );
-
-        const currentStats = normalizeVibeStats(vibeDoc.stats);
-        const updatedStats = {
-          ...currentStats,
-          total_comments: currentStats.total_comments + 1
+          created_at: currentTime,
+          profile: user ? {
+            user_id: user.id,
+            name: user.name || 'User',
+            image: user.image || '/images/placeholders/user-placeholder.svg',
+            username: undefined
+          } : undefined
         };
 
-        // Преобразуем объект статистики в массив для обновления документа
-        const statsForUpdate = statsToArray(updatedStats);
-        
-        // Log for debugging
-        console.log('Updating vibe comment stats:', {
-          vibeId,
-          currentStats,
-          updatedStats,
-          statsForUpdate,
-          statsType: typeof statsForUpdate
-        });
+        // Добавляем комментарий в начало списка (т.к. сортировка по убыванию даты)
+        setComments(prevComments => [optimisticComment, ...prevComments]);
 
-        await database.updateDocument(
+        // Create the comment
+        const response = await database.createDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-          vibeId,
-          { stats: statsForUpdate }
+          process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS!,
+          commentId,
+          {
+            user_id: user.id,
+            vibe_id: vibeId,
+            text,
+            created_at: currentTime
+          }
         );
-      } catch (statsError) {
-        console.error('Error updating vibe stats:', statsError);
-        // Не прерываем выполнение, т.к. комментарий уже добавлен
-        // Просто логируем ошибку
-      }
 
-      return optimisticComment;
+        // Обновляем счетчик комментариев
+        await updateCommentStats(1);
+
+        return optimisticComment;
+      } else {
+        // Если получен готовый объект комментария
+        const comment = textOrComment;
+        
+        if (replaceId) {
+          // Если есть ID для замены, обновляем существующий комментарий
+          setComments(prevComments => 
+            prevComments.map(c => c.id === replaceId ? comment : c)
+          );
+        } else {
+          // Иначе добавляем новый комментарий
+          setComments(prevComments => [comment, ...prevComments]);
+        }
+        
+        return comment;
+      }
     } catch (err) {
       console.error('Error adding comment:', err);
       
       // В случае ошибки удаляем оптимистично добавленный комментарий
-      if (user?.id) {
+      if (user?.id && typeof textOrComment === 'string') {
         setComments(prevComments => 
           prevComments.filter(comment => 
-            !(comment.user_id === user.id && comment.text === text && 
+            !(comment.user_id === user.id && comment.text === textOrComment && 
               new Date(comment.created_at).getTime() > Date.now() - 10000)
           )
         );
@@ -238,6 +223,46 @@ export const useVibeComments = (vibeId?: string) => {
       throw err;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Вспомогательная функция для обновления счетчика комментариев
+  const updateCommentStats = async (change: number) => {
+    if (!vibeId) return;
+    
+    try {
+      const vibeDoc = await database.getDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+        vibeId
+      );
+
+      const currentStats = normalizeVibeStats(vibeDoc.stats);
+      const updatedStats = {
+        ...currentStats,
+        total_comments: Math.max(0, currentStats.total_comments + change)
+      };
+
+      // Преобразуем объект статистики в массив для обновления документа
+      const statsForUpdate = statsToArray(updatedStats);
+      
+      // Log for debugging
+      console.log('Updating vibe comment stats:', {
+        vibeId,
+        currentStats,
+        updatedStats,
+        statsForUpdate,
+        statsType: typeof statsForUpdate
+      });
+
+      await database.updateDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+        vibeId,
+        { stats: statsForUpdate }
+      );
+    } catch (statsError) {
+      console.error('Error updating vibe stats:', statsError);
     }
   };
 
@@ -276,44 +301,9 @@ export const useVibeComments = (vibeId?: string) => {
         commentId
       );
 
-      // Update comment count in vibe stats
+      // Обновляем счетчик комментариев
       if (vibeId) {
-        try {
-          const vibeDoc = await database.getDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-            vibeId
-          );
-
-          const currentStats = normalizeVibeStats(vibeDoc.stats);
-          const updatedStats = {
-            ...currentStats,
-            total_comments: Math.max(0, currentStats.total_comments - 1)
-          };
-
-          // Преобразуем объект статистики в массив для обновления документа
-          const statsForUpdate = statsToArray(updatedStats);
-          
-          // Log for debugging
-          console.log('Updating vibe comment stats (delete):', {
-            vibeId,
-            currentStats,
-            updatedStats,
-            statsForUpdate,
-            statsType: typeof statsForUpdate
-          });
-
-          await database.updateDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-            vibeId,
-            { stats: statsForUpdate }
-          );
-        } catch (statsError) {
-          console.error('Error updating vibe stats:', statsError);
-          // Не прерываем выполнение, т.к. комментарий уже удален
-          // Просто логируем ошибку
-        }
+        await updateCommentStats(-1);
       }
     } catch (err) {
       console.error('Error deleting comment:', err);

@@ -3,20 +3,26 @@ import AllOverlays from "@/app/components/AllOverlays";
 import './globals.css';
 import { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
-import { GlobalProvider } from './globalProvider';
 import { Suspense } from 'react';
 import Background from '@/app/components/Background'; 
 import { PlayerProvider } from '@/app/context/playerContext'; 
 import GlobalLoader from './components/GlobalLoader'
-import WelcomeModal from './components/WelcomeModal';
+import ClientWelcomeModal from './components/ClientWelcomeModal';
 import Script from 'next/script';
-import './disableServiceWorker.js';
-import ClientDebugWrapper from './utils/ClientDebugWrapper';
+import { OnboardingProvider } from './context/OnboardingContext';
+import { ShareVibeProvider } from './components/vibe/useShareVibe';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
     description: 'Sacral Track - music network marketplace for music artists and lovers. Listen to music, release a tracks, withdraw royalties to visa/mastercard.',
     metadataBase: new URL('https://sacraltrack.store'),
+    icons: {
+        icon: [
+            { url: '/favicon.svg', type: 'image/svg+xml' },
+            { url: '/favicon.ico', sizes: 'any' }
+        ],
+        apple: { url: '/apple-touch-icon.png' }
+    },
     openGraph: {
         title: 'Sacral Track',
         description: 'Sacral Track - music network marketplace for music artists and lovers',
@@ -37,6 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="en">
             <head>
+                {/* Favicon links */}
+                <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+                <link rel="icon" href="/favicon.ico" sizes="any" />
+                <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+                
                 {/* Preload critical resources */}
                 <link 
                     rel="preload" 
@@ -56,16 +67,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 ` }} />
             </head>
             <body className="bg-[linear-gradient(60deg,#2E2469,#351E43)] text-white">
-                {/* Добавляем отладчик гидратации в клиентском режиме */}
-                {process.env.NODE_ENV === 'development' && (
-                    <ClientDebugWrapper />
-                )}
-                
                 <GlobalLoader />
                 <Suspense fallback={<></>}>
                 {/*    <YandexMetrika /> */}
                 </Suspense>
-                <Background />
+                {/*  <Background /> */}
                 
                 {/* SVG для градиентов иконок */}
                 <svg width="0" height="0" className="absolute">
@@ -83,47 +89,89 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </defs>
                 </svg>
 
-                <GlobalProvider>
+       
                 <PlayerProvider>
                     <UserProvider>
-                        <Toaster 
-                            position="top-center"
-                            containerStyle={{
-                                zIndex: 10000000
-                            }}
-                            toastOptions={{
-                                duration: 3000,
-                                style: {
-                                    background: '#272B43',
-                                    color: '#fff',
-                                    zIndex: 10000000
-                                },
-                                success: {
-                                    iconTheme: {
-                                        primary: '#8B5CF6',
-                                        secondary: '#FFFAEE',
-                                    },
-                                },
-                                error: {
-                                    iconTheme: {
-                                        primary: '#EF4444',
-                                        secondary: '#FFFAEE',
-                                    },
-                                },
-                            }}
-                        />
-                        <AllOverlays />
-                        <WelcomeModal />
-                        {children}
+                        <OnboardingProvider>
+                            <ShareVibeProvider appName="Sacral Track">
+                                <Toaster 
+                                    position="top-center"
+                                    containerStyle={{
+                                        zIndex: 10000000
+                                    }}
+                                    toastOptions={{
+                                        duration: 3000,
+                                        style: {
+                                            background: '#272B43',
+                                            color: '#fff',
+                                            zIndex: 10000000
+                                        },
+                                        success: {
+                                            iconTheme: {
+                                                primary: '#8B5CF6',
+                                                secondary: '#FFFAEE',
+                                            },
+                                        },
+                                        error: {
+                                            iconTheme: {
+                                                primary: '#EF4444',
+                                                secondary: '#FFFAEE',
+                                            },
+                                        },
+                                    }}
+                                />
+                                <AllOverlays />
+                                {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
+                                {typeof window !== 'undefined' && (
+                                  <div suppressHydrationWarning>
+                                    <ClientWelcomeModal />
+                                  </div>
+                                )}
+                                {children}
+                            </ShareVibeProvider>
+                        </OnboardingProvider>
                     </UserProvider>
                     </PlayerProvider>
-                </GlobalProvider>
+              
                 
                 {/* Use next/script for external scripts with strategy="afterInteractive" */}
-                <Script 
-                    src="https://mc.yandex.ru/watch/98093904" 
-                    strategy="afterInteractive"
-                />
+                <Script id="yandex-metrika" strategy="afterInteractive">
+                    {`
+                    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+                    m[i].l=1*new Date();
+                    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+                    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+                    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+                    ym(98093904, "init", {
+                        clickmap: true,
+                        trackLinks: true,
+                        accurateTrackBounce: true
+                    });
+                    `}
+                </Script>
+                
+                {/* Add noscript fallback for Yandex Metrika */}
+                <noscript>
+                    <div>
+                        <img src="https://mc.yandex.ru/watch/98093904" style={{ position: 'absolute', left: '-9999px' }} alt="" />
+                    </div>
+                </noscript>
+                
+                {/* Добавляем скрипт для отключения Service Worker как клиентский скрипт */}
+                <Script id="disable-service-worker" strategy="afterInteractive">
+                    {`
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        registrations.forEach(registration => {
+                          registration.unregister();
+                          console.log('ServiceWorker unregistered');
+                        });
+                      }).catch(error => {
+                        console.error('Error unregistering service worker:', error);
+                      });
+                    }
+                    `}
+                </Script>
             </body>
         </html>
     );

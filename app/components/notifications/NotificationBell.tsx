@@ -18,7 +18,7 @@ const NotificationBell = () => {
     const fetchUnreadCount = async () => {
       if (userContext?.user?.id) {
         const notifications = await getUserNotifications(userContext.user.id);
-        const newUnreadCount = notifications.filter(n => !n.read).length;
+        const newUnreadCount = notifications.filter(n => !n.isRead).length;
         if (newUnreadCount > unreadCount) {
           setHasNewNotification(true);
           // Reset the new notification state after 5 seconds

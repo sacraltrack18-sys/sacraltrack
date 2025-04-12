@@ -203,7 +203,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
               className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100, duration: 0.3 }}
             />
           </div>
         </div>

@@ -25,7 +25,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
       if (userContext?.user?.id) {
         const userNotifications = await getUserNotifications(userContext.user.id);
         setNotifications(userNotifications);
-        setUnreadCount(userNotifications.filter(n => !n.read).length);
+        setUnreadCount(userNotifications.filter(n => !n.isRead).length);
       }
     };
 
@@ -37,7 +37,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   const handleMarkAsRead = async (notificationId: string) => {
     await markAsRead(notificationId);
     setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
@@ -125,7 +125,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 className={`p-4 border-b border-[#3f2d63] hover:bg-[#1A2338] transition-colors cursor-pointer ${
-                  !notification.read ? 'bg-[#1A2338]/50' : ''
+                  !notification.isRead ? 'bg-[#1A2338]/50' : ''
                 }`}
                 onClick={() => handleMarkAsRead(notification.id)}
               >
@@ -147,12 +147,14 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                       </Link>
                     )}
                     <p className="text-[#818BAC] text-xs mt-2">
-                      {formatDistance(new Date(notification.created_at), new Date(), {
-                        addSuffix: true
-                      })}
+                      {notification.createdAt ? 
+                        formatDistance(new Date(notification.createdAt), new Date(), {
+                          addSuffix: true
+                        }) 
+                        : 'Just now'}
                     </p>
                   </div>
-                  {!notification.read && (
+                  {!notification.isRead && (
                     <div className="w-2 h-2 rounded-full bg-[#20DDBB]" />
                   )}
                 </div>

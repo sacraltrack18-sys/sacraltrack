@@ -175,8 +175,23 @@ const ContentFilter = () => {
   
   // Handle tab change and update context
   const handleTabChange = (tab: ContentType) => {
-    console.log("[FILTER] Setting active filter to:", tab);
+    // Сделаем логирование заметнее
+    console.log("%c[FILTER] 🔄 Changing filter to: " + tab, "background: #2A184B; color: #20DDBB; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
+    
+    // Запоминаем старое значение для логирования
+    const prevFilter = activeFilter;
+    
+    // Устанавливаем новое значение фильтра
     setActiveFilter(tab);
+    
+    // Добавляем заметное логирование об изменении фильтра
+    console.log(`%c[FILTER-CHANGED] 📊 Filter changed from ${prevFilter} to ${tab}`, "background: #351E43; color: #ffffff; font-weight: bold; padding: 3px 6px; border-radius: 3px;");
+    
+    // Сохраняем в localStorage, чтобы гарантировать, что это сохранено
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sacraltrack-filter', tab);
+      console.log(`[FILTER-STORAGE] 💾 Saved filter "${tab}" to localStorage`);
+    }
   };
   
   // Fake data for recommendations (to be replaced with real logic in the future)

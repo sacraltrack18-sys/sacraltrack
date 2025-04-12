@@ -10,7 +10,7 @@ interface UpdateProfileData {
   location?: string;
   website?: string;
   role?: string;
-  social_links?: SocialLinks;
+  social_links?: SocialLinks | string;
   display_name?: string;
   banner_image?: string;
   is_public?: string;
@@ -23,6 +23,17 @@ interface UpdateProfileData {
 const useUpdateProfile = async (data: UpdateProfileData) => {
   try {
     const { id, user_id, ...updateData } = data;
+    
+    // Обработка social_links для сохранения в БД
+    if (updateData.social_links && typeof updateData.social_links !== 'string') {
+      updateData.social_links = JSON.stringify(updateData.social_links);
+      
+      // Проверяем длину
+      if (updateData.social_links.length > 300) {
+        console.warn('Social links string is too long, truncating...');
+        updateData.social_links = JSON.stringify({ note: "Too many social links to save" });
+      }
+    }
     
     // Проверяем, существует ли документ с таким ID
     try {
@@ -41,6 +52,23 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
         
         // Создаем документ профиля без поля username
         const newProfileId = ID.unique();
+
+        // Подготавливаем social_links для нового профиля
+        let socialLinksForDB = '{}';
+        if (updateData.social_links) {
+          if (typeof updateData.social_links === 'string') {
+            socialLinksForDB = updateData.social_links;
+          } else {
+            socialLinksForDB = JSON.stringify(updateData.social_links);
+          }
+          
+          // Проверяем длину
+          if (socialLinksForDB.length > 300) {
+            console.warn('Social links string for new profile is too long, truncating...');
+            socialLinksForDB = JSON.stringify({ note: "Too many social links to save" });
+          }
+        }
+
         await database.createDocument(
           String(process.env.NEXT_PUBLIC_DATABASE_ID),
           String(process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE),
@@ -54,7 +82,7 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
             location: updateData.location || '',
             website: updateData.website || '',
             role: updateData.role || '',
-            social_links: updateData.social_links || {},
+            social_links: socialLinksForDB,
             display_name: updateData.display_name || '',
             banner_image: updateData.banner_image || '',
             is_public: updateData.is_public || 'true',

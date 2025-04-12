@@ -38,6 +38,9 @@ const useCreatePurchase = (): CreatePurchaseHook => {
         console.log("Purchase already exists for this session");
         const error = new Error('Purchase already exists');
         error.name = 'DuplicatePurchaseError';
+        // Добавим дополнительное свойство для явного определения этого типа ошибки
+        // @ts-ignore - добавляем нестандартное свойство к Error
+        error.isDuplicatePurchase = true;
         throw error;
       }
 

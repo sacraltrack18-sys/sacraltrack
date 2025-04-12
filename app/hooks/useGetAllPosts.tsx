@@ -67,7 +67,16 @@ const TEST_DATA = [
 ];
 
 const useGetAllPosts = async () => {
-    console.log("[DEBUG-HOOK] Starting Appwrite request for posts");
+    // Логируем только в режиме разработки
+    if (process.env.NODE_ENV === 'development') {
+        console.log("[DEBUG-HOOK] Starting Appwrite request for posts");
+    }
+    
+    // Проверка на доступность database клиента
+    if (!database || typeof database?.listDocuments !== 'function') {
+        console.error("[DEBUG-HOOK] Appwrite database client is not available or not initialized correctly");
+        return TEST_DATA;
+    }
     
     try {
         // Check if environment variables are available
@@ -84,23 +93,57 @@ const useGetAllPosts = async () => {
             return TEST_DATA;
         }
         
-        console.log("[DEBUG-HOOK] Database ID:", dbId);
-        console.log("[DEBUG-HOOK] Collection ID:", collectionId);
+        if (process.env.NODE_ENV === 'development') {
+            console.log("[DEBUG-HOOK] Database ID:", dbId);
+            console.log("[DEBUG-HOOK] Collection ID:", collectionId);
+        }
         
-        // Set timeout for request to avoid infinite waiting
+        // Увеличиваем таймаут до 30 секунд
         const timeoutPromise = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error("Appwrite request timeout")), 10000)
+            setTimeout(() => reject(new Error("Appwrite request timeout")), 30000)
         );
         
-        // Execute Appwrite request
-        const fetchPromise = database.listDocuments(
-            String(dbId), 
-            String(collectionId), 
-            [ Query.orderDesc("$id") ]
-        );
+        // Добавляем индикатор для отслеживания попыток
+        let attemptCount = 0;
+        const maxAttempts = 2;
         
-        // Use Promise.race to handle either successful response or timeout
-        const response = await Promise.race([fetchPromise, timeoutPromise]);
+        // Функция для выполнения запроса с повторами при необходимости
+        const executeWithRetry = async (): Promise<any> => {
+            try {
+                attemptCount++;
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[DEBUG-HOOK] Attempt ${attemptCount}/${maxAttempts} to fetch posts`);
+                }
+                
+                // Проверяем еще раз перед вызовом метода
+                if (!database || typeof database.listDocuments !== 'function') {
+                    throw new Error("Database client or listDocuments method is not available");
+                }
+                
+                const response = await Promise.race([
+                    database.listDocuments(
+                        String(dbId), 
+                        String(collectionId), 
+                        [ Query.orderDesc("$id") ]
+                    ),
+                    timeoutPromise
+                ]);
+                
+                return response;
+            } catch (error: any) {
+                console.error(`[DEBUG-HOOK] Error on attempt ${attemptCount}:`, error?.message || error);
+                if (attemptCount < maxAttempts && (error?.message?.includes('timeout') || error?.code === 408)) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`[DEBUG-HOOK] Retrying after timeout (attempt ${attemptCount})`);
+                    }
+                    return executeWithRetry();
+                }
+                throw error;
+            }
+        };
+        
+        // Выполняем запрос с возможностью повтора
+        const response = await executeWithRetry();
         
         console.log("[DEBUG-HOOK] Appwrite response received");
         // Use type checking
@@ -121,20 +164,25 @@ const useGetAllPosts = async () => {
             console.log(`[DEBUG-HOOK] Processing document ${index + 1}/${documents.length}, ID: ${doc?.$id}`);
             
             // Get author profile by user_id
-            let profile;
+            let profile = {
+                user_id: doc?.user_id || 'unknown',
+                name: 'Unknown User',
+                image: '/images/placeholder-avatar.svg',
+                bio: ''
+            };
+            
             try {
-                profile = await useGetProfileByUserId(doc?.user_id);
-                console.log(`[DEBUG-HOOK] Profile for document ${doc?.$id} retrieved:`, 
-                    profile ? `ID: ${profile.user_id}, Name: ${profile.name}` : "Profile not found");
+                if (doc?.user_id) {
+                    const userProfile = await useGetProfileByUserId(doc.user_id);
+                    if (userProfile) {
+                        profile = userProfile;
+                        console.log(`[DEBUG-HOOK] Profile for document ${doc?.$id} retrieved:`, 
+                            `ID: ${profile.user_id}, Name: ${profile.name}`);
+                    }
+                }
             } catch (profileError) {
                 console.error(`[DEBUG-HOOK] Error getting profile for document ${doc?.$id}:`, profileError);
-                // Instead of setting profile to null, provide default values
-                profile = {
-                    user_id: doc?.user_id,
-                    name: 'Unknown User',
-                    image: '/images/placeholder-avatar.svg',
-                    bio: ''
-                };
+                // Оставляем значения по умолчанию, установленные выше
             }
 
             return {

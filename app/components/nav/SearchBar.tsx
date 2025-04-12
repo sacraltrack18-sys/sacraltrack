@@ -9,6 +9,15 @@ import { usePostStore } from "@/app/stores/post";
 import useSearchProfilesByName from "@/app/hooks/useSearchProfilesByName";
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 
+// Интерфейс для результатов поиска
+interface SearchResult {
+  id: string;
+  type: 'profile' | 'track';
+  name: string;
+  image: string;
+  user_id: string;
+}
+
 interface SearchBarProps {
   isHomePage: boolean;
 }
@@ -16,7 +25,7 @@ interface SearchBarProps {
 const SearchBar = ({ isHomePage }: SearchBarProps) => {
   const router = useRouter();
   const { searchTracksByName } = usePostStore();
-  const [searchProfiles, setSearchProfiles] = useState<(RandomUsers | Post)[]>([]);
+  const [searchProfiles, setSearchProfiles] = useState<SearchResult[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -48,24 +57,24 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
           searchTracksByName(query)
         ]);
 
-        const formattedResults = [
+        const formattedResults: SearchResult[] = [
           ...(profileResults?.map(profile => ({
             id: profile.id,
-            type: 'profile',
+            type: 'profile' as const,
             name: profile.name,
             image: profile.image,
             user_id: profile.id
           })) || []),
           ...(trackResults?.map(track => ({
             id: track.id,
-            type: 'track',
+            type: 'track' as const,
             name: track.name,
             image: track.image,
-            user_id: track.user_id
+            user_id: track.id
           })) || [])
         ];
 
-        setSearchProfiles(formattedResults as (RandomUsers | Post)[]);
+        setSearchProfiles(formattedResults);
       } catch (error) {
         console.error('Search error:', error);
         setSearchProfiles([]);
@@ -75,7 +84,7 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
   );
 
   // Handle click on search result
-  const handleSearchResultClick = (result: any) => {
+  const handleSearchResultClick = (result: SearchResult) => {
     if (result.type === 'profile') {
       router.push(`/profile/${result.user_id}`);
     } else {
@@ -168,9 +177,9 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
 
 // Memoized search result item
 interface SearchResultItemProps {
-  result: RandomUsers | Post;
+  result: SearchResult;
   getImageUrl: (id: string) => string;
-  onClick: (result: any) => void;
+  onClick: (result: SearchResult) => void;
 }
 
 const SearchResultItem = React.memo(({ result, getImageUrl, onClick }: SearchResultItemProps) => {

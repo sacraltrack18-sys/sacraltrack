@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { SparklesIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
+import { BsStars } from "react-icons/bs";
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
 import ClientOnly from "@/app/components/ClientOnly";
@@ -15,6 +15,7 @@ const VibeButton = ({ onOpenVibeUploader }: VibeButtonProps) => {
   const userContext = useUser();
   const { setIsLoginOpen } = useGeneralStore();
   const [isClient, setIsClient] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   
   // Reduce animation dots for better performance
   const [animationDots, setAnimationDots] = useState<Array<{top: string, left: string}>>([]);
@@ -35,39 +36,110 @@ const VibeButton = ({ onOpenVibeUploader }: VibeButtonProps) => {
     onOpenVibeUploader();
   };
 
+  const baseButtonClass = "relative flex h-10 items-center justify-center rounded-full md:rounded-2xl px-3 md:px-4 group transition-all duration-300 mr-4 cursor-pointer";
+  const baseIconClass = "z-10 flex h-5 w-5 items-center justify-center";
+  const baseStarsClass = "h-5 w-5 text-purple-400 group-hover:text-blue-400 transition-all duration-500";
+
   return (
     <motion.button 
       onClick={handleClick} 
-      className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#20DDBB]/20 group hover:bg-[#20DDBB]/30 transition-all duration-300 mr-4" 
-      whileHover={{ scale: 1.03 }} 
-      whileTap={{ scale: 0.97 }}
+      className={baseButtonClass}
+      whileHover={{ 
+        scale: 1.05,
+        boxShadow: "0 0 15px rgba(147, 51, 234, 0.5)"
+      }} 
+      whileTap={{ scale: 0.95 }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
       id="vibe-button"
     >
-      <div className="z-10 flex h-5 w-5 items-center justify-center">
-        <SparklesIcon className="h-5 w-5 text-[#20DDBB] group-hover:text-white transition-colors duration-300" />
+      <motion.div 
+        className="absolute inset-0 rounded-full md:rounded-2xl"
+        style={{
+          background: isHovered 
+            ? "linear-gradient(90deg, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3))" 
+            : "linear-gradient(90deg, rgba(147, 51, 234, 0.1), rgba(59, 130, 246, 0.1))"
+        }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      <motion.div 
+        className="absolute inset-0 rounded-full md:rounded-2xl border"
+        style={{
+          borderColor: isHovered 
+            ? "rgba(147, 51, 234, 0.6)" 
+            : "rgba(147, 51, 234, 0.3)"
+        }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      <div className={baseIconClass}>
+        <motion.div
+          animate={{ 
+            rotate: isHovered ? 360 : 0,
+            scale: isHovered ? 1.2 : 1
+          }}
+          transition={{ 
+            rotate: { duration: 0.8, ease: "easeInOut" },
+            scale: { duration: 0.3 }
+          }}
+        >
+          <BsStars className={baseStarsClass} />
+        </motion.div>
       </div>
+      
+      <motion.span 
+        className="ml-1.5 text-white font-semibold text-sm tracking-wider"
+        animate={{
+          x: isHovered ? 2 : 0,
+          color: isHovered ? "#a78bfa" : "#ffffff"
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        Vibe
+      </motion.span>
       
       <ClientOnly>
         {isClient && (
-          <div className="absolute inset-0 overflow-hidden rounded-full">
+          <div className="absolute inset-0 overflow-hidden rounded-full md:rounded-2xl">
             {animationDots.map((dot, i) => (
-              <div
+              <motion.div
                 key={i}
-                className="opacity-0 group-hover:opacity-100 absolute w-1 h-1 rounded-full bg-white/80"
+                className="absolute w-1 h-1 rounded-full bg-white/80"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ 
+                  opacity: isHovered ? 1 : 0,
+                  scale: isHovered ? 1 : 0,
+                  x: isHovered ? [0, Math.random() * 10 - 5, 0] : 0,
+                  y: isHovered ? [0, Math.random() * 10 - 5, 0] : 0
+                }}
+                transition={{
+                  opacity: { duration: 0.3, delay: i * 0.05 },
+                  scale: { duration: 0.3, delay: i * 0.05 },
+                  x: { duration: 1, repeat: Infinity, repeatType: "reverse", delay: i * 0.1 },
+                  y: { duration: 1, repeat: Infinity, repeatType: "reverse", delay: i * 0.1 }
+                }}
                 style={{
                   top: dot.top,
                   left: dot.left,
-                  // Use CSS variables for better performance
-                  transition: `all ${0.5 + (i * 0.1)}s ease-out`,
-                  transitionDelay: `${i * 0.05}s`,
-                  transform: "scale(0)",
-                  willChange: "opacity, transform"
                 }}
               />
             ))}
           </div>
         )}
       </ClientOnly>
+      
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            className="absolute inset-0 rounded-full md:rounded-2xl border border-purple-500/50"
+            initial={{ opacity: 0.8, scale: 1 }}
+            animate={{ opacity: 0, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+        )}
+      </AnimatePresence>
     </motion.button>
   );
 };

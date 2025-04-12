@@ -67,19 +67,34 @@ export const useAudioPlayer = (audioUrl: string) => {
     };
   }, [audioUrl]);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     if (!audioRef.current) return;
 
-    if (state.isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
+    try {
+      if (state.isPlaying) {
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+        }
+      } else {
+        if (audioRef.current.paused) {
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+        }
+      }
 
-    setState(prev => ({
-      ...prev,
-      isPlaying: !prev.isPlaying
-    }));
+      setState(prev => ({
+        ...prev,
+        isPlaying: !prev.isPlaying
+      }));
+    } catch (error) {
+      console.error('Error toggling audio playback:', error);
+      setState(prev => ({
+        ...prev,
+        isPlaying: false
+      }));
+    }
   }, [state.isPlaying]);
 
   const seek = useCallback((time: number) => {

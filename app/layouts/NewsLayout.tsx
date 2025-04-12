@@ -136,23 +136,6 @@ export default function NewsLayout({ children, title = "Latest News", descriptio
 			</motion.div>
 			</div>
 
-                {/* Support Button */}
-                <motion.a
-                            href="http://t.me/sashaplayra"
-                            target="_blank"
-                            initial={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.8 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="fixed bottom-5 right-5 bg-[#272B43] text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer hover:bg-[#1E2136] focus:outline-none z-40 shadow-lg shadow-purple-500/20"
-                >   
-                    <div className="flex flex-col items-center">
-                                <img src="/images/tel.svg" className="w-4 h-4 mb-1" alt="" />
-                                <span className="text-[10px]">Support</span>
-                            </div>
-                </motion.a>
-
                 {/* Login prompt modal */}
                 <LoginPromptModal 
                     isVisible={isModalVisible} 
