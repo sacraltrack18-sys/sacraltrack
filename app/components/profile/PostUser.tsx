@@ -680,10 +680,10 @@ useEffect(() => {
                           <p className="text-sm text-white/60">Total Plays</p>
                         </div>
                         <p className="text-2xl font-bold text-white mt-1 flex items-center">
-                          {statistics?.plays_count || 0}
-                          {(statistics?.plays_count || 0) > 0 && (
+                          {parseInt(statistics?.plays_count || "0", 10)}
+                          {parseInt(statistics?.plays_count || "0", 10) > 0 && (
                             <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
-                              +{Math.round((statistics?.plays_count || 0) * 0.05)} this week
+                              +{Math.round(parseInt(statistics?.plays_count || "0", 10) * 0.05)} this week
                             </span>
                           )}
                         </p>
@@ -717,12 +717,14 @@ useEffect(() => {
                           <p className="text-sm text-white/60">Top Country</p>
                         </div>
                         <p className="text-2xl font-bold text-white mt-1 flex items-center gap-2">
-                          {Object.entries(statistics?.geographic_data || {})
-                            .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'}
+                          {Object.entries(statistics?.geographic_data || {}).length > 0 ? 
+                            String(Object.entries(statistics?.geographic_data || {})
+                              .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0])
+                            : 'N/A'}
                           {Object.entries(statistics?.geographic_data || {}).length > 0 && (
                             <span className="text-sm text-white/60 font-normal">
-                              {Object.entries(statistics?.geographic_data || {})
-                                .sort(([,a], [,b]) => b - a)[0]?.[1] || 0} plays
+                              {String(Object.entries(statistics?.geographic_data || {})
+                                .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[1] || 0)} plays
                             </span>
                           )}
                         </p>
@@ -740,8 +742,10 @@ useEffect(() => {
                           <p className="text-sm text-white/60">Top Device</p>
                         </div>
                         <p className="text-xl font-bold text-white mt-1 capitalize">
-                          {Object.entries(statistics?.device_types || {})
-                            .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'}
+                          {Object.entries(statistics?.device_types || {}).length > 0 ?
+                            String(Object.entries(statistics?.device_types || {})
+                              .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0])
+                            : 'N/A'}
                         </p>
                       </motion.div>
                       <motion.div
@@ -756,7 +760,7 @@ useEffect(() => {
                           onClick={() => {
                             setShowStats(false);
                             toast.custom((t) => (
-                              <StatsToast message={`Your track "${post.trackname}" has been played ${statistics?.plays_count || 0} times!`} />
+                              <StatsToast message={`Your track "${post.trackname}" has been played ${parseInt(statistics?.plays_count || "0", 10)} times!`} />
                             ), { duration: 4000 });
                           }}
                           className="w-full py-2.5 px-4 rounded-xl transition-all bg-[#20DDBB]/10 text-[#20DDBB] border border-[#20DDBB]/30 flex items-center justify-center gap-2"

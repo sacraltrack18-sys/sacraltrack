@@ -195,20 +195,63 @@ export default function RoyaltyPage() {
     }
   };
   
+  // Add an Appwrite connection check function
+  const checkAppwriteConnection = async () => {
+    try {
+      const { checkAppwriteConnection: checkConnection } = await import('@/libs/AppWriteClient');
+      const connectionStatus = await checkConnection();
+      console.log('Appwrite connection status:', connectionStatus);
+      
+      if (!connectionStatus.connected || !connectionStatus.sessionValid) {
+        console.error('Appwrite connection issues detected:', connectionStatus);
+        toast.error('Connection issues detected. This might affect verification emails.');
+      }
+      return connectionStatus;
+    } catch (error) {
+      console.error('Failed to check Appwrite connection:', error);
+      return { connected: false, error };
+    }
+  };
+
+  // Add Appwrite connection check on page load
+  useEffect(() => {
+    checkAppwriteConnection();
+  }, []);
+
   // Enhanced verification handlers
   const handleVerifyEmail = async () => {
     try {
       setIsVerifyingEmail(true);
       
-      // Create verification URL
+      // Create verification URL with complete path including domain
       const verificationUrl = `${window.location.origin}/verify-email`;
+      console.log('Sending verification to URL:', verificationUrl);
       
-      await sendVerification(verificationUrl);
+      // Call sendVerification with proper error handling
+      const result = await sendVerification(verificationUrl);
       
-      toast.success('Verification email sent! Please check your inbox.');
-    } catch (error) {
+      if (result && result.success) {
+        // Show an informative toast message
+        toast((t) => (
+          <div className="flex flex-col gap-2">
+            <div className="font-medium">Email verification sent!</div>
+            <div className="text-sm">
+              Please check both your inbox and spam folder. If you don't receive the email within a few minutes, you can try again.
+            </div>
+            <button 
+              className="mt-2 bg-blue-500 text-white px-3 py-1 rounded-md text-sm"
+              onClick={() => toast.dismiss(t.id)}
+            >
+              Got it
+            </button>
+          </div>
+        ), { duration: 10000 });
+      } else if (result && result.error) {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
       console.error('Error sending verification email:', error);
-      toast.error('Failed to send verification email');
+      toast.error(error.message || 'Failed to send verification email');
     } finally {
       setIsVerifyingEmail(false);
     }
@@ -329,6 +372,41 @@ export default function RoyaltyPage() {
     
     toast.success('Email successfully verified!');
   };
+
+  useEffect(() => {
+    // Check Appwrite configuration and connection on component mount
+    const checkAppwrite = async () => {
+      try {
+        const { checkAppwriteConnection } = await import('@/libs/AppWriteClient');
+        const connectionStatus = await checkAppwriteConnection();
+        console.log('Appwrite connection status:', connectionStatus);
+        
+        if (!connectionStatus.connected || !connectionStatus.sessionValid) {
+          console.error('Appwrite connection issues detected:', connectionStatus);
+          toast.error('Connection issues detected. This might affect verification emails.');
+        }
+      } catch (error) {
+        console.error('Failed to check Appwrite connection:', error);
+      }
+    };
+
+    checkAppwrite();
+    
+    // Проверяем наличие пользователя
+    if (userContext?.user) {
+      const userData = userContext.user as any;
+      
+      // Check email verification status
+      if (userData.email_verified) {
+        setEmailVerified(true);
+      }
+      
+      // Check phone verification status
+      if (userData.phone_verified) {
+        setPhoneVerified(true);
+      }
+    }
+  }, [userContext?.user]);
 
   return (
     <RoyaltyLayout>

@@ -55,9 +55,9 @@ const ensureTrackStatisticsExist = async (trackId: string) => {
     // Create new statistics document with track ID as document ID
     const statsData = {
       track_id: trackId,
-      play_count: 0,
-      likes: 0,
-      shares: 0,
+      play_count: "0",
+      likes: "0",
+      shares: "0",
       last_played: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

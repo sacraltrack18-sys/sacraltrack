@@ -8,9 +8,9 @@ export const APPWRITE_CONFIG = {
   storageId: process.env.NEXT_PUBLIC_BUCKET_ID || '67f2239600384003fd78',
   userCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE || '67f225fc0022b2dc0881',
   trackCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_POST || '67f22813001f125cc1e5',
-  statisticsCollectionId: 'track_statistics',
-  analyticsCollectionId: 'track_analytics',
-  interactionsCollectionId: 'track_interactions',
+  statisticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_STATISTICS || 'track_statistics',
+  analyticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_ANALYTICS || 'track_analytics',
+  interactionsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_INTERACTIONS || 'track_interactions',
   
   // Добавление коллекций для вайбов
   vibesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS || '67f22eb700352cd35cd8',
@@ -28,6 +28,9 @@ console.log("[APPWRITE-CONFIG] Project ID:", APPWRITE_CONFIG.projectId);
 console.log("[APPWRITE-CONFIG] Database ID:", APPWRITE_CONFIG.databaseId);
 console.log("[APPWRITE-CONFIG] Collection ID (Post):", APPWRITE_CONFIG.trackCollectionId);
 console.log("[APPWRITE-CONFIG] Collection ID (Vibes):", APPWRITE_CONFIG.vibesCollectionId);
+console.log("[APPWRITE-CONFIG] Collection ID (Statistics):", APPWRITE_CONFIG.statisticsCollectionId);
+console.log("[APPWRITE-CONFIG] Collection ID (Analytics):", APPWRITE_CONFIG.analyticsCollectionId);
+console.log("[APPWRITE-CONFIG] Collection ID (Interactions):", APPWRITE_CONFIG.interactionsCollectionId);
 console.log("[APPWRITE-CONFIG] Bucket ID:", APPWRITE_CONFIG.storageId);
 
 // Initialize Appwrite client

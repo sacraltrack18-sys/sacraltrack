@@ -29,11 +29,38 @@ const useAppwriteEmailVerification = () => {
     setState({ loading: true, success: false, error: null });
     
     try {
-      console.log('Sending email verification request...');
-      // Создаем URL для верификации
-      const result = await account.createVerification(redirectUrl);
+      console.log('Sending email verification request with redirect URL:', redirectUrl);
       
-      console.log('Email verification request sent successfully:', result);
+      // Get current user to verify they are logged in
+      try {
+        const currentUser = await account.get();
+        console.log('Current user for verification:', {
+          userId: currentUser.$id,
+          email: currentUser.email,
+          emailVerification: currentUser.emailVerification,
+        });
+        
+        // If already verified, return success
+        if (currentUser.emailVerification) {
+          console.log('Email is already verified, no need to send verification email');
+          toast.success('Your email is already verified!');
+          return {
+            loading: false,
+            success: true,
+            error: null
+          };
+        }
+      } catch (userError) {
+        console.error('Failed to get current user:', userError);
+        throw new Error('Please ensure you are logged in to verify your email');
+      }
+      
+      // Create a verification URL with the correct parameter
+      console.log('Creating verification with redirect URL:', redirectUrl);
+      const result = await account.createVerification(redirectUrl);
+      console.log('Verification creation response:', result);
+      
+      console.log('Email verification request sent successfully');
       
       setState({
         loading: false,
@@ -41,7 +68,7 @@ const useAppwriteEmailVerification = () => {
         error: null
       });
       
-      toast.success('Verification email sent! Please check your inbox.');
+      toast.success('Verification email sent! Please check your inbox and spam folder.');
       
       return {
         loading: false,
@@ -51,7 +78,21 @@ const useAppwriteEmailVerification = () => {
     } catch (error: any) {
       console.error('Error sending email verification:', error);
       
-      const errorMessage = error.message || 'Failed to send verification email';
+      let errorMessage = 'Failed to send verification email';
+      
+      // Check for specific Appwrite error codes
+      if (error.code) {
+        switch (error.code) {
+          case 401:
+            errorMessage = 'Authentication required. Please login again.';
+            break;
+          case 429:
+            errorMessage = 'Too many requests. Please try again later.';
+            break;
+          default:
+            errorMessage = error.message || 'Failed to send verification email';
+        }
+      }
       
       setState({
         loading: false,

@@ -12,7 +12,7 @@ import { usePlayerContext } from '@/app/context/playerContext';
 import { AudioPlayer } from '@/app/components/AudioPlayer';
 import Image from 'next/image';
 import { HiMusicNote } from 'react-icons/hi';
-import { FaPlay, FaPause, FaFire, FaStar, FaTrophy } from 'react-icons/fa';
+import { FaPlay, FaPause, FaFire, FaStar, FaTrophy, FaHeadphones, FaHeart } from 'react-icons/fa';
 import { AiFillFire, AiFillStar } from 'react-icons/ai';
 import { BsStars } from 'react-icons/bs';
 import ShareModal from './ShareModal';
@@ -25,6 +25,10 @@ import { CommentWithProfile } from "@/app/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { PiFireFill } from 'react-icons/pi';
 import { ShareIcon } from '@heroicons/react/24/outline';
+import useTrackStatistics from '../hooks/useTrackStatistics';
+import useTrackInteraction from '../hooks/useTrackInteraction';
+import { database, ID } from "@/libs/AppWriteClient";
+import { APPWRITE_CONFIG } from "@/libs/AppWriteClient";
 
 // Toast styles
 const successToast = (message: string) => toast.success(message, {
@@ -396,6 +400,9 @@ const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePla
           className="w-full aspect-square object-cover"
         />
         
+        {/* Stats Counter in top right corner */}
+        {post && <StatsCounter post={post} />}
+        
         {/* Desktop play/pause overlay - показываем при наведении */}
         {!isMobile && (
           <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -644,6 +651,135 @@ interface PostMainProps {
   post: PostWithProfile;
 }
 
+// Функция для проверки и создания документа статистики для трека
+const ensureTrackStatisticsExist = async (trackId: string) => {
+  if (!trackId) return;
+  
+  try {
+    // Проверяем, существует ли документ статистики
+    console.log(`Проверяем статистику для трека с ID: ${trackId}`);
+    
+    try {
+      await database.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.statisticsCollectionId,
+        trackId
+      );
+      console.log(`Документ статистики существует для трека: ${trackId}`);
+      return; // Документ существует, ничего не делаем
+    } catch (error) {
+      console.log(`Документ статистики не найден, создаем новый для трека: ${trackId}`);
+      // Документ не существует, создаем новый
+    }
+    
+    // Создаем документ статистики с ID трека в качестве ID документа
+    const statsData = {
+      track_id: trackId,
+      plays_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      downloads_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      purchases_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      likes: "0", // Преобразуем в строку для совместимости с Appwrite
+      shares: "0", // Преобразуем в строку для совместимости с Appwrite
+      last_played: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const result = await database.createDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.statisticsCollectionId,
+      trackId, // Используем ID трека как ID документа
+      statsData
+    );
+    
+    console.log(`Создан документ статистики с ID: ${result.$id}`);
+  } catch (error) {
+    console.error('Ошибка при создании документа статистики:', error);
+    // Не бросаем исключение - это некритичная функциональность
+  }
+};
+
+// Компонент для отображения счетчиков статистики на изображении
+const StatsCounter = memo(({ post }: { post: any }) => {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Функция для получения актуальной статистики
+  const fetchStatistics = useCallback(async () => {
+    if (!post?.id) return;
+    
+    try {
+      // Запрос к API для получения статистики
+      const response = await fetch(`/api/track-stats/${post.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      
+      const data = await response.json();
+      setStats(data.statistics);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching track statistics:', error);
+      setLoading(false);
+    }
+  }, [post?.id]);
+
+  // Инициализация и настройка интервала обновления
+  useEffect(() => {
+    // Сразу загружаем данные
+    fetchStatistics();
+    
+    // Настраиваем интервал обновления каждые 10 секунд
+    intervalRef.current = setInterval(() => {
+      fetchStatistics();
+    }, 10000);
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [fetchStatistics]);
+
+  // Если загрузка или нет данных, показываем скелетон
+  if (loading || !stats) {
+    return (
+      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex flex-col items-end space-y-1">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-10 bg-white/20 animate-pulse rounded-full"></div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-8 bg-white/20 animate-pulse rounded-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex flex-col items-end space-y-1">
+      {/* Счетчик прослушиваний */}
+      <div className="flex items-center gap-1.5">
+        <FaHeadphones className="text-[#20DDBB] text-xs" />
+        <span className="text-white text-xs font-medium">
+          {stats?.plays_count ? parseInt(stats.plays_count, 10).toLocaleString() : '0'}
+        </span>
+      </div>
+      
+      {/* Счетчик лайков */}
+      <div className="flex items-center gap-1.5">
+        <FaHeart className="text-pink-400 text-xs" />
+        <span className="text-white text-xs font-medium">
+          {stats?.likes ? parseInt(stats.likes, 10).toLocaleString() : '0'}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+StatsCounter.displayName = 'StatsCounter';
+
 const PostMain = memo(({ post }: PostMainProps) => {
     const [imageError, setImageError] = useState(false);
     const [avatarError, setAvatarError] = useState(false);
@@ -653,10 +789,15 @@ const PostMain = memo(({ post }: PostMainProps) => {
     const [isPurchased, setIsPurchased] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
+    // Получаем статистику трека и функции для записи взаимодействий
+    const { statistics, isLoading: statsLoading, incrementPlayCount } = useTrackStatistics(post?.id);
+    const { recordInteraction, getUserDeviceInfo, getGeographicInfo } = useTrackInteraction();
+    
     // Refs to avoid re-renders
     const imageUrlRef = useRef('');
     const avatarUrlRef = useRef('');
     const m3u8UrlRef = useRef('');
+    const playCountRecordedRef = useRef(false);
     
     // Memoized values to prevent unnecessary recalculations
     const userContext = useUser();
@@ -730,22 +871,59 @@ const PostMain = memo(({ post }: PostMainProps) => {
         setIsPlaying(currentAudioId === post?.id && globalIsPlaying);
     }, [currentAudioId, globalIsPlaying, post?.id]);
 
-    // Memoized toggle play handler to prevent re-creation on each render
-    const handleTogglePlay = useCallback(() => {
+    // Проверяем наличие документа статистики при загрузке компонента
+    useEffect(() => {
+        if (post?.id) {
+            ensureTrackStatisticsExist(post.id).catch(console.error);
+        }
+    }, [post?.id]);
+
+    // Обновленный обработчик для запуска/остановки воспроизведения
+    const handleTogglePlay = useCallback(async () => {
         if (!post) return;
         
         if (currentAudioId !== post.id) {
-            // If a different track is playing, switch to this one
+            // Если воспроизводится другой трек, переключаемся на этот
             setCurrentAudioId(post.id);
             if (!globalIsPlaying) {
                 togglePlayPause();
             }
             successToast(`Now playing: ${post.trackname}`);
+            
+            // Убеждаемся, что документ статистики существует
+            await ensureTrackStatisticsExist(post.id);
+            
+            // Записываем прослушивание только один раз за сессию для этого трека
+            if (!playCountRecordedRef.current) {
+                playCountRecordedRef.current = true;
+                
+                // Увеличиваем счетчик прослушиваний
+                incrementPlayCount();
+                
+                // Записываем информацию о прослушивании
+                try {
+                    const deviceInfo = getUserDeviceInfo();
+                    const geoInfo = await getGeographicInfo();
+                    
+                    await recordInteraction({
+                        track_id: post.id,
+                        user_id: userContext?.user?.id || 'anonymous',
+                        interaction_type: 'play',
+                        device_info: deviceInfo,
+                        geographic_info: geoInfo
+                    });
+                } catch (error) {
+                    console.error('Failed to record play interaction:', error);
+                    // Не останавливаем воспроизведение при ошибке записи
+                }
+            }
         } else {
-            // If this track is already selected, just toggle play/pause
+            // Если этот трек уже выбран, просто переключаем воспроизведение/паузу
             togglePlayPause();
         }
-    }, [currentAudioId, post?.id, globalIsPlaying, togglePlayPause, setCurrentAudioId]);
+    }, [currentAudioId, post?.id, globalIsPlaying, togglePlayPause, setCurrentAudioId, 
+        userContext?.user?.id, recordInteraction, getUserDeviceInfo, getGeographicInfo,
+        incrementPlayCount]);
 
     // Handle intersection observer for lazy loading
     useEffect(() => {
@@ -787,6 +965,13 @@ const PostMain = memo(({ post }: PostMainProps) => {
         
         // Тут можно добавить логику сохранения реакции на сервер
         // например вызов API для сохранения реакции
+    }, []);
+
+    // Сбрасываем флаг записи прослушивания при размонтировании компонента
+    useEffect(() => {
+        return () => {
+            playCountRecordedRef.current = false;
+        };
     }, []);
 
     // Early return if no post
@@ -921,6 +1106,8 @@ const PostMain = memo(({ post }: PostMainProps) => {
             <div className="px-4 py-3 flex justify-between items-center w-full">
                 <div className="flex items-center gap-6">
                     <PostMainLikes post={post} />
+                    
+                    {/* Счетчик прослушиваний - Удален отсюда, так как перенесен в StatsCounter */}
                 </div>
 
                 <div className="flex items-center gap-3">
