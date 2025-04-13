@@ -21,6 +21,9 @@ function VerifyEmail() {
       try {
         const userId = searchParams.get("userId");
         const secret = searchParams.get("secret");
+        // Получаем referrer и флаг для открытия следующего шага
+        const referrer = searchParams.get("referrer") || "";
+        const nextStep = searchParams.get("nextStep") === "true";
         
         if (!userId || !secret) {
           setError("Invalid verification link. Missing required parameters.");
@@ -36,10 +39,17 @@ function VerifyEmail() {
         setLoading(false);
         toast.success("Your email has been successfully verified!");
         
-        // Через 3 секунды перенаправляем на главную страницу
+        // Определяем, куда редиректить пользователя
+        const redirectTo = referrer === "royalty" 
+          ? "/royalty?emailVerified=true" // Меняем параметр verifyPhone на emailVerified
+          : "/";
+        
+        console.log(`Email verified successfully. Redirecting to: ${redirectTo}`);
+        
+        // Через 2 секунды перенаправляем на нужную страницу
         setTimeout(() => {
-          router.push("/");
-        }, 3000);
+          router.push(redirectTo);
+        }, 2000);
       } catch (error: any) {
         console.error("Error verifying email:", error);
         setError(error.message || "Failed to verify your email. Please try again.");
@@ -83,7 +93,10 @@ function VerifyEmail() {
             ) : success ? (
               <>
                 <p className="mb-2">Your email has been successfully verified.</p>
-                <p>You will be redirected to the home page shortly.</p>
+                <p>You will be redirected {searchParams.get("referrer") === "royalty" ? "to the royalty page" : "to the home page"} shortly.</p>
+                {searchParams.get("referrer") === "royalty" && (
+                  <p className="mt-2 text-violet-300">Next step: Verify your phone number</p>
+                )}
               </>
             ) : (
               <p className="text-red-300">{error}</p>
@@ -92,10 +105,10 @@ function VerifyEmail() {
           
           {!loading && !success && (
             <button 
-              onClick={() => router.push("/")}
+              onClick={() => router.push(searchParams.get("referrer") === "royalty" ? "/royalty" : "/")}
               className="w-full py-3 px-4 bg-gradient-to-r from-[#3f2d63] to-[#4e377a] rounded-lg font-medium hover:shadow-lg hover:shadow-purple-500/20 transition-all"
             >
-              Return to Home
+              {searchParams.get("referrer") === "royalty" ? "Return to Royalty Dashboard" : "Return to Home"}
             </button>
           )}
           

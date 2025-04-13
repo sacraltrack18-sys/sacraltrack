@@ -56,7 +56,7 @@ const gradientBorderStyles = `
     border-radius: 0.75rem;
     overflow: hidden;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   }
   
   .gradient-border::after {
@@ -67,19 +67,19 @@ const gradientBorderStyles = `
     top: 0px;
     width: 100%;
     height: 100%;
-    background: linear-gradient(145deg, #1A2338, #1f2942);
+    background: linear-gradient(145deg, #1A2338, #1d2640);
     border-radius: 0.75rem;
   }
   
   /* Very subtle border by default - more neutral color */
   .gradient-border {
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.02);
   }
   
   /* Add subtle box shadow on hover for additional effect - more neutral */
   .gradient-border:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
   }
 `;
 

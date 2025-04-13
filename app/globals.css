@@ -432,7 +432,7 @@
   background: linear-gradient(to right, #20DDBB, #018CFD);
   border-radius: 0.85rem;
   filter: blur(8px);
-  opacity: 0.5;
+  opacity: 0.15;
   z-index: -1;
 }
 

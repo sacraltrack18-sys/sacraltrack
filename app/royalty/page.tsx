@@ -11,13 +11,10 @@ import { usePurchaseNotifications } from "@/app/hooks/usePurchaseNotifications";
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useUser } from "@/app/context/user";
-import { FaMoneyBillWave, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
-import { auth } from '../firebase/firebase';
-import { useEffect as useEffectFirebase } from 'react';
-import useFirebasePhoneAuth from '@/app/hooks/useFirebasePhoneAuth';
+import { FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import useAppwriteEmailVerification from '@/app/hooks/useAppwriteEmailVerification';
 import VerificationCodeModal from "@/app/components/royalty/VerificationCodeModal";
-import FirebasePhoneAuth from "@/app/components/royalty/FirebasePhoneAuth";
+import useTwilioPhoneAuth from '@/app/hooks/useTwilioPhoneAuth';
 import { account } from '@/libs/AppWriteClient';
 
 export default function RoyaltyPage() {
@@ -33,14 +30,11 @@ export default function RoyaltyPage() {
   const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState<boolean>(false);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState<boolean>(false);
+  const [isFullyVerified, setIsFullyVerified] = useState<boolean>(false);
   
-  // Firebase phone authentication state
+  // Twilio phone authentication state
   const [showVerificationModal, setShowVerificationModal] = useState<boolean>(false);
   const [verificationPhoneNumber, setVerificationPhoneNumber] = useState<number | null>(null);
-  const [showRecaptcha, setShowRecaptcha] = useState<boolean>(false);
-  
-  // Constants
-  const FIREBASE_VERIFY_BUTTON_ID = 'firebase-phone-verify-button';
   
   // Get user's email and phone from context
   const userEmail = userContext?.user ? (userContext.user as any).email : undefined;
@@ -49,6 +43,11 @@ export default function RoyaltyPage() {
       parseInt((userContext.user as any).phone, 10) :
       (userContext.user as any).phone) 
     : undefined;
+  
+  // Update fully verified status
+  useEffect(() => {
+    setIsFullyVerified(emailVerified && phoneVerified);
+  }, [emailVerified, phoneVerified]);
   
   // Отладочный вывод email
   useEffect(() => {
@@ -76,13 +75,13 @@ export default function RoyaltyPage() {
     }
   }, [userContext?.user, userEmail]);
   
-  // Initialize Firebase phone auth hook
+  // Initialize Twilio phone auth hook
   const { 
     sendVerificationCode, 
     verifyCode, 
-    loading: firebaseLoading, 
-    reset: resetFirebaseAuth 
-  } = useFirebasePhoneAuth();
+    loading: twilioLoading, 
+    reset: resetTwilioAuth 
+  } = useTwilioPhoneAuth();
   
   // Initialize Appwrite email verification hook
   const {
@@ -124,31 +123,12 @@ export default function RoyaltyPage() {
     }
   }, [userContext?.user, userEmail]);
 
-  // Firebase initialization effect
-  useEffectFirebase(() => {
-    // Check if Firebase is initialized
-    if (auth) {
-      console.log('Firebase Authentication initialized successfully');
+  // Check if phone is already verified in user context
+  useEffect(() => {
+    if (userContext?.user && (userContext.user as any).phone_verified) {
+      setPhoneVerified(true);
     }
-    
-    // Update UI if user is already authenticated with phone
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user && user.phoneNumber) {
-        // If Firebase user has a verified phone, update our local state
-        setPhoneVerified(true);
-        
-        // Update our user context
-        if (userContext?.user) {
-          const phoneAsNumber = parseInt(user.phoneNumber.replace(/\D/g, ''), 10);
-          (userContext.user as any).phone = phoneAsNumber;
-          (userContext.user as any).phone_verified = true;
-        }
-      }
-    });
-    
-    // Cleanup subscription
-    return () => unsubscribe();
-  }, []);
+  }, [userContext?.user]);
 
   // Transform withdrawal history data to match expected format using type assertion
   const transformedWithdrawalHistory = (royaltyData.withdrawalHistory || []).map(record => {
@@ -223,8 +203,8 @@ export default function RoyaltyPage() {
     try {
       setIsVerifyingEmail(true);
       
-      // Create verification URL with complete path including domain
-      const verificationUrl = `${window.location.origin}/verify-email`;
+      // Create verification URL with complete path including domain and referrer
+      const verificationUrl = `${window.location.origin}/verify-email?referrer=royalty`;
       console.log('Sending verification to URL:', verificationUrl);
       
       // Call sendVerification with proper error handling
@@ -260,12 +240,9 @@ export default function RoyaltyPage() {
   // Создаем обертку, чтобы соответствовать ожидаемому типу Promise<void>
   const handleVerifyPhoneWrapper = async (phoneNumber: number): Promise<void> => {
     try {
-      // Показываем reCAPTCHA перед отправкой кода
-      setShowRecaptcha(true);
       await handleVerifyPhone(phoneNumber);
     } catch (error) {
       // Ошибки уже обрабатываются в handleVerifyPhone
-      setShowRecaptcha(false);
     }
   };
   
@@ -277,14 +254,12 @@ export default function RoyaltyPage() {
       // Store phone number for verification modal
       setVerificationPhoneNumber(phoneNumber);
       
-      // Attempt to send verification code via Firebase
-      const success = await sendVerificationCode(phoneNumber, FIREBASE_VERIFY_BUTTON_ID);
+      // Attempt to send verification code via Twilio
+      const success = await sendVerificationCode(phoneNumber);
       
       if (success) {
         // Show verification code modal if code was sent successfully
         setShowVerificationModal(true);
-        // Hide reCAPTCHA after successful code sending
-        setShowRecaptcha(false);
         return true;
       } else {
         throw new Error('Failed to send verification code');
@@ -293,8 +268,6 @@ export default function RoyaltyPage() {
       console.error('Error in handleVerifyPhone:', error);
       const errorMessage = error.message || 'Failed to send verification code';
       toast.error(errorMessage);
-      // Hide reCAPTCHA when error occurs
-      setShowRecaptcha(false);
       throw error;
     } finally {
       setIsVerifyingPhone(false);
@@ -304,7 +277,7 @@ export default function RoyaltyPage() {
   // Handle verification code submission
   const handlePhoneCodeVerify = async (code: string): Promise<void> => {
     try {
-      // Verify code with Firebase
+      // Verify code with Twilio
       const success = await verifyCode(code);
       
       if (success && verificationPhoneNumber) {
@@ -316,7 +289,7 @@ export default function RoyaltyPage() {
         
         // Close modal
         setShowVerificationModal(false);
-        resetFirebaseAuth();
+        resetTwilioAuth();
       } else {
         throw new Error('Verification failed');
       }
@@ -354,11 +327,11 @@ export default function RoyaltyPage() {
         console.log(`Verified phone ${phoneNumber} saved to user profile`);
       } catch (error) {
         console.error('Error updating profile:', error);
-        // Still continue as Firebase verification was successful
+        // Still continue as Twilio verification was successful
       }
     }
     
-    toast.success('Phone successfully verified with Firebase and saved to your profile!');
+    toast.success('Phone successfully verified with Twilio and saved to your profile!');
   };
   
   // Email verification completed handler
@@ -392,6 +365,40 @@ export default function RoyaltyPage() {
 
     checkAppwrite();
     
+    // Проверяем статус верификации из URL параметров
+    const url = new URL(window.location.href);
+    const emailVerifiedParam = url.searchParams.get('emailVerified');
+    
+    if (emailVerifiedParam === 'true') {
+      console.log('Email verification detected from URL parameter');
+      setEmailVerified(true);
+      
+      // Обновляем статус в контексте пользователя
+      if (userContext?.user) {
+        (userContext.user as any).email_verified = true;
+      }
+      
+      // Показываем подсказку о следующем шаге
+      toast((t) => (
+        <div className="flex flex-col gap-2">
+          <div className="font-medium">Email successfully verified!</div>
+          <div className="text-sm">
+            Now you can proceed with phone verification to complete your account setup.
+          </div>
+          <button 
+            className="mt-2 bg-violet-500 text-white px-3 py-1 rounded-md text-sm"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Got it
+          </button>
+        </div>
+      ), { duration: 5000 });
+      
+      // Удаляем параметр из URL без перезагрузки страницы
+      url.searchParams.delete('emailVerified');
+      window.history.replaceState({}, '', url.toString());
+    }
+    
     // Проверяем наличие пользователя
     if (userContext?.user) {
       const userData = userContext.user as any;
@@ -413,119 +420,48 @@ export default function RoyaltyPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="w-full max-w-[1400px] mx-auto pb-10 pt-20 px-4 sm:px-6 md:px-6 lg:px-8"
+        className="flex flex-col gap-6 p-4 md:p-6 overflow-hidden"
       >
-        {/* Mobile Actions Header */}
-        <div className="lg:hidden sticky top-16 z-10 bg-[#1A2338]/80 backdrop-blur-md px-4 py-3 mb-5 border-b border-[#3f2d63]/20 rounded-lg mobile-header">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <FaMoneyBillWave className="text-violet-300" />
-              <span>Royalty Dashboard</span>
-            </h2>
-            
-            <div className={`text-xs py-1.5 px-3 rounded-full flex items-center gap-1.5 transition-all duration-300 ${
-              emailVerified && phoneVerified
-                ? 'bg-gradient-to-r from-[#3f2d63]/30 to-[#4e377a]/30 text-violet-300 shadow-sm shadow-purple-500/10' 
-                : 'bg-gradient-to-r from-amber-500/20 to-amber-400/20 text-amber-400'
-            }`}>
-              {emailVerified && phoneVerified ? (
-                <>
-                  <FaCheckCircle className="text-xs" />
-                  <span>Verified</span>
-                </>
-              ) : (
-                <>
-                  <FaInfoCircle className="text-xs" />
-                  <span>Verify Account</span>
-                </>
-              )}
+        {isFullyVerified ? (
+          <div className="text-xs sm:text-sm text-[#9BA3BF] mb-2">
+            <div className="flex items-center gap-1.5">
+              <FaCheckCircle className="text-green-400" />
+              <span>Your account is fully verified!</span>
             </div>
           </div>
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-12 h-12 border-t-2 border-b-2 border-violet-300 rounded-full animate-spin mb-4"></div>
-            <p className="text-[#818BAC] animate-pulse">Loading your royalty dashboard...</p>
+        ) : (
+          <div className="text-xs sm:text-sm text-[#9BA3BF] mb-2">
+            <div className="flex items-center gap-1.5">
+              <FaInfoCircle className="text-amber-400" />
+              <span>Complete verification to enable withdrawals</span>
+            </div>
           </div>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="text-center py-16">
-            <FaInfoCircle className="text-red-400 text-4xl mx-auto mb-4" />
-            <h3 className="text-white text-xl mb-2">Something went wrong</h3>
-            <p className="text-[#818BAC] mb-6">We couldn't load your royalty data at this time.</p>
-            <button 
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-[#3f2d63] text-white rounded-lg hover:bg-[#4e377a] transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
+        {/* Show verification cards if not fully verified */}
+        {!isFullyVerified && (
+          <UserVerificationCard
+            emailVerified={emailVerified}
+            phoneVerified={phoneVerified}
+            onVerifyEmail={handleVerifyEmail}
+            onVerifyPhone={handleVerifyPhoneWrapper}
+            userEmail={userEmail}
+            userPhone={userPhone}
+            onEmailVerified={handleEmailVerified}
+            onPhoneVerified={handlePhoneVerified}
+          />
         )}
 
-        {/* Main Content */}
-        {!loading && !error && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column - Royalty Dashboard */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:col-span-8 order-2 lg:order-1"
-            >
-              <RoyaltyDashboard 
-                balance={royaltyData.balance}
-                totalEarned={royaltyData.totalEarned}
-                pendingAmount={royaltyData.pendingAmount}
-                withdrawnAmount={royaltyData.withdrawnAmount}
-                tracksSold={royaltyData.tracksSold}
-                transactions={royaltyData.transactions}
-                withdrawalHistory={transformedWithdrawalHistory}
-              />
-            </motion.div>
-
-            {/* Right Column - Verification Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="lg:col-span-4 order-1 lg:order-2 space-y-6"
-            >
-              <UserVerificationCard
-                emailVerified={emailVerified}
-                phoneVerified={phoneVerified}
-                onVerifyEmail={handleVerifyEmail}
-                onVerifyPhone={handleVerifyPhoneWrapper}
-                userEmail={userEmail}
-                userPhone={userPhone}
-                onEmailVerified={handleEmailVerified}
-                onPhoneVerified={handlePhoneVerified}
-              />
-            </motion.div>
-          </div>
-        )}
-
-        {/* Modals and Notifications */}
-        <VerificationCodeModal
-          isOpen={showVerificationModal}
-          onClose={() => {
-            setShowVerificationModal(false);
-            setShowRecaptcha(false);
-            resetFirebaseAuth();
-          }}
-          onVerify={handlePhoneCodeVerify}
-          type="phone"
-          phone={verificationPhoneNumber?.toString()}
-          onPhoneChange={(newPhone) => {
-            const phoneAsNumber = parseInt(newPhone.replace(/\D/g, ''), 10);
-            setVerificationPhoneNumber(phoneAsNumber);
-          }}
-          onPhoneSubmit={handleVerifyPhone}
+        <RoyaltyDashboard 
+          balance={royaltyData.balance}
+          totalEarned={royaltyData.totalEarned}
+          pendingAmount={royaltyData.pendingAmount}
+          withdrawnAmount={royaltyData.withdrawnAmount}
+          tracksSold={royaltyData.tracksSold}
+          transactions={royaltyData.transactions || []}
+          withdrawalHistory={transformedWithdrawalHistory}
         />
-
+        
         {currentNotificationState && (
           <PurchaseNotification
             buyer={currentNotificationState.buyer}
@@ -533,15 +469,24 @@ export default function RoyaltyPage() {
             onClose={() => setCurrentNotificationState(null)}
           />
         )}
+        
+        {withdrawalNotifications.length > 0 && (
+          <WithdrawalNotifications 
+            notifications={withdrawalNotifications} 
+            onDismiss={dismissWithdrawalNotification}
+          />
+        )}
 
-        <WithdrawalNotifications
-          notifications={withdrawalNotifications}
-          onDismiss={dismissWithdrawalNotification}
-        />
-
-        <FirebasePhoneAuth 
-          buttonId={FIREBASE_VERIFY_BUTTON_ID} 
-          isVisible={showRecaptcha} 
+        <VerificationCodeModal
+          isOpen={showVerificationModal}
+          onClose={() => {
+            setShowVerificationModal(false);
+            resetTwilioAuth();
+          }}
+          onVerify={handlePhoneCodeVerify}
+          type="phone"
+          phone={verificationPhoneNumber || undefined}
+          onPhoneSubmit={handleVerifyPhone}
         />
       </motion.div>
     </RoyaltyLayout>

@@ -29,7 +29,9 @@ const useAppwriteEmailVerification = () => {
     setState({ loading: true, success: false, error: null });
     
     try {
-      console.log('Sending email verification request with redirect URL:', redirectUrl);
+      // Add a more specific redirect URL path with proper URL formatting
+      const verifyEmailUrl = new URL('/verify-email', redirectUrl).toString();
+      console.log('Sending email verification request with redirect URL:', verifyEmailUrl);
       
       // Get current user to verify they are logged in
       try {
@@ -55,10 +57,27 @@ const useAppwriteEmailVerification = () => {
         throw new Error('Please ensure you are logged in to verify your email');
       }
       
-      // Create a verification URL with the correct parameter
-      console.log('Creating verification with redirect URL:', redirectUrl);
-      const result = await account.createVerification(redirectUrl);
-      console.log('Verification creation response:', result);
+      // Create a verification URL with the correct parameter and add a timestamp to prevent caching
+      const timestampedUrl = `${verifyEmailUrl}?t=${Date.now()}`;
+      console.log('Creating verification with timestamped redirect URL:', timestampedUrl);
+      
+      // Force a retry on failure
+      let retryCount = 0;
+      let result;
+      const maxRetries = 2;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          result = await account.createVerification(timestampedUrl);
+          console.log('Verification creation response:', result);
+          break; // Success, exit the loop
+        } catch (retryError) {
+          retryCount++;
+          if (retryCount > maxRetries) throw retryError; // Throw if max retries reached
+          console.log(`Retry attempt ${retryCount}/${maxRetries} for email verification`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        }
+      }
       
       console.log('Email verification request sent successfully');
       

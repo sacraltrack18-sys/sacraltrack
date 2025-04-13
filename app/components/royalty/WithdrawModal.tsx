@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { FaUniversity, FaPaypal, FaCreditCard, FaInfoCircle, FaMoneyBillWave, FaArrowRight, FaTimes, FaWallet } from 'react-icons/fa';
+import { FaUniversity, FaPaypal, FaCreditCard, FaInfoCircle, FaMoneyBillWave, FaArrowRight, FaTimes, FaWallet, FaEnvelope } from 'react-icons/fa';
 import { Tooltip } from 'react-tooltip';
 
 interface WithdrawModalProps {
@@ -54,44 +53,6 @@ const withdrawalMethods = [
 ] as const;
 
 type WithdrawalMethod = typeof withdrawalMethods[number]['id'];
-
-// Animation variants
-const backdropVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 }
-};
-
-const modalVariants = {
-  hidden: { opacity: 0, y: 50, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: { type: 'spring', damping: 25, stiffness: 500 }
-  },
-  exit: { 
-    opacity: 0, 
-    y: 50, 
-    scale: 0.95,
-    transition: { duration: 0.2 }
-  }
-};
-
-const staggeredFormVariants = {
-  hidden: { opacity: 0 },
-  visible: { 
-    opacity: 1,
-    transition: { 
-      staggerChildren: 0.1,
-      delayChildren: 0.2
-    }
-  }
-};
-
-const formItemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-};
 
 export default function WithdrawModal({
   isOpen,
@@ -340,15 +301,12 @@ export default function WithdrawModal({
   // Render the withdrawal form based on the selected method
   const renderWithdrawalForm = () => {
     return (
-      <motion.form
+      <form
         onSubmit={handleSubmit}
         className="text-gray-100 space-y-5"
-        variants={staggeredFormVariants}
-        initial="hidden"
-        animate="visible"
       >
         {/* Секция выбора метода */}
-        <motion.div variants={formItemVariants} className="mb-6">
+        <div className="mb-6">
           <div className="mb-2 flex justify-between items-center">
             <label className="text-sm font-medium text-gray-300">Withdrawal Method</label>
             <FaInfoCircle
@@ -398,10 +356,10 @@ export default function WithdrawModal({
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
         
         {/* Поле ввода суммы */}
-        <motion.div variants={formItemVariants} className="mb-6">
+        <div className="mb-6">
           <div className="mb-2 flex justify-between items-center">
             <label className="text-sm font-medium text-gray-300">
               Amount (USD)
@@ -443,12 +401,254 @@ export default function WithdrawModal({
               <FaInfoCircle /> {amountError}
             </p>
           )}
-        </motion.div>
+        </div>
 
-        {/* ... вставка полей ввода в зависимости от выбранного метода ... */}
+        {/* Поля ввода в зависимости от выбранного метода */}
+        {method === 'card' && (
+          <>
+            <div className="mb-4">
+              <div className="mb-2 flex justify-between items-center">
+                <label className="text-sm font-medium text-gray-300">Card Number</label>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                  <FaCreditCard className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="1234 5678 9012 3456"
+                  value={details.cardNumber}
+                  onChange={(e) => setDetails({...details, cardNumber: e.target.value})}
+                  className={`bg-[#1f2942]/80 border ${
+                    fieldErrors.cardNumber ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                  } text-white py-3 px-10 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+                />
+              </div>
+              {fieldErrors.cardNumber && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.cardNumber}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="mb-4">
+                <div className="mb-2">
+                  <label className="text-sm font-medium text-gray-300">Expiry Date</label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="MM/YY"
+                  value={details.cardExpiry}
+                  onChange={(e) => setDetails({...details, cardExpiry: e.target.value})}
+                  className={`bg-[#1f2942]/80 border ${
+                    fieldErrors.cardExpiry ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                  } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+                />
+                {fieldErrors.cardExpiry && (
+                  <p className="mt-1 text-xs text-red-400">{fieldErrors.cardExpiry}</p>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <div className="mb-2">
+                  <label className="text-sm font-medium text-gray-300">CVV</label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="123"
+                  value={details.cardCVV}
+                  onChange={(e) => setDetails({...details, cardCVV: e.target.value})}
+                  className={`bg-[#1f2942]/80 border ${
+                    fieldErrors.cardCVV ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                  } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+                />
+                {fieldErrors.cardCVV && (
+                  <p className="mt-1 text-xs text-red-400">{fieldErrors.cardCVV}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">Cardholder Name</label>
+              </div>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={details.holderName}
+                onChange={(e) => setDetails({...details, holderName: e.target.value})}
+                className={`bg-[#1f2942]/80 border ${
+                  fieldErrors.holderName ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              />
+              {fieldErrors.holderName && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.holderName}</p>
+              )}
+            </div>
+
+            <div>
+              <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-500/10">
+                <div className="flex items-start gap-2">
+                  <FaInfoCircle className="text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-[#9BA3BF]">
+                    Card information is processed securely and is not stored on our servers.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {method === 'paypal' && (
+          <div className="mb-4">
+            <div className="mb-2 flex justify-between items-center">
+              <label className="text-sm font-medium text-gray-300">PayPal Email</label>
+            </div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                <FaEnvelope className="text-gray-400" />
+              </div>
+              <input
+                type="email"
+                placeholder="your-email@example.com"
+                value={details.email}
+                onChange={(e) => setDetails({...details, email: e.target.value})}
+                className={`bg-[#1f2942]/80 border ${
+                  fieldErrors.email ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                } text-white py-3 px-10 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              />
+            </div>
+            {fieldErrors.email && (
+              <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>
+            )}
+            <p className="mt-2 text-xs text-[#9BA3BF]">
+              Enter the email address associated with your PayPal account
+            </p>
+          </div>
+        )}
+
+        {method === 'bank_transfer' && (
+          <>
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">Bank Name</label>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                  <FaUniversity className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Enter your bank name"
+                  value={details.bankName}
+                  onChange={(e) => setDetails({...details, bankName: e.target.value})}
+                  className={`bg-[#1f2942]/80 border ${
+                    fieldErrors.bankName ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                  } text-white py-3 px-10 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+                />
+              </div>
+              {fieldErrors.bankName && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.bankName}</p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">Account Holder Name</label>
+              </div>
+              <input
+                type="text"
+                placeholder="Full name as it appears on your account"
+                value={details.holderName}
+                onChange={(e) => setDetails({...details, holderName: e.target.value})}
+                className={`bg-[#1f2942]/80 border ${
+                  fieldErrors.holderName ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              />
+              {fieldErrors.holderName && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.holderName}</p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">Account Number</label>
+              </div>
+              <input
+                type="text"
+                placeholder="Your bank account number"
+                value={details.accountNumber}
+                onChange={(e) => setDetails({...details, accountNumber: e.target.value})}
+                className={`bg-[#1f2942]/80 border ${
+                  fieldErrors.accountNumber ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              />
+              {fieldErrors.accountNumber && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.accountNumber}</p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">SWIFT/BIC Code</label>
+              </div>
+              <input
+                type="text"
+                placeholder="Bank identification code"
+                value={details.swiftBic}
+                onChange={(e) => setDetails({...details, swiftBic: e.target.value})}
+                className={`bg-[#1f2942]/80 border ${
+                  fieldErrors.swiftBic ? 'border-red-500/50' : 'border-white/10 focus:border-[#20DDBB]/50'
+                } text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30`}
+              />
+              {fieldErrors.swiftBic && (
+                <p className="mt-1 text-xs text-red-400">{fieldErrors.swiftBic}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="mb-4">
+                <div className="mb-2">
+                  <label className="text-sm font-medium text-gray-300">IBAN (Optional)</label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="International bank account number"
+                  value={details.accountIban}
+                  onChange={(e) => setDetails({...details, accountIban: e.target.value})}
+                  className="bg-[#1f2942]/80 border border-white/10 focus:border-[#20DDBB]/50 text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <div className="mb-2">
+                  <label className="text-sm font-medium text-gray-300">Routing Number (Optional)</label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="For US bank accounts"
+                  value={details.routingNumber}
+                  onChange={(e) => setDetails({...details, routingNumber: e.target.value})}
+                  className="bg-[#1f2942]/80 border border-white/10 focus:border-[#20DDBB]/50 text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30"
+                />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2">
+                <label className="text-sm font-medium text-gray-300">Bank Address (Optional)</label>
+              </div>
+              <textarea
+                placeholder="Full address of your bank branch"
+                value={details.bankAddress}
+                onChange={(e) => setDetails({...details, bankAddress: e.target.value})}
+                className="bg-[#1f2942]/80 border border-white/10 focus:border-[#20DDBB]/50 text-white py-3 px-4 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-[#20DDBB]/30 resize-none h-24"
+              />
+            </div>
+          </>
+        )}
 
         {/* Кнопка отправки */}
-        <motion.div variants={formItemVariants} className="pt-4">
+        <div className="pt-4">
           <button
             type="submit"
             disabled={isSubmitting || !!amountError}
@@ -473,18 +673,16 @@ export default function WithdrawModal({
               </>
             )}
           </button>
-        </motion.div>
-      </motion.form>
+        </div>
+      </form>
     );
   };
 
   // Render the success state after withdrawal is completed
-  const renderSuccessState = () => (
-    <motion.div
+  const renderSuccessState = () => {
+    return (
+      <div
       className="text-center py-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.3 }}
     >
       <div className="mb-6 inline-flex p-5 rounded-full bg-[#20DDBB]/10 text-[#20DDBB]">
         <FaWallet className="w-12 h-12" />
@@ -512,8 +710,9 @@ export default function WithdrawModal({
       >
         <span>Close</span>
       </button>
-    </motion.div>
+      </div>
   );
+  };
 
   // Fix for mobile scrolling issues
   useEffect(() => {
@@ -529,32 +728,20 @@ export default function WithdrawModal({
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
+    <>
       {isOpen && (
-        <motion.div
-          key="modal-backdrop"
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0"
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
-          variants={backdropVariants}
         >
           {/* Backdrop */}
-          <motion.div 
+          <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
           />
 
           {/* Modal */}
-          <motion.div
+          <div
             className="relative bg-[#1A2338]/80 backdrop-blur-xl text-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden z-10 border border-[#3f2d63]/30"
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
           >
             {/* Close button */}
               <button 
@@ -584,9 +771,9 @@ export default function WithdrawModal({
                 renderWithdrawalForm()
               )}
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 } 
