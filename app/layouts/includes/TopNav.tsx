@@ -328,13 +328,21 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[999] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
                 <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo */}
-                    <Link href="/" className="flex items-center">
+                    <Link href="/" className="flex items-center relative group">
                         <img 
-                            className="min-w-[24px] w-[24px] transition-transform duration-200 hover:scale-110" 
+                            className="min-w-[24px] w-[24px] transition-transform duration-200 group-hover:scale-110" 
                             src="/images/T-logo.svg"
                             alt="Sacral Track Logo"
                         />
                         <span className="px-1 py-1 pb-[2px] font-medium text-[16px] hidden md:inline">ST</span>   
+                        
+                        {/* Main Flow Badge - показывается только когда не на главной странице */}
+                        {!isHomePage && (
+                            <div className="ml-1 bg-gradient-to-r from-blue-400 to-teal-400 text-white text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full shadow-lg transform transition-all duration-300 group-hover:scale-110">
+                                <span className="hidden md:inline">go to main flow</span>
+                                <span className="inline md:hidden">flow</span>
+                            </div>
+                        )}
                     </Link>
                     
                     {/* Genres - Only visible on home page */}

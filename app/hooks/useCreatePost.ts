@@ -21,6 +21,8 @@ interface UploadParams {
 interface UploadResult {
   success: boolean;
   trackId: string;
+  postId?: string;
+  $id?: string;
   error?: string;
 }
 
@@ -418,7 +420,9 @@ export function useCreatePost() {
       updateProgress('Upload completed', 100);
       return {
         success: true,
-        trackId: post.$id
+        trackId: post.$id,
+        postId: post.$id,
+        $id: post.$id
       };
 
     } catch (error) {

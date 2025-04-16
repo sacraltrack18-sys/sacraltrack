@@ -93,7 +93,7 @@ interface VerificationStepProps {
   title: string;
   description: string;
   verificationInfo?: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
   isVerified: boolean;
   onVerify: () => void;
   isLoading: boolean;

@@ -112,8 +112,12 @@ const groupGenresByFirstLetter = () => {
 };
 
 // Расширенный тип профиля для внутреннего использования
-interface EnhancedProfile extends Profile {
+interface EnhancedProfile {
   $id: string;
+  user_id: string;
+  name: string;
+  image: string;
+  bio: string;
   genre?: string;
   location?: string;
   website?: string;
@@ -121,12 +125,18 @@ interface EnhancedProfile extends Profile {
   verified?: boolean;
   social_links?: SocialLinks;
   updated_at?: string;
+  stats?: {
+    totalLikes: number;
+    totalFollowers: number;
+    averageRating: number;
+    totalRatings: number;
+  };
 }
 
 const EnhancedEditProfileOverlay: React.FC = () => {
   const router = useRouter();
   const contextUser = useUser() as UserContextTypes | null;
-  const { currentProfile, setCurrentProfile } = useProfileStore() as { 
+  const { currentProfile, setCurrentProfile } = useProfileStore() as unknown as { 
     currentProfile: EnhancedProfile | null; 
     setCurrentProfile: (profileOrId: EnhancedProfile | string) => void 
   };

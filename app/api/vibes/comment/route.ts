@@ -7,42 +7,75 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { user_id, vibe_id, text } = body;
 
-    if (!user_id || !vibe_id || !text) {
+    // Enhanced validation of required fields
+    if (!user_id || typeof user_id !== 'string') {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing or invalid user_id" },
+        { status: 400 }
+      );
+    }
+    
+    if (!vibe_id || typeof vibe_id !== 'string') {
+      return NextResponse.json(
+        { error: "Missing or invalid vibe_id" },
+        { status: 400 }
+      );
+    }
+    
+    if (!text || typeof text !== 'string') {
+      return NextResponse.json(
+        { error: "Missing or invalid comment text" },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize and limit text length for safety
+    const sanitizedText = text.trim().slice(0, 1000);
+    if (sanitizedText === '') {
+      return NextResponse.json(
+        { error: "Comment text cannot be empty" },
         { status: 400 }
       );
     }
 
     // Создаем новый комментарий
     const currentDate = new Date();
-    const newComment = await database.createDocument(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.vibeCommentsCollectionId, // ID коллекции vibe_comments
-      ID.unique(),
-      {
-        user_id: user_id,
-        vibe_id: vibe_id,
-        text: text,
-        created_at: currentDate.toISOString()
-      }
-    );
+    const commentId = ID.unique();
+    
+    try {
+      const newComment = await database.createDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.vibeCommentsCollectionId, // ID коллекции vibe_comments
+        commentId,
+        {
+          user_id: user_id,
+          vibe_id: vibe_id,
+          text: sanitizedText,
+          created_at: currentDate.toISOString()
+        }
+      );
 
-    // Получаем обновленное количество комментариев
-    const commentsCount = await getCommentsCount(vibe_id);
+      // Получаем обновленное количество комментариев
+      const commentsCount = await getCommentsCount(vibe_id);
 
-    return NextResponse.json({
-      success: true,
-      comment: {
-        id: newComment.$id,
-        user_id: user_id,
-        vibe_id: vibe_id,
-        text: text,
-        created_at: currentDate.toISOString()
-      },
-      count: commentsCount
-    });
-
+      return NextResponse.json({
+        success: true,
+        comment: {
+          id: newComment.$id,
+          user_id: user_id,
+          vibe_id: vibe_id,
+          text: sanitizedText,
+          created_at: currentDate.toISOString()
+        },
+        count: commentsCount
+      });
+    } catch (dbError: any) {
+      console.error("Database error creating comment:", dbError);
+      return NextResponse.json(
+        { error: dbError.message || "Database error when creating comment" },
+        { status: 500 }
+      );
+    }
   } catch (error: any) {
     console.error("Error creating comment:", error);
     return NextResponse.json(

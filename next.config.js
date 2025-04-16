@@ -44,7 +44,7 @@ const nextConfig = {
         // Enable optimizations when possible
         optimizeCss: true,
         // Experimental features
-        scrollRestoration: true,
+        scrollRestoration: true
     },
     async headers() {
         return [

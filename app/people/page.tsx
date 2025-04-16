@@ -216,7 +216,12 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
     };
     
     // Обеспечиваем наличие статистики
-    const stats = user.stats || {};
+    const stats = user.stats || {} as {
+        totalFollowers: number;
+        totalLikes: number;
+        averageRating: number;
+        totalRatings: number;
+    };
     const totalFollowers = getNumericValue(stats.totalFollowers);
     const totalLikes = getNumericValue(stats.totalLikes);
     const totalRatings = getNumericValue(stats.totalRatings);
@@ -331,7 +336,12 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                                 setRating(newRating);
                                 // Create temporary updated stats for immediate UI feedback
                                 const updatedStats = {...stats, averageRating: newRating};
-                                user.stats = updatedStats;
+                                user.stats = updatedStats as {
+                                    totalLikes: number;
+                                    totalFollowers: number;
+                                    averageRating: number;
+                                    totalRatings: number;
+                                };
                                 handleStarClick(newRating);
                             }}
                             onMouseEnter={() => setHoverRating(star)}

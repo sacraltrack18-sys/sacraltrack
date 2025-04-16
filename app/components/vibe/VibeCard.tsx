@@ -363,36 +363,101 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       return;
     }
 
+    // Store original state to revert in case of error
+    const wasLiked = isLiked;
+    const prevLikesCount = likesCount;
+
     try {
-      // Оптимистично обновляем UI сразу
+      // Optimistically update UI first
       if (isLiked) {
         setIsLiked(false);
         setLikesCount(prev => Math.max(0, prev - 1));
       } else {
         setIsLiked(true);
-        // Если это первый лайк (текущее значение 0), устанавливаем сразу 1,
-        // иначе инкрементируем предыдущее значение
+        // If this is the first like (current value is 0), set to 1,
+        // otherwise increment the previous value
         setLikesCount(prev => prev === 0 ? 1 : prev + 1);
       }
 
-      // Вызываем API для лайков
-      if (isLiked) {
-        await unlikeVibe(vibe.id, user.id);
-        if (onUnlike) onUnlike(vibe.id);
-      } else {
-        await likeVibe(vibe.id, user.id);
-        if (onLike) onLike(vibe.id);
+      // Make API call with retry logic
+      let success = false;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (!success && retryCount <= maxRetries) {
+        try {
+          // Add a small delay before retrying
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+          }
+          
+          // Call API directly to toggle like state
+          const response = await toggleVibeVote(vibe.id, user.id);
+          
+          // If we get here, the request was successful
+          if (response && response.count !== undefined) {
+            setLikesCount(response.count);
+            setIsLiked(response.action === 'liked');
+            success = true;
+            
+            // Call appropriate callback
+            if (response.action === 'liked' && onLike) {
+              onLike(vibe.id);
+            } else if (response.action === 'unliked' && onUnlike) {
+              onUnlike(vibe.id);
+            }
+            
+            // Also update the store to keep state in sync
+            if (response.action === 'liked' && likeVibe) {
+              await likeVibe(vibe.id, user.id);
+            } else if (response.action === 'unliked' && unlikeVibe) {
+              await unlikeVibe(vibe.id, user.id);
+            }
+          } else {
+            // Handle unexpected response format
+            throw new Error('Invalid response format');
+          }
+
+          // Update actual stats after a short delay
+          setTimeout(() => refreshVibeStats(), 500);
+        } catch (retryError) {
+          retryCount++;
+          console.error(`Retry ${retryCount}/${maxRetries} failed:`, retryError);
+          
+          // If we've exhausted all retries, throw the error to be caught by outer try/catch
+          if (retryCount > maxRetries) {
+            throw retryError;
+          }
+        }
       }
-
-      // Обновляем актуальные данные после API-запроса
-      setTimeout(() => refreshVibeStats(), 500);
-
     } catch (error) {
       console.error('Error toggling like:', error);
-      // Восстанавливаем предыдущее состояние в случае ошибки
-      setIsLiked(!isLiked);
-      setLikesCount(prev => isLiked ? prev + 1 : Math.max(0, prev - 1));
-      toast.error('Failed to update like status');
+      
+      // Revert to previous state in case of error
+      setIsLiked(wasLiked);
+      setLikesCount(prevLikesCount);
+      
+      let errorMessage = 'Could not update like. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (error.message.includes('unauthorized')) {
+          errorMessage = 'You need to log in again to perform this action.';
+          setIsLoginOpen(true);
+        }
+      }
+      
+      toast.error(errorMessage, {
+        duration: 3000,
+        style: {
+          background: '#333',
+          color: '#fff',
+          borderRadius: '10px'
+        }
+      });
     }
   };
 

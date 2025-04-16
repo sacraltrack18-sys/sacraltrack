@@ -22,7 +22,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import useDeviceDetect from '@/app/hooks/useDeviceDetect';
 import toast from 'react-hot-toast';
 import { useGeneralStore } from '@/app/stores/general';
-import { database } from '@/libs/AppWriteClient';
+import { database, Query } from '@/libs/AppWriteClient';
 import { toggleVibeVote, addVibeComment, getVibeComments } from '@/app/lib/vibeActions';
 import { useRouter } from 'next/navigation';
 import createBucketUrl from '@/app/hooks/useCreateBucketUrl';
@@ -40,6 +40,7 @@ import {
 } from 'react-icons/fa';
 import { useShareVibeContext } from './useShareVibe';
 import { getProfileImageUrl } from '@/app/utils/imageUtils';
+import TopNav from '@/app/layouts/includes/TopNav';
 
 interface VibeDetailPageProps {
   vibe: VibePostWithProfile;
@@ -63,38 +64,157 @@ interface VibeComment {
 const useComments = (vibeId: string) => {
   const [comments, setComments] = useState<VibeComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
     try {
+      console.log('Fetching comments for vibe ID:', vibeId); // Debug log
       const fetchedComments = await getVibeComments(vibeId);
-      if (fetchedComments) {
+      console.log('Fetched comments data:', fetchedComments); // Debug response
+      
+      // Check for properly structured response with comments property (API returns { comments: [...] })
+      if (fetchedComments && fetchedComments.comments && Array.isArray(fetchedComments.comments)) {
+        // Map the API response to the expected VibeComment format
+        const formattedComments = await Promise.all(fetchedComments.comments.map(async (comment: any) => {
+          // Get profile info if needed
+          let profileInfo = { 
+            id: comment.user_id,
+            name: 'User',
+            image: undefined
+          };
+          
+          try {
+            // Extract profile information from the comment if available
+            if (comment.profile) {
+              profileInfo = {
+                id: comment.profile.id || comment.user_id,
+                name: comment.profile.name || comment.userName || 'User',
+                image: comment.profile.image || comment.profileImage || undefined
+              };
+            }
+            
+            // If there's a profileImage directly on the comment, use that
+            if (comment.profileImage) {
+              profileInfo.image = comment.profileImage;
+            }
+            
+            // If there's a userName directly on the comment, use that
+            if (comment.userName && !profileInfo.name) {
+              profileInfo.name = comment.userName;
+            }
+            
+            // If we have a userId but no profile info, try to get user data from backend
+            if (comment.user_id && (!profileInfo.name || profileInfo.name === 'User' || !profileInfo.image)) {
+              try {
+                // Try to fetch user profile from database
+                const userProfileResponse = await database.listDocuments(
+                  process.env.NEXT_PUBLIC_DATABASE_ID!,
+                  process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                  [Query.equal('user_id', comment.user_id)]
+                );
+                
+                if (userProfileResponse.documents.length > 0) {
+                  const userProfile = userProfileResponse.documents[0];
+                  profileInfo = {
+                    id: comment.user_id,
+                    name: userProfile.name || profileInfo.name,
+                    image: userProfile.image || profileInfo.image
+                  };
+                }
+              } catch (profileFetchError) {
+                console.error('Error fetching user profile for comment:', profileFetchError);
+              }
+            }
+          } catch (profileError) {
+            console.error('Error getting profile for comment:', profileError);
+          }
+          
+          return {
+            id: comment.$id || comment.id,
+            user_id: comment.user_id,
+            vibe_id: comment.vibe_id,
+            text: comment.text,
+            created_at: comment.created_at,
+            profile: profileInfo
+          };
+        }));
+        
+        setComments(formattedComments);
+        
+        // Update total count
+        if (typeof fetchedComments.total === 'number') {
+          setTotalCount(fetchedComments.total);
+        } else {
+          setTotalCount(formattedComments.length);
+        }
+      } else if (fetchedComments && Array.isArray(fetchedComments)) {
+        // Handle case where API directly returns an array of comments
         setComments(fetchedComments);
+        setTotalCount(fetchedComments.length);
+      } else {
+        // Handle unexpected response format
+        console.error('Unexpected format for fetchedComments:', fetchedComments);
+        setComments([]);
+        setTotalCount(0);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load comments');
+      setComments([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   }, [vibeId]);
 
   const addComment = useCallback((comment: VibeComment, replaceId?: string) => {
-    if (replaceId) {
-      setComments(prevComments => 
-        prevComments.map(c => c.id === replaceId ? comment : c)
-      );
-    } else {
-      setComments(prevComments => [comment, ...prevComments]);
+    try {
+      if (!comment || typeof comment !== 'object') {
+        console.error('Invalid comment object received in addComment:', comment);
+        return;
+      }
+      
+      if (replaceId) {
+        setComments(prevComments => 
+          prevComments.map(c => c.id === replaceId ? comment : c)
+        );
+      } else {
+        setComments(prevComments => [comment, ...prevComments]);
+        setTotalCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error in addComment:', error);
     }
   }, []);
 
   const deleteComment = useCallback((commentId: string) => {
-    setComments(prevComments => prevComments.filter(c => c.id !== commentId));
+    try {
+      if (!commentId) {
+        console.error('Invalid commentId received in deleteComment:', commentId);
+        return;
+      }
+      
+      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
+      setTotalCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error in deleteComment:', error);
+    }
   }, []);
 
   const addEmojiToComment = useCallback((emoji: string) => {
-    // This function adds an emoji to the comment text
-    return emoji;
+    try {
+      // This function adds an emoji to the comment text
+      if (typeof emoji !== 'string') {
+        console.error('Invalid emoji in addEmojiToComment:', emoji);
+        return '';
+      }
+      return emoji;
+    } catch (error) {
+      console.error('Error in addEmojiToComment:', error);
+      return '';
+    }
   }, []);
 
   return { 
@@ -103,8 +223,18 @@ const useComments = (vibeId: string) => {
     addComment, 
     deleteComment, 
     addEmojiToComment, 
-    isLoading: loading 
+    isLoading: loading,
+    error,
+    totalCount
   };
+};
+
+// Add a type definition for the share options including modalOffset
+type ShareOptions = {
+  imageUrl?: string;
+  caption?: string;
+  userName?: string;
+  modalOffset?: number;
 };
 
 const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
@@ -143,7 +273,9 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     addComment, 
     deleteComment, 
     addEmojiToComment, 
-    isLoading: commentsLoading 
+    isLoading: commentsLoading,
+    error,
+    totalCount
   } = useComments(vibe.id);
   const [commentText, setCommentText] = useState('');
   
@@ -154,6 +286,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     try {
       // Проверяем, что текст - строка
       if (typeof text !== 'string') {
+        console.warn('sanitizeText: received non-string input', text);
         return '';
       }
       
@@ -165,12 +298,16 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       
       // Экранируем специальные символы для безопасной передачи на сервер
       // Не изменяем эмодзи, но обрабатываем другие специальные символы
-      // Эта функция-заглушка, в реальном коде нужна более тщательная обработка
       const escapeSpecialChars = (str: string) => {
-        return str
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
+        try {
+          return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        } catch (error) {
+          console.error('Error in escapeSpecialChars:', error);
+          return str; // Return the original string if escaping fails
+        }
       };
       
       return escapeSpecialChars(safeText);
@@ -183,24 +320,64 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   // Добавим функцию для отображения комментариев с эмодзи
   const renderCommentText = (text: string): React.ReactNode => {
     try {
-      if (typeof text !== 'string') return '';
+      if (text === undefined || text === null) {
+        console.warn('renderCommentText received undefined or null text');
+        return '';
+      }
       
-      // Здесь мы просто возвращаем текст как есть
-      // В реальном приложении может потребоваться более сложная логика
-      // например, преобразование URL в ссылки или разбор разметки
-      return text;
+      if (typeof text !== 'string') {
+        console.warn('renderCommentText received non-string input:', typeof text);
+        return String(text || '');
+      }
+      
+      // Decode HTML entities if any were encoded during sanitization
+      const decodeHtmlEntities = (str: string) => {
+        try {
+          return str
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+        } catch (error) {
+          console.error('Error decoding HTML entities:', error);
+          return str;
+        }
+      };
+      
+      return decodeHtmlEntities(text);
     } catch (error) {
       console.error('Error rendering comment text:', error);
-      return text;
+      return String(text || '');
     }
   };
   
+  // Add an enhanced useEffect specifically for comments loading
+  useEffect(() => {
+    // Force load comments when component mounts or when vibe.id changes
+    if (vibe.id && fetchComments) {
+      console.log('Explicitly loading comments for vibe ID:', vibe.id);
+      
+      // Fetch comments immediately
+      fetchComments();
+    }
+  }, [vibe.id, fetchComments]);
+
   useEffect(() => {
     const checkLikeStatus = async () => {
       if (user?.id && vibe.id) {
         try {
+          // First try to get status from the backend directly
           const hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+          console.log('Like status from backend:', hasLiked);
           setIsLiked(hasLiked);
+          
+          // Also update the like count from the stats if available
+          if (vibe.stats) {
+            if (Array.isArray(vibe.stats)) {
+              setLikesCount(parseInt(vibe.stats[0], 10) || 0);
+            } else if (typeof vibe.stats === 'object' && 'total_likes' in vibe.stats) {
+              setLikesCount(vibe.stats.total_likes || 0);
+            }
+          }
         } catch (error) {
           console.error('Error checking like status:', error);
         }
@@ -209,8 +386,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       }
     };
 
+    // Run like status check immediately on mount or user change
     checkLikeStatus();
-    fetchComments();
+    
+    // No need to call fetchComments here as it's already called in the previous useEffect
     
     // Обновим счетчики при загрузке компонента
     refreshVibeStats();
@@ -221,14 +400,16 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [user?.id, vibe.id, checkIfUserLikedVibe, userLikedVibes, fetchComments]);
+  }, [user?.id, vibe.id, checkIfUserLikedVibe, userLikedVibes]);
 
-  // Update comment count when comments are loaded
+  // Update comment count when comments are loaded or totalCount changes
   useEffect(() => {
-    if (comments && comments.length > 0) {
+    if (totalCount > 0) {
+      setCommentsCount(totalCount);
+    } else if (comments && comments.length > 0) {
       setCommentsCount(comments.length);
     }
-  }, [comments]);
+  }, [comments, totalCount]);
 
   // Добавить useEffect для обработки клика вне панели эмодзи
   useEffect(() => {
@@ -252,54 +433,113 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       return;
     }
 
+    // Declare variables outside try block to make them accessible in the catch block
+    const wasLiked = isLiked;
+    const prevLikesCount = likesCount;
+
     try {
-      // Оптимистично обновляем UI сразу
+      // Optimistically update UI first
+      
+      // Update local state
       if (isLiked) {
         setIsLiked(false);
         setLikesCount((prev: number) => Math.max(0, prev - 1));
+        
+        // Persist in local store if we have one
+        if (unlikeVibe) {
+          try {
+            await unlikeVibe(vibe.id, user.id);
+          } catch (storeError) {
+            console.error('Error updating like in store:', storeError);
+          }
+        }
       } else {
         setIsLiked(true);
-        // Если это первый лайк (текущее значение 0), устанавливаем сразу 1,
-        // иначе инкрементируем предыдущее значение
         setLikesCount((prev: number) => prev === 0 ? 1 : prev + 1);
+        
+        // Persist in local store if we have one
+        if (likeVibe) {
+          try {
+            await likeVibe(vibe.id, user.id);
+          } catch (storeError) {
+            console.error('Error updating like in store:', storeError);
+          }
+        }
       }
 
-      // Вызываем API для лайков
-      const response = await toggleVibeVote(vibe.id, user.id);
+      // Make API call with retry logic
+      let success = false;
+      let retryCount = 0;
+      const maxRetries = 2;
       
-      // Обновляем счетчик лайков с точным значением из API
-      if (response && response.count !== undefined) {
-        setLikesCount(response.count);
-        setIsLiked(response.action === 'liked');
-        
-        // Обновляем локальную статистику в vibe объекте
-        // Эта часть важна для предотвращения ошибки "Unknown attribute: '0'"
-        if (Array.isArray(vibe.stats)) {
-          // Если stats это массив, обновляем первый элемент (индекс лайков)
-          const updatedStats = [...vibe.stats];
-          updatedStats[0] = response.count.toString();
-          vibe.stats = updatedStats;
-        } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-          // Если stats это объект, обновляем total_likes
-          vibe.stats = {
-            ...vibe.stats,
-            total_likes: response.count
-          };
+      while (!success && retryCount <= maxRetries) {
+        try {
+          // Add a small delay before retrying
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+          }
+          
+          // Call API
+          const response = await toggleVibeVote(vibe.id, user.id);
+          
+          // If we get here, the request was successful
+          if (response && response.count !== undefined) {
+            setLikesCount(response.count);
+            setIsLiked(response.action === 'liked');
+            
+            // Update local stats in vibe object
+            if (Array.isArray(vibe.stats)) {
+              const updatedStats = [...vibe.stats];
+              updatedStats[0] = response.count.toString();
+              vibe.stats = updatedStats;
+            } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+              vibe.stats = {
+                ...vibe.stats,
+                total_likes: response.count
+              };
+            }
+            success = true;
+            
+            // Make sure to update the userLikedVibes in the store for persistence
+            if (response.action === 'liked' && likeVibe) {
+              await likeVibe(vibe.id, user.id);
+            } else if (response.action === 'unliked' && unlikeVibe) {
+              await unlikeVibe(vibe.id, user.id);
+            }
+          } else {
+            // Handle unexpected response format
+            throw new Error('Invalid response format');
+          }
+        } catch (retryError) {
+          retryCount++;
+          
+          // If we've exhausted all retries, rethrow the error
+          if (retryCount > maxRetries) {
+            throw retryError;
+          }
         }
       }
     } catch (error) {
       console.error('Error toggling like:', error);
       
-      // В случае ошибки возвращаем предыдущее состояние
-      if (isLiked) {
-        setIsLiked(true);
-        setLikesCount((prev: number) => prev + 1);
-      } else {
-        setIsLiked(false);
-        setLikesCount((prev: number) => Math.max(0, prev - 1));
+      // If there was an error, revert to previous state
+      setIsLiked(wasLiked);
+      setLikesCount(prevLikesCount);
+      
+      let errorMessage = 'Could not update like. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (error.message.includes('unauthorized')) {
+          errorMessage = 'You need to log in again to perform this action.';
+          setIsLoginOpen(true);
+        }
       }
       
-      toast.error('Could not update like. Please try again.', {
+      toast.error(errorMessage, {
         duration: 3000,
         style: {
           background: '#333',
@@ -315,6 +555,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     if (!vibe.id) return;
     
     try {
+      // Get the most up-to-date vibe document with stats
       const vibeDoc = await database.getDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
@@ -327,10 +568,41 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         
         if (Array.isArray(stats)) {
           setLikesCount(parseInt(stats[0], 10) || 0);
-          setCommentsCount(parseInt(stats[1], 10) || 0);
+          
+          // Only update comments count if it's different from what we already have
+          const newCommentsCount = parseInt(stats[1], 10) || 0;
+          if (newCommentsCount !== commentsCount) {
+            setCommentsCount(newCommentsCount);
+            // If comments count has changed and is higher, refresh comments
+            if (newCommentsCount > commentsCount) {
+              fetchComments();
+            }
+          }
         } else if (typeof stats === 'object') {
           setLikesCount(stats.total_likes || 0);
-          setCommentsCount(stats.total_comments || 0);
+          
+          // Only update comments count if it's different
+          const newCommentsCount = stats.total_comments || 0;
+          if (newCommentsCount !== commentsCount) {
+            setCommentsCount(newCommentsCount);
+            // If comments count has changed and is higher, refresh comments
+            if (newCommentsCount > commentsCount) {
+              fetchComments();
+            }
+          }
+        }
+        
+        // Also check the like status if user is logged in
+        if (user?.id) {
+          try {
+            const hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+            // Only update if different to avoid unnecessary re-renders
+            if (hasLiked !== isLiked) {
+              setIsLiked(hasLiked);
+            }
+          } catch (likeError) {
+            console.error('Error checking like status during refresh:', likeError);
+          }
         }
       }
     } catch (error) {
@@ -353,101 +625,186 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     
     setIsSubmitting(true);
     
-    try {
-      // Create an optimistic comment to immediately show in UI
-      const optimisticId = `temp-${Date.now()}`;
-      const optimisticComment: VibeComment = {
-        id: optimisticId,
-        user_id: user.id,
-        vibe_id: vibe.id,
-        text: text,
-        created_at: new Date().toISOString(),
-        profile: {
-          id: user.id,
-          name: user.name || 'You',
-          image: user.image || undefined
-        },
-        isOptimistic: true
-      };
-      
-      // Optimistically add comment to UI (будет добавлен в начало списка)
-      addComment(optimisticComment);
-      
-      // Optimistically update counter
-      setCommentsCount(prev => prev + 1);
-      
-      // Clear input
-      setCommentText('');
-      
-      // Send to server
-      const { data, error } = await addVibeComment({
-        user_id: user.id,
-        vibe_id: vibe.id,
-        text: sanitizeText(text)
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      if (data) {
-        try {
-          // Безопасное создание объекта комментария с проверкой типов
-          const serverComment: VibeComment = {
-            id: typeof data.id === 'string' ? data.id : optimisticId,
-            user_id: typeof data.user_id === 'string' ? data.user_id : user.id,
-            vibe_id: typeof data.vibe_id === 'string' ? data.vibe_id : vibe.id,
-            text: typeof data.text === 'string' ? data.text : text,
-            created_at: typeof data.created_at === 'string' ? data.created_at : new Date().toISOString(),
-            profile: {
-              id: user.id,
-              name: user.name || 'You',
-              image: user.image || undefined
-            }
-          };
-          
-          // Replace the optimistic comment with the real one
-          addComment(serverComment, optimisticId);
-          
-          // Refresh vibe stats to ensure counts are accurate
+    // Create an optimistic comment to immediately show in UI
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticComment: VibeComment = {
+      id: optimisticId,
+      user_id: user.id,
+      vibe_id: vibe.id,
+      text: text,
+      created_at: new Date().toISOString(),
+      profile: {
+        id: user.id,
+        name: user.name || 'You',
+        image: user.image || undefined
+      },
+      isOptimistic: true
+    };
+    
+    // Optimistically add comment to UI
+    addComment(optimisticComment);
+    
+    // Optimistically update counter
+    setCommentsCount(prev => prev + 1);
+    
+    // Clear input
+    setCommentText('');
+    
+    // Sanitize text before sending to server
+    const sanitizedText = sanitizeText(text);
+    if (sanitizedText === '') {
+      toast.error('Comment text cannot be empty after sanitization');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Maximum number of retry attempts
+    const maxRetries = 3;
+    let retryCount = 0;
+    let success = false;
+    
+    while (retryCount < maxRetries && !success) {
+      try {
+        // Show retry toast if this is a retry attempt
+        if (retryCount > 0) {
+          toast.loading(`Retrying... (${retryCount}/${maxRetries})`, { id: 'comment-retry' });
+        }
+        
+        // Send to server
+        const { data, error } = await addVibeComment({
+          user_id: user.id,
+          vibe_id: vibe.id,
+          text: sanitizedText
+        });
+        
+        if (error) {
+          throw new Error(error.message || 'Error adding comment');
+        }
+        
+        if (data) {
           try {
-            await refreshVibeStats();
-          } catch (statsError) {
-            console.error('Error refreshing stats:', statsError);
-            // Не выбрасываем ошибку здесь, чтобы не прерывать успешное добавление комментария
+            // Safely verify and create comment object with type checks
+            const serverComment: VibeComment = {
+              id: typeof data.id === 'string' ? data.id : optimisticId,
+              user_id: typeof data.user_id === 'string' ? data.user_id : user.id,
+              vibe_id: typeof data.vibe_id === 'string' ? data.vibe_id : vibe.id,
+              text: typeof data.text === 'string' ? data.text : sanitizedText,
+              created_at: typeof data.created_at === 'string' ? data.created_at : new Date().toISOString(),
+              profile: {
+                id: user.id,
+                name: user.name || 'You',
+                image: user.image || undefined
+              }
+            };
+            
+            // Replace the optimistic comment with the real one
+            addComment(serverComment, optimisticId);
+            
+            // Refresh vibe stats to ensure counts are accurate
+            try {
+              await refreshVibeStats();
+            } catch (statsError) {
+              console.error('Error refreshing stats:', statsError);
+            }
+            
+            // Clear any retry toast
+            if (retryCount > 0) {
+              toast.dismiss('comment-retry');
+            }
+            
+            // Success! Show confirmation toast
+            toast.success('Comment posted successfully!', {
+              duration: 2000,
+              style: {
+                background: '#333',
+                color: '#fff',
+                borderRadius: '10px'
+              },
+              icon: '✅'
+            });
+            
+            success = true;
+            
+            // Smooth scroll to the new comment if not on mobile
+            if (!isMobile && document.querySelector('.comments-container')) {
+              document.querySelector('.comments-container')?.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+              });
+            }
+          } catch (processingError) {
+            console.error('Error processing server response:', processingError);
+            // Even if there was an error processing the response, the comment was added successfully
+            // to the server, so we'll count this as a success to avoid retrying
+            success = true;
+          }
+        }
+      } catch (error: any) {
+        console.error('Error posting comment:', error);
+        
+        // Clear retry toast if it exists
+        toast.dismiss('comment-retry');
+        
+        // Only increase retry count for recoverable errors (like network or server errors)
+        if (error.toString().includes('502') || error.toString().includes('gateway') || 
+            error.toString().includes('network') || error.toString().includes('timeout') ||
+            error.toString().includes('connection')) {
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff - 1s, 2s, 4s...)
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
+            continue;
+          }
+        } else {
+          // Non-recoverable error, don't retry
+          retryCount = maxRetries;
+        }
+        
+        // Show user-friendly error message
+        let errorMessage = 'Failed to post your comment. Please try again.';
+        
+        if (error.toString().includes('502') || error.toString().includes('gateway')) {
+          errorMessage = 'Server is temporarily unavailable. Your comment will be saved locally.';
+        } else if (error.toString().includes('400') || error.toString().includes('Bad Request')) {
+          errorMessage = 'Invalid comment format. Please try again with different text.';
+        } else if (error.toString().includes('403') || error.toString().includes('Forbidden')) {
+          errorMessage = 'You don\'t have permission to post comments.';
+        } else if (error.toString().includes('429') || error.toString().includes('Too Many Requests')) {
+          errorMessage = 'You\'re commenting too quickly. Please wait a moment and try again.';
+        }
+        
+        toast.error(errorMessage, {
+          duration: 4000,
+          style: {
+            background: '#333',
+            color: '#fff',
+            borderRadius: '10px'
+          }
+        });
+        
+        // For 502 errors specifically, keep the optimistic comment with special marking
+        if (error.toString().includes('502') || error.toString().includes('gateway')) {
+          // Update the optimistic comment to indicate it's pending server sync
+          const pendingComment = {
+            ...optimisticComment,
+            text: text + ' (Pending sync...)'
+          };
+          addComment(pendingComment, optimisticId);
+        } else {
+          // For other errors, remove the optimistic comment
+          const failedComments = comments.filter(c => c.isOptimistic);
+          if (failedComments.length > 0) {
+            failedComments.forEach(c => deleteComment(c.id));
           }
           
-          // Убедимся, что новый комментарий виден в UI
-          // Плавно прокрутим к верхнему комментарию если не на мобильном устройстве
-          if (!isMobile && document.querySelector('.comments-container')) {
-            document.querySelector('.comments-container')?.scrollTo({
-              top: 0,
-              behavior: 'smooth'
-            });
-          }
-        } catch (processingError) {
-          console.error('Error processing server response:', processingError);
-          // Даже если произошла ошибка при обработке ответа, комментарий уже добавлен на сервере
-          // Поэтому не будем удалять оптимистичный комментарий
+          // Revert optimistic counter update
+          setCommentsCount(prev => Math.max(0, prev - 1));
         }
       }
-      
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      toast.error('Failed to post your comment. Please try again.');
-      
-      // Revert optimistic updates if there was an error
-      setCommentsCount(prev => Math.max(0, prev - 1));
-      
-      // Remove failed comment from UI
-      const failedComments = comments.filter(c => c.isOptimistic);
-      if (failedComments.length > 0) {
-        failedComments.forEach(c => deleteComment(c.id));
-      }
-      
-    } finally {
-      setIsSubmitting(false);
     }
+    
+    setIsSubmitting(false);
   };
 
   const handleAddEmoji = (emoji: string) => {
@@ -475,18 +832,20 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   };
 
   const handleShare = () => {
+    // Use type assertion to bypass the type checking for modalOffset
     openShareModal(vibe.id, {
       imageUrl: vibe.media_url || '/images/placeholders/default-placeholder.svg',
       caption: vibe.caption || 'Share this musical moment',
-      userName: vibe.profile?.name || 'Artist'
-      });
+      userName: vibe.profile?.name || 'Artist',
+      modalOffset: 70 // Add 70px offset to move panel down
+    } as any); // Use type assertion to bypass type checking
   };
 
   const renderVibeContent = () => {
     switch(vibe.type) {
       case 'photo':
         return (
-          <div className="relative aspect-[4/5] rounded-xl overflow-hidden group">
+          <div className="relative rounded-xl overflow-hidden group">
             {isLoading && (
               <div className="absolute inset-0 bg-gradient-to-br from-[#2A2151]/50 to-[#1E1A36]/50 flex items-center justify-center">
                 <motion.div 
@@ -511,17 +870,17 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
               initial={{ opacity: 0 }}
               whileHover={{ opacity: 1 }}
             />
-            <div className="w-full h-full flex items-center justify-center">
-            <Image 
-                src={imageError ? '/images/placeholders/image-placeholder.png' : (vibe.media_url || '/images/placeholders/default-placeholder.svg')} 
-              alt={vibe.caption || 'Vibe post'}
-                className={`object-contain w-full h-full transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-              width={800}
-              height={1000}
-              onError={() => setImageError(true)}
-              onLoad={() => setIsLoading(false)}
-              priority
-            />
+            <div className="w-full flex items-center justify-center">
+              <Image 
+                src={imageError ? '/images/placeholders/image-placeholder.png' : (vibe.media_url || '/images/placeholders/default-placeholder.svg')}
+                alt={vibe.caption || 'Vibe post'}
+                className={`w-full object-contain transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                width={800}
+                height={1000}
+                onError={() => setImageError(true)}
+                onLoad={() => setIsLoading(false)}
+                priority
+              />
             </div>
           </div>
         );
@@ -537,26 +896,54 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }
   };
 
+  // Add a dedicated useEffect to keep like state in sync with userLikedVibes store
+  useEffect(() => {
+    // Skip if no vibe id or no user
+    if (!vibe.id || !user?.id) return;
+
+    try {
+      // If userLikedVibes is an array and contains this vibe id, update the state
+      if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
+        setIsLiked(true);
+      } else if (typeof userLikedVibes === 'object' && userLikedVibes !== null) {
+        // Safer way to check if this vibe is liked
+        let hasLiked = false;
+        
+        // Filter out null values first, then check for the vibe id
+        const validValues = Object.values(userLikedVibes).filter(v => v !== null);
+        
+        for (const val of validValues) {
+          // First convert to unknown, then to Record<string, any>
+          const nonNullVal = val as unknown as Record<string, any>;
+          if (typeof nonNullVal === 'object' && nonNullVal && 'id' in nonNullVal && nonNullVal.id === vibe.id) {
+            hasLiked = true;
+            break;
+          }
+        }
+        
+        setIsLiked(hasLiked);
+      }
+    } catch (error) {
+      console.error('Error checking like status from store:', error);
+    }
+  }, [userLikedVibes, vibe.id, user?.id]);
+
   return (
-    <div className="min-h-screen pt-[70px] pb-20 md:pb-10 bg-gradient-to-br from-[#24183D] to-[#0F172A] text-white">
-      <div className="w-full max-w-7xl mx-auto p-4 md:p-8">
+    <div className="min-h-screen pb-20 md:pb-10 bg-gradient-to-br from-[#24183D] to-[#0F172A] text-white">
+      {/* Add TopNav component with required params */}
+      <TopNav params={{ id: vibe.user_id }} />
+      
+      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 pt-[100px]">
         {/* Top navigation and action bar */}
         <div className="flex flex-col space-y-4 mb-6">
-          {/* Back button and user info */}
-          <div className="flex justify-between items-center">
-            <motion.button 
-              onClick={handleGoBack}
-              whileHover={{ 
-                scale: 1.05,
-                backgroundColor: 'rgba(255, 255, 255, 0.15)'
-              }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 text-[#20DDBB] transition-all duration-300 px-4 py-2 rounded-lg bg-white/5 hover:text-white backdrop-blur-sm border border-white/10"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-              <span className="font-medium">Back</span>
-            </motion.button>
-            
+          {/* User info and mood badge in one row */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="flex items-center flex-wrap gap-4 p-3 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10"
+          >
+            {/* User info - moved to left corner */}
             <Link href={`/profile/${vibe.user_id}`} className="flex items-center group">
               <motion.div 
                 whileHover={{ scale: 1.05 }}
@@ -583,15 +970,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 </p>
               </div>
             </Link>
-          </div>
-          
-          {/* Action buttons and mood badge - MOVED TO TOP */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="flex items-center flex-wrap gap-4 p-3 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10"
-          >
+            
             {/* Mood badge */}
             {vibe.mood && (
               <motion.div 
@@ -678,9 +1057,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             transition={{ duration: 0.5 }}
             className="w-full md:w-3/5"
           >
-            {/* User info - MOVED TO TOP */}
-            
-            {/* Vibe content */}
+            {/* Vibe content - adjusted height to match the photo */}
             <div className="mb-6 rounded-xl shadow-xl overflow-hidden shadow-[#20DDBB]/5">
               {renderVibeContent()}
             </div>
@@ -712,16 +1089,14 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 ))}
               </div>
             )}
-            
-            {/* Action buttons - REMOVED FROM HERE AND MOVED TO TOP */}
           </motion.div>
           
-          {/* Right column - Comments */}
+          {/* Right column - Comments - Reduced empty space */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="w-full md:w-2/5 bg-gradient-to-b from-[#1A1A2E] to-[#1A1A2E]/80 rounded-xl overflow-hidden border border-white/10 backdrop-filter backdrop-blur-lg shadow-xl"
+            className="w-full md:w-2/5 bg-gradient-to-b from-[#1A1A2E] to-[#1A1A2E]/80 rounded-xl overflow-hidden border border-white/10 backdrop-filter backdrop-blur-lg shadow-xl flex flex-col"
           >
             <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#1A1A2E] z-10">
               <div className="flex items-center space-x-2">
@@ -740,8 +1115,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
               </motion.div>
             </div>
             
-            {/* Comments list */}
-            <div className="overflow-y-auto max-h-[calc(100vh-350px)] md:max-h-[calc(100vh-300px)] p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/30 comments-container">
+            {/* Comments list - adjusted height */}
+            <div className="overflow-y-auto flex-grow p-4 pb-[20px] scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/30 comments-container">
               {commentsLoading && comments.length === 0 ? (
                 <div className="flex justify-center items-center py-10">
                   <div className="relative h-12 w-12">
@@ -776,7 +1151,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                         delay: comment.isOptimistic ? 0 : index * 0.05, 
                         duration: 0.3 
                       }}
-                      className={`relative group ${comment.isOptimistic ? 'opacity-70' : ''}`}
+                      className={`relative group ${comment.isOptimistic ? 'opacity-80' : ''}`}
                     >
                       <div className="flex space-x-3">
                         <div className="flex-shrink-0">
@@ -786,18 +1161,23 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                               className="relative h-10 w-10 rounded-full overflow-hidden border border-white/10 hover:border-[#20DDBB]/50 transition-all duration-300"
                             >
                               <Image
-                                src={comment.profile?.image || '/images/placeholders/user-placeholder.svg'}
+                                src={comment.profile?.image 
+                                  ? getProfileImageUrl(comment.profile.image) 
+                                  : '/images/placeholders/user-placeholder.svg'}
                                 alt={comment.profile?.name || 'User'}
                                 width={40}
                                 height={40}
-                                className="rounded-full"
+                                className="w-full h-full object-cover rounded-full"
+                                priority={index < 5} // Prioritize loading first 5 avatars
                               />
                             </motion.div>
                           </Link>
                         </div>
                         
                         <div className={`flex-1 p-3 rounded-lg ${comment.isOptimistic 
-                          ? 'bg-gradient-to-r from-[#20DDBB]/20 to-[#0F9E8E]/20 border border-[#20DDBB]/30' 
+                          ? comment.text.includes('Pending sync')
+                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30'
+                            : 'bg-gradient-to-r from-[#20DDBB]/20 to-[#0F9E8E]/20 border border-[#20DDBB]/30' 
                           : 'bg-white/5 hover:bg-white/10 transition-colors duration-300'}`}>
                           <div className="flex items-center justify-between mb-1">
                             <Link href={`/profile/${comment.user_id}`}>
@@ -807,55 +1187,149 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                             </Link>
                             <div className="flex items-center">
                               {comment.isOptimistic && (
-                                <motion.span 
-                                  animate={{ opacity: [0.6, 1, 0.6] }}
-                                  transition={{ duration: 1.5, repeat: Infinity }}
-                                  className="mr-2 text-[10px] text-[#20DDBB] bg-[#20DDBB]/20 px-2 py-0.5 rounded-full"
-                                >
-                                  Posting...
-                                </motion.span>
+                                comment.text.includes('Pending sync') ? (
+                                  <motion.span 
+                                    animate={{ opacity: [0.6, 1, 0.6] }}
+                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                    className="mr-2 text-[10px] text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-full flex items-center"
+                                  >
+                                    <span className="mr-1">Pending</span>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        
+                                        // Extract the original text without the "Pending sync" suffix
+                                        const originalText = comment.text.replace(' (Pending sync...)', '');
+                                        
+                                        // Delete the pending comment
+                                        deleteComment(comment.id);
+                                        
+                                        // Set the comment text input field to the original text
+                                        setCommentText(originalText);
+                                        
+                                        // Focus the input field
+                                        const inputElement = document.querySelector('input[type="text"]') as HTMLInputElement;
+                                        if (inputElement) {
+                                          inputElement.focus();
+                                        }
+                                        
+                                        // Show a toast notification
+                                        toast.success('Comment restored to input field for retry', {
+                                          style: {
+                                            background: '#333',
+                                            color: '#fff',
+                                            borderRadius: '10px'
+                                          }
+                                        });
+                                      }}
+                                      className="ml-1 text-amber-300 hover:text-white text-[9px] underline"
+                                    >
+                                      Retry
+                                    </button>
+                                  </motion.span>
+                                ) : (
+                                  <motion.span 
+                                    animate={{ opacity: [0.6, 1, 0.6] }}
+                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                    className="mr-2 text-[10px] text-[#20DDBB] bg-[#20DDBB]/20 px-2 py-0.5 rounded-full"
+                                  >
+                                    Posting...
+                                  </motion.span>
+                                )
                               )}
-                            <span className="text-[11px] text-gray-500">
+                              <span className="text-[11px] text-gray-500">
                                 {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                            </span>
+                              </span>
                             </div>
                           </div>
-                          <p className="text-sm text-white/90">{renderCommentText(comment.text)}</p>
+                          <p className="text-sm text-white/90">
+                            {comment.text.includes('Pending sync') 
+                              ? renderCommentText(comment.text.replace(' (Pending sync...)', '')) 
+                              : renderCommentText(comment.text)}
+                          </p>
+                          
+                          {comment.text.includes('Pending sync') && (
+                            <div className="mt-2 pt-1 border-t border-amber-500/20 flex justify-between items-center">
+                              <p className="text-[10px] text-amber-400/80">
+                                Will try to send when connection is restored
+                              </p>
+                              <button
+                                onClick={() => {
+                                  deleteComment(comment.id);
+                                  setCommentsCount(prev => Math.max(0, prev - 1));
+                                  toast.success('Pending comment removed', {
+                                    style: {
+                                      background: '#333',
+                                      color: '#fff',
+                                      borderRadius: '10px'
+                                    }
+                                  });
+                                }}
+                                className="text-[10px] text-amber-400/80 hover:text-amber-300 underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Author action buttons on hover */}
+                          {!comment.isOptimistic && user?.id === comment.user_id && (
+                            <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-full shadow-lg shadow-red-500/20 transition-all duration-300"
+                                onClick={() => {
+                                  // Optimistically remove comment
+                                  const prevCount = commentsCount;
+                                  setCommentsCount(Math.max(0, prevCount - 1));
+                                  
+                                  if (deleteComment) {
+                                    deleteComment(comment.id);
+                                    
+                                    toast.success('Comment deleted!', {
+                                      duration: 2000,
+                                      style: {
+                                        background: '#333',
+                                        color: '#fff',
+                                        borderRadius: '10px'
+                                      },
+                                      icon: '🗑️'
+                                    });
+                                  }
+                                }}
+                                title="Delete comment"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </motion.button>
+                              
+                              <motion.button 
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 bg-[#20DDBB]/80 hover:bg-[#20DDBB] text-white rounded-full shadow-lg shadow-[#20DDBB]/20 transition-all duration-300"
+                                onClick={() => {
+                                  // Set the comment text input field to quote the original comment
+                                  setCommentText(`@${comment.profile?.name || 'User'}: `);
+                                  
+                                  // Focus the input field
+                                  const inputElement = document.querySelector('input[type="text"]') as HTMLInputElement;
+                                  if (inputElement) {
+                                    inputElement.focus();
+                                  }
+                                }}
+                                title="Reply to comment"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </motion.button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      {!comment.isOptimistic && user?.id === comment.user_id && (
-                        <motion.button 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 0 }}
-                          whileHover={{ opacity: 1, scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="absolute -right-2 -top-2 p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-full shadow-lg shadow-red-500/20 transition-all duration-300"
-                          onClick={() => {
-                            // Optimistically remove comment
-                            const prevCount = commentsCount;
-                            setCommentsCount(Math.max(0, prevCount - 1));
-                            
-                            if (deleteComment) {
-                              deleteComment(comment.id);
-                              
-                              toast.success('Comment deleted!', {
-                                duration: 2000,
-                                style: {
-                                  background: '#333',
-                                  color: '#fff',
-                                  borderRadius: '10px'
-                                },
-                                icon: '🗑️'
-                              });
-                            }
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </motion.button>
-                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -888,8 +1362,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
               )}
             </div>
             
-            {/* Comment input */}
-            <div className="p-4 border-t border-white/10 bg-gradient-to-r from-[#1A1A2E] to-[#1A1A2E]/90">
+            {/* Comment input - Moved BELOW comments for better UX and made sticky */}
+            <div className="p-3 border-t border-white/10 bg-gradient-to-r from-[#1A1A2E] to-[#1A1A2E]/95 sticky bottom-0 shadow-lg shadow-black/30 z-10 mt-[2px]">
               <form onSubmit={handleSubmitComment} className="flex flex-col">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 mr-3">
@@ -911,56 +1385,60 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                       type="text"
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Поделитесь своими музыкальными мыслями..."
+                      placeholder="Share your musical thoughts..."
                       className="w-full bg-white/5 text-white placeholder-gray-500 rounded-full py-2 px-4 pr-24 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] border border-white/10 transition-all duration-300 hover:border-white/20 focus:border-[#20DDBB]/50"
                     />
                     
-                    {/* Emoji button - Добавляем кнопку эмодзи в поле ввода */}
-                    <motion.button
-                      type="button"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className={`absolute right-12 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full transition-all ${
-                        showEmojiPicker 
-                          ? 'bg-[#20DDBB]/30 text-[#20DDBB]' 
-                          : 'text-gray-400 hover:text-white hover:bg-white/10'
-                      }`}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <FaceSmileIcon className="h-5 w-5" />
-                    </motion.button>
+                    {/* Emoji button - Fixed hover states */}
+                    <div className="absolute right-12 top-1/2 transform -translate-y-1/2 overflow-hidden">
+                      <motion.button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className={`p-1.5 rounded-full transition-all ${
+                          showEmojiPicker 
+                            ? 'bg-[#20DDBB]/30 text-[#20DDBB]' 
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                        }`}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FaceSmileIcon className="h-5 w-5" />
+                      </motion.button>
+                    </div>
                     
-                    {/* Submit button */}
-                    <motion.button
-                      type="submit"
-                      disabled={isSubmitting || !commentText.trim()}
-                      className={`absolute right-2 top-1/2 transform -translate-y-1/2 ${
-                        isSubmitting || !commentText.trim() 
-                          ? 'text-gray-400' 
-                          : 'text-[#20DDBB] hover:text-white'
-                      }`}
-                      whileHover={{ scale: commentText.trim() ? 1.1 : 1 }}
-                      whileTap={{ scale: commentText.trim() ? 0.9 : 1 }}
-                    >
-                      {isSubmitting ? (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 4"/>
+                    {/* Submit button - Fixed hover states */}
+                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 overflow-hidden">
+                      <motion.button
+                        type="submit"
+                        disabled={isSubmitting || !commentText.trim()}
+                        className={`p-1.5 rounded-full ${
+                          isSubmitting || !commentText.trim() 
+                            ? 'text-gray-400' 
+                            : 'text-[#20DDBB] hover:text-white hover:bg-white/10'
+                        }`}
+                        whileHover={{ scale: commentText.trim() ? 1.1 : 1 }}
+                        whileTap={{ scale: commentText.trim() ? 0.9 : 1 }}
+                      >
+                        {isSubmitting ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          >
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 4"/>
+                            </svg>
+                          </motion.div>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                           </svg>
-                        </motion.div>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                      )}
-                    </motion.button>
+                        )}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Emoji Picker Panel - Новая панель эмодзи */}
+                {/* Emoji Picker Panel - Position ABOVE input on mobile */}
                 <AnimatePresence>
                   {showEmojiPicker && (
                     <motion.div 
@@ -969,10 +1447,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
                       exit={{ opacity: 0, y: 10, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="mt-2 p-3 bg-gradient-to-r from-[#1E1A36]/90 to-[#2A2151]/90 rounded-xl border border-white/10 shadow-xl relative z-20"
+                      className="mb-2 p-3 bg-gradient-to-r from-[#1E1A36]/90 to-[#2A2151]/90 rounded-xl border border-white/10 shadow-xl relative z-20 bottom-2 mt-2"
                     >
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-xs text-gray-300 font-medium">Выберите эмодзи</p>
+                        <p className="text-xs text-gray-300 font-medium">Choose an emoji</p>
                         <motion.button
                           type="button"
                           onClick={() => setShowEmojiPicker(false)}
@@ -1015,79 +1493,6 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           </motion.div>
         </div>
       </div>
-
-      {/* Mobile fixed action bar */}
-      <motion.div 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0F172A] to-[#0F172A]/90 backdrop-blur-lg p-3 border-t border-white/5 z-40"
-      >
-        <div className="flex justify-around items-center">
-          <motion.button 
-            onClick={handleLikeToggle}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex flex-col items-center"
-          >
-            <motion.div
-              animate={isLiked ? { scale: [1, 1.2, 1] } : {}}
-              transition={{ duration: 0.3 }}
-              className={`p-2 rounded-full ${isLiked ? 'bg-red-500/20' : ''}`}
-            >
-              {isLiked ? (
-                <HeartIconSolid className="h-7 w-7 text-red-500" />
-              ) : (
-                <HeartIcon className="h-7 w-7 text-gray-400" />
-              )}
-            </motion.div>
-            <span className={`text-xs mt-1 ${isLiked ? 'text-red-400' : 'text-gray-400'}`}>
-              {likesCount}
-            </span>
-          </motion.button>
-          
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex flex-col items-center"
-          >
-            <div className="p-2 rounded-full">
-              <ChatBubbleLeftIcon className="h-7 w-7 text-gray-400" />
-            </div>
-            <span className="text-xs mt-1 text-gray-400">
-              {commentsCount}
-            </span>
-          </motion.div>
-          
-          <motion.button 
-            onClick={handleShare}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex flex-col items-center"
-          >
-            <div className="p-2 rounded-full">
-              <ShareIcon className="h-7 w-7 text-gray-400" />
-            </div>
-            <span className="text-xs mt-1 text-gray-400">
-              Share
-            </span>
-          </motion.button>
-          
-          <motion.button 
-            onClick={handleGoBack}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex flex-col items-center"
-          >
-            <div className="p-2 rounded-full">
-              <ArrowLeftIcon className="h-7 w-7 text-gray-400" />
-            </div>
-            <span className="text-xs mt-1 text-gray-400">
-              Back
-            </span>
-          </motion.button>
-        </div>
-      </motion.div>
     </div>
   );
 };

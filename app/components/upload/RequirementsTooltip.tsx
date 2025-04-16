@@ -3,87 +3,77 @@ import { BsInfoCircle, BsCheck, BsX } from 'react-icons/bs';
 
 interface RequirementsTooltipProps {
     isOpen: boolean;
-    onToggle: () => void;
-    fileAudio: File | null;
-    fileImage: File | null;
-    trackname: string;
+    onClose: () => void;
 }
 
 const RequirementsTooltip: React.FC<RequirementsTooltipProps> = ({ 
     isOpen, 
-    onToggle, 
-    fileAudio, 
-    fileImage, 
-    trackname 
+    onClose 
 }) => {
+    // Simplified list of requirements
     const requirements = [
         { 
             id: 'audio', 
-            label: 'Audio file', 
-            detail: 'WAV format, up to 100MB', 
-            isValid: !!fileAudio 
+            label: 'Audio File', 
+            detail: 'WAV format, up to 200MB',
+            info: 'File will be automatically processed'
         },
         { 
             id: 'image', 
-            label: 'Cover image', 
-            detail: 'PNG, JPG up to 10MB', 
-            isValid: !!fileImage 
+            label: 'Cover Image', 
+            detail: 'PNG, JPG up to 10MB',
+            info: 'Square image recommended'
         },
         { 
-            id: 'trackname', 
-            label: 'Track name', 
-            detail: 'Required',
-            isValid: !!trackname && trackname.trim().length > 0 
+            id: 'info', 
+            label: 'Track Information', 
+            detail: 'Title and genre',
+            info: 'Required fields'
         }
     ];
 
-    const allRequirementsMet = requirements.every(req => req.isValid);
-
     return (
-        <div className="relative">
-            {/* Info button */}
-            <button 
-                onClick={onToggle}
-                className={`p-2 rounded-full
-                          ${isOpen ? 'bg-[#018CFD]/20 text-[#018CFD]' : 'bg-white/5 text-white/60'}
-                          transition-colors duration-300 hover:bg-white/10`}
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50" onClick={onClose}>
+            <div 
+                className="w-96 p-6 rounded-xl bg-[#2A184B] shadow-xl border border-[#20DDBB]/20"
+                onClick={(e) => e.stopPropagation()}
             >
-                <BsInfoCircle size={18} />
-            </button>
-
-            {/* Tooltip */}
-            {isOpen && (
-                <div className="absolute z-10 w-64 p-4 rounded-xl bg-[#2A184B] shadow-lg border border-white/5
-                              right-0 mt-2 transform-gpu animate-fadeIn transition-opacity">
-                    <div className="mb-3 pb-2 border-b border-white/10">
-                        <h4 className="text-white text-sm font-medium">Upload Requirements</h4>
-                    </div>
-
-                    <ul className="space-y-3">
-                        {requirements.map(req => (
-                            <li key={req.id} className="flex items-start">
-                                <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center
-                                              ${req.isValid ? 'bg-[#20DDBB]/20 text-[#20DDBB]' : 'bg-red-500/20 text-red-500'}`}>
-                                    {req.isValid ? <BsCheck size={14} /> : <BsX size={14} />}
-                                </div>
-                                <div className="ml-2">
-                                    <p className="text-white text-xs font-medium">{req.label}</p>
-                                    <p className="text-white/40 text-[10px]">{req.detail}</p>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-
-                    <div className="mt-4 pt-3 border-t border-white/10">
-                        <div className="flex items-center">
-                            <div className={`w-2 h-2 rounded-full ${allRequirementsMet ? 'bg-[#20DDBB]' : 'bg-orange-500'}`}></div>
-                            <p className="ml-2 text-xs text-white/60">
-                                {allRequirementsMet ? 'All requirements met' : 'Complete all requirements to upload'}
-                            </p>
-                        </div>
-                    </div>
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/10">
+                    <h3 className="text-white font-semibold">Upload Requirements</h3>
+                    <button 
+                        onClick={onClose}
+                        className="text-white/60 hover:text-white transition-colors"
+                    >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
-            )}
+
+                <ul className="space-y-4">
+                    {requirements.map(req => (
+                        <li key={req.id} className="flex items-start">
+                            <div className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center bg-[#20DDBB]/20 text-[#20DDBB]">
+                                <BsCheck size={14} />
+                            </div>
+                            <div className="ml-2">
+                                <p className="text-white text-sm font-medium">{req.label}</p>
+                                <p className="text-white/60 text-xs">{req.detail}</p>
+                                <p className="text-[#20DDBB]/80 text-xs italic mt-1">{req.info}</p>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+
+                <div className="mt-6 pt-3 border-t border-white/10">
+                    <p className="text-sm text-white/80">
+                        After upload, your track will be available on your profile and in the main feed.
+                    </p>
+                    <p className="text-xs text-[#20DDBB] mt-2">
+                        Powered by Sacral Track
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };

@@ -509,7 +509,7 @@ export { PostMainSkeleton };
 // Добавляем интерфейс для типа реакции
 interface ReactionType {
     id: string;
-    icon: JSX.Element;
+    icon: React.ReactNode;
     color: string;
     label: string;
     animation: {

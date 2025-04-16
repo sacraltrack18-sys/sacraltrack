@@ -14,14 +14,17 @@ const sections = [
   { id: 'intellectual-property', title: 'Intellectual Property', icon: '⚖️' },
   { id: 'registration', title: 'Registration', icon: '🔐' },
   { id: 'features', title: 'Platform Features', icon: '⭐' },
+  { id: 'technical', title: 'Technical Specifications', icon: '🔧' },
   { id: 'copyright', title: 'Copyright & Licensing', icon: '🎵' },
   { id: 'publication', title: 'Publication', icon: '📤' },
   { id: 'content', title: 'Content Guidelines', icon: '📋' },
+  { id: 'ranking', title: 'Ranking System', icon: '🏆' },
   { id: 'royalty', title: 'Royalties & Revenue', icon: '💰' },
   { id: 'payment', title: 'Payment', icon: '💳' },
   { id: 'marketing', title: 'Marketing Terms', icon: '📢' },
   { id: 'purchased-content', title: 'Purchased Content', icon: '🛒' },
-  { id: 'third-party', title: 'Third-party Sites', icon: '🔗' }
+  { id: 'third-party', title: 'Third-party Sites', icon: '🔗' },
+  { id: 'monetization', title: 'Monetization', icon: '💰' }
 ];
 
 export default function TermsOfUse() {
@@ -146,37 +149,95 @@ export default function TermsOfUse() {
                     </div>
                   </div>
 
-                  <InfoCard icon="🎵" title="Sacral Track Web App">
+                  <InfoCard icon="🎵" title="Sacral Track Concept">
                     <p className="text-sm text-white/80 mb-4">
-                      Sacral Track is an interactive Web App (social media), a music store for Artists and Music Lovers.
+                      Sacral Track is a comprehensive music platform that seamlessly integrates a professional streaming service with a social network for music creators and enthusiasts. Unlike traditional platforms, Sacral Track offers a unified ecosystem where creativity, community, and commerce converge.
                     </p>
                     
-                    <div className="grid md:grid-cols-2 gap-5 mt-6">
+                    <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20 mb-6">
+                      <h3 className="text-purple-400 font-medium mb-3">Unified Account System</h3>
+                      <p className="text-white/80 mb-3">
+                        Sacral Track uses a dynamic, single-account system that evolves based on your activities:
+                      </p>
                       <div className="space-y-3">
-                        <h4 className="text-[#20DDBB] font-medium text-sm">When registering as Artist:</h4>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Every user begins with a standard account that can evolve in multiple directions</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Accounts transform into artist profiles when users upload music or select artist badges</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Accounts develop listener features when users focus on consuming content</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">All accounts have access to both creator and listener tools</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-5">
+                      <div className="space-y-3">
+                        <h4 className="text-[#20DDBB] font-medium text-sm">Platform Features:</h4>
                         <CheckList items={[
-                          'Upload your tracks to the Service and put them up for sale',
-                          'Establish a price for your tracks',
-                          'Familiarize yourself with sales statistics',
-                          'Interact with other users through private messages and comments (Beta version)',
-                          'Create Events (Beta version)',
-                          'Create Playlists (Beta version)',
-                          'Create Purchase Plans (Carts) and buy tracks from other Artists',
-                          'Upload photos, videos and audio messages (Beta version)'
+                          'High-quality music streaming (320 kbps)',
+                          'Music catalog with direct artist support',
+                          'Release uploads and monetization',
+                          'Customizable artist profiles',
+                          'Vibration (vibe) creation and sharing',
+                          'Community interaction and messaging',
+                          'Customizable playlists and collections',
+                          'Event creation and discovery',
+                          'Audio message exchanges',
+                          'Direct artist-fan connections',
+                          'Visual waveform representations',
+                          'Background audio processing'
                         ]} />
                       </div>
                       
                       <div className="space-y-3">
-                        <h4 className="text-[#20DDBB] font-medium text-sm">When registering as Music Lover:</h4>
+                        <h4 className="text-[#20DDBB] font-medium text-sm">Engagement Options:</h4>
                         <CheckList items={[
-                          'Purchase your favourite music',
-                          'Listen to music on the Service without restrictions (320 kbps)',
-                          'Interact with other users through private messages and comments (Beta version)',
-                          'Create Events (Beta version)',
-                          'Create Playlists (Beta version)',
-                          'Create Purchase Plans (Carts) and buy tracks from other Artists',
-                          'Add Artists and other users to friends (Beta version)'
+                          'Upload and sell your original tracks',
+                          'Purchase and collect music directly from creators',
+                          'Listen to streaming audio without limitations',
+                          'Interact through comments and private messages',
+                          'Create and promote events',
+                          'Build and share themed playlists',
+                          'Establish purchase plans for tracked releases',
+                          'Upload photos, videos, and audio messages',
+                          'Form connections with artists and listeners',
+                          'Participate in exclusive communities',
+                          'Develop a personal musical identity'
                         ]} />
+                      </div>
+                    </div>
+
+                    <div className="p-5 bg-red-900/30 rounded-xl border border-red-500/20 mt-6">
+                      <h3 className="text-red-400 font-medium mb-3">Content Rights Transfer</h3>
+                      <p className="text-white/80 mb-3 font-medium">
+                        IMPORTANT: By registering an account and uploading any content to Sacral Track, you explicitly agree to the following:
+                      </p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-red-400 mt-1">!</span>
+                          <p className="text-white/80">All uploaded releases transfer usage rights to Sacral Track</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-red-400 mt-1">!</span>
+                          <p className="text-white/80">Sacral Track may use, promote, distribute, and monetize your content at its discretion</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-red-400 mt-1">!</span>
+                          <p className="text-white/80">Your content may appear in marketing materials, compilations, and partnerships</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-red-400 mt-1">!</span>
+                          <p className="text-white/80">Registration and content uploading constitutes legally binding acceptance of these terms</p>
+                        </div>
                       </div>
                     </div>
                   </InfoCard>
@@ -325,6 +386,81 @@ export default function TermsOfUse() {
                 </div>
               </TermsSection>
 
+              {/* New Technical Specifications Section */}
+              <TermsSection id="technical" title="Technical Specifications">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track has specific technical requirements and processes in place to ensure optimal audio quality 
+                    and streaming performance. Understanding these specifications will help artists prepare their content 
+                    for the platform.
+                  </p>
+                  
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <InfoCard icon="🎵" title="Audio File Requirements">
+                      <CheckList items={[
+                        'Format: Only WAV files are accepted',
+                        'Maximum file size: 200 MB',
+                        'Maximum duration: 12 minutes',
+                        'Sampling rate: 44.1 kHz (recommended)',
+                        'Bit depth: 16-bit or 24-bit',
+                        'Channels: Stereo (2 channels)'
+                      ]} />
+                    </InfoCard>
+                    
+                    <InfoCard icon="🖼️" title="Image Requirements">
+                      <CheckList items={[
+                        'Formats: JPEG, PNG, and WebP are accepted',
+                        'Cover art: Required for all track uploads',
+                        'Size: 1200x1200px at 150dpi (recommended)',
+                        'Optimization: Images are automatically optimized',
+                        'Metadata: Cover art is embedded in audio files'
+                      ]} />
+                    </InfoCard>
+                  </div>
+                  
+                  <div className="p-5 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
+                    <h3 className="text-[#20DDBB] font-medium mb-4">Audio Processing Information</h3>
+                    <p className="text-white/80 leading-relaxed mb-4">
+                      When you upload a WAV file to Sacral Track, the platform processes your audio using advanced techniques:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80"><span className="font-medium">Conversion:</span> Files are converted to MP3 (320 kbps) for streaming</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80"><span className="font-medium">Adaptive Segmentation:</span> Files are segmented based on duration:
+                          <ul className="ml-6 mt-2 space-y-1">
+                            <li>• Tracks up to 2 minutes: 10-second segments</li>
+                            <li>• Tracks 2-6 minutes: 15-second segments</li>
+                            <li>• Tracks over 6 minutes: 20-second segments</li>
+                          </ul>
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80"><span className="font-medium">Streaming:</span> Segments are delivered via M3U8 playlists for adaptive streaming</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80"><span className="font-medium">Original Preservation:</span> Original WAV files are securely stored with limited access</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Notice type="info" title="Optimized Processing">
+                    Sacral Track employs advanced processing techniques to enhance user experience:
+                    <ul className="mt-2 ml-4 space-y-1">
+                      <li>• Hardware acceleration for optimal conversion performance</li>
+                      <li>• Parallel processing using multiple CPU threads</li>
+                      <li>• Background processing beginning immediately after file selection</li>
+                      <li>• Secure storage with Appwrite technology and permission controls</li>
+                    </ul>
+                  </Notice>
+                </div>
+              </TermsSection>
+
               {/* Copyright & Licensing Section */}
               <TermsSection id="copyright" title="Copyright & Licensing">
                 <div className="space-y-6">
@@ -468,6 +604,104 @@ export default function TermsOfUse() {
                     In the event that you violate any content guidelines, ST Systems reserves the right to remove 
                     content without notice and may suspend or terminate your account. ST Systems renounces all 
                     liability for consequences of copyright violations.
+                  </Notice>
+                </div>
+              </TermsSection>
+
+              {/* Ranking System Section */}
+              <TermsSection id="ranking" title="Ranking System">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track employs a sophisticated ranking system for both users and artists to enhance
+                    platform engagement and reward active participation. These ranks determine visibility,
+                    platform benefits, and revenue opportunities.
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <InfoCard icon="👑" title="Artist Ranking">
+                      <p className="text-white/80 mb-4">Artists are ranked based on multiple factors that evaluate popularity and engagement:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Listens and streams of released tracks</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Purchases of released tracks</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Comments and social engagement</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Consistency and frequency of releases</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Follower count and growth</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                    
+                    <InfoCard icon="🏅" title="User Ranking">
+                      <p className="text-white/80 mb-4">Users are ranked based on their activity and contributions to the platform:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Track purchases and consumption</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Commenting and interaction frequency</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Playlist creation and sharing</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Profile completeness</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Account age and activity consistency</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                  </div>
+
+                  <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20">
+                    <h3 className="text-purple-400 font-medium mb-4">Rank Benefits and Calculation</h3>
+                    <p className="text-white/80 mb-4">
+                      Ranks are calculated through an algorithm that assigns points to various activities.
+                      Higher ranks provide increased benefits:
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-white font-medium mb-2">For Artists:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Enhanced visibility in searches and recommendations</li>
+                          <li>Higher revenue share percentages</li>
+                          <li>Access to exclusive platform features</li>
+                          <li>Priority support and promotional opportunities</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium mb-2">For Users:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Discounts on purchases</li>
+                          <li>Early access to new releases</li>
+                          <li>Exclusive content and features</li>
+                          <li>Influence on platform recommendations</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Notice type="warning" title="Rank Adjustments">
+                    Sacral Track reserves the right to adjust ranking algorithms and criteria to maintain platform integrity.
+                    Any artificial manipulation of rank factors may result in account penalties or termination.
                   </Notice>
                 </div>
               </TermsSection>
@@ -636,6 +870,254 @@ export default function TermsOfUse() {
                       goods or services available on or through any of such websites or resources.
                     </p>
                   </div>
+                </div>
+              </TermsSection>
+
+              {/* Monetization Section */}
+              <TermsSection id="monetization" title="Monetization">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track provides multiple monetization avenues for artists. Our platform is designed to ensure
+                    fair compensation for creative work while maintaining accessibility for users.
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <InfoCard icon="💰" title="Revenue Models">
+                      <p className="text-white/80 mb-4">Artists can earn through multiple channels:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Direct track purchases</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Streaming royalties</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Subscription revenue share</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Exclusive content offerings</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Creator fund distributions</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                    
+                    <InfoCard icon="📊" title="Revenue Shares">
+                      <p className="text-white/80 mb-4">Our revenue share model is tiered based on artist ranking:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">New artists: 70% to artist, 30% to platform</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Established artists: 75% to artist, 25% to platform</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Top tier artists: 80% to artist, 20% to platform</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">Exclusive content: 85% to artist, 15% to platform</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                  </div>
+
+                  <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20">
+                    <h3 className="text-purple-400 font-medium mb-4">Payment Processing and Schedules</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-white font-medium mb-2">Payment Methods:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Bank transfers via ACH or SEPA</li>
+                          <li>PayPal integration</li>
+                          <li>Cryptocurrency options (selected regions)</li>
+                          <li>Platform credit (for reinvestment)</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium mb-2">Payment Schedule:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Monthly payments for balances over $50</li>
+                          <li>Quarterly payments for smaller amounts</li>
+                          <li>Real-time dashboard earnings tracking</li>
+                          <li>Detailed financial reports and analytics</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-5 bg-blue-900/30 rounded-xl border border-blue-500/20 mt-4">
+                    <h3 className="text-blue-400 font-medium mb-4">Tax and Legal Considerations</h3>
+                    <p className="text-white/80 mb-4">
+                      Artists are responsible for their tax obligations in accordance with their local laws.
+                      Sacral Track provides necessary documentation but does not offer tax advice.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Annual earnings statements provided</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Tax forms issued according to regional requirements</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">VAT/GST calculation and collection where applicable</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Notice type="info" title="Transparency">
+                    All transactions and revenue calculations are transparent and can be audited through the artist dashboard.
+                    Questions regarding payments should be directed to our support team.
+                  </Notice>
+                </div>
+              </TermsSection>
+
+              {/* Technical Requirements */}
+              <TermsSection id="technical-requirements" title="Technical Requirements and Limitations">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    To ensure optimal performance and compatibility with our platform, users and artists must adhere to the following technical requirements and limitations.
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <InfoCard icon="🎵" title="Audio Format Requirements">
+                      <p className="text-white/80 mb-4">Acceptable audio upload formats:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">WAV: 16-bit or 24-bit, 44.1kHz or 48kHz</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">FLAC: 16-bit or 24-bit, 44.1kHz or 48kHz</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">✓</span>
+                          <p className="text-white/80">AIFF: 16-bit or 24-bit, 44.1kHz or 48kHz</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-red-400 mt-1">✗</span>
+                          <p className="text-white/80">MP3, AAC, OGG not accepted for initial uploads</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                    
+                    <InfoCard icon="📁" title="File Size Limits">
+                      <p className="text-white/80 mb-4">Upload constraints:</p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Maximum file size: 500MB per track</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Maximum track length: 180 minutes</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Maximum upload batch: 20 tracks per release</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Monthly storage quota: 10GB for standard accounts, 50GB for premium</p>
+                        </div>
+                      </div>
+                    </InfoCard>
+                  </div>
+
+                  <div className="p-5 bg-indigo-900/30 rounded-xl border border-indigo-500/20">
+                    <h3 className="text-indigo-400 font-medium mb-4">Supported Platforms and Browsers</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-white font-medium mb-2">Desktop:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Chrome 90+</li>
+                          <li>Firefox 88+</li>
+                          <li>Safari 14+</li>
+                          <li>Edge 90+</li>
+                          <li>Opera 76+</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium mb-2">Mobile:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>iOS Safari 14+</li>
+                          <li>Android Chrome 90+</li>
+                          <li>Android Firefox 88+</li>
+                          <li>iOS Chrome 90+</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-5 bg-emerald-900/30 rounded-xl border border-emerald-500/20 mt-4">
+                    <h3 className="text-emerald-400 font-medium mb-4">Processing and Conversion</h3>
+                    <p className="text-white/80 mb-4">
+                      Upon upload, your audio files undergo automatic processing:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">1.</span>
+                        <p className="text-white/80">Initial processing begins immediately after file selection</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">2.</span>
+                        <p className="text-white/80">Audio conversion to streaming formats occurs in the background</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">3.</span>
+                        <p className="text-white/80">Adaptive segmentation based on track length (10-20 second segments)</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">4.</span>
+                        <p className="text-white/80">Multiple quality levels created for different network conditions</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">5.</span>
+                        <p className="text-white/80">Waveform and spectrum analysis generation for visualization</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-5 bg-amber-900/30 rounded-xl border border-amber-500/20 mt-4">
+                    <h3 className="text-amber-400 font-medium mb-4">Bandwidth and Network Requirements</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-white font-medium mb-2">For Streaming:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Minimum: 2 Mbps for standard quality</li>
+                          <li>Recommended: 5 Mbps for high quality</li>
+                          <li>Optimal: 10 Mbps for lossless streaming</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium mb-2">For Uploading:</h4>
+                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
+                          <li>Minimum: 5 Mbps upload speed</li>
+                          <li>Recommended: 10+ Mbps for faster uploads</li>
+                          <li>Stable connection required for files {'>'} 100MB</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Notice type="warning" title="Technical Limitations">
+                    Our platform implements rate limiting to ensure fair resource allocation. Users may experience throttling 
+                    after 500 API requests per hour or more than 50 track uploads in 24 hours. Background processing times 
+                    vary based on file size, server load, and account tier.
+                  </Notice>
                 </div>
               </TermsSection>
             </motion.div>

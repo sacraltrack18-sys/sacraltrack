@@ -29,7 +29,7 @@ interface OnboardingStep {
   id: string;
   title: string;
   description: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
   features?: string[];
 }
 

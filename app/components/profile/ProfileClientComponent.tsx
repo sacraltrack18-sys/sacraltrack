@@ -32,7 +32,7 @@ export default function ProfileClientComponent() {
 
   const { showPaidPosts, hidePostUser } = useDownloadsStore();
 
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
   const lastPostRef = useCallback((node: HTMLDivElement) => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();

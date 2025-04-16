@@ -592,7 +592,9 @@ export default function VerificationCodeModal({
                   className="relative"
                 >
                   <input
-                    ref={el => inputRefs.current[index] = el}
+                    ref={(el: HTMLInputElement | null): void => {
+                      inputRefs.current[index] = el;
+                    }}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}

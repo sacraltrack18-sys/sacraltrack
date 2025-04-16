@@ -22,9 +22,6 @@
     "@stripe/stripe-js": "^3.5.0",
     "@types/formidable": "^3.4.5",
     "@types/hls.js": "^0.13.3",
-    "@types/react": "18.2.20",
-    "@types/react-dom": "18.2.7",
-    "appwrite": "^11.0.1",
     "autoprefixer": "10.4.15",
     "axios": "^1.6.8",
     "bcryptjs": "^3.0.2",
@@ -80,6 +77,9 @@
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.5.4",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "appwrite": "^13.0.1",
     "canvas": "^2.11.2",
     "hardhat": "^2.22.17"
   }

@@ -1,4 +1,6 @@
-import { Account, Avatars, Client, Databases, ID, Query, Storage, Permission, Role } from 'appwrite';
+import { Account, Avatars, Client, Databases, ID, Query, Storage, Permission, Role, Functions } from 'appwrite';
+// Import everything from node-appwrite
+import * as NodeAppwrite from 'node-appwrite';
 
 // Appwrite конфигурация для использования во всем приложении
 export const APPWRITE_CONFIG = {
@@ -82,12 +84,45 @@ const account = new Account(client);
 const avatars = new Avatars(client);
 const database = new Databases(client);
 const storage = new Storage(client);
+const functions = new Functions(client);
 
 // Для обратной совместимости с app/config/appwrite.ts
 const databases = database;
 
+// Helper function for server-side uploads
+export const createServerSideStorage = () => {
+  // For server-side use
+  const nodeClient = new NodeAppwrite.Client();
+  nodeClient
+    .setEndpoint(APPWRITE_CONFIG.endpoint)
+    .setProject(APPWRITE_CONFIG.projectId);
+  
+  // Create server-side storage instance
+  return new NodeAppwrite.Storage(nodeClient);
+};
+
+// Utility function to upload a file from a file path
+export const uploadFileFromPath = async (
+  filePath: string, 
+  fileName: string,
+  bucketId: string = 'audio',
+  fileId: string = ID.unique()
+) => {
+  const serverStorage = createServerSideStorage();
+  
+  // Use a simple approach that works with node-appwrite
+  return serverStorage.createFile(
+    bucketId,
+    fileId,
+    {
+      path: filePath,
+      filename: fileName,
+    } as any // We use 'as any' to bypass TypeScript's strong typing for now
+  );
+};
+
 // Export services and utilities
-export { client, account, avatars, database, databases, storage, Query, ID, Permission, Role };
+export { client, account, avatars, database, databases, storage, functions, Query, ID, Permission, Role, NodeAppwrite };
 
 // Utility for checking Appwrite configuration
 export const checkAppwriteConfig = () => {

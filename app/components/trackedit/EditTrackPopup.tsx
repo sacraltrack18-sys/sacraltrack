@@ -11,7 +11,7 @@ import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
 import ImageUploader from '../upload/ImageUploader';
 import GenreSelector from '../upload/GenreSelector';
 import AudioPlayer from '../upload/AudioPlayer';
-import UploadProgress from '../upload/UploadProgress';
+import { UploadProgress } from '../upload/UploadProgress';
 import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { useUpdateTrack } from '@/app/hooks/useUpdateTrack';
 
@@ -708,7 +708,9 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
             <UploadProgress
               progress={processingProgress}
               stage={processingStage}
-              isUploading={isProcessing}
+              isActive={isProcessing}
+              onCancel={handleCancelUpload}
+              confirmCancel={handleCancelUpload}
             />
           )}
           
