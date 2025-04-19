@@ -1,5 +1,3 @@
-
-
 import { NextRequest } from 'next/server';
 import { promisify } from 'util';
 import fs from 'fs/promises';
@@ -418,7 +416,7 @@ const createSegments = async (
         };
         
         // Запускаем начальные параллельные операции
-        const initPromises = [];
+        const initPromises: Promise<void>[] = [];
         for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
             initPromises.push(enqueue());
         }
@@ -598,7 +596,7 @@ const prepareSegments = async (
         };
         
         // Запускаем начальные параллельные операции
-        const initPromises = [];
+        const initPromises: Promise<void>[] = [];
         for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
             initPromises.push(enqueue());
         }
