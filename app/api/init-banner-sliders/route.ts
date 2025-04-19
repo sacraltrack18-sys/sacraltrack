@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       'image_url',
       1024,
       true,
-      null
+      undefined
     );
 
     await databases.createStringAttribute(
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       'title',
       255,
       true,
-      null
+      undefined
     );
 
     await databases.createDatetimeAttribute(
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
       collectionId,
       'start_date',
       true,
-      null
+      undefined
     );
 
     await databases.createBooleanAttribute(
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       collectionId,
       'created_at',
       true,
-      null
+      undefined
     );
 
     await databases.createDatetimeAttribute(
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
       collectionId,
       'updated_at',
       true,
-      null
+      undefined
     );
 
     // 2. Необязательные поля
@@ -163,7 +163,7 @@ export async function GET(request: Request) {
       collectionId,
       'end_date',
       false,
-      null
+      undefined
     );
 
     await databases.createStringAttribute(
