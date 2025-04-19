@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useUser } from '@/app/context/user';
 import { useVibeStore } from '@/app/stores/vibeStore';
 import { HiMusicNote } from 'react-icons/hi';
-import { FaGlobeAmericas, FaHeart, FaPlay, FaPause, FaGem } from 'react-icons/fa';
+import { FaGlobeAmericas, FaHeart, FaPlay, FaPause, FaGem, FaCompactDisc, FaStar } from 'react-icons/fa';
 import { 
   SparklesIcon, 
   MusicalNoteIcon, 
@@ -32,7 +32,7 @@ interface RecommendationTrack {
 // Skeleton component for recommendations
 const RecommendationSkeleton = () => {
   return (
-    <div className="bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/80 rounded-xl overflow-hidden p-4 w-full shadow-xl border border-purple-500/10 animate-pulse">
+    <div className="bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/80 rounded-xl overflow-hidden p-4 w-full shadow-xl border border-purple-500/10 animate-pulse backdrop-blur-lg">
       <div className="flex items-center gap-4">
         <div className="relative w-16 h-16 bg-purple-700/30 rounded-lg shadow-md overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-transparent"></div>
@@ -43,7 +43,7 @@ const RecommendationSkeleton = () => {
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <div className="h-5 w-16 rounded-full bg-[#20DDBB]/10"></div>
+        <div className="h-5 w-16 rounded-full bg-blue-400/10"></div>
         <div className="h-4 w-4 rounded-full bg-white/10"></div>
       </div>
     </div>
@@ -73,7 +73,7 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
     <motion.div 
       whileHover={{ y: -3, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden p-4 shadow-xl border border-purple-500/10 hover:border-purple-500/30 transition-all duration-300"
+      className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden p-4 shadow-xl border border-purple-500/10 hover:border-purple-500/30 transition-all duration-300 backdrop-blur-lg"
     >
       <div className="flex items-center gap-4">
         <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 group shadow-md">
@@ -120,9 +120,9 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-[#20DDBB] text-xs px-2 py-0.5 bg-[#20DDBB]/10 rounded-full">{track.genre}</span>
+        <span className="text-blue-400 text-xs px-2 py-0.5 bg-blue-400/10 rounded-full">{track.genre}</span>
         <div className="flex items-center gap-2">
-          <button className="text-gray-400 hover:text-red-400 transition-colors">
+          <button className="text-gray-400 hover:text-pink-400 transition-colors">
             <FaHeart className="w-4 h-4" />
           </button>
         </div>
@@ -131,97 +131,24 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
   );
 };
 
-// Custom Musical Diamond Icon - Improved and more unique
-const MusicalDiamondIcon = ({ className = "w-5 h-5" }) => (
-  <div className={`relative ${className}`}>
-    <svg viewBox="0 0 24 24" className="w-full h-full">
-      <defs>
-        <linearGradient id="stracksDiamond" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#8B5CF6" />
-          <stop offset="100%" stopColor="#6366F1" />
-        </linearGradient>
-      </defs>
-      <path 
-        d="M12 2L20 7V17L12 22L4 17V7L12 2Z" 
-        fill="url(#stracksDiamond)" 
-        stroke="#A78BFA" 
-        strokeWidth="1"
-      />
-      <path 
-        d="M9 11C9 9.9 9.9 9 11 9H13C14.1 9 15 15 13 15H11C9.9 15 9 14.1 9 13V11ZM16 8L8 16" 
-        stroke="white" 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-      />
-    </svg>
-  </div>
+// Обновленная иконка для Sacral Track - компакт-диск
+const SacralTrackIcon = ({ className = "w-5 h-5" }) => (
+  <FaCompactDisc className={className} />
 );
 
-// Custom All Content Icon
+// Обновленная иконка для All Content - бриллиант
 const AllContentIcon = ({ className = "w-5 h-5" }) => (
-  <div className={`relative ${className}`}>
-    <svg viewBox="0 0 24 24" className="w-full h-full">
-      <defs>
-        <linearGradient id="allContentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#818CF8" />
-          <stop offset="100%" stopColor="#4F46E5" />
-        </linearGradient>
-      </defs>
-      <rect x="3" y="3" width="7" height="7" rx="1" fill="url(#allContentGradient)" />
-      <rect x="14" y="3" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.8" />
-      <rect x="3" y="14" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.8" />
-      <rect x="14" y="14" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.6" />
-    </svg>
-  </div>
+  <FaGem className={className} />
 );
 
-// Custom Vibe Icon
+// Обновленная иконка для Vibe - звезда
 const VibeIcon = ({ className = "w-5 h-5" }) => (
-  <div className={`relative ${className}`}>
-    <svg viewBox="0 0 24 24" className="w-full h-full">
-      <defs>
-        <linearGradient id="vibeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#F472B6" />
-          <stop offset="100%" stopColor="#EC4899" />
-        </linearGradient>
-      </defs>
-      <path 
-        d="M12 3C16.97 3 21 7.03 21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3ZM8 13C8.55 13 9 12.55 9 12C9 11.45 8.55 11 8 11C7.45 11 7 11.45 7 12C7 12.55 7.45 13 8 13ZM12 13C12.55 13 13 12.55 13 12C13 11.45 12.55 11 12 11C11.45 11 11 11.45 11 12C11 12.55 11.45 13 12 13ZM16 13C16.55 13 17 12.55 17 12C17 11.45 16.55 11 16 11C15.45 11 15 11.45 15 12C15 12.55 15.45 13 16 13Z" 
-        fill="url(#vibeGradient)"
-      />
-      <path 
-        d="M8.5 16.5C10.5 18.5 13.5 18.5 15.5 16.5" 
-        stroke="white" 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-      />
-    </svg>
-  </div>
+  <FaStar className={className} />
 );
 
-// Custom World Icon
+// Обновленная иконка для World - бриллиант
 const WorldIcon = ({ className = "w-5 h-5" }) => (
-  <div className={`relative ${className}`}>
-    <svg viewBox="0 0 24 24" className="w-full h-full">
-      <defs>
-        <linearGradient id="worldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22D3EE" />
-          <stop offset="100%" stopColor="#0EA5E9" />
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="9" fill="url(#worldGradient)" />
-      <path 
-        d="M12 3C12 3 7 7.5 7 12C7 16.5 12 21 12 21C12 21 17 16.5 17 12C17 7.5 12 3 12 3Z" 
-        stroke="rgba(255,255,255,0.8)" 
-        strokeWidth="1" 
-      />
-      <path 
-        d="M3.5 11H20.5M3.5 13H20.5" 
-        stroke="rgba(255,255,255,0.8)" 
-        strokeWidth="1" 
-      />
-    </svg>
-  </div>
+  <FaGem className={className} />
 );
 
 // Main filter component
@@ -261,7 +188,7 @@ const ContentFilter = () => {
   // Handle tab change and update context
   const handleTabChange = (tab: ContentType) => {
     // Сделаем логирование заметнее
-    console.log("%c[FILTER] 🔄 Changing filter to: " + tab, "background: #2A184B; color: #20DDBB; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
+    console.log("%c[FILTER] 🔄 Changing filter to: " + tab, "background: #2A184B; color: #4F46E5; font-weight: bold; padding: 2px 5px; border-radius: 3px;");
     
     // Запоминаем старое значение для логирования
     const prevFilter = activeFilter;
@@ -364,8 +291,8 @@ const ContentFilter = () => {
           <MobileTabButton
             active={activeTab === 'stracks'}
             onClick={() => handleTabChange('stracks')}
-            icon={<MusicalDiamondIcon className="w-4 h-4" />}
-            label="Stracks"
+            icon={<SacralTrackIcon className="w-4 h-4" />}
+            label="Sacral"
           />
           
           <MobileTabButton
@@ -380,7 +307,7 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'all'}
             onClick={() => handleTabChange('all')}
-            icon={<AllContentIcon className="w-5 h-5" />}
+            icon={<AllContentIcon className="w-5 h-5 text-blue-400" />}
             label="All Content"
             description="Show everything"
             isSpecial={false}
@@ -389,7 +316,7 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'vibe'}
             onClick={() => handleTabChange('vibe')}
-            icon={<VibeIcon className="w-5 h-5" />}
+            icon={<VibeIcon className="w-5 h-5 text-pink-400" />}
             label="Vibe"
             description="User moments"
             isSpecial={false}
@@ -398,8 +325,8 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'stracks'}
             onClick={() => handleTabChange('stracks')}
-            icon={<MusicalDiamondIcon />}
-            label="Stracks"
+            icon={<SacralTrackIcon className="w-5 h-5 text-blue-400" />}
+            label="Sacral Track"
             description="Platform tracks"
             isSpecial={true}
           />
@@ -407,7 +334,7 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'world'}
             onClick={() => handleTabChange('world')}
-            icon={<WorldIcon className="w-5 h-5" />}
+            icon={<WorldIcon className="w-5 h-5 text-purple-400" />}
             label="World Tracks"
             description="Global hits"
             isSpecial={false}
@@ -420,7 +347,7 @@ const ContentFilter = () => {
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <FireIcon className="h-5 w-5 text-[#20DDBB]" />
+              <FireIcon className="h-5 w-5 text-pink-400" />
               <h3 className="text-white font-bold tracking-wide">Recommended</h3>
             </div>
             
@@ -451,7 +378,7 @@ const ContentFilter = () => {
   );
 };
 
-// Mobile tab button component - made more square and stylish
+// Types for tab buttons
 interface MobileTabButtonProps {
   active: boolean;
   onClick: () => void;
@@ -459,40 +386,6 @@ interface MobileTabButtonProps {
   label: string;
 }
 
-const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps) => {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.92 }}
-      onClick={onClick}
-      className={`
-        flex-1 py-2 px-2 rounded-md transition-all duration-300 flex flex-col items-center justify-center gap-1
-        ${active 
-          ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-700/30'
-          : 'bg-[#1A1C2E] text-gray-400 border border-purple-900/20'
-        }
-      `}
-    >
-      <div className={`
-        flex items-center justify-center p-1 
-        ${active ? 'bg-white/20 rounded-md' : ''}
-      `}>
-        {icon}
-      </div>
-      <span className="text-xs font-medium">{label}</span>
-      
-      {/* Simple animation only for active buttons */}
-      {active && (
-        <motion.div 
-          className="absolute inset-0 rounded-md"
-          animate={{ boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 4px rgba(139, 92, 246, 0.2)', '0 0 0 0 rgba(139, 92, 246, 0)'] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
-      )}
-    </motion.button>
-  );
-};
-
-// Tab button component - improved with more square look and better animations
 interface TabButtonProps {
   active: boolean;
   onClick: () => void;
@@ -502,13 +395,45 @@ interface TabButtonProps {
   isSpecial?: boolean;
 }
 
+// Mobile tab button component - устраняем квадратные фоны под иконками
+const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps) => {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      className={`
+        flex-1 py-3 px-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1
+        ${active 
+          ? 'bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/30 backdrop-blur-md'
+          : 'bg-[#1A1C2E]/80 text-gray-400 border border-purple-900/20 backdrop-blur-sm'
+        }
+      `}
+    >
+      <div className="flex items-center justify-center">
+        {icon}
+      </div>
+      <span className="text-xs font-medium">{label}</span>
+      
+      {/* Simple animation only for active buttons */}
+      {active && (
+        <motion.div 
+          className="absolute inset-0 rounded-xl"
+          animate={{ boxShadow: ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 4px rgba(79, 70, 229, 0.2)', '0 0 0 0 rgba(79, 70, 229, 0)'] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      )}
+    </motion.button>
+  );
+};
+
+// Tab button component - устраняем квадратные фоны под иконками
 const TabButton = ({ active, onClick, icon, label, description, isSpecial = false }: TabButtonProps) => {
   // Enhanced pulse animation
   const pulseAnimation = {
     animate: {
       boxShadow: active 
-        ? ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 8px rgba(139, 92, 246, 0.2)', '0 0 0 0 rgba(139, 92, 246, 0)']
-        : ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 4px rgba(139, 92, 246, 0.1)', '0 0 0 0 rgba(139, 92, 246, 0)']
+        ? ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 8px rgba(79, 70, 229, 0.2)', '0 0 0 0 rgba(79, 70, 229, 0)']
+        : ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 4px rgba(79, 70, 229, 0.1)', '0 0 0 0 rgba(79, 70, 229, 0)']
     },
     transition: {
       duration: 2.5,
@@ -520,8 +445,8 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
   
   const specialClass = isSpecial 
     ? active 
-      ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500/50 ring-offset-1 ring-offset-[#1E1A36]' 
-      : 'border-purple-500/30 hover:border-purple-500/50'
+      ? 'bg-gradient-to-br from-[#2E2469] to-[#4F46E5] ring-2 ring-[#4F46E5]/50 ring-offset-1 ring-offset-[#1E1A36]' 
+      : 'border-[#4F46E5]/30 hover:border-[#4F46E5]/50'
     : '';
     
   return (
@@ -531,10 +456,10 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       onClick={onClick}
       {...(isSpecial ? pulseAnimation : {})}
       className={`
-        relative flex-1 py-3 px-4 rounded-lg text-center transition-all duration-300 overflow-hidden
+        relative flex-1 py-4 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden
         ${active 
-          ? `bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/20 border border-purple-500/50 ${specialClass}`
-          : `bg-gradient-to-r from-[#1E1A36] to-[#2A2151] backdrop-blur-sm text-gray-300 hover:bg-[#2A2151] border border-white/5 hover:border-white/20 ${specialClass}`
+          ? `bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-lg shadow-[#4F46E5]/20 border border-[#4F46E5]/50 backdrop-blur-md ${specialClass}`
+          : `bg-gradient-to-r from-[#1E1A36]/80 to-[#2A2151]/80 backdrop-blur-lg text-gray-300 hover:bg-[#2A2151]/90 border border-white/5 hover:border-white/20 ${specialClass}`
         }
       `}
     >
@@ -542,8 +467,8 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       {active && (
         <motion.div
           className={`absolute inset-0 bg-gradient-to-r ${isSpecial 
-            ? 'from-purple-600/30 via-pink-500/30 to-purple-600/30' 
-            : 'from-purple-600/20 via-indigo-600/20 to-purple-600/20'}`}
+            ? 'from-[#2E2469]/30 via-[#EC4899]/30 to-[#2E2469]/30' 
+            : 'from-[#2E2469]/20 via-[#EC4899]/20 to-[#2E2469]/20'}`}
           animate={{
             backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
           }}
@@ -573,18 +498,11 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       )}
       
       <div className="flex flex-col items-center relative z-10">
-        <div className={`
-          w-9 h-9 rounded-md flex items-center justify-center mb-1
-          ${active 
-            ? isSpecial 
-              ? 'bg-white/30 shadow-md shadow-purple-500/50' 
-              : 'bg-white/20' 
-            : 'bg-white/5'
-          }
-        `}>
+        {/* Убираем фоновый квадрат и показываем только иконку */}
+        <div className="mb-2">
           {icon}
         </div>
-        <span className={`font-medium block text-sm ${isSpecial && active ? 'text-white' : isSpecial ? 'text-purple-200' : ''}`}>{label}</span>
+        <span className={`font-medium block text-sm ${isSpecial && active ? 'text-white' : isSpecial ? 'text-blue-200' : ''}`}>{label}</span>
         <span className="text-xs opacity-70">{description}</span>
       </div>
       

@@ -149,11 +149,33 @@ function HomePageContent() {
         created_at: vibe.created_at
       }));
       
-      // Объединяем и сортируем с использованием мемоизированной функции
-      const combined = [...postItems, ...vibeItems].sort(sortByDate);
+      // Применяем фильтрацию в зависимости от активного фильтра
+      let combined: FeedItem[] = [];
+      
+      // Фильтруем элементы в зависимости от выбранного фильтра
+      if (activeFilter === 'all') {
+        // Показываем все элементы
+        combined = [...postItems, ...vibeItems];
+      } else if (activeFilter === 'stracks' || activeFilter === 'sacral') {
+        // Показываем только PostMain карточки (Sacral Track)
+        combined = [...postItems];
+      } else if (activeFilter === 'vibe') {
+        // Показываем только Vibe карточки
+        combined = [...vibeItems];
+      } else if (activeFilter === 'world') {
+        // В будущем здесь может быть дополнительная логика для фильтрации World Tracks
+        // Пока просто показываем все посты
+        combined = [...postItems];
+      }
+      
+      // Сортируем с использованием мемоизированной функции
+      combined.sort(sortByDate);
       
       setCombinedFeed(combined);
-      setHasMore(hasMorePosts || hasMoreVibes);
+      setHasMore(
+        (activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'world') && hasMorePosts || 
+        (activeFilter === 'all' || activeFilter === 'vibe') && hasMoreVibes
+      );
     };
     
     combineFeed();
@@ -163,7 +185,7 @@ function HomePageContent() {
       setInitialContentLoaded(true);
       setIsLoading(false);
     }
-  }, [allPosts, allVibePosts, hasMorePosts, hasMoreVibes, sortByDate]);
+  }, [allPosts, allVibePosts, hasMorePosts, hasMoreVibes, sortByDate, activeFilter]);
 
   // Initial load with optimized approach
   useEffect(() => {
@@ -253,13 +275,14 @@ function HomePageContent() {
       setIsLoading(true);
       
       try {
-        // Load more posts first if available
-        if (hasMorePosts && typeof loadMorePosts === 'function') {
+        // Загружаем следующие элементы в зависимости от фильтра
+        if ((activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'world') && 
+            hasMorePosts && typeof loadMorePosts === 'function') {
           await loadMorePosts();
         }
         
-        // Then load more vibes if available
-        if (hasMoreVibes && typeof loadMoreVibes === 'function') {
+        if ((activeFilter === 'all' || activeFilter === 'vibe') && 
+            hasMoreVibes && typeof loadMoreVibes === 'function') {
           await loadMoreVibes();
         }
       } catch (error) {
@@ -275,7 +298,7 @@ function HomePageContent() {
         clearTimeout(loadTimeoutRef.current);
       }
     };
-  }, [inView, hasMore, isLoading, hasMorePosts, hasMoreVibes, isLoadingPosts, isLoadingVibes, loadMorePosts, loadMoreVibes]);
+  }, [inView, hasMore, isLoading, hasMorePosts, hasMoreVibes, isLoadingPosts, isLoadingVibes, loadMorePosts, loadMoreVibes, activeFilter]);
 
   // Filter content based on active filter - use useMemo to cache results
   const filteredFeed = useMemo(() => {

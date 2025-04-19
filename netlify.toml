@@ -1,10 +1,11 @@
 [build]
-  command = "npm run netlify-build"
+  command = "npm run build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22.14.0"
   NPM_FLAGS = "--legacy-peer-deps"
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
 # Команда для установки с использованием флага, чтобы игнорировать конфликты зависимостей
 [[plugins]]
@@ -12,4 +13,23 @@
 
 # Переопределение команды установки
 [build.lifecycle]
-  onInstall = "npm install --legacy-peer-deps" 
+  onInstall = "npm install --legacy-peer-deps"
+
+[functions]
+  # Adjust this if needed based on Netlify's serverless functions capabilities
+  node_bundler = "esbuild"
+  external_node_modules = ["encoding", "appwrite", "node-appwrite"]
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Role = ["admin", "user"]}
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept" 

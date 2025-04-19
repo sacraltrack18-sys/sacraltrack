@@ -6,6 +6,7 @@ import NewsCardSkeleton from "../components/news/NewsCardSkeleton";
 import { useNewsStore } from "@/app/stores/newsStore";
 import ClientOnly from "../components/ClientOnly";
 import { motion } from "framer-motion";
+import BannerSlider from "../components/news/BannerSlider";
 
 export default function News() {
     const { allNews, setAllNews, isLoading, error } = useNewsStore();
@@ -46,6 +47,10 @@ export default function News() {
             description="Stay updated with the latest news, updates, and announcements from SacralTrack."
         >
             <div className="w-full max-w-6xl mx-auto">
+                <ClientOnly>
+                    <BannerSlider />
+                </ClientOnly>
+                
                 <motion.div 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}

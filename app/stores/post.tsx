@@ -167,17 +167,31 @@ export const usePostStore = create<PostStore>()(
               allPosts = await get().allPosts;
             }
         
-            // Filter the allPosts array to only include tracks that match the query
+            // Normalize the search term
+            const normalizedQuery = query.trim().toLowerCase();
+            
+            if (!normalizedQuery) return [];
+            
+            // Enhanced search algorithm for tracks
             const filteredPosts = allPosts
-              .filter((post: PostWithProfile) => post.trackname && post.trackname.toLowerCase().includes(query.toLowerCase()))
+              .filter((post: PostWithProfile) => {
+                // Safety check in case trackname is null or undefined
+                if (!post.trackname) return false;
+                
+                const trackName = post.trackname.toLowerCase();
+                
+                // Check for match in track name
+                return trackName.includes(normalizedQuery);
+              })
               .map((post) => ({
                 id: post.id,
                 name: post.trackname,
                 image: post.image_url,
                 type: "track",
-              }));
+              }))
+              .slice(0, 10); // Limit results to 10
         
-            console.log("Filtered posts:", filteredPosts);
+            console.log("Filtered tracks:", filteredPosts);
             return filteredPosts;
           } catch (error) {
             console.error("Error searching tracks:", error);

@@ -181,13 +181,17 @@ const TabButton: React.FC<{
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent) => void;
   isComingSoon?: boolean;
 }> = ({ active, icon, label, onClick, isComingSoon }) => (
   <motion.button
+    type="button"
     whileHover={{ scale: 1.05, y: -2 }}
     whileTap={{ scale: 0.95, y: 0 }}
-    onClick={onClick}
+    onClick={(e) => {
+      e.preventDefault();
+      onClick(e);
+    }}
     className={`flex flex-col items-center py-3.5 px-6 rounded-xl transition-all duration-300 relative overflow-hidden group ${
       active 
         ? 'bg-gradient-to-r from-[#20DDBB]/90 to-[#018CFD]/90 text-white shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30' 
@@ -227,38 +231,20 @@ const MoodChip: React.FC<{
   selected: boolean;
   onClick: () => void;
 }> = ({ mood, selected, onClick }) => (
-  <motion.button
-    whileHover={{ scale: 1.05, y: -2 }}
-    whileTap={{ scale: 0.95, y: 0 }}
-    onClick={onClick}
-    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 overflow-hidden relative ${
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      onClick();
+    }}
+    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
       selected
-        ? 'bg-gradient-to-r from-[#20DDBB]/90 to-[#018CFD]/90 text-white shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30'
-        : 'bg-white/5 text-gray-300 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-[#20DDBB]/30'
+        ? 'bg-primary/20 text-primary border border-primary/50'
+        : 'bg-white/10 text-white/70 border border-white/10 hover:bg-white/15'
     }`}
   >
-    {selected && (
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/20 to-[#018CFD]/20 blur-xl"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      />
-    )}
-    <div className="relative z-10 flex items-center justify-center">
-      {selected && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="mr-1.5 text-white"
-        >
-          <CheckIcon className="w-3 h-3" />
-        </motion.div>
-      )}
-      <span>{mood}</span>
-    </div>
-  </motion.button>
+    {mood}
+  </button>
 );
 
 // Optimized motion variants that will be reused for better performance
@@ -419,7 +405,12 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     return () => clearTimeout(timer);
   }, []);
   
-  const handleTabChange = (tab: VibeType) => {
+  const handleTabChange = (tab: VibeType, e?: React.MouseEvent) => {
+    // Предотвращаем отправку формы, если это событие клика
+    if (e) {
+      e.preventDefault();
+    }
+    
     setSelectedTab(tab);
     setPhotoFile(null);
     setPhotoPreview(null);
@@ -596,7 +587,12 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       
   }, [webcamRef]);
   
-  const handleDetectLocation = async () => {
+  const handleDetectLocation = async (e?: React.MouseEvent) => {
+    // Предотвращаем отправку формы, если это событие клика
+    if (e) {
+      e.preventDefault();
+    }
+    
     try {
       toast.loading('Getting your location...');
       const placeName = await getCurrentLocation(true);
@@ -864,7 +860,11 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       case 'photo':
         return (
           <div className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                handleSubmit(e); 
+              }} 
+              className="space-y-4">
               {/* Image Upload Area */}
               <div
                 className={`relative w-full h-64 rounded-lg border-2 border-dashed transition-colors duration-200 ${
@@ -942,7 +942,10 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                       key={mood}
                       mood={mood as MoodType}
                       selected={selectedMood === mood}
-                      onClick={() => setSelectedMood(mood as MoodType)}
+                      onClick={() => {
+                        // Просто устанавливаем настроение, но не отправляем форму
+                        setSelectedMood(mood as MoodType);
+                      }}
                     />
                   ))}
                 </div>
@@ -988,7 +991,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                       type="button"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={handleDetectLocation}
+                      onClick={(e) => handleDetectLocation(e)}
                       disabled={isDetectingLocation}
                       className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors rounded-lg px-4 py-3 border border-white/10 hover:border-[#20DDBB]/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -1255,20 +1258,20 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               active={selectedTab === 'photo'}
               icon={<PhotoIcon className="w-6 h-6" />}
               label="Photo"
-              onClick={() => handleTabChange('photo')}
+              onClick={(e) => handleTabChange('photo', e)}
             />
             <TabButton
               active={selectedTab === 'video'}
               icon={<VideoCameraIcon className="w-6 h-6" />}
               label="Video"
-              onClick={() => handleTabChange('video')}
+              onClick={(e) => handleTabChange('video', e)}
               isComingSoon={true}
             />
             <TabButton
               active={selectedTab === 'sticker'}
               icon={<FaceSmileIcon className="w-6 h-6" />}
               label="Sticker"
-              onClick={() => handleTabChange('sticker')}
+              onClick={(e) => handleTabChange('sticker', e)}
               isComingSoon={true}
             />
           </div>
