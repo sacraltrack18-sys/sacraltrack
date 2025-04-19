@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server';
 import { database } from "@/libs/AppWriteClient";
 import { APPWRITE_CONFIG } from "@/libs/AppWriteClient";
 
-// Временное решение для исправления ошибки типа в Next.js 15
-export async function GET(req: Request, context: any) {
+// API route for track statistics
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const trackId = context.params.id;
+    // Get the track ID from params (now properly typed as a Promise)
+    const { id } = await params;
+    const trackId = id;
     
     if (!trackId) {
       return NextResponse.json({ error: 'Track ID is required' }, { status: 400 });

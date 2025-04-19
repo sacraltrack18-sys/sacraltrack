@@ -9,7 +9,13 @@ const WelcomeModal = dynamic(() => import('./WelcomeModal'), {
   loading: () => null 
 });
 
-export default function ClientWelcomeModal() {
+interface ClientWelcomeModalProps {
+  isVisible?: boolean;
+  onClose?: () => void;
+  hideFirstVisitCheck?: boolean;
+}
+
+export default function ClientWelcomeModal({ isVisible, onClose, hideFirstVisitCheck }: ClientWelcomeModalProps) {
   const [isMounted, setIsMounted] = useState(false);
   
   // Используем useEffect для проверки, что компонент смонтирован на клиенте
@@ -25,7 +31,11 @@ export default function ClientWelcomeModal() {
   // После монтирования рендерим WelcomeModal внутри Suspense
   return (
     <Suspense fallback={null}>
-      <WelcomeModal />
+      <WelcomeModal 
+        isVisible={isVisible} 
+        onClose={onClose} 
+        hideFirstVisitCheck={hideFirstVisitCheck}
+      />
     </Suspense>
   );
 } 

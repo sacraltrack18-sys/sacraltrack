@@ -19,7 +19,6 @@ import "@/app/styles/nav-animations.css"
 import React from 'react'
 import toast from "react-hot-toast"
 import { useNotifications, Notification } from "@/app/hooks/useNotifications"
-import { TutorialStep } from "@/app/components/TutorialGuide"
 import { MusicalNoteIcon } from "@heroicons/react/24/outline"
 
 // Import the smaller components
@@ -38,66 +37,8 @@ const NotificationBell = dynamic(() => import("@/app/components/notifications/No
     </div>
   )
 })
-const TutorialGuide = dynamic(() => import("@/app/components/TutorialGuide"), { ssr: false })
+const ClientWelcomeModal = dynamic(() => import("@/app/components/ClientWelcomeModal"), { ssr: false })
 const VibeUploader = dynamic(() => import("@/app/components/vibe/VibeUploader"), { ssr: false })
-
-// Define tutorial steps outside the component to avoid recreation on each render
-const tutorialSteps: {
-    id: string;
-    message: React.ReactNode;
-    targetElementId: string;
-    position: 'top' | 'bottom' | 'left' | 'right';
-    mobilePosition: 'top' | 'bottom' | 'center';
-}[] = [
-    {
-        id: 'welcome',
-        message: (
-            <div className="space-y-1.5">
-                <p className="font-semibold text-[#20DDBB]">Welcome to Sacral Track!</p>
-                <p>This is your Release button. Publish your tracks on our marketplace and earn $1 per sale with our high-quality streaming platform.</p>
-            </div>
-        ),
-        targetElementId: 'release-button',
-        position: 'bottom',
-        mobilePosition: 'bottom'
-    },
-    {
-        id: 'genres',
-        message: (
-            <div className="space-y-1.5">
-                <p className="font-semibold text-[#20DDBB]">Music Categories</p>
-                <p>Explore our extensive music library by different genres to discover artists and tracks that match your taste.</p>
-            </div>
-        ),
-        targetElementId: 'genres-button',
-        position: 'bottom',
-        mobilePosition: 'center'
-    },
-    {
-        id: 'search',
-        message: (
-            <div className="space-y-1.5">
-                <p className="font-semibold text-[#20DDBB]">Music Search</p>
-                <p>Find your favorite tracks and artists in our extensive music library. Just start typing to see instant results.</p>
-            </div>
-        ),
-        targetElementId: 'search-button',
-        position: 'bottom',
-        mobilePosition: 'center'
-    },
-    {
-        id: 'vibe',
-        message: (
-            <div className="space-y-1.5">
-                <p className="font-semibold text-[#20DDBB]">Social Network</p>
-                <p>Share Vibes with our music community - post thoughts, photos, and updates to connect with other music lovers.</p>
-            </div>
-        ),
-        targetElementId: 'vibe-button',
-        position: 'bottom',
-        mobilePosition: 'bottom'
-    }
-];
 
 const TopNav = React.memo(({ params }: { params: { id: string } }) => {    
     const userContext = useUser()
@@ -242,26 +183,8 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
     // Оставляем только selectedGenre, так как логика выбора жанров перенесена в GenreSelector
     const { setSelectedGenre, selectedGenre } = useContext(GenreContext);
 
-    // Add new state for tutorial with localStorage handling on component mount only
-    const [hasSeenTutorial, setHasSeenTutorial] = useState<boolean>(false);
-    const [showReleaseTooltip, setShowReleaseTooltip] = useState<boolean>(false);
-
-    useEffect(() => {
-        // Initialize tutorial state from localStorage
-        setHasSeenTutorial(localStorage.getItem('hasSeenTutorial') === 'true');
-        setShowReleaseTooltip(localStorage.getItem('hasSeenReleaseTooltip') !== 'true');
-    }, []);
-
-    // Handle tutorial completion
-    const handleTutorialComplete = () => {
-        setHasSeenTutorial(true);
-        setShowReleaseTooltip(false);
-        localStorage.setItem('hasSeenTutorial', 'true');
-        localStorage.setItem('hasSeenReleaseTooltip', 'true');
-    };
-
-    // Add translation for search placeholder
-    const searchPlaceholder = "Search tracks and artists...";
+    // Add new state for welcome modal
+    const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
 
     const { notifications } = useNotifications();
 
@@ -315,13 +238,10 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
     const isHomePage = pathname === '/';
 
-    // Preload tutorial guide component on client side for smoother first experience
-    useEffect(() => {
-        if (typeof window !== 'undefined' && !localStorage.getItem('hasSeenTutorial')) {
-            // Prefetch the tutorial component if user hasn't seen it yet
-            import("@/app/components/TutorialGuide");
-        }
-    }, []);
+    // Handle welcome modal close
+    const handleWelcomeModalClose = () => {
+        setShowWelcomeModal(false);
+    };
 
     return (
         <>  
@@ -380,6 +300,18 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-2 md:gap-3">
+                        {/* Guide button */}
+                        <button 
+                            id="guide-button"
+                            onClick={() => setShowWelcomeModal(true)}
+                            className="flex items-center px-2.5 py-1.5 text-xs md:text-sm bg-gradient-to-r from-[#8B5CF6]/20 to-[#20DDBB]/20 hover:from-[#8B5CF6]/30 hover:to-[#20DDBB]/30 rounded-full text-white transition-all duration-150"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5 mr-1">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Guide
+                        </button>
+                        
                         {/* Release Button */}
                         <ReleaseButton />
 
@@ -395,14 +327,12 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                 </div>
             </div>
 
-            {/* Tutorial Guide - Loaded only when needed */}
-            {!hasSeenTutorial && (
-                <TutorialGuide
-                    steps={tutorialSteps}
-                    isFirstVisit={showReleaseTooltip}
-                    onComplete={handleTutorialComplete}
-                />
-            )}
+            {/* WelcomeModal вместо TutorialGuide */}
+            <ClientWelcomeModal 
+                isVisible={showWelcomeModal} 
+                onClose={handleWelcomeModalClose} 
+                hideFirstVisitCheck={true}
+            />
 
             {/* Vibe uploader modal - Loaded only when shown */}
             {showVibeUploader && (

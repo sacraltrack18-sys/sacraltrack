@@ -15,7 +15,7 @@ import { AnimatePresence } from 'framer-motion';
 import { motion } from 'framer-motion';
 import { ContentFilterProvider, ContentFilterContext } from "@/app/context/ContentFilterContext";
 import { OnboardingProvider, useOnboarding } from "@/app/context/OnboardingContext";
-import { FaInfoCircle } from "react-icons/fa";
+import { FaInfoCircle, FaCheckCircle } from "react-icons/fa";
 import { PostMainSkeleton } from "./components/PostMain";
 import { ErrorBoundary } from "react-error-boundary";
 import SafeVibeCard from "./components/vibe/SafeVibeCard";
@@ -29,6 +29,13 @@ interface FeedItem {
   data: any;
   created_at: string;
 }
+
+// Helper function to create properly typed FeedItems
+const createFeedItem = (type: 'post' | 'vibe', data: any, created_at: string): FeedItem => ({
+  type,
+  data,
+  created_at
+});
 
 // Main Home component
 export default function Home() {
@@ -95,7 +102,8 @@ function HomePageContent() {
   const vibeStore = useVibeStore();
   
   const { 
-    allPosts = [], 
+    displayedPosts = [], // Use displayedPosts instead of allPosts
+    allPosts = [],
     loadMorePosts,
     setAllPosts, 
     isLoading: isLoadingPosts = false, 
@@ -126,46 +134,45 @@ function HomePageContent() {
     triggerOnce: false, // Позволяем триггеру срабатывать multiple times
   });
 
-  // Мемоизируем функцию сортировки для избежания повторных вычислений
+  // Sort helper to maintain a stable sort order
   const sortByDate = useCallback((a: FeedItem, b: FeedItem) => {
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (!a.data.created_at || !b.data.created_at) return 0;
+    return new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime();
   }, []);
 
-  // Загрузка комбинированной ленты с мемоизацией для оптимизации рендеринга
+  // Combine vibe and track posts into a single feed
   useEffect(() => {
-    if (!allPosts.length && !allVibePosts.length) return;
+    if (!displayedPosts.length && !allVibePosts.length) return;
     
     const combineFeed = () => {
-      // Преобразуем посты и VIBE посты в единый формат с мемоизацией
-      const postItems: FeedItem[] = allPosts.map(post => ({
-        type: 'post',
-        data: post,
-        created_at: post.created_at
-      }));
+      const combined: FeedItem[] = [];
       
-      const vibeItems: FeedItem[] = allVibePosts.map(vibe => ({
-        type: 'vibe',
-        data: vibe,
-        created_at: vibe.created_at
-      }));
+      // Include posts from allPosts based on filter
+      const shouldIncludePosts = ['all', 'stracks', 'sacral', 'world'].includes(activeFilter);
       
-      // Применяем фильтрацию в зависимости от активного фильтра
-      let combined: FeedItem[] = [];
+      if (shouldIncludePosts && displayedPosts.length > 0) {
+        const postsToInclude = displayedPosts.filter(post => {
+          // Filter posts based on activeFilter
+          if (activeFilter === 'all') return true;
+          if (activeFilter === 'stracks') return post.genre?.toLowerCase() === 'stracks';
+          if (activeFilter === 'sacral') return post.genre?.toLowerCase() === 'sacral';
+          if (activeFilter === 'world') return post.genre?.toLowerCase() === 'world';
+          return false;
+        });
+        
+        // Add posts to combined feed
+        combined.push(...postsToInclude.map(post => 
+          createFeedItem('post', post, post.created_at || new Date().toISOString())
+        ));
+      }
       
-      // Фильтруем элементы в зависимости от выбранного фильтра
-      if (activeFilter === 'all') {
-        // Показываем все элементы
-        combined = [...postItems, ...vibeItems];
-      } else if (activeFilter === 'stracks' || activeFilter === 'sacral') {
-        // Показываем только PostMain карточки (Sacral Track)
-        combined = [...postItems];
-      } else if (activeFilter === 'vibe') {
-        // Показываем только Vibe карточки
-        combined = [...vibeItems];
-      } else if (activeFilter === 'world') {
-        // В будущем здесь может быть дополнительная логика для фильтрации World Tracks
-        // Пока просто показываем все посты
-        combined = [...postItems];
+      // Include vibes if filter allows
+      const shouldIncludeVibes = ['all', 'vibe'].includes(activeFilter);
+      
+      if (shouldIncludeVibes && allVibePosts.length > 0) {
+        combined.push(...allVibePosts.map(vibe => 
+          createFeedItem('vibe', vibe, vibe.created_at || new Date().toISOString())
+        ));
       }
       
       // Сортируем с использованием мемоизированной функции
@@ -181,11 +188,11 @@ function HomePageContent() {
     combineFeed();
     
     // Устанавливаем флаг загрузки контента
-    if (allPosts.length > 0 || allVibePosts.length > 0) {
+    if (displayedPosts.length > 0 || allVibePosts.length > 0) {
       setInitialContentLoaded(true);
       setIsLoading(false);
     }
-  }, [allPosts, allVibePosts, hasMorePosts, hasMoreVibes, sortByDate, activeFilter]);
+  }, [displayedPosts, allVibePosts, hasMorePosts, hasMoreVibes, sortByDate, activeFilter]);
 
   // Initial load with optimized approach
   useEffect(() => {
@@ -218,44 +225,34 @@ function HomePageContent() {
     loadInitialContent();
   }, [selectedGenre, setAllPosts, fetchAllVibes]);
 
-  // Auto-refresh optimization
+  // Auto-refresh at specified interval to keep content fresh
   useEffect(() => {
     if (!autoRefreshEnabled) return;
     
     const refreshContent = async () => {
-      // Only refresh if data is stale or needed
       if (refreshCountRef.current >= MAX_AUTO_REFRESHES) {
+        // Stop auto-refreshing after max refreshes
         setAutoRefreshEnabled(false);
         return;
       }
       
-      // Don't set loading state for background refreshes to avoid re-renders
+      refreshCountRef.current += 1;
+      console.log(`[DEBUG-PAGE] Auto-refreshing content (${refreshCountRef.current}/${MAX_AUTO_REFRESHES})`);
+      
       try {
-        // Проверяем функции перед вызовом
-        const promises = [];
-        
         if (typeof setAllPosts === 'function') {
-          promises.push(setAllPosts());
+          await setAllPosts();
         }
         
-        if (typeof fetchAllVibes === 'function') {
-          promises.push(fetchAllVibes());
-        }
-        
-        // Use Promise.all if both functions exist
-        if (promises.length > 0) {
-          await Promise.all(promises);
-          refreshCountRef.current += 1;
-          console.log("[REFRESH] Completed refresh #" + refreshCountRef.current);
-        }
+        // Don't auto-refresh vibes since they're less frequent
       } catch (error) {
-        console.error("[REFRESH] Error during refresh:", error);
+        console.error("Error during auto-refresh:", error);
       }
     };
     
     const intervalId = setInterval(refreshContent, refreshInterval);
     return () => clearInterval(intervalId);
-  }, [refreshInterval, selectedGenre, autoRefreshEnabled, setAllPosts, fetchAllVibes]);
+  }, [autoRefreshEnabled, refreshInterval, setAllPosts]);
 
   // Optimized infinite scroll with throttling and debouncing
   useEffect(() => {
@@ -300,47 +297,26 @@ function HomePageContent() {
     };
   }, [inView, hasMore, isLoading, hasMorePosts, hasMoreVibes, isLoadingPosts, isLoadingVibes, loadMorePosts, loadMoreVibes, activeFilter]);
 
-  // Filter content based on active filter - use useMemo to cache results
+  // Apply filters to the combined feed for display
   const filteredFeed = useMemo(() => {
-    if (combinedFeed.length === 0) return [];
+    if (!combinedFeed.length) return [];
     
-    // Only log when development mode is enabled
-    if (process.env.NODE_ENV === 'development') {
-      console.log("[FILTER-DEBUG] Active filter:", activeFilter);
-      console.log("[FILTER-DEBUG] Combined feed items:", combinedFeed.length);
-      console.log("[FILTER-DEBUG] Posts:", combinedFeed.filter(item => item.type === 'post').length);
-      console.log("[FILTER-DEBUG] Vibes:", combinedFeed.filter(item => item.type === 'vibe').length);
-    }
-    
-    if (activeFilter === 'all') {
-      if (process.env.NODE_ENV === 'development') {
-        console.log("[FILTER-DEBUG] Showing ALL content");
+    return combinedFeed.filter(item => {
+      if (activeFilter === 'all') return true;
+      
+      if (item.type === 'post') {
+        // Filter posts based on activeFilter
+        if (activeFilter === 'stracks') return item.data.genre?.toLowerCase() === 'stracks';
+        if (activeFilter === 'sacral') return item.data.genre?.toLowerCase() === 'sacral';
+        if (activeFilter === 'world') return item.data.genre?.toLowerCase() === 'world';
       }
-      return combinedFeed;
-    } else if (activeFilter === 'vibe') {
-      const vibeItems = combinedFeed.filter(item => item.type === 'vibe');
-      if (process.env.NODE_ENV === 'development') {
-        console.log("[FILTER-DEBUG] Showing", vibeItems.length, "vibe items");
+      
+      if (item.type === 'vibe' && activeFilter === 'vibe') {
+        return true;
       }
-      return vibeItems;
-    } else if (activeFilter === 'sacral') {
-      const postItems = combinedFeed.filter(item => item.type === 'post');
-      if (process.env.NODE_ENV === 'development') {
-        console.log("[FILTER-DEBUG] Showing", postItems.length, "post items");
-      }
-      return postItems;
-    } else if (activeFilter === 'world') {
-      const worldItems = combinedFeed.filter(item => 
-        item.type === 'post' && 
-        item.data.genre && 
-        item.data.genre.toLowerCase().includes('world')
-      );
-      if (process.env.NODE_ENV === 'development') {
-        console.log("[FILTER-DEBUG] Showing", worldItems.length, "world items");
-      }
-      return worldItems;
-    }
-    return combinedFeed;
+      
+      return false;
+    });
   }, [combinedFeed, activeFilter]);
 
   return (
@@ -396,11 +372,64 @@ function HomePageContent() {
             )}
           </ClientOnly>
           
-          {/* Infinite scroll loading indicator */}
+          {/* Improved Infinite scroll loading indicator */}
           <ClientOnly>
             {(isLoading || isLoadingPosts || isLoadingVibes) && initialContentLoaded && (
-              <div className="py-4 flex justify-center">
-                <div className="w-8 h-8 border-t-2 border-b-2 border-[#20DDBB] rounded-full animate-spin"></div>
+              <div className="py-8 flex flex-col items-center justify-center">
+                <div className="relative">
+                  {/* Main loader circle */}
+                  <div className="w-12 h-12 rounded-full bg-[#24183D] border border-[#20DDBB]/30 flex items-center justify-center relative">
+                    <div className="absolute inset-0 rounded-full border-2 border-[#20DDBB] border-t-transparent animate-spin"></div>
+                    
+                    {/* Inner pulsing circle */}
+                    <motion.div
+                      className="w-6 h-6 rounded-full bg-[#20DDBB]/20"
+                      animate={{ 
+                        scale: [1, 1.2, 1],
+                        opacity: [0.6, 0.8, 0.6]
+                      }}
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 1.5,
+                        ease: "easeInOut" 
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Animated particles around the loader */}
+                  <motion.div
+                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#20DDBB]/60"
+                    animate={{ 
+                      y: [0, -10, 0],
+                      x: [0, 5, 0],
+                      opacity: [0.6, 1, 0.6]
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 2,
+                      ease: "easeInOut" 
+                    }}
+                  />
+                  
+                  <motion.div
+                    className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-[#8A2BE2]/60"
+                    animate={{ 
+                      y: [0, 8, 0],
+                      x: [0, -5, 0],
+                      opacity: [0.6, 1, 0.6]
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 1.8,
+                      ease: "easeInOut",
+                      delay: 0.3
+                    }}
+                  />
+                </div>
+                
+                <p className="mt-4 text-[#20DDBB] text-sm font-medium tracking-wide animate-pulse">
+                  Loading more tracks...
+                </p>
               </div>
             )}
           </ClientOnly>
@@ -408,14 +437,28 @@ function HomePageContent() {
           {/* End of content message */}
           <ClientOnly>
             {!hasMore && initialContentLoaded && filteredFeed.length > 0 && (
-              <div className="text-center py-8 text-[#818BAC]">
-                You've reached the end of your feed
+              <div className="text-center py-8 mb-12">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-[#24183D] border border-[#20DDBB]/20 text-white/70"
+                >
+                  <FaCheckCircle className="text-[#20DDBB] mr-2" />
+                  You've reached the end of your feed
+                </motion.div>
               </div>
             )}
           </ClientOnly>
           
-          {/* Infinite scroll trigger */}
-          <div ref={ref} className="h-10 mb-8" />
+          {/* Invisible load more trigger */}
+          {hasMore && (
+            <div 
+              ref={ref} 
+              className="h-20 flex items-center justify-center opacity-0"
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
     </MainLayout>

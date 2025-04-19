@@ -746,32 +746,21 @@ const StatsCounter = memo(({ post }: { post: any }) => {
   // Если загрузка или нет данных, показываем скелетон
   if (loading || !stats) {
     return (
-      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex flex-col items-end space-y-1">
+      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-10 bg-white/20 animate-pulse rounded-full"></div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-8 bg-white/20 animate-pulse rounded-full"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex flex-col items-end space-y-1">
+    <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
       {/* Счетчик прослушиваний */}
       <div className="flex items-center gap-1.5">
         <FaHeadphones className="text-[#20DDBB] text-xs" />
         <span className="text-white text-xs font-medium">
           {stats?.plays_count ? parseInt(stats.plays_count, 10).toLocaleString() : '0'}
-        </span>
-      </div>
-      
-      {/* Счетчик лайков */}
-      <div className="flex items-center gap-1.5">
-        <FaHeart className="text-pink-400 text-xs" />
-        <span className="text-white text-xs font-medium">
-          {stats?.likes ? parseInt(stats.likes, 10).toLocaleString() : '0'}
         </span>
       </div>
     </div>

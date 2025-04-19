@@ -77,11 +77,24 @@ const Copyright = memo(() => (
 
 Copyright.displayName = 'Copyright';
 
-const WelcomeModal = () => {
-  const [isVisible, setIsVisible] = useState(false);
+interface WelcomeModalProps {
+  isVisible?: boolean;
+  onClose?: () => void;
+  hideFirstVisitCheck?: boolean;
+}
+
+const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck = false }: WelcomeModalProps) => {
+  const [isVisible, setIsVisible] = useState(propIsVisible || false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Синхронизируем внутреннее состояние с пропсами
+  useEffect(() => {
+    if (propIsVisible !== undefined) {
+      setIsVisible(propIsVisible);
+    }
+  }, [propIsVisible]);
   
   // Оптимизированный и мемоизированный массив особенностей
   const features = useMemo(() => [
@@ -109,6 +122,11 @@ const WelcomeModal = () => {
 
   // Эффективная инициализация с использованием requestIdleCallback
   useEffect(() => {
+    if (hideFirstVisitCheck) {
+      setIsInitialized(true);
+      return;
+    }
+    
     const initializeModal = () => {
       try {
         // Check if this is the first visit
@@ -134,7 +152,7 @@ const WelcomeModal = () => {
         return () => clearTimeout(timeoutId);
       }
     }
-  }, []);
+  }, [hideFirstVisitCheck]);
 
   // Запуск карусели после инициализации
   useEffect(() => {
@@ -170,18 +188,23 @@ const WelcomeModal = () => {
     // Плавная анимация закрытия
     setIsVisible(false);
     
-    // Отложим запись в localStorage до завершения анимации
-    setTimeout(() => {
-      try {
-        localStorage.setItem('sacraltrack_welcomed', 'true');
-      } catch (error) {
-        console.error('Could not set localStorage item', error);
-      }
-    }, 300);
+    // Вызываем внешний обработчик если он передан
+    if (onClose) {
+      onClose();
+    } else {
+      // Отложим запись в localStorage до завершения анимации
+      setTimeout(() => {
+        try {
+          localStorage.setItem('sacraltrack_welcomed', 'true');
+        } catch (error) {
+          console.error('Could not set localStorage item', error);
+        }
+      }, 300);
+    }
     
     // Очистка интервала
     if (intervalId) clearInterval(intervalId);
-  }, [intervalId]);
+  }, [intervalId, onClose]);
 
   // Мемоизированный обработчик для переключения слайдов
   const handleSlideChange = useCallback((index: number) => {
