@@ -6,7 +6,7 @@ import { IoNotificationsOutline } from 'react-icons/io5';
 import { BsPersonPlus, BsPersonCheck, BsMusicNote } from 'react-icons/bs';
 import { AiOutlineHeart } from 'react-icons/ai';
 import { FaCoins } from 'react-icons/fa';
-import useNotifications, { Notification } from '@/app/hooks/useNotifications';
+import { useNotifications, Notification } from '@/app/hooks/useNotifications';
 
 interface NotificationPanelProps {
   isOpen: boolean;

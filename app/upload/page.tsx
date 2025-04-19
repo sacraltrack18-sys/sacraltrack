@@ -2,18 +2,15 @@
 
 {/*UPLOAD PAGE*/}
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { useUser } from '@/app/context/user';
 import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ID, storage, functions } from '@/libs/AppWriteClient';
-import Image from 'next/image';
-import { useSession } from "next-auth/react";
-import axios from 'axios';
-import { UploadProgress, BackgroundProgress } from '@/app/components/upload/UploadProgress';
+import { ID } from 'appwrite';
+import { storage } from '@/libs/AppWriteClient';
 
 import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
@@ -21,7 +18,7 @@ import ImageUploader from '../components/upload/ImageUploader';
 import GenreSelector from '../components/upload/GenreSelector';
 import SuccessModal from '../components/upload/SuccessModal';
 import RequirementsTooltip from '../components/upload/RequirementsTooltip';
-import AudioInfo from '../components/upload/AudioInfo';
+import UploadProgress from '../components/upload/UploadProgress';
 
 // Copyright notification component
 interface CopyrightNotificationProps {
@@ -77,25 +74,6 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
   );
 };
 
-// English translations for user-friendly messages - упрощаем этапы
-const stagesToMessages = {
-  'preparing': 'Preparing files...',
-  'uploading_cover': 'Uploading cover image...',
-  'uploading_audio': 'Uploading WAV file...',
-  'creating_release': 'Finalizing release...',
-  'done': 'Done!'
-};
-
-// Добавляем интерфейс для метаданных аудио
-interface AudioMetadata {
-    duration: number;
-    fileName: string;
-    sampleRate?: number;
-    channels?: number;
-    bitDepth?: number;
-    fileSize: number;
-}
-
 export default function Upload() {
     const router = useRouter();
     const userContext = useUser();
@@ -109,45 +87,32 @@ export default function Upload() {
     const [showCopyrightNotice, setShowCopyrightNotice] = useState(false);
 
     // Audio states
-    const [audioSrc, setAudioSrc] = useState<string>('');
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [audioProgress, setAudioProgress] = useState(0);
-    const [audioDuration, setAudioDuration] = useState<number>(0);
-    const [currentTime, setCurrentTime] = useState<number>(0);
-    const [isPlaying, setIsPlaying] = useState<boolean>(false);
-    
-    // Используем useRef для аудио элемента
+    const [audioDuration, setAudioDuration] = useState(0);
     const audioElement = useRef<HTMLAudioElement | null>(null);
 
     // Form states
     const [trackname, setTrackname] = useState('');
     const [genre, setGenre] = useState('');
     const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-    // Добавляем состояние для контроля нажатия кнопки загрузки
-    const [isUploadButtonPressed, setIsUploadButtonPressed] = useState(false);
 
     // Processing states
-    const [isProcessing, setIsProcessing] = useState<boolean>(false);
-    const [processingProgress, setProcessingProgress] = useState<number>(0);
-    const [processingStage, setProcessingStage] = useState<string>('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [processingStage, setProcessingStage] = useState('');
+    const [processingProgress, setProcessingProgress] = useState(0);
     const [uploadedTrackId, setUploadedTrackId] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     
     // Добавим состояние для контроля отмены
-    const [isCancelling, setIsCancelling] = useState<boolean>(false);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [uploadController, setUploadController] = useState<AbortController | null>(null);
-
-    // Упрощаем, оставляем только необходимые состояния для загрузки
-    const [uploadProcessing, setUploadProcessing] = useState<boolean>(false);
-    const [uploadProcessingStage, setUploadProcessingStage] = useState<string>('');
-    const [uploadProcessingProgress, setUploadProcessingProgress] = useState<number>(0);
-
-    // Добавляем состояние для метаданных аудио
-    const [audioMetadata, setAudioMetadata] = useState<AudioMetadata | null>(null);
 
     // Add effect to track isProcessing changes
     useEffect(() => {
-        // Removing console.logs
+        console.log("isProcessing changed:", isProcessing);
+        console.log("Current processing stage:", processingStage);
+        console.log("Current progress:", processingProgress);
     }, [isProcessing, processingStage, processingProgress]);
 
     // Check user authentication
@@ -157,8 +122,9 @@ export default function Upload() {
 
     // Проверяем наличие необходимых функций
     useEffect(() => {
-        if (!createPostHook?.createPost) {
-            toast.error('Upload functionality not available');
+        if (!createPostHook?.createPost || !createPostHook?.createSegmentFile) {
+            console.error('Functions createPost or createSegmentFile not available');
+            toast.error('Initialization error. Please refresh the page');
         }
     }, [createPostHook]);
 
@@ -188,153 +154,46 @@ export default function Upload() {
         if (!audioElement.current) return;
 
         const progressBar = e.currentTarget;
-        const boundingRect = progressBar.getBoundingClientRect();
-        const clickPositionX = e.clientX - boundingRect.left;
-        const progressBarWidth = boundingRect.width;
-        const clickPercentage = (clickPositionX / progressBarWidth) * 100;
-        
+        const clickPosition = e.clientX - progressBar.getBoundingClientRect().left;
+        const progressBarWidth = progressBar.offsetWidth;
+        const clickPercentage = (clickPosition / progressBarWidth) * 100;
         const newTime = (clickPercentage / 100) * audioDuration;
 
         audioElement.current.currentTime = newTime;
         setAudioProgress(clickPercentage);
     };
 
-    // Обновляем функцию handleAudioChange для извлечения метаданных
+    // File handling functions
     const handleAudioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) {
-            return;
-        }
-
-        const audioFile = e.target.files[0];
-
-        // Проверка размера (максимум 200 МБ)
-        if (audioFile.size > 200 * 1024 * 1024) {
-            toast.error('Audio file size must not exceed 200 MB', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px'
-                },
-                icon: '⚠️'
-            });
-            return;
-        }
-
-        // Проверка формата (должен быть WAV)
-        if (!audioFile.type.includes('wav') && !audioFile.type.includes('audio')) {
-            toast.error('Please select a WAV audio file', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px'
-                },
-                icon: '⚠️'
-            });
-            return;
-        }
+        const file = e.target.files?.[0];
+        if (!file) return;
 
         try {
-            const audioURL = URL.createObjectURL(audioFile);
-            const audio = new Audio(audioURL);
-
-            audio.addEventListener('loadedmetadata', () => {
-                const duration = audio.duration;
-                setAudioDuration(duration);
-
-                // Проверка длительности (максимум 12 минут)
-                if (duration > 12 * 60) {
-                    toast.error('Audio duration must not exceed 12 minutes', {
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px'
-                        },
-                        icon: '⚠️'
-                    });
-                    URL.revokeObjectURL(audioURL);
-                    return;
-                }
+            // Create audio element for preview
+            const audio = new Audio();
+            audio.src = URL.createObjectURL(file);
+            
+            audio.onloadedmetadata = () => {
+                setAudioDuration(audio.duration);
+                audioElement.current = audio;
                 
-                // Извлекаем имя файла без расширения
-                const fileName = audioFile.name.replace(/\.[^/.]+$/, "");
-                
-                // Создаем объект метаданных
-                const metadata: AudioMetadata = {
-                    duration,
-                    fileName,
-                    fileSize: audioFile.size,
-                    // Стандартные значения для WAV (будут уточнены при полном парсинге)
-                    sampleRate: 44100, // Типичное значение
-                    channels: 2,       // Стерео
-                    bitDepth: 16       // 16-бит
+                audio.ontimeupdate = () => {
+                    setAudioProgress((audio.currentTime / audio.duration) * 100);
                 };
                 
-                // Сохраняем метаданные
-                setAudioMetadata(metadata);
-                
-                // Автоматически заполняем название трека из имени файла
-                if (!trackname) {
-                    // Форматируем имя файла: заменяем подчеркивания и дефисы на пробелы,
-                    // первая буква каждого слова заглавная
-                    const formattedName = fileName
-                        .replace(/[_-]/g, ' ')
-                        .replace(/\b\w/g, (char) => char.toUpperCase());
-                    setTrackname(formattedName);
-                }
+                audio.onended = () => {
+                    setIsAudioPlaying(false);
+                    setAudioProgress(0);
+                    audio.currentTime = 0;
+                };
+            };
 
-                // Устанавливаем ссылку на аудио элемент
-                audioElement.current = audio;
-                setAudioSrc(audioURL);
-                setFileAudio(audioFile);
-                setCurrentTime(0);
-                setIsPlaying(false);
-            });
-
-            audio.addEventListener('error', (e) => {
-                URL.revokeObjectURL(audioURL);
-                toast.error('Error loading audio file. Please try another file.', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px'
-                    },
-                    icon: '❌'
-                });
-            });
-
-            audio.addEventListener('timeupdate', () => {
-                if (!audioElement.current) return;
-                
-                const { currentTime, duration } = audioElement.current;
-                setCurrentTime(currentTime);
-                setAudioProgress((currentTime / duration) * 100);
-                    setCurrentTime(currentTime);
-            });
-
+            setFileAudio(file);
+            setTrackname(file.name.replace(/\.[^/.]+$/, ''));
+            
         } catch (error) {
-            toast.error('Error preparing audio file. Please try another file.', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px'
-                },
-                icon: '❌'
-            });
+            console.error('Error loading audio:', error);
+            toast.error('Error loading audio file');
         }
     };
 
@@ -357,90 +216,104 @@ export default function Upload() {
 
     // Clear functions
     const clearAudio = () => {
-        const audioRef = audioElement.current;
-        if (audioRef) {
-            audioRef.pause();
+        if (audioElement.current) {
+            audioElement.current.pause();
+            audioElement.current = null;
         }
-        if (audioSrc) {
-            URL.revokeObjectURL(audioSrc);
-        }
-        setAudioSrc('');
         setFileAudio(null);
-        setCurrentTime(0);
-        setAudioProgress(0);
-        setIsPlaying(false);
         setIsAudioPlaying(false);
+        setAudioProgress(0);
+        setAudioDuration(0);
+        setTrackname('');
     };
 
     const clearImage = () => {
-        if (imagePreview) {
-            URL.revokeObjectURL(imagePreview);
-        }
-        setImagePreview(null);
         setFileImage(null);
+        setImagePreview(null);
     };
 
     const clearAll = () => {
         clearAudio();
         clearImage();
-        setTrackname('');
         setGenre('');
-        setIsProcessing(false);
-        setProcessingProgress(0);
         setProcessingStage('');
+        setProcessingProgress(0);
+        setIsProcessing(false);
     };
 
     // Функция отмены загрузки
     const handleCancelUpload = () => {
-        // Просто запрашиваем подтверждение (будет обработано в компоненте)
-    };
-
-    const handleConfirmCancelUpload = () => {
-        // Реальная отмена загрузки
-        if (uploadController) {
-            uploadController.abort();
+        if (!uploadController) {
+            console.log("No active upload to cancel");
+            return;
         }
         
-        setUploadProcessing(false);
-        setIsProcessing(false);
+        console.log("Cancelling upload process");
+        setIsCancelling(true);
         
-        toast.error('Upload cancelled', {
+        // Показываем пользователю, что идет отмена
+        toast.loading('Cancelling upload...', { 
+            id: 'cancel-toast',
             style: {
-                border: '1px solid #FF4A4A',
+                border: '1px solid #018CFD',
                 padding: '16px',
                 color: '#ffffff',
                 background: 'linear-gradient(to right, #2A184B, #1f1239)',
                 fontSize: '16px',
                 borderRadius: '12px'
             },
-            icon: '❌',
-            duration: 3000
+            icon: '🛑'
+        });
+        
+        // Отмена запроса и загрузки
+        console.log("Aborting upload controller");
+        uploadController.abort();
+        
+        // Abort any server-side processing by sending a cancel request
+        console.log("Sending server-side cancel request");
+        fetch('/api/audio/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: user?.id }),
+        }).catch(error => {
+            console.error('Error cancelling server process:', error);
+        }).finally(() => {
+            console.log("Server cancel request completed");
+        
+        // Reset all states immediately
+        setIsProcessing(false);
+        setIsCancelling(false);
+        setProcessingStage('');
+        setProcessingProgress(0);
+            setUploadController(null);
+        
+        // Reset all form fields
+        clearAll();
+        
+        toast.success('Upload cancelled', { 
+            id: 'cancel-toast',
+            style: {
+                border: '1px solid #018CFD',
+                padding: '16px',
+                color: '#ffffff',
+                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                fontSize: '16px',
+                borderRadius: '12px'
+            },
+            icon: '✓'
+            });
         });
     };
 
-    // Обновляем функцию handleUpload для правильной работы с хуком useCreatePost
+    // Upload functions
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Устанавливаем флаг нажатия кнопки загрузки
-        setIsUploadButtonPressed(true);
-        
-        toast.success('Starting upload...', {
-            duration: 2000,
-            style: {
-                border: '1px solid #20DDBB',
-                padding: '16px',
-                color: '#ffffff',
-                background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                fontSize: '16px',
-                borderRadius: '12px'
-            },
-            icon: '🎵'
-        });
-        
-        // Validation
-        if (!fileAudio || !fileImage || !trackname || !genre) {
-            toast.error('Please fill in all required fields', {
+        // Валидация
+        if (!fileAudio) {
+            toast.error('Please select an audio file', {
                 style: {
                     border: '1px solid #FF4A4A',
                     padding: '16px',
@@ -452,50 +325,95 @@ export default function Upload() {
                 },
                 icon: '🎵'
             });
-            setIsUploadButtonPressed(false);
             return;
         }
         
-        // Проверка доступности хука createPost
-        if (!createPostHook?.createPost) {
-            toast.error('Upload functionality not available', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px'
-                },
-                icon: '❌'
-            });
-            setIsUploadButtonPressed(false);
+        console.log("=== Upload Started ===");
+
+        // Reset cancelling flag to ensure we're starting fresh
+        if (isCancelling) {
+            console.log("Upload was in cancelling state, resetting");
+            setIsCancelling(false);
+            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
+        }
+        
+        console.log("Initial state:", {
+            fileAudio,
+            fileImage,
+            trackname,
+            genre,
+            isProcessing,
+            isCancelling
+        });
+
+        if (!fileAudio || !fileImage || !trackname || !genre) {
+            console.log("Validation failed:", { fileAudio, fileImage, trackname, genre });
             return;
+        }
+
+        // Reset any previous upload controller to avoid interference
+        if (uploadController) {
+            console.log("Aborting previous upload controller");
+            uploadController.abort();
+            setUploadController(null);
+            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
         }
 
         // Set initial stage
-        setIsProcessing(true);
-        setProcessingStage('Preparing upload');
-        setProcessingProgress(0);
-        
-        // Добавляем специальное уведомление для больших файлов
-        const fileSizeInMB = fileAudio.size / (1024 * 1024);
-        if (fileSizeInMB > 50) {
-            toast('Uploading large file, this may take a while. Please wait...', {
-                duration: 5000,
-                icon: '⏳',
-                style: {
-                    border: '1px solid #FFA500',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px'
-                }
+            setIsProcessing(true);
+            setProcessingStage('Preparing upload');
+            setProcessingProgress(0);
+            
+            // Add a small delay to ensure state updates are processed
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log("State after setting:", {
+                isProcessing: true,
+                processingStage: 'Preparing upload',
+                processingProgress: 0
             });
-        }
+
+            // Check file size (not more than 200 MB)
+            const fileSizeInMB = fileAudio.size / (1024 * 1024);
+            if (fileSizeInMB > 200) {
+                toast.error('File size must not exceed 200 MB', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
+                setIsProcessing(false);
+                return;
+            }
+
+        // Check audio duration (not more than 12 minutes)
+            if (audioDuration > 12 * 60) {
+                toast.error('Track duration must not exceed 12 minutes', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⏱️'
+                });
+            setIsProcessing(false);
+                return;
+            }
 
         try {
+            // Debug log to confirm states are set
+            console.log("Progress bar state:", { isProcessing: true, processingStage: 'Preparing upload', processingProgress: 0 });
+            
             const toastId = toast.loading('Starting upload...', {
                 style: {
                     border: '1px solid #20DDBB',
@@ -508,91 +426,195 @@ export default function Upload() {
                 },
                 icon: '🚀'
             });
+
+            // Create FormData
+            const formData = new FormData();
+            formData.append('audio', fileAudio);
+            if (fileImage) {
+                formData.append('image', fileImage);
+            }
+            if (trackname) {
+                formData.append('trackname', trackname);
+            }
+            if (genre) {
+                formData.append('genre', genre);
+            }
+
+            // Set upload stage
+            setProcessingStage('Uploading WAV');
+            setProcessingProgress(0);
+            toast.loading(`Uploading WAV: 0%`, { id: toastId });
+
+            // Create new controller for cancellation
+            const controller = new AbortController();
+            setUploadController(controller);
+
+            // Track upload progress using XMLHttpRequest
+            const xhr = new XMLHttpRequest();
             
-            const params = {
-                audio: fileAudio,
-                image: fileImage,
-                trackname,
-                genre,
-                userId: user?.id || 'anonymous',
-                onProgress: (stage: string, progress: number, estimatedTime?: string) => {
-                    setProcessingStage(stage);
-                    setProcessingProgress(progress);
-                    toast.loading(`${stage}: ${Math.round(progress)}%`, { id: toastId });
+            // Configure all event handlers before opening the connection
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentage = Math.round((event.loaded / event.total) * 100);
+                    setProcessingProgress(percentage);
+                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
+                    console.log(`WAV upload progress: ${percentage}%`);
                 }
             };
             
-            // Вызываем createPost с параметрами
-            const result = await createPostHook.createPost(params);
-            
-            // Проверяем успешность загрузки
-            if (!result) {
-                throw new Error('Upload failed: No result returned');
-            }
-            
-            // Получаем ID трека
-            const trackId = result.trackId || result.postId || result.$id;
-            
-            if (!trackId) {
-                throw new Error('Upload failed: No track ID in response');
-            }
-            
-            // Запускаем фоновую обработку аудио через Appwrite Functions
-            try {
-                // ID функции обработки аудио
-                const AUDIO_PROCESSOR_FUNCTION_ID = '67fd5f3793f097add368';
-                
-                // Делаем API-запрос через axios для запуска функции
-                const response = await axios.post(
-                    `${process.env.NEXT_PUBLIC_APPWRITE_URL}/functions/${AUDIO_PROCESSOR_FUNCTION_ID}/executions`,
-                    { postId: trackId },
-                    {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Appwrite-Project': process.env.NEXT_PUBLIC_ENDPOINT
-                        }
-                    }
-                );
-                
-                console.log('Background audio processing started for post:', trackId);
-                
-                // Добавляем уведомление о запуске фоновой обработки
-                toast.success('Your track is now being processed in the background', {
-                    duration: 5000,
+            xhr.onerror = () => {
+                console.error('Network error while uploading file');
+                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
+                    id: toastId,
                     style: {
-                        border: '1px solid #20DDBB',
+                        border: '1px solid #FF4A4A',
                         padding: '16px',
                         color: '#ffffff',
                         background: 'linear-gradient(to right, #2A184B, #1f1239)',
                         fontSize: '16px',
-                        borderRadius: '12px'
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
                     },
-                    icon: '🔄'
+                    icon: '⚠️'
                 });
-            } catch (processingError) {
-                // Если запуск обработки не удался, просто логируем ошибку, но не мешаем пользователю
-                console.error('Failed to start audio processing:', processingError);
+                setIsProcessing(false);
+                setUploadController(null);
+            };
+            
+            xhr.onload = async () => {
+                // Проверка успешного кода ответа
+                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
+                
+                if (xhr.status !== 200) {
+                    console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
+                    
+                    let errorMessage = 'Server error';
+                    let errorDetails = '';
+                    
+                    // Пытаемся извлечь детали ошибки из ответа
+                    try {
+                        // Проверяем, является ли ответ JSON
+                        const contentType = xhr.getResponseHeader('Content-Type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
+                            errorDetails = errorResponse.details || '';
+                        } else {
+                            // Если ответ не JSON, просто берем текст
+                            errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
+                        }
+                    } catch (parseError) {
+                        console.error('Failed to parse error response:', parseError);
+                        // Если не удалось распарсить ответ, используем статус код
+                        errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
+                    }
+                    
+                    // Для 500 ошибок добавляем специальное сообщение
+                    if (xhr.status === 500) {
+                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
+                        console.error(`Server 500 error. Response:`, xhr.responseText);
+                    }
+                    
+                    // Выводим подробную информацию об ошибке в консоль
+                    console.error('Upload error details:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        message: errorMessage,
+                        details: errorDetails,
+                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'empty response'
+                    });
+                    
+                    toast.error(errorMessage, { 
+                        id: toastId,
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️',
+                        duration: 5000
+                    });
+                    
+                    setIsProcessing(false);
+                    setUploadController(null);
+                    return;
+                }
+                
+                try {
+                    // Set progress to 100% when upload is complete
+                    setProcessingProgress(100);
+                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
+                    
+                    // Now handle the SSE response
+                    const response = new Response(xhr.response, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/event-stream'
+                        }
+                    });
+                    
+                    // Handle server-sent events for progress updates
+                    const reader = response.body?.getReader();
+                    const decoder = new TextDecoder();
+
+                    if (!reader) throw new Error('Failed to create reader');
+
+                    // Continue with the rest of the processing...
+                    await handleSSEProcessing(reader, decoder, toastId);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error processing server response:', error);
+                    toast.error(`Error processing server response: ${errorMessage}`, { 
+                        id: toastId,
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️',
+                        duration: 5000
+                    });
+                    setIsProcessing(false);
+                    setUploadController(null);
+                }
+            };
+            
+            // Add abort handler to signal
+            controller.signal.addEventListener('abort', () => {
+                console.log('Upload canceled by user (from signal)');
+                xhr.abort();
+                // Toast message will be shown by handleCancelUpload
+            });
+            
+            // Now open the connection and send the request after all handlers are set
+            xhr.open('POST', '/api/audio/process');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'text';
+            
+            // Final safety check before sending request
+            if (isCancelling) {
+                console.log("Upload was cancelled before sending request");
+                xhr.abort();
+                setIsProcessing(false);
+                setUploadController(null);
+                return;
             }
             
-            // Успешно загружено
-            setProcessingProgress(100);
-            setProcessingStage('Completed');
-            toast.success('Upload complete!', { id: toastId });
-            
-            // Сохраняем ID трека 
-            setUploadedTrackId(trackId);
-            
-            // Показываем модальное окно об успешной загрузке
-            setShowSuccessModal(true);
-            
-            // Очищаем состояние процесса загрузки в конце всех операций
-            setIsProcessing(false);
-            setIsUploadButtonPressed(false);
+            console.log("Sending XHR request...");
+            xhr.send(formData);
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
-            toast.error(`Upload error: ${errorMessage}`, {
+            console.error('Upload error:', error);
+            toast.error(`Failed to upload track: ${errorMessage}`, {
                 style: {
                     border: '1px solid #FF4A4A',
                     padding: '16px',
@@ -602,64 +624,694 @@ export default function Upload() {
                     borderRadius: '12px',
                     boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
                 },
-                icon: '❌',
+                icon: '⚠️',
                 duration: 5000
             });
             
+            // Reset processing state
             setIsProcessing(false);
-            setIsUploadButtonPressed(false);
+            setUploadController(null);
+        }
+    };
+    
+    // Separate function to handle SSE processing
+    const handleSSEProcessing = async (reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, toastId: string) => {
+        try {
+            let buffer = '';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, {stream: true});
+                buffer += chunk;
+                
+                // Process complete events in buffer
+                const messages = [];
+                let startIdx = 0;
+                
+                while (true) {
+                    const dataPrefix = 'data: ';
+                    const dataIdx = buffer.indexOf(dataPrefix, startIdx);
+                    if (dataIdx === -1) break;
+                    
+                    const dataStart = dataIdx + dataPrefix.length;
+                    const dataEnd = buffer.indexOf('\n\n', dataStart);
+                    
+                    if (dataEnd === -1) break; // Incomplete message, wait for more data
+                    
+                    const jsonStr = buffer.substring(dataStart, dataEnd);
+                    console.log('Processing SSE data (first 100 chars):', jsonStr.substring(0, 100) + '...');
+                    
+                    try {
+                        const jsonData = JSON.parse(jsonStr);
+                        messages.push(jsonData);
+                        
+                        // Move start index for next iteration
+                        startIdx = dataEnd + 2;
+                    } catch (e) {
+                        console.error('Error parsing JSON in SSE:', e);
+                        console.log('Problematic JSON string:', jsonStr.substring(0, 150) + '...');
+                        
+                        // Move to next line to try and recover
+                        startIdx = dataEnd + 2;
+                    }
+                }
+                
+                // Remove processed messages from buffer
+                if (startIdx > 0) {
+                    buffer = buffer.substring(startIdx);
+                }
+                
+                // Process all extracted messages
+                for (const update of messages) {
+                    console.log('Received update type:', update.type);
+                    
+                    // Обработка ошибок сервера
+                    if (update.type === 'error') {
+                        const errorMessage = update.message || 'Server error during audio processing';
+                        console.error('Server processing error:', errorMessage);
+                        
+                        // Вывод подробностей ошибки, если они есть
+                        if (update.details) {
+                            console.error('Error details:', update.details);
+                        }
+                        if (update.timestamp) {
+                            console.error('Error timestamp:', update.timestamp);
+                        }
+                        
+                        toast.error(`Error: ${errorMessage}`, {
+                            id: toastId,
+                            style: {
+                                border: '1px solid #FF4A4A',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                            },
+                            icon: '⚠️',
+                            duration: 5000
+                        });
+                        
+                        // Сбрасываем состояния обработки
+                        setIsProcessing(false);
+                        setUploadController(null);
+                        return; // Прерываем обработку при ошибке
+                    }
+                    
+                    if (update.type === 'progress') {
+                        // Map server stages to our UI stages
+                        let displayStage = update.stage;
+                        let displayProgress = update.progress;
+                        let detailedMessage = '';
+                        
+                        // Extract details from details, if they exist
+                        const details = update.details as any;
+                        
+                        // Handle different types of progress
+                        if (update.stage.includes('convert')) {
+                            displayStage = 'Converting to MP3';
+                            // If there are conversion details
+                            if (details?.conversionProgress) {
+                                detailedMessage = `Conversion: ${typeof details.conversionProgress === 'string' ? details.conversionProgress : Math.round(details.conversionProgress) + '%'}`;
+                            }
+                        } else if (update.stage.includes('segment')) {
+                            displayStage = 'Segmenting audio';
+                            // If there are segment details
+                            if (details?.segmentProgress) {
+                                detailedMessage = `Segmenting: ${Math.round(details.segmentProgress)}% (${Math.floor(details.segmentProgress / 100 * 42)}/${42} segments)`;
+                            }
+                        } else if (update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) {
+                            displayStage = 'Preparing segments';
+                            // If there are preparation details
+                            if (details?.preparationProgress) {
+                                detailedMessage = `Preparation: ${Math.round(details.preparationProgress)}%`;
+                            }
+                        } else if (update.stage.includes('Smooth segment progress')) {
+                            displayStage = 'Segmenting audio';
+                            // Extract information about segment progress from string
+                            const match = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+) \(([0-9.]+)%\)/);
+                            if (match) {
+                                const current = parseFloat(match[1]);
+                                const total = parseFloat(match[2]);
+                                const percent = parseFloat(match[3]);
+                                detailedMessage = `Processing segment ${Math.floor(current)} of ${Math.floor(total)} (${percent.toFixed(1)}%)`;
+                            }
+                        } else if (update.stage.includes('id') || update.stage.includes('ID')) {
+                            displayStage = 'Generating IDs';
+                        } else if (update.stage.includes('playlist') || update.stage.includes('m3u8')) {
+                            displayStage = 'Creating playlist';
+                        } else if (update.stage.includes('Created segment')) {
+                            displayStage = 'Segmenting audio';
+                            // Extract created segment number
+                            const match = update.stage.match(/Created segment segment_(\d+)\.mp3/);
+                            if (match) {
+                                const segmentNum = parseInt(match[1]);
+                                const totalSegments = 42; // Based on logs
+                                detailedMessage = `Created segment ${segmentNum+1} of ${totalSegments}`;
+                                // Update progress based on created segment
+                                displayProgress = ((segmentNum+1) / totalSegments) * 100;
+                            }
+                        }
+                        
+                        // Use message from details, if exists and no own detailed message
+                        if (!detailedMessage && details?.message) {
+                            detailedMessage = details.message;
+                        }
+
+                        // Update UI with progress information
+                        setProcessingStage(displayStage);
+                        setProcessingProgress(displayProgress);
+                        
+                        // If this is segmenting stage, add details to stage name for UploadProgress
+                        // and update progress value based on actual segment progress
+                        if (update.stage.includes('segment') && details?.segmentProgress) {
+                            const segmentCount = details?.totalSegments || 42; // Use total segments from details or default to 42
+                            const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
+                            
+                            // Update stage name with segment information for component UploadProgress
+                            setProcessingStage(`${displayStage} ${currentSegment}/${segmentCount}`);
+                            
+                            // Important: update progress value, so progress bar doesn't "hang" in one place
+                            setProcessingProgress(details.segmentProgress);
+                            
+                            console.log(`Segment progress update: ${details.segmentProgress}% (segment ${currentSegment}/${segmentCount})`);
+                        }
+                        
+                        // Improved handling for "Smooth segment progress" logs
+                        const smoothSegmentMatch = (
+                            // Try to match from update.stage first
+                            update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/) ||
+                            // Or try to match from details.message if available
+                            (details?.message && typeof details.message === 'string' && 
+                             details.message.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/))
+                        );
+                        
+                        if (smoothSegmentMatch) {
+                            const currentSegmentFloat = parseFloat(smoothSegmentMatch[1]);
+                            const totalSegments = parseFloat(smoothSegmentMatch[2]);
+                            const realProgress = (currentSegmentFloat / totalSegments) * 100;
+                            
+                            // Update progress based on actual value
+                            setProcessingProgress(realProgress);
+                            
+                            // Update the stage so user can see segmentation progress
+                            setProcessingStage(`Segmenting audio ${Math.floor(currentSegmentFloat)}/${Math.floor(totalSegments)}`);
+                            
+                            console.log(`Updating progress bar to ${realProgress.toFixed(1)}% based on segment ${currentSegmentFloat}/${totalSegments}`);
+                        }
+                        
+                        // Look for detailed segmentation log info from consoled messages in details.message
+                        if (details?.message && typeof details.message === 'string') {
+                            // Check for segment creation progress
+                            const segmentProgressMatch = details.message.match(/Segment creation progress: ([0-9.]+)% \((?:processed approximately )?([0-9.]+)\/([0-9.]+)\)/);
+                            if (segmentProgressMatch) {
+                                const percentDone = parseFloat(segmentProgressMatch[1]);
+                                const currentSegment = parseFloat(segmentProgressMatch[2]);
+                                const totalSegments = parseFloat(segmentProgressMatch[3]);
+                                
+                                // Update progress display
+                                setProcessingProgress(percentDone);
+                                setProcessingStage(`Segmenting audio ${Math.floor(currentSegment)}/${Math.floor(totalSegments)}`);
+                                
+                                console.log(`Segmentation progress from message: ${percentDone}% (segment ${currentSegment}/${totalSegments})`);
+                            }
+                        }
+                        
+                        // If message about created segment
+                        const createdSegmentMatch = (
+                            update.stage.match(/Created segment segment_(\d+)\.mp3/) || 
+                            (details?.message && typeof details.message === 'string' && 
+                             details.message.match(/Created segment segment_(\d+)\.mp3/))
+                        );
+                        
+                        if (createdSegmentMatch) {
+                            const segmentNum = parseInt(createdSegmentMatch[1]);
+                            const totalSegments = details?.totalSegments || 42; // Based on logs or details
+                            const realProgress = ((segmentNum + 1) / totalSegments) * 100;
+                            
+                            // Update progress and current segment information
+                            setProcessingProgress(realProgress);
+                            setProcessingStage(`Segmenting audio ${segmentNum + 1}/${totalSegments}`);
+                            
+                            console.log(`Created segment ${segmentNum + 1}/${totalSegments}, updating progress to ${realProgress.toFixed(1)}%`);
+                        }
+                        
+                        // If log message includes information about starting segmentation
+                        if (update.stage.includes('Creating segments') || update.stage.includes('audio segments')) {
+                            // Check if there is information about the number of segments
+                            const totalSegmentsMatch = update.stage.match(/Creating (\d+) segments/i);
+                            if (totalSegmentsMatch) {
+                                const totalSegments = parseInt(totalSegmentsMatch[1]);
+                                console.log(`Starting segmentation process with ${totalSegments} segments`);
+                                // Set initial segmentation progress
+                                setProcessingStage(`Segmenting audio 0/${totalSegments}`);
+                                setProcessingProgress(1); // Start with 1% to show the process has begun
+                            }
+                        }
+                        
+                        // If this is conversion stage, add time details
+                        if (update.stage.includes('convert') && details?.message) {
+                            const timeMatch = details.message.match(/(\d+:\d+)\s+from\s+(\d+:\d+)/);
+                            if (timeMatch) {
+                                setProcessingStage(`${displayStage} (${timeMatch[1]} from ${timeMatch[2]})`);
+                                
+                                // If there is information about conversion progress, use it
+                                if (details.conversionProgress) {
+                                    const conversionProgressValue = typeof details.conversionProgress === 'string' 
+                                        ? parseInt(details.conversionProgress) 
+                                        : details.conversionProgress;
+                                        
+                                    setProcessingProgress(conversionProgressValue);
+                                }
+                            }
+                        }
+                        
+                        // If this is preparation stage, add preparation progress information
+                        if ((update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) && details?.preparationProgress) {
+                            const segmentCount = 42; // Real segment count from logs
+                            const preparedSegments = Math.floor((details.preparationProgress / 100) * segmentCount);
+                            setProcessingStage(`${displayStage} ${preparedSegments}/${segmentCount}`);
+                            
+                            // Update progress bar based on actual preparation progress
+                            setProcessingProgress(details.preparationProgress);
+                        }
+                        
+                        // Form toast message
+                        const toastMessage = detailedMessage 
+                            ? `${displayStage}: ${Math.round(displayProgress)}% (${detailedMessage})` 
+                            : `${displayStage}: ${Math.round(displayProgress)}%`;
+                            
+                        console.log(`Progress update: ${toastMessage}`);
+                        
+                        toast.loading(toastMessage, { 
+                            id: toastId,
+                            style: {
+                                border: '1px solid #20DDBB',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                            },
+                            icon: '🎵'
+                        });
+                    } else if (update.type === 'complete') {
+                        // Audio processing complete, show success animation before proceeding
+                        setProcessingStage('Processing complete');
+                        setProcessingProgress(100);
+                        toast.success('Audio processing completed!', { 
+                            id: toastId,
+                            style: {
+                                border: '1px solid #20DDBB',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                            },
+                            icon: '✅'
+                        });
+                        
+                        // Add slight delay to show completion animation
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        // Now upload to Appwrite
+                        setProcessingStage('Uploading to Appwrite storage');
+                        setProcessingProgress(0);
+                        toast.loading('Uploading files to storage...', { 
+                            id: toastId,
+                            style: {
+                                border: '1px solid #20DDBB',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                            },
+                            icon: '⬆️'
+                        });
+                        
+                        try {
+                            // Convert result data to correct File/Blob objects
+                            const result = update.result;
+                            
+                            // Ensure all necessary data is present
+                            if (!result || !result.mp3File || !result.segments || !result.m3u8Template) {
+                                throw new Error('Failed to get processed audio data');
+                            }
+                            
+                            // Convert MP3 file from data URL
+                            const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
+                            const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
+                            
+                            // Load segments to Appwrite and get their IDs
+                            const segmentIds = [];
+                            const totalSegments = result.segments.length;
+                            
+                            console.log(`Preparing to upload ${totalSegments} segments to Appwrite...`);
+                            setProcessingStage('Uploading segments to Appwrite');
+                            setProcessingProgress(0);
+                            
+                            // Check if user exists and we have access to createPost
+                            if (!user) {
+                                throw new Error('Authentication error. Please sign in to the system');
+                            }
+
+                            // Check createSegmentFile function
+                            if (!createPostHook?.createSegmentFile) {
+                                console.error('createSegmentFile function is not available');
+                                throw new Error('Segment upload function is not available. Please refresh the page');
+                            }
+
+                            // Load segments one by one with progress display
+                            for (let i = 0; i < totalSegments; i++) {
+                                try {
+                                    const segment = result.segments[i];
+                                    console.log(`Processing segment ${i+1}/${totalSegments}: ${segment.name}`);
+                                    
+                                    // Check if segment has data
+                                    if (!segment.data) {
+                                        console.error(`Segment ${i+1} has no data!`);
+                                        throw new Error(`Segment data ${i+1} is missing`);
+                                    }
+                                    
+                                    // Convert base64 to Blob
+                                    console.log(`Creating blob from base64 data for segment ${i+1}...`);
+                                    const segmentBlob = await fetch(`data:audio/mp3;base64,${segment.data}`).then(r => r.blob());
+                                    console.log(`Created blob, size: ${segmentBlob.size} bytes`);
+                                    
+                                    // Create File object from Blob
+                                    const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
+                                    console.log(`Created File object: ${segmentFile.name}, size: ${segmentFile.size} bytes`);
+                                    
+                                    // Load through createSegmentFile, which is obtained at the upper level component
+                                    console.log(`Uploading segment ${i+1} to Appwrite...`);
+                                    const segmentId = await createPostHook.createSegmentFile(segmentFile);
+                                    
+                                    // Check if segmentId is valid
+                                    if (!segmentId || segmentId === 'unique()') {
+                                        console.warn(`Invalid segment ID received from createSegmentFile for segment ${i+1}: ${segmentId}`);
+                                        // Create new ID and try to upload directly
+                                        const fallbackId = ID.unique();
+                                        console.log(`Trying direct upload with fallback ID: ${fallbackId}`);
+                                        
+                                        try {
+                                            // Direct upload through Appwrite SDK
+                                            const uploadResult = await storage.createFile(
+                                                process.env.NEXT_PUBLIC_BUCKET_ID!,
+                                                fallbackId,
+                                                segmentFile
+                                            );
+                                            
+                                            // Use ID from upload result
+                                            const validSegmentId = uploadResult?.$id || fallbackId;
+                                            console.log(`Segment ${i+1} uploaded with fallback method, ID: ${validSegmentId}`);
+                                            segmentIds.push(validSegmentId);
+                                        } catch (fallbackError) {
+                                            console.error(`Fallback upload failed for segment ${i+1}:`, fallbackError);
+                                            throw new Error(`Failed to upload segment ${i+1} by any method`);
+                                        }
+                                    } else {
+                                        console.log(`Segment ${i+1} uploaded successfully, ID: ${segmentId}`);
+                                        segmentIds.push(segmentId);
+                                    }
+                                    
+                                    // Update progress
+                                    const progress = Math.round((i + 1) / totalSegments * 100);
+                                    setProcessingProgress(progress);
+                                    toast.loading(`Uploading segments: ${progress}%`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #20DDBB',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                        },
+                                        icon: '🧩'
+                                    });
+                                } catch (error) {
+                                    console.error(`Error uploading segment ${i+1}:`, error);
+                                    throw new Error(`Error uploading segment ${i+1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                }
+                            }
+
+                            console.log(`All ${totalSegments} segments uploaded successfully`);
+                            console.log('Segment IDs:', segmentIds);
+
+                            // Create M3U8 playlist with real URLs of segments
+                            console.log('Creating M3U8 playlist with segment IDs...');
+                            let m3u8Content = result.m3u8Template;
+
+                            // Debug: show original playlist template
+                            console.log('Original M3U8 template (first 200 chars):', m3u8Content.substring(0, 200) + '...');
+
+                            // Check if we have placeholders for replacement
+                            if (!m3u8Content.includes('SEGMENT_PLACEHOLDER_')) {
+                                console.warn('M3U8 template does not contain SEGMENT_PLACEHOLDER_ markers!');
+                                console.log('Creating M3U8 content manually...');
+                                
+                                // Create HLS playlist manually with simple segment IDs
+                                m3u8Content = "#EXTM3U\n";
+                                m3u8Content += "#EXT-X-VERSION:3\n";
+                                m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
+                                m3u8Content += "#EXT-X-ALLOW-CACHE:YES\n";
+                                m3u8Content += "#EXT-X-TARGETDURATION:10\n";
+                                m3u8Content += "#EXT-X-PLAYLIST-TYPE:VOD\n";
+                                
+                                for (let i = 0; i < segmentIds.length; i++) {
+                                    const segmentId = segmentIds[i];
+                                    // Simply add segment ID, without full URL
+                                    m3u8Content += "#EXTINF:10,\n";
+                                    m3u8Content += `${segmentId}\n`;
+                                    console.log(`Added segment ${i+1} with ID ${segmentId} to M3U8 playlist`);
+                                }
+                                
+                                m3u8Content += "#EXT-X-ENDLIST\n";
+                            } else {
+                                // Replace placeholders with segment IDs
+                                console.log('Environment variables for URLs:');
+                                console.log(`- NEXT_PUBLIC_APPWRITE_ENDPOINT: ${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined'}`);
+                                console.log(`- NEXT_PUBLIC_BUCKET_ID: ${process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined'}`);
+                                console.log(`- NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined'}`);
+                                
+                                for (let i = 0; i < segmentIds.length; i++) {
+                                    const segmentId = segmentIds[i];
+                                    const placeholder = `SEGMENT_PLACEHOLDER_${i}`;
+                                    
+                                    console.log(`Replacing placeholder "${placeholder}" for segment ${i+1} with ID: ${segmentId}`);
+                                    
+                                    if (m3u8Content.includes(placeholder)) {
+                                        // Simply use segment ID instead of full URL
+                                        m3u8Content = m3u8Content.replace(placeholder, segmentId);
+                                        console.log(`Placeholder ${placeholder} replaced successfully with segment ID`);
+                                    } else {
+                                        console.warn(`Placeholder ${placeholder} not found in M3U8 template!`);
+                                    }
+                                }
+                            }
+
+                            // Debug: show final playlist
+                            console.log('Final M3U8 content (first 500 chars):', m3u8Content.substring(0, 500) + '...');
+
+                            // Create M3U8 file
+                            console.log('Creating M3U8 file...');
+                            const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
+
+                            console.log('Parameters for createPost:', {
+                                audio: fileAudio,
+                                image: fileImage,
+                                mp3: mp3File,
+                                m3u8: m3u8File,
+                                segments: segmentIds,
+                                trackname,
+                                genre,
+                                userId: user?.id ?? undefined,
+                                onProgress: (stage: string, progress: number) => {
+                                    // Map storage stages to UI stages
+                                    let displayStage = stage;
+                                    if (stage.includes('main audio')) {
+                                        displayStage = 'Uploading main audio';
+                                    } else if (stage.includes('cover image')) {
+                                        displayStage = 'Uploading cover image';
+                                    } else if (stage.includes('MP3')) {
+                                        displayStage = 'Uploading MP3 version';
+                                    } else if (stage.includes('playlist')) {
+                                        displayStage = 'Uploading playlist';
+                                    } else if (stage.includes('database') || stage.includes('record')) {
+                                        displayStage = 'Finalizing upload';
+                                    }
+                                    
+                                    setProcessingStage(displayStage);
+                                    setProcessingProgress(progress);
+                                    toast.loading(`${displayStage}: ${Math.round(progress)}%`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #20DDBB',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                        },
+                                        icon: '🎵'
+                                    });
+                                }
+                            });
+
+                            // Check for all necessary files
+                            if (!fileAudio || !fileImage) {
+                                throw new Error('Required files for upload are missing');
+                            }
+                            
+                            const createPostResult = await createPostHook.createPost({
+                                audio: fileAudio,
+                                image: fileImage,
+                                mp3: mp3File,
+                                m3u8: m3u8File,
+                                segments: segmentIds,
+                                trackname,
+                                genre,
+                                userId: user?.id ?? undefined,
+                                onProgress: (stage: string, progress: number) => {
+                                    // Map storage stages to UI stages
+                                    let displayStage = stage;
+                                    if (stage.includes('main audio')) {
+                                        displayStage = 'Uploading main audio';
+                                    } else if (stage.includes('cover image')) {
+                                        displayStage = 'Uploading cover image';
+                                    } else if (stage.includes('MP3')) {
+                                        displayStage = 'Uploading MP3 version';
+                                    } else if (stage.includes('playlist')) {
+                                        displayStage = 'Uploading playlist';
+                                    } else if (stage.includes('database') || stage.includes('record')) {
+                                        displayStage = 'Finalizing upload';
+                                    }
+                                    
+                                    setProcessingStage(displayStage);
+                                    setProcessingProgress(progress);
+                                    toast.loading(`${displayStage}: ${Math.round(progress)}%`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #20DDBB',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                        },
+                                        icon: '🎵'
+                                    });
+                                }
+                            });
+
+                            if (createPostResult.success) {
+                                // Set final stages
+                                setProcessingStage('Finalizing upload');
+                                setProcessingProgress(100);
+                                
+                                // Wait a bit to show completion
+                                await new Promise(resolve => setTimeout(resolve, 800));
+                                
+                                // Show success toast and modal
+                                setUploadedTrackId(createPostResult.trackId);
+                                setShowSuccessModal(true);
+                                toast.success('Track successfully uploaded!', { 
+                                    id: toastId,
+                                    style: {
+                                        border: '1px solid #20DDBB',
+                                        padding: '16px',
+                                        color: '#ffffff',
+                                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                        fontSize: '16px',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                    },
+                                    icon: '🎉'
+                                });
+                            } else {
+                                throw new Error(createPostResult.error);
+                            }
+                        } catch (error) {
+                            console.error('Error during Appwrite upload:', error);
+                            throw new Error(`Appwrite upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                        }
+                    } else if (update.type === 'error') {
+                        throw new Error(update.error || 'An error occurred during audio processing');
+                    }
+                }
+            }
+        } catch (error) {
+            // Улучшенная обработка ошибок при чтении потока SSE
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Error processing server-sent events:', error);
+            
+            toast.error(`Error during track processing: ${errorMessage}`, {
+                id: toastId,
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️',
+                duration: 5000
+            });
+            
+            // Reset processing state
+            setIsProcessing(false);
+            setUploadController(null);
         }
     };
 
-    // Update code when successful upload result is available to show it to the user
+    // Add this after the state declarations
     useEffect(() => {
-        if (showSuccessModal && uploadedTrackId) {
-            // If we have the ID of the uploaded track, navigate to the track page when the modal is closed
-            const handleClose = () => {
-                router.push(`/track/${uploadedTrackId}`);
-            };
-            
-            // Add event listener for modal
-            const successModal = document.getElementById('success-modal');
-            successModal?.addEventListener('close', handleClose);
-            
-            return () => {
-                successModal?.removeEventListener('close', handleClose);
-            };
-        }
-    }, [showSuccessModal, uploadedTrackId, router]);
+        console.log("State changed:", {
+            isProcessing,
+            processingStage,
+            processingProgress
+        });
+    }, [isProcessing, processingStage, processingProgress]);
 
-    // Connect UI components
+    if (!user) return null;
+
     return (
-        <div className="bg-black min-h-screen text-white">
-            <TopNav params={{ id: user?.id as string }} />
-            <div className="mt-[80px] max-w-[1280px] mx-auto px-4 pb-20 relative">
-                
-                {/* Display main upload progress */}
+        <div className="min-h-screen bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white">
+            {/* Enhanced progress visualization with stages and percentages - moved to top level for better visibility */}
+            {/* Disable the progress bar as requested */}
+            {isProcessing && (
                 <UploadProgress
-                    isActive={isProcessing}
+                    isUploading={isProcessing}
                     stage={processingStage}
                     progress={processingProgress}
                     onCancel={handleCancelUpload}
-                    confirmCancel={handleConfirmCancelUpload}
                 />
+            )}
             
-                {/* Copyright notice */}
+            {/* Use original TopNav from layouts/includes */}
+            <TopNav params={{id: ''}} />
+            
+            {/* Copyright Notification */}
             <CopyrightNotification 
                 isVisible={showCopyrightNotice} 
                 onClose={() => setShowCopyrightNotice(false)} 
             />
-                
-                {/* Success modal */}
-                <SuccessModal 
-                    isOpen={showSuccessModal} 
-                    onClose={() => setShowSuccessModal(false)} 
-                    trackId={uploadedTrackId}
-                    trackname={trackname}
-                />
             
-            <form onSubmit={handleUpload} className="max-w-4xl mx-auto px-4 py-24">
-                {/* Animated header with floating gradient */}
+            <div className="max-w-4xl mx-auto px-4 py-24">
+                {/* New animated header with floating gradient */}
                 <div className="mb-8 text-center relative">
                     {/* Animated background gradient orbs */}
                     <div className="absolute inset-0 overflow-hidden opacity-30 -z-10">
@@ -716,27 +1368,22 @@ export default function Upload() {
                     {/* Left column - Audio upload and player */}
                     <div className="space-y-6">
                         {fileAudio ? (
-                            <div className="space-y-3">
-                                <div className="w-full rounded-2xl 
-                                                bg-gradient-to-br from-[#2A184B] to-[#1f1239]
-                                                border border-[#20DDBB]/10 shadow-lg
-                                                flex flex-col justify-end overflow-hidden
-                                                aspect-square">
-                                    <AudioPlayer
-                                        fileAudio={fileAudio}
-                                        trackname={trackname}
-                                        isAudioPlaying={isAudioPlaying}
-                                        audioProgress={audioProgress}
-                                        audioDuration={audioDuration}
-                                        audioElement={audioElement.current}
-                                        handleAudioPlay={handleAudioPlay}
-                                        handleProgressBarClick={handleProgressBarClick}
-                                        clearAudio={clearAudio}
-                                    />
-                                </div>
-                                
-                                {/* Компонент отображения метаданных аудио */}
-                                <AudioInfo metadata={audioMetadata} />
+                            <div className="w-full rounded-2xl 
+                                          bg-gradient-to-br from-[#2A184B] to-[#1f1239]
+                                          border border-[#20DDBB]/10 shadow-lg
+                                          flex flex-col justify-end overflow-hidden
+                                          aspect-square">
+                                <AudioPlayer
+                                    fileAudio={fileAudio}
+                                    trackname={trackname}
+                                    isAudioPlaying={isAudioPlaying}
+                                    audioProgress={audioProgress}
+                                    audioDuration={audioDuration}
+                                    audioElement={audioElement.current}
+                                    handleAudioPlay={handleAudioPlay}
+                                    handleProgressBarClick={handleProgressBarClick}
+                                    clearAudio={clearAudio}
+                                />
                             </div>
                         ) : (
                             <motion.label 
@@ -801,6 +1448,10 @@ export default function Upload() {
                                                 <span className="mr-2 text-[#20DDBB]">✓</span>
                                                 Up to 200 MB
                                             </li>
+                                            <li className="flex items-center mt-2">
+                                                <span className="mr-2 text-blue-400">ℹ</span>
+                                                <span className="italic">File will be automatically converted to MP3</span>
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>
@@ -857,77 +1508,87 @@ export default function Upload() {
                 <div className="mt-12 flex justify-end">
                     <div className="relative group">
                         <button
-                            type="submit"
-                            disabled={isProcessing || !fileAudio || !fileImage || !trackname || !genre || isUploadButtonPressed}
-                            className={`w-full ${
-                                isProcessing || !fileAudio || !fileImage || !trackname || !genre || isUploadButtonPressed
-                                ? 'bg-purple-500/50 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700'
-                            } text-white py-3 px-6 rounded-xl font-semibold text-lg shadow-lg transition duration-300 flex items-center justify-center`}
+                            onClick={isProcessing ? handleCancelUpload : handleUpload}
+                            disabled={(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing}
+                            className={`px-10 py-4 rounded-xl font-medium text-lg
+                                    transition-all duration-300 transform
+                                    ${(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing
+                                        ? 'bg-white/5 text-white/40 cursor-not-allowed'
+                                        : isProcessing 
+                                          ? 'bg-gradient-to-r from-[#0047AB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#018CFD]/20'
+                                          : 'bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#20DDBB]/20'
+                                    }`}
                         >
-                            {isProcessing ? (
-                                <div className="flex items-center">
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Uploading...
-                                </div>
-                            ) : (
-                                <>
-                                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                                    </svg>
-                                    Publish Track
-                                </>
-                            )}
+                            <div className="flex items-center">
+                                {isProcessing ? 'Cancel Upload' : 'Release Track'}
+                                {!isProcessing && (
+                                    <span className="ml-2 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">
+                                        i
+                                    </span>
+                                )}
+                            </div>
                         </button>
                         
-                        {/* Button to show requirements */}
-                        <button
-                            type="button"
-                            onClick={() => setIsTooltipOpen(true)}
-                            className="absolute -top-10 right-0 text-xs text-white/60 hover:text-white/90 transition-colors flex items-center"
-                        >
-                            <svg className="w-4 h-4 mr-1 text-[#20DDBB]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Upload Requirements
-                        </button>
-                        
-                        {/* Render tooltip conditionally */}
-                        {isTooltipOpen && (
-                            <RequirementsTooltip 
-                                isOpen={isTooltipOpen} 
-                                onClose={() => setIsTooltipOpen(false)} 
-                            />
-                        )}
+                        {/* Hover tooltip with validation info */}
+                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-[#2A184B] rounded-lg shadow-lg 
+                                      p-4 text-sm text-white/80 opacity-0 group-hover:opacity-100 transition-opacity 
+                                      pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-50
+                                      border border-[#20DDBB]/20 before:content-[''] before:absolute before:top-full 
+                                      before:right-4 before:border-l-[8px] before:border-l-transparent 
+                                      before:border-r-[8px] before:border-r-transparent before:border-t-[8px] 
+                                      before:border-t-[#2A184B]">
+                            <h4 className="font-medium text-[#20DDBB] mb-2">Before releasing:</h4>
+                            <ul className="space-y-1.5">
+                                <li className="flex items-start">
+                                    <span className={`mr-2 ${fileAudio ? 'text-green-400' : 'text-red-400'}`}>
+                                        {fileAudio ? '✓' : '×'}
+                                    </span>
+                                    <span>Audio file uploaded</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className={`mr-2 ${fileImage ? 'text-green-400' : 'text-red-400'}`}>
+                                        {fileImage ? '✓' : '×'}
+                                    </span>
+                                    <span>Cover image selected</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className={`mr-2 ${trackname ? 'text-green-400' : 'text-red-400'}`}>
+                                        {trackname ? '✓' : '×'}
+                                    </span>
+                                    <span>Track name provided</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className={`mr-2 ${genre ? 'text-green-400' : 'text-red-400'}`}>
+                                        {genre ? '✓' : '×'}
+                                    </span>
+                                    <span>Genre selected</span>
+                                </li>
+                            </ul>
+                            
+                            <div className="mt-4 pt-3 border-t border-white/10">
+                                <p className="text-xs text-[#20DDBB]/90 font-medium">
+                                    By clicking "Release Track" you agree to and sign the royalty agreement with Sacral Track.
+                                </p>
+                                <Link href="/terms" className="text-white/60 text-xs hover:text-[#20DDBB] mt-1 block transition-colors">
+                                    Read full agreement →
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </form>
-            
-            {/* Audio element for playing the uploaded file */}
-            <audio 
-                ref={audioElement}
-                onTimeUpdate={() => {
-                    if (!audioElement.current) return;
-                    const progress = (audioElement.current.currentTime / audioElement.current.duration) * 100;
-                    setAudioProgress(progress);
-                        setCurrentTime(audioElement.current.currentTime);
-                }}
-                onEnded={() => {
-                    setIsAudioPlaying(false);
-                    setAudioProgress(0);
-                        setCurrentTime(0);
-                }}
-                onDurationChange={() => {
-                    if (audioElement.current) {
-                        setAudioDuration(audioElement.current.duration);
-                    }
-                }}
-                className="hidden"
+
+                {/* Success modal */}
+                <SuccessModal
+                    isOpen={showSuccessModal}
+                    onClose={() => {
+                        setShowSuccessModal(false);
+                        clearAll();
+                    }}
+                    trackId={uploadedTrackId}
                 />
             </div>
         </div>
     );
-}
+};
+
+

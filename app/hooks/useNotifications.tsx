@@ -5,7 +5,7 @@ import { useUser } from "@/app/context/user";
 import { useState, useEffect, useCallback } from 'react';
 import { Models } from 'appwrite';
 
-interface Notification {
+export interface Notification {
   id: string;
   user_id: string;
   type: 'sale' | 'royalty' | 'withdrawal' | 'welcome' | 'release' | 'purchase' | 'terms' | 'friend_request' | 'friend_accepted';
@@ -20,6 +20,7 @@ interface Notification {
   createdAt?: string;
   read: boolean;
   isRead?: boolean;
+  data?: any;
 }
 
 interface NotificationData {
@@ -29,6 +30,7 @@ interface NotificationData {
   track_id?: string;
   action_url?: string;
   related_document_id?: string;
+  data?: any;
 }
 
 export const NOTIFICATION_MESSAGES = {
@@ -70,12 +72,71 @@ export const NOTIFICATION_MESSAGES = {
   })
 };
 
-const useNotifications = () => {
+export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const userContext = useUser();
+
+  const getUserNotifications = useCallback(async (userId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await database.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
+        [
+          Query.equal('user_id', userId),
+          Query.orderDesc('created_at')
+        ]
+      );
+      
+      if (response.documents) {
+        const formattedNotifications: Notification[] = response.documents.map((doc: Models.Document) => ({
+          id: doc.$id,
+          user_id: doc.user_id,
+          type: doc.type,
+          title: doc.title,
+          message: doc.message,
+          amount: doc.amount,
+          track_id: doc.track_id,
+          sender_id: doc.sender_id,
+          action_url: doc.action_url,
+          related_document_id: doc.related_document_id,
+          created_at: doc.created_at,
+          createdAt: doc.created_at,
+          read: doc.read,
+          isRead: doc.read,
+          data: doc.data ? JSON.parse(doc.data) : {}
+        }));
+        
+        setNotifications(formattedNotifications);
+        setUnreadCount(formattedNotifications.filter(n => !n.read).length);
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError('Failed to load notifications');
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch notifications on component mount
+  useEffect(() => {
+    if (userContext?.user?.id) {
+      getUserNotifications(userContext.user.id);
+      
+      // Periodically check for new notifications
+      const intervalId = setInterval(() => {
+        getUserNotifications(userContext.user.id);
+      }, 60000); // check every minute
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [userContext?.user?.id, getUserNotifications]);
 
   const createNotification = async (
     userId: string,
@@ -92,6 +153,7 @@ const useNotifications = () => {
       sender_id?: string;
       action_url?: string;
       related_document_id?: string;
+      data?: any;
     }
   ) => {
     try {
@@ -156,6 +218,7 @@ const useNotifications = () => {
           action_url: data.action_url,
           related_document_id: data.related_document_id,
           created_at: new Date().toISOString(),
+          data: data.data ? JSON.stringify(data.data) : '{}',
           read: false
         }
       );
@@ -173,49 +236,9 @@ const useNotifications = () => {
     }
   };
 
-  const getUserNotifications = useCallback(async (userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await database.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
-        [
-          Query.equal('user_id', userId),
-          Query.orderDesc('created_at')
-        ]
-      );
-
-      const notifications = response.documents.map(doc => ({
-        id: doc.$id,
-        user_id: doc.user_id,
-        type: doc.type,
-        title: doc.title,
-        message: doc.message,
-        amount: doc.amount,
-        track_id: doc.track_id,
-        sender_id: doc.sender_id,
-        action_url: doc.action_url,
-        related_document_id: doc.related_document_id,
-        created_at: doc.created_at || doc.$createdAt,
-        createdAt: doc.created_at || doc.$createdAt,
-        read: doc.read,
-        isRead: doc.read
-      })) as Notification[];
-
-      setNotifications(notifications);
-      setUnreadCount(notifications.filter(n => !n.read).length);
-      
-      return notifications;
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setError('Failed to fetch notifications');
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const getUnreadCount = () => {
+    return notifications.filter(notification => !notification.read).length;
+  };
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -248,7 +271,9 @@ const useNotifications = () => {
             process.env.NEXT_PUBLIC_DATABASE_ID!,
             process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
             notification.id,
-            { read: true }
+            {
+              read: true
+            }
           )
         )
       );
@@ -336,11 +361,10 @@ const useNotifications = () => {
     error,
     createNotification,
     getUserNotifications,
+    getUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     createWithdrawalNotification
   };
-};
-
-export default useNotifications; 
+}; 

@@ -11,7 +11,7 @@ import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
 import ImageUploader from '../upload/ImageUploader';
 import GenreSelector from '../upload/GenreSelector';
 import AudioPlayer from '../upload/AudioPlayer';
-import { UploadProgress } from '../upload/UploadProgress';
+import UnifiedProgressIndicator from '../upload/UnifiedProgressIndicator';
 import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { useUpdateTrack } from '@/app/hooks/useUpdateTrack';
 
@@ -703,16 +703,17 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
         >
-          {/* Progress overlay */}
-          {isProcessing && (
-            <UploadProgress
-              progress={processingProgress}
-              stage={processingStage}
-              isActive={isProcessing}
-              onCancel={handleCancelUpload}
-              confirmCancel={handleCancelUpload}
-            />
-          )}
+          {/* Processing overlay */}
+          <AnimatePresence>
+            {isProcessing && (
+              <UnifiedProgressIndicator
+                isActive={isProcessing}
+                stage={processingStage}
+                progress={processingProgress}
+                onCancel={handleCancelUpload}
+              />
+            )}
+          </AnimatePresence>
           
           <motion.div
             ref={modalRef}

@@ -1,6 +1,5 @@
 import { database, storage, ID } from '@/libs/AppWriteClient';
 import { ProcessingStats } from '@/app/types';
-import useAudioSegments from './useAudioSegments';
 import toast from 'react-hot-toast';
 
 const processingMessages = [
@@ -22,10 +21,19 @@ const useUpdatePost = async (
     imageFile: File | null,
     setProcessingStats?: (stats: ProcessingStats) => void
 ) => {
-    const { uploadSegmentsAndCreatePlaylist } = useAudioSegments();
     let audioProcessingResult: { segmentIds: string[]; playlist: string } | null = null;
     let messageInterval: NodeJS.Timeout | null = null;
     let currentMessageIndex = 0;
+
+    // Temporary placeholder function for the missing uploadSegmentsAndCreatePlaylist
+    const uploadSegmentsAndCreatePlaylist = async (segments: any, progressCallback: any) => {
+        console.warn('uploadSegmentsAndCreatePlaylist is a placeholder. The real implementation is missing.');
+        // Return a placeholder result
+        return {
+            segmentIds: [],
+            playlist: ''
+        };
+    };
 
     // Function to rotate through processing messages
     const startMessageRotation = () => {

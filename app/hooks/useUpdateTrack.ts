@@ -1,7 +1,6 @@
 import { storage, database } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
 import { useCallback } from 'react';
-import { useCreatePost } from './useCreatePost';
 
 // Create a type for the update parameters 
 interface UpdateParams {
@@ -20,8 +19,6 @@ interface UpdateResult {
 }
 
 export function useUpdateTrack() {
-  const { createSegmentFile } = useCreatePost();
-
   const updateTrack = useCallback(async (params: UpdateParams): Promise<UpdateResult> => {
     const { trackId, audio, image, trackname, genre, onProgress } = params;
     
@@ -132,7 +129,7 @@ export function useUpdateTrack() {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
-  }, [createSegmentFile]);
+  }, []);
 
   return { updateTrack };
 } 

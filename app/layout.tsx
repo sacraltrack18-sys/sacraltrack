@@ -11,6 +11,7 @@ import ClientWelcomeModal from './components/ClientWelcomeModal';
 import Script from 'next/script';
 import { OnboardingProvider } from './context/OnboardingContext';
 import { ShareVibeProvider } from './components/vibe/useShareVibe';
+import { useUser } from './context/user';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
@@ -128,10 +129,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                   </div>
                                 )}
                                 {children}
+                                
                             </ShareVibeProvider>
                         </OnboardingProvider>
                     </UserProvider>
-                    </PlayerProvider>
+                </PlayerProvider>
               
                 
                 {/* Use next/script for external scripts with strategy="afterInteractive" */}

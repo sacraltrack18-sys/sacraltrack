@@ -19,7 +19,7 @@ export async function sendSMS(to: string, message: string): Promise<void> {
   }
 }
 
-export interface Notification {
+export interface UtilNotification {
   id: string;
   type: 'withdrawal' | 'system' | 'error';
   title: string;
@@ -31,7 +31,7 @@ export interface Notification {
 
 export async function createNotification(
   database: any,
-  data: Omit<Notification, 'id' | 'timestamp' | 'read'>
+  data: Omit<UtilNotification, 'id' | 'timestamp' | 'read'>
 ): Promise<void> {
   try {
     await database.createDocument(

@@ -61,7 +61,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <AuthObserver />
             <OnboardingGuide />
 
-		<div className="flex mx-auto w-full px-0 smooth-scroll-container">
+		<div className="flex mx-auto w-full px-0 smooth-scroll-container content-with-top-nav">
 			
 			<div className="hidden md:flex w-[350px] relative">
 			<motion.div
@@ -72,7 +72,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             >
                 {/* Profile card for desktop and iPad */}
                 {userContext?.user && currentProfile && (
-                  <div className="pt-[80px] px-3">
+                  <div className="px-3">
                     <UserProfileSidebar profile={currentProfile} />
                   </div>
                 )}

@@ -2,29 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import useNotifications from '@/app/hooks/useNotifications';
+import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/context/user';
 import NotificationCenter from './NotificationCenter';
 import { BellIcon } from '@heroicons/react/24/outline';
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const { getUserNotifications } = useNotifications();
+  const { getUserNotifications, unreadCount } = useNotifications();
   const userContext = useUser();
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
       if (userContext?.user?.id) {
-        const notifications = await getUserNotifications(userContext.user.id);
-        const newUnreadCount = notifications.filter(n => !n.isRead).length;
-        if (newUnreadCount > unreadCount) {
-          setHasNewNotification(true);
-          // Reset the new notification state after 5 seconds
-          setTimeout(() => setHasNewNotification(false), 5000);
-        }
-        setUnreadCount(newUnreadCount);
+        // Просто вызываем функцию для обновления состояния в хуке
+        await getUserNotifications(userContext.user.id);
       }
     };
 
@@ -33,7 +26,17 @@ const NotificationBell = () => {
     // Update counter every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [userContext?.user?.id]);
+  }, [userContext?.user?.id, getUserNotifications]);
+
+  // Эффект для отслеживания изменений в количестве непрочитанных уведомлений
+  useEffect(() => {
+    // Если есть непрочитанные уведомления, устанавливаем флаг новых уведомлений
+    if (unreadCount > 0) {
+      setHasNewNotification(true);
+      // Reset the new notification state after 5 seconds
+      setTimeout(() => setHasNewNotification(false), 5000);
+    }
+  }, [unreadCount]);
 
   return (
     <div className="relative">

@@ -16,6 +16,7 @@ import Image from 'next/image'
 import { FaHeart, FaMusic } from 'react-icons/fa'
 import { IoMusicalNotes } from 'react-icons/io5'
 import moment from 'moment'
+import TopNav from '@/app/layouts/includes/TopNav'
 
 const PostImageFallback = () => (
     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]">
@@ -93,8 +94,9 @@ export default function PostClientComponent() {
     }, [imageUrl])
 
     return (
-        <div className="min-h-screen bg-[#1A1A2E] px-5 py-6">
-            <div className="max-w-[1200px] mx-auto">
+        <div className="min-h-screen bg-[#1A1A2E]">
+            <TopNav params={{ id: userId }} />
+            <div className="max-w-[1200px] mx-auto content-with-top-nav px-5 py-6">
                 {/* Track Section */}
                 <div className="bg-[#24183D] rounded-2xl overflow-hidden shadow-xl relative animate-scaleIn">
                     {/* Track Header */}

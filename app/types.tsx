@@ -122,6 +122,7 @@ export interface Post {
     type: string;  // Add the 'type' property to the interface
     name: string;
     image: string;
+    description?: string;
     profile: {
         user_id: string;
         name: string;
@@ -141,6 +142,7 @@ export interface PostWithProfile {
     created_at: string;
     price: any;
     genre: string;
+    description?: string;
     profile: {
         user_id: string;
         name: string;
@@ -190,7 +192,7 @@ export type Action = {
     "Deep House",
     "Tech House",
     "Progressive House",
-    "Melodic House & Techno",
+    "Melodic House",
     "Future House",
     "Bass House",
     "Afro House",
@@ -202,8 +204,7 @@ export type Action = {
     "Minimal / Deep Tech",
     "Deep / Hypnotic Techno",
     "Techno",
-    "Techno (Peak Time / Driving)",
-    "Techno (Melodic)",
+   
     
     // Trance
     "Uplifting Trance",
@@ -269,10 +270,9 @@ export type Action = {
     "Deep House",
     "Tech House",
     
-    // Melodic House & Techno
-    "Melodic House & Techno",
+    // Melodic House
+    "Melodic House",
     "Progressive House",
-    "Melodic Techno",
     "Deep House",
     "Tech House"
   ];
@@ -358,26 +358,6 @@ export interface SingleCommentCompTypes {
     params: { userId: string; postId: string; };
     comment: CommentWithProfile
 }
-
-export interface Cart {
-    id: string;
-    items: CartItem[];
-    total: number;
-  }
-  
-  export interface CartItem {
-    product: string;
-    audio: string;
-    audio_url: string;
-    trackname: string;
-    image: string;
-    postId: string;
-    quantity: number;
-    price: number;
-    name: string;
-    totalAmount: number;
-  }
-
 
 export interface PostUserCompTypes {
     params: { userId: string; postId: string; };
@@ -483,4 +463,52 @@ export interface ProcessingStats {
     stage: string;
     progress: number;
     details: string | undefined;
+}
+
+export interface SocialLinks {
+    twitter?: string;
+    instagram?: string;
+    soundcloud?: string;
+    youtube?: string;
+    telegram?: string;
+}
+
+export interface SystemNotification {
+    id: string;
+    user_id: string;
+    type: string;
+    content: string;
+    created_at: string;
+    is_read: boolean;
+}
+
+export interface ProfileStore {
+    currentProfile: {
+        $id: string;
+        user_id: string;
+        name: string;
+        image: string;
+        bio: string;
+        stats: {
+            totalLikes: number;
+            totalFollowers: number;
+            averageRating: number;
+            totalRatings: number;
+        };
+    } | null;
+    profiles: any[];
+    loading: boolean;
+    error: string | null;
+    setCurrentProfile: (userId: string) => Promise<void>;
+    getAllProfiles: (page: number) => Promise<any[]>;
+    searchProfiles: (query: string) => Promise<any[]>;
+    getProfileById: (userId: string) => Promise<any | null>;
+    updateProfile: (userId: string, data: any) => Promise<void>;
+}
+
+export interface EditTrackPopupProps {
+    postData: PostWithProfile;
+    isOpen: boolean;
+    onClose: () => void;
+    onUpdate: (data: any) => void;
 }

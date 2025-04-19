@@ -18,7 +18,7 @@ import dynamic from "next/dynamic"
 import "@/app/styles/nav-animations.css"
 import React from 'react'
 import toast from "react-hot-toast"
-import useNotifications, { Notification } from "@/app/hooks/useNotifications"
+import { useNotifications, Notification } from "@/app/hooks/useNotifications"
 import { TutorialStep } from "@/app/components/TutorialGuide"
 import { MusicalNoteIcon } from "@heroicons/react/24/outline"
 

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BsBell, BsCheckCircle, BsCashStack, BsMic, BsPersonPlus, BsFileText, BsUpload, BsCart, BsGift } from 'react-icons/bs';
 import Link from 'next/link';
 import { formatDistance } from 'date-fns';
-import useNotifications from '@/app/hooks/useNotifications';
+import { useNotifications } from '@/app/hooks/useNotifications';
 import { useUser } from '@/app/context/user';
 
 interface NotificationCenterProps {
@@ -14,32 +14,23 @@ interface NotificationCenterProps {
 }
 
 const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'sale' | 'royalty' | 'withdrawal' | 'release' | 'purchase' | 'terms'>('all');
-  const [unreadCount, setUnreadCount] = useState(0);
-  const { getUserNotifications, markAsRead } = useNotifications();
+  const { getUserNotifications, markAsRead, notifications, unreadCount } = useNotifications();
   const userContext = useUser();
 
   useEffect(() => {
     const fetchNotifications = async () => {
-      if (userContext?.user?.id) {
-        const userNotifications = await getUserNotifications(userContext.user.id);
-        setNotifications(userNotifications);
-        setUnreadCount(userNotifications.filter(n => !n.isRead).length);
+      if (userContext?.user?.id && isOpen) {
+        // Просто обновляем состояние в хуке useNotifications
+        await getUserNotifications(userContext.user.id);
       }
     };
 
-    if (isOpen) {
-      fetchNotifications();
-    }
-  }, [isOpen, userContext?.user?.id]);
+    fetchNotifications();
+  }, [isOpen, userContext?.user?.id, getUserNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     await markAsRead(notificationId);
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const getIcon = (type: string) => {

@@ -17,7 +17,7 @@ import { usePlayerContext } from '@/app/context/playerContext';
 import { ContentFilterContext } from '@/app/context/ContentFilterContext';
 
 // Content filter types
-type ContentType = 'all' | 'vibe' | 'sacral' | 'world';
+type ContentType = 'all' | 'vibe' | 'stracks' | 'world';
 
 // Recommendation track types
 interface RecommendationTrack {
@@ -131,11 +131,96 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
   );
 };
 
-// Custom Musical Diamond Icon
+// Custom Musical Diamond Icon - Improved and more unique
 const MusicalDiamondIcon = ({ className = "w-5 h-5" }) => (
   <div className={`relative ${className}`}>
-    <FaGem className="text-purple-400 w-full h-full" />
-    <HiMusicNote className="absolute text-white w-2/3 h-2/3 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+    <svg viewBox="0 0 24 24" className="w-full h-full">
+      <defs>
+        <linearGradient id="stracksDiamond" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#8B5CF6" />
+          <stop offset="100%" stopColor="#6366F1" />
+        </linearGradient>
+      </defs>
+      <path 
+        d="M12 2L20 7V17L12 22L4 17V7L12 2Z" 
+        fill="url(#stracksDiamond)" 
+        stroke="#A78BFA" 
+        strokeWidth="1"
+      />
+      <path 
+        d="M9 11C9 9.9 9.9 9 11 9H13C14.1 9 15 15 13 15H11C9.9 15 9 14.1 9 13V11ZM16 8L8 16" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        strokeLinecap="round"
+      />
+    </svg>
+  </div>
+);
+
+// Custom All Content Icon
+const AllContentIcon = ({ className = "w-5 h-5" }) => (
+  <div className={`relative ${className}`}>
+    <svg viewBox="0 0 24 24" className="w-full h-full">
+      <defs>
+        <linearGradient id="allContentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#818CF8" />
+          <stop offset="100%" stopColor="#4F46E5" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="3" width="7" height="7" rx="1" fill="url(#allContentGradient)" />
+      <rect x="14" y="3" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.8" />
+      <rect x="3" y="14" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.8" />
+      <rect x="14" y="14" width="7" height="7" rx="1" fill="url(#allContentGradient)" opacity="0.6" />
+    </svg>
+  </div>
+);
+
+// Custom Vibe Icon
+const VibeIcon = ({ className = "w-5 h-5" }) => (
+  <div className={`relative ${className}`}>
+    <svg viewBox="0 0 24 24" className="w-full h-full">
+      <defs>
+        <linearGradient id="vibeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#F472B6" />
+          <stop offset="100%" stopColor="#EC4899" />
+        </linearGradient>
+      </defs>
+      <path 
+        d="M12 3C16.97 3 21 7.03 21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3ZM8 13C8.55 13 9 12.55 9 12C9 11.45 8.55 11 8 11C7.45 11 7 11.45 7 12C7 12.55 7.45 13 8 13ZM12 13C12.55 13 13 12.55 13 12C13 11.45 12.55 11 12 11C11.45 11 11 11.45 11 12C11 12.55 11.45 13 12 13ZM16 13C16.55 13 17 12.55 17 12C17 11.45 16.55 11 16 11C15.45 11 15 11.45 15 12C15 12.55 15.45 13 16 13Z" 
+        fill="url(#vibeGradient)"
+      />
+      <path 
+        d="M8.5 16.5C10.5 18.5 13.5 18.5 15.5 16.5" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        strokeLinecap="round"
+      />
+    </svg>
+  </div>
+);
+
+// Custom World Icon
+const WorldIcon = ({ className = "w-5 h-5" }) => (
+  <div className={`relative ${className}`}>
+    <svg viewBox="0 0 24 24" className="w-full h-full">
+      <defs>
+        <linearGradient id="worldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#22D3EE" />
+          <stop offset="100%" stopColor="#0EA5E9" />
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="9" fill="url(#worldGradient)" />
+      <path 
+        d="M12 3C12 3 7 7.5 7 12C7 16.5 12 21 12 21C12 21 17 16.5 17 12C17 7.5 12 3 12 3Z" 
+        stroke="rgba(255,255,255,0.8)" 
+        strokeWidth="1" 
+      />
+      <path 
+        d="M3.5 11H20.5M3.5 13H20.5" 
+        stroke="rgba(255,255,255,0.8)" 
+        strokeWidth="1" 
+      />
+    </svg>
   </div>
 );
 
@@ -165,7 +250,7 @@ const ContentFilter = () => {
   const mapFilterToType = (filter: string): ContentType => {
     if (filter === 'all') return 'all';
     if (filter === 'vibe') return 'vibe';
-    if (filter === 'sacral') return 'sacral';
+    if (filter === 'sacral' || filter === 'stracks') return 'stracks';
     if (filter === 'world') return 'world';
     return 'all'; // Default to all if not matching
   };
@@ -259,34 +344,34 @@ const ContentFilter = () => {
   
   return (
     <div>
-      {/* Tab buttons - mobile version is more compact */}
+      {/* Tab buttons - improved mobile version is more compact and square */}
       {isMobile ? (
         <div className="flex gap-2 justify-between overflow-x-auto pb-1">
           <MobileTabButton
             active={activeTab === 'all'}
             onClick={() => handleTabChange('all')}
-            icon={<SparklesIcon className="w-4 h-4" />}
+            icon={<AllContentIcon className="w-4 h-4" />}
             label="All"
           />
           
           <MobileTabButton
             active={activeTab === 'vibe'}
             onClick={() => handleTabChange('vibe')}
-            icon={<SparklesIcon className="w-4 h-4" />}
+            icon={<VibeIcon className="w-4 h-4" />}
             label="Vibe"
           />
           
           <MobileTabButton
-            active={activeTab === 'sacral'}
-            onClick={() => handleTabChange('sacral')}
+            active={activeTab === 'stracks'}
+            onClick={() => handleTabChange('stracks')}
             icon={<MusicalDiamondIcon className="w-4 h-4" />}
-            label="Sacral"
+            label="Stracks"
           />
           
           <MobileTabButton
             active={activeTab === 'world'}
             onClick={() => handleTabChange('world')}
-            icon={<FaGlobeAmericas className="w-4 h-4" />}
+            icon={<WorldIcon className="w-4 h-4" />}
             label="World"
           />
         </div>
@@ -295,7 +380,7 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'all'}
             onClick={() => handleTabChange('all')}
-            icon={<SparklesIcon className="w-5 h-5" />}
+            icon={<AllContentIcon className="w-5 h-5" />}
             label="All Content"
             description="Show everything"
             isSpecial={false}
@@ -304,17 +389,17 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'vibe'}
             onClick={() => handleTabChange('vibe')}
-            icon={<SparklesIcon className="w-5 h-5" />}
+            icon={<VibeIcon className="w-5 h-5" />}
             label="Vibe"
             description="User moments"
             isSpecial={false}
           />
           
           <TabButton
-            active={activeTab === 'sacral'}
-            onClick={() => handleTabChange('sacral')}
+            active={activeTab === 'stracks'}
+            onClick={() => handleTabChange('stracks')}
             icon={<MusicalDiamondIcon />}
-            label="Sacral Track"
+            label="Stracks"
             description="Platform tracks"
             isSpecial={true}
           />
@@ -322,7 +407,7 @@ const ContentFilter = () => {
           <TabButton
             active={activeTab === 'world'}
             onClick={() => handleTabChange('world')}
-            icon={<FaGlobeAmericas className="w-5 h-5" />}
+            icon={<WorldIcon className="w-5 h-5" />}
             label="World Tracks"
             description="Global hits"
             isSpecial={false}
@@ -366,7 +451,7 @@ const ContentFilter = () => {
   );
 };
 
-// Mobile tab button component
+// Mobile tab button component - made more square and stylish
 interface MobileTabButtonProps {
   active: boolean;
   onClick: () => void;
@@ -377,23 +462,37 @@ interface MobileTabButtonProps {
 const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps) => {
   return (
     <motion.button
-      whileTap={{ scale: 0.95 }}
+      whileTap={{ scale: 0.92 }}
       onClick={onClick}
       className={`
-        flex-1 py-2 px-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-1
+        flex-1 py-2 px-2 rounded-md transition-all duration-300 flex flex-col items-center justify-center gap-1
         ${active 
-          ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-md'
-          : 'bg-[#1A1C2E]/80 text-gray-400'
+          ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-700/30'
+          : 'bg-[#1A1C2E] text-gray-400 border border-purple-900/20'
         }
       `}
     >
-      {icon}
+      <div className={`
+        flex items-center justify-center p-1 
+        ${active ? 'bg-white/20 rounded-md' : ''}
+      `}>
+        {icon}
+      </div>
       <span className="text-xs font-medium">{label}</span>
+      
+      {/* Simple animation only for active buttons */}
+      {active && (
+        <motion.div 
+          className="absolute inset-0 rounded-md"
+          animate={{ boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 4px rgba(139, 92, 246, 0.2)', '0 0 0 0 rgba(139, 92, 246, 0)'] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      )}
     </motion.button>
   );
 };
 
-// Tab button component
+// Tab button component - improved with more square look and better animations
 interface TabButtonProps {
   active: boolean;
   onClick: () => void;
@@ -404,46 +503,47 @@ interface TabButtonProps {
 }
 
 const TabButton = ({ active, onClick, icon, label, description, isSpecial = false }: TabButtonProps) => {
-  // Special pulse animation for Sacral tab
-  const pulseAnimation = isSpecial ? {
+  // Enhanced pulse animation
+  const pulseAnimation = {
     animate: {
       boxShadow: active 
         ? ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 8px rgba(139, 92, 246, 0.2)', '0 0 0 0 rgba(139, 92, 246, 0)']
         : ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 4px rgba(139, 92, 246, 0.1)', '0 0 0 0 rgba(139, 92, 246, 0)']
     },
     transition: {
-      duration: 2,
+      duration: 2.5,
       repeat: Infinity,
-      repeatType: "loop" as "loop"
+      repeatType: "loop" as "loop",
+      ease: "easeInOut"
     }
-  } : {};
+  };
   
   const specialClass = isSpecial 
     ? active 
-      ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 ring-2 ring-purple-500/50 ring-offset-2 ring-offset-[#1E1A36]' 
+      ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500/50 ring-offset-1 ring-offset-[#1E1A36]' 
       : 'border-purple-500/30 hover:border-purple-500/50'
     : '';
     
   return (
     <motion.button
-      whileHover={{ scale: active ? 1 : 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: active ? 1 : 1.03, y: active ? 0 : -2 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      {...pulseAnimation}
+      {...(isSpecial ? pulseAnimation : {})}
       className={`
-        relative flex-1 py-3 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden shadow-lg
+        relative flex-1 py-3 px-4 rounded-lg text-center transition-all duration-300 overflow-hidden
         ${active 
-          ? `bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-xl shadow-purple-600/30 border border-purple-500/50 ${specialClass}`
-          : `bg-gradient-to-r from-[#1E1A36]/90 to-[#2A2151]/90 backdrop-blur-sm text-gray-300 hover:bg-[#2A2151] border border-white/10 hover:border-white/20 ${specialClass}`
+          ? `bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/20 border border-purple-500/50 ${specialClass}`
+          : `bg-gradient-to-r from-[#1E1A36] to-[#2A2151] backdrop-blur-sm text-gray-300 hover:bg-[#2A2151] border border-white/5 hover:border-white/20 ${specialClass}`
         }
       `}
     >
-      {/* Animated background for active tab */}
+      {/* Improved animated background for active tab */}
       {active && (
         <motion.div
           className={`absolute inset-0 bg-gradient-to-r ${isSpecial 
-            ? 'from-purple-600/20 via-pink-500/20 to-purple-600/20' 
-            : 'from-purple-600/10 via-indigo-600/10 to-purple-600/10'}`}
+            ? 'from-purple-600/30 via-pink-500/30 to-purple-600/30' 
+            : 'from-purple-600/20 via-indigo-600/20 to-purple-600/20'}`}
           animate={{
             backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
           }}
@@ -451,29 +551,30 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
             duration: isSpecial ? 3 : 5,
             repeat: Infinity,
             repeatType: "loop",
+            ease: "easeInOut"
           }}
         />
       )}
       
-      {/* Shimmer effect for special tab */}
+      {/* Enhanced shimmer effect for special tab */}
       {isSpecial && (
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent"
           initial={{ x: '-100%' }}
           animate={{ x: '100%' }}
           transition={{
-            duration: 1.5,
+            duration: 1.8,
             repeat: Infinity,
             repeatType: "loop",
-            ease: "linear",
-            repeatDelay: 1
+            ease: "easeInOut",
+            repeatDelay: 0.8
           }}
         />
       )}
       
       <div className="flex flex-col items-center relative z-10">
         <div className={`
-          w-8 h-8 rounded-full flex items-center justify-center mb-1
+          w-9 h-9 rounded-md flex items-center justify-center mb-1
           ${active 
             ? isSpecial 
               ? 'bg-white/30 shadow-md shadow-purple-500/50' 
@@ -483,72 +584,26 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
         `}>
           {icon}
         </div>
-        <span className={`font-medium block text-sm ${isSpecial && 'text-purple-200'}`}>{label}</span>
+        <span className={`font-medium block text-sm ${isSpecial && active ? 'text-white' : isSpecial ? 'text-purple-200' : ''}`}>{label}</span>
         <span className="text-xs opacity-70">{description}</span>
       </div>
       
-      {/* Animated music notes for active tab */}
+      {/* Refined and simplified music note animations */}
       {active && (
-        <>
-          <motion.div
-            className="absolute -top-2 -right-2 text-white/20"
-            animate={{ 
-              y: [0, -10, 0],
-              rotate: [0, -10, 0],
-              opacity: [0, 0.5, 0]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              repeatType: "loop",
-            }}
-          >
-            <HiMusicNote className="h-4 w-4" />
-          </motion.div>
-          
-          <motion.div
-            className="absolute -bottom-2 -left-1 text-white/20"
-            animate={{ 
-              y: [0, -15, 0],
-              rotate: [0, 10, 0],
-              opacity: [0, 0.5, 0]
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              repeatType: "loop",
-              delay: 1
-            }}
-          >
-            <HiMusicNote className="h-3 w-3" />
-          </motion.div>
-        </>
-      )}
-      
-      {/* Special sparkle effects for Sacral tab */}
-      {isSpecial && active && (
-        <>
-          {[...Array(3)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 rounded-full bg-purple-300"
-              style={{
-                top: `${20 + i * 25}%`,
-                left: `${15 + i * 30}%`,
-              }}
-              animate={{
-                scale: [0, 1.5, 0],
-                opacity: [0, 1, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatType: "loop",
-                delay: i * 0.5,
-              }}
-            />
-          ))}
-        </>
+        <motion.div
+          className="absolute -top-2 -right-2 text-white/20"
+          animate={{ 
+            y: [0, -10, 0],
+            opacity: [0, 0.6, 0]
+          }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            repeatType: "loop",
+          }}
+        >
+          <HiMusicNote className="h-4 w-4" />
+        </motion.div>
       )}
     </motion.button>
   );

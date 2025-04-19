@@ -21,8 +21,6 @@ interface UploadParams {
 interface UploadResult {
   success: boolean;
   trackId: string;
-  postId?: string;
-  $id?: string;
   error?: string;
 }
 
@@ -335,8 +333,7 @@ export function useCreatePost() {
         const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
         
         if (!bucketId || !projectId) {
-          console.warn('Missing or empty environment variables for M3U8 generation. Streaming might not work correctly.');
-          // Continue with the process anyway - we'll handle missing values in the playlist generation
+          console.error('Missing required environment variables for M3U8 generation');
         }
         
       // Generate M3U8 playlist if segments are available and no m3u8 file provided
@@ -387,28 +384,22 @@ export function useCreatePost() {
         segments: segmentIds.length > 0 ? JSON.stringify(segmentIds) : '',
       });
 
-      // Ensure all fields are in the correct format for Appwrite
-      // Appwrite expects strings for most fields
-      const documentData = {
-        user_id: String(userId),
-        audio_url: String(audioId),
-        image_url: String(finalImageId),
-        mp3_url: String(mp3Id || ''),
-        m3u8_url: String(m3u8Id || ''),
-        trackname: String(trackname),
-        genre: String(genre),
-        price: "2", // Always use string for price as required by Appwrite schema
-        segments: segmentIds.length > 0 ? JSON.stringify(segmentIds) : '',
-        created_at: new Date().toISOString(),
-      };
-      
-      console.log('Formatted document data:', documentData);
-
       const post = await database.createDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
         trackId,
-        documentData
+        {
+          user_id: userId,
+          audio_url: audioId,
+          image_url: finalImageId,
+          mp3_url: mp3Id,
+          m3u8_url: m3u8Id,
+          trackname: trackname,
+          genre: genre,
+          price: "2",
+          segments: segmentIds.length > 0 ? JSON.stringify(segmentIds) : '',
+          created_at: new Date().toISOString(),
+        }
       );
 
       console.log('Document created successfully, details:', {
@@ -420,9 +411,7 @@ export function useCreatePost() {
       updateProgress('Upload completed', 100);
       return {
         success: true,
-        trackId: post.$id,
-        postId: post.$id,
-        $id: post.$id
+        trackId: post.$id
       };
 
     } catch (error) {
@@ -449,21 +438,10 @@ export function useCreatePost() {
     
     console.log(`generateM3U8Playlist processing ${segmentIds.length} IDs:`, segmentIds);
     
-    // Check for required environment variables
-    if (!bucketId || !projectId) {
-      console.warn('Missing required environment variables. Creating a basic M3U8 playlist without storage URLs.');
-      // We'll create a basic playlist without proper URLs
-    }
-    
     // Ensure we're using actual IDs, not placeholder values
-    const validSegmentIds = segmentIds.filter(id => id !== 'unique()' && !!id);
-    if (validSegmentIds.length === 0) {
-      console.error('No valid segment IDs found for M3U8 generation');
+    if (segmentIds.some(id => id === 'unique()' || !id)) {
+      console.error('Invalid segment IDs detected:', segmentIds.filter(id => id === 'unique()' || !id));
       return null;
-    }
-    
-    if (validSegmentIds.length < segmentIds.length) {
-      console.warn(`Filtered out ${segmentIds.length - validSegmentIds.length} invalid segment IDs`);
     }
     
     // Create the standard HLS playlist with just segment IDs
@@ -475,19 +453,16 @@ export function useCreatePost() {
     playlist += "#EXT-X-PLAYLIST-TYPE:VOD\n";
     
     // Add each segment with its ID directly
-    for (const segmentId of validSegmentIds) {
-      playlist += "#EXTINF:10,\n";
-      
-      // If we have all environment variables, create proper URLs
-      if (bucketId && projectId && appwriteEndpoint) {
-        const fileUrl = `${appwriteEndpoint}/storage/buckets/${bucketId}/files/${segmentId}/view?project=${projectId}`;
-        console.log(`Adding segment with URL: ${fileUrl}`);
-        playlist += `${fileUrl}\n`;
-      } else {
-        // Otherwise, just use the segment ID as a placeholder
-        console.log(`Adding segment with ID only: ${segmentId}`);
-        playlist += `${segmentId}\n`;
+    for (const segmentId of segmentIds) {
+      // Check that we have a valid ID
+      if (!segmentId || segmentId === 'unique()') {
+        console.error(`Invalid segment ID detected: "${segmentId}"`);
+        continue;
       }
+      
+      playlist += "#EXTINF:10,\n";
+      console.log(`Adding segment ${segmentId} to playlist`);
+      playlist += `${segmentId}\n`;
     }
     
     // End the playlist

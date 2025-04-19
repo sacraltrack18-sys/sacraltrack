@@ -547,3 +547,46 @@ body {
     padding-bottom: 80px;
   }
 }
+
+/* Top navigation spacing - ensures content doesn't overlap with nav */
+.content-spacing {
+  padding-top: 80px; /* Provides adequate spacing from the 60px high nav bar */
+  margin-top: 0;
+}
+
+/* Adjusts the main content containers to use this spacing consistently */
+.content-with-top-nav {
+  padding-top: 80px !important;
+  margin-top: 0 !important;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-\[80px\] {
+  padding-top: 80px !important;
+}
+
+/* Replace pt-[100px] with content-with-top-nav */
+.pt-\[100px\] {
+  padding-top: 80px !important;
+}
+
+/* Ensure main layout elements respect the top nav */
+.smooth-scroll-container {
+  padding-top: 60px;
+}
+
+/* For post detail pages */
+.post-detail-container {
+  padding-top: 80px !important;
+}
+
+/* Fix background elements to position properly under the top nav */
+#TopNav {
+  z-index: 999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+}

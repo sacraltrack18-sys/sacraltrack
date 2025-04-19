@@ -1,6 +1,8 @@
 import { Account, Avatars, Client, Databases, ID, Query, Storage, Permission, Role, Functions } from 'appwrite';
 // Import everything from node-appwrite
 import * as NodeAppwrite from 'node-appwrite';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Appwrite конфигурация для использования во всем приложении
 export const APPWRITE_CONFIG = {
@@ -21,6 +23,21 @@ export const APPWRITE_CONFIG = {
   
   // Для обратной совместимости с старыми ключами
   friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || '67f22b92000e12316e52',
+};
+
+// Упрощенная конфигурация клиента для обратной совместимости
+export const clientConfig = {
+  endpoint: process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1',
+  project: process.env.NEXT_PUBLIC_ENDPOINT || '67f223590032b871e5f6',
+  database: process.env.NEXT_PUBLIC_DATABASE_ID || '67f225f50010cced7742',
+  storage: process.env.NEXT_PUBLIC_BUCKET_ID || '67f2239600384003fd78',
+  collections: {
+    users: process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE || '67f225fc0022b2dc0881',
+    posts: process.env.NEXT_PUBLIC_COLLECTION_ID_POST || '67f22813001f125cc1e5',
+    likes: process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE || 'likes',
+    comments: process.env.NEXT_PUBLIC_COLLECTION_ID_COMMENT || 'comments',
+    friends: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || '67f22b92000e12316e52',
+  }
 };
 
 // Добавляем логи для проверки переменных окружения
@@ -95,7 +112,8 @@ export const createServerSideStorage = () => {
   const nodeClient = new NodeAppwrite.Client();
   nodeClient
     .setEndpoint(APPWRITE_CONFIG.endpoint)
-    .setProject(APPWRITE_CONFIG.projectId);
+    .setProject(APPWRITE_CONFIG.projectId)
+    .setKey(process.env.APPWRITE_API_KEY || ''); // Добавляем API ключ для аутентификации
   
   // Create server-side storage instance
   return new NodeAppwrite.Storage(nodeClient);
@@ -121,8 +139,121 @@ export const uploadFileFromPath = async (
   );
 };
 
+// Улучшенная версия для серверной загрузки файлов
+export const uploadFileFromServer = async (
+  filePath: string,
+  bucketId: string = process.env.NEXT_PUBLIC_BUCKET_ID || '',
+  fileId: string = ID.unique(),
+  mimeType: string = 'application/octet-stream'
+) => {
+  try {
+    console.log(`[SERVER-UPLOAD] Attempting to upload file from path: ${filePath}`);
+    
+    // Проверяем наличие API ключа
+    if (!process.env.APPWRITE_API_KEY) {
+      console.error('[SERVER-UPLOAD] Missing APPWRITE_API_KEY in environment variables');
+      return { success: false, error: 'Missing API key for server upload' };
+    }
+    
+    // Создаем клиент с API ключом
+    const client = new NodeAppwrite.Client();
+    client
+      .setEndpoint(APPWRITE_CONFIG.endpoint)
+      .setProject(APPWRITE_CONFIG.projectId)
+      .setKey(process.env.APPWRITE_API_KEY);
+    
+    const storage = new NodeAppwrite.Storage(client);
+    
+    // Проверяем существование файла
+    if (!fs.existsSync(filePath)) {
+      console.error(`[SERVER-UPLOAD] File does not exist at path: ${filePath}`);
+      return { success: false, error: 'File does not exist' };
+    }
+    
+    // Получаем расширение файла для имени
+    const fileName = path.basename(filePath);
+    
+    // Простой метод загрузки через путь к файлу
+    const result = await storage.createFile(bucketId, fileId, {
+      path: filePath,
+      fileName: fileName, // Используем оба варианта имени для совместимости
+      name: fileName,
+      type: mimeType,
+    } as any); // Обходим проверку типов
+    
+    console.log(`[SERVER-UPLOAD] Successfully uploaded file with ID: ${result.$id}`);
+    return { success: true, fileId: result.$id, result };
+    
+  } catch (error) {
+    console.error('[SERVER-UPLOAD] Error uploading file:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
 // Export services and utilities
 export { client, account, avatars, database, databases, storage, functions, Query, ID, Permission, Role, NodeAppwrite };
+
+// Безопасная обертка для загрузки файлов в Appwrite
+export const safeCreateFile = async (bucketId: string, fileId: string, file: File) => {
+  try {
+    console.log(`[APPWRITE-STORAGE] Trying to upload file to bucket ${bucketId} with ID ${fileId}`);
+    
+    // Используем try-catch для безопасной загрузки
+    const result = await storage.createFile(
+      bucketId,
+      fileId,
+      file
+    );
+    
+    console.log(`[APPWRITE-STORAGE] File uploaded successfully with ID: ${result.$id}`);
+    return { success: true, fileId: result.$id, result };
+  } catch (error) {
+    console.error(`[APPWRITE-STORAGE] Error uploading file:`, error);
+    
+    // Попробуем альтернативный метод загрузки
+    try {
+      console.log(`[APPWRITE-STORAGE] Trying alternative upload method...`);
+      
+      // Если ошибка связана с методом .on, используем прямую загрузку через Node SDK
+      const nodeStorage = createServerSideStorage();
+      
+      // Преобразуем File в буфер
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      // Создаем временный файл
+      const tempDir = require('os').tmpdir();
+      const tempFilePath = require('path').join(tempDir, file.name);
+      require('fs').writeFileSync(tempFilePath, buffer);
+      
+      // Загружаем файл через Node SDK
+      const result = await nodeStorage.createFile(
+        bucketId,
+        fileId,
+        {
+          path: tempFilePath,
+          filename: file.name,
+        } as any
+      );
+      
+      // Удаляем временный файл
+      require('fs').unlinkSync(tempFilePath);
+      
+      console.log(`[APPWRITE-STORAGE] File uploaded successfully using alternative method with ID: ${result.$id}`);
+      return { success: true, fileId: result.$id, result };
+    } catch (alternativeError) {
+      console.error(`[APPWRITE-STORAGE] Alternative upload method also failed:`, alternativeError);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error),
+        alternativeError: alternativeError instanceof Error ? alternativeError.message : String(alternativeError)
+      };
+    }
+  }
+};
 
 // Utility for checking Appwrite configuration
 export const checkAppwriteConfig = () => {

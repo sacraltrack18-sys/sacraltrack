@@ -26,7 +26,9 @@ export const ContentFilterProvider: React.FC<ContentFilterProviderProps> = ({ ch
     if (typeof window !== 'undefined') {
       const savedFilter = localStorage.getItem('sacraltrack-filter');
       if (savedFilter) {
-        setActiveFilter(savedFilter);
+        // Convert old "sacral" value to "stracks" if needed
+        const normalizedFilter = savedFilter === 'sacral' ? 'stracks' : savedFilter;
+        setActiveFilter(normalizedFilter);
       }
     }
   }, []);
@@ -43,7 +45,9 @@ export const ContentFilterProvider: React.FC<ContentFilterProviderProps> = ({ ch
 
   const handleSetActiveFilter = (filter: string) => {
     console.log('[CONTENT-FILTER] Setting filter to:', filter);
-    setActiveFilter(filter);
+    // Convert "sacral" to "stracks" for consistency
+    const normalizedFilter = filter === 'sacral' ? 'stracks' : filter;
+    setActiveFilter(normalizedFilter);
   };
 
   return (

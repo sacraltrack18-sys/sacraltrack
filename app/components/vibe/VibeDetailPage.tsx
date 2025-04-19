@@ -22,7 +22,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import useDeviceDetect from '@/app/hooks/useDeviceDetect';
 import toast from 'react-hot-toast';
 import { useGeneralStore } from '@/app/stores/general';
-import { database, Query } from '@/libs/AppWriteClient';
+import { database, Query, account } from '@/libs/AppWriteClient';
 import { toggleVibeVote, addVibeComment, getVibeComments } from '@/app/lib/vibeActions';
 import { useRouter } from 'next/navigation';
 import createBucketUrl from '@/app/hooks/useCreateBucketUrl';
@@ -438,6 +438,25 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     const prevLikesCount = likesCount;
 
     try {
+      // Проверяем и обновляем сессию пользователя перед выполнением действия с лайком
+      try {
+        // Это проверит текущую сессию и вернет ошибку, если сессия истекла
+        await account.get();
+      } catch (sessionError) {
+        console.error('Session error:', sessionError);
+        // Если сессия истекла, показываем сообщение и открываем окно логина
+        toast.error('Your session has expired. Please log in again.', {
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+            borderRadius: '10px'
+          }
+        });
+        setIsLoginOpen(true);
+        return;
+      }
+
       // Optimistically update UI first
       
       // Update local state
@@ -933,7 +952,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       {/* Add TopNav component with required params */}
       <TopNav params={{ id: vibe.user_id }} />
       
-      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 pt-[100px]">
+      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 content-with-top-nav post-detail-container">
         {/* Top navigation and action bar */}
         <div className="flex flex-col space-y-4 mb-6">
           {/* User info and mood badge in one row */}
@@ -1176,7 +1195,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                         
                         <div className={`flex-1 p-3 rounded-lg ${comment.isOptimistic 
                           ? comment.text.includes('Pending sync')
-                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30'
+                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30' 
                             : 'bg-gradient-to-r from-[#20DDBB]/20 to-[#0F9E8E]/20 border border-[#20DDBB]/30' 
                           : 'bg-white/5 hover:bg-white/10 transition-colors duration-300'}`}>
                           <div className="flex items-center justify-between mb-1">

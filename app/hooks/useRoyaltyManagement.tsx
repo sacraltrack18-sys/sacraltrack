@@ -5,7 +5,7 @@ import { Models } from 'appwrite';
 import { toast } from 'react-hot-toast';
 import { useUser } from "@/app/context/user";
 import { database, ID, Query } from '@/libs/AppWriteClient';
-import useNotifications from "@/app/hooks/useNotifications";
+import { useNotifications } from "@/app/hooks/useNotifications";
 
 // Добавляем логирование для отладки
 console.log('Appwrite Configuration:', {
@@ -894,8 +894,7 @@ export const useRoyaltyManagement = () => {
     if (!userId) return;
 
     try {
-      await createNotification(userId, {
-        type: 'withdrawal',
+      await createNotification(userId, 'withdrawal', {
         title: `Withdrawal ${status}`,
         message: message,
         amount: amount

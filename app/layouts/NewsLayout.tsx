@@ -125,7 +125,7 @@ export default function NewsLayout({ children, title = "Latest News", descriptio
             <div className="min-h-screen bg-[#121324]">
 		     <TopNav params={{ id: userContext?.user?.id as string }} />
 
-                <div className="pt-24 pb-16">
+                <div className="pb-16 content-with-top-nav">
 			<motion.div
                         initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

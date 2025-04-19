@@ -123,7 +123,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto mt-[80px] px-4 md:px-8 smooth-scroll-container">
+		<div className="w-full mx-auto px-4 md:px-8 smooth-scroll-container content-with-top-nav">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}

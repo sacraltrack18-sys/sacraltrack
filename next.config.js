@@ -40,11 +40,13 @@ const nextConfig = {
     productionBrowserSourceMaps: false,
     // Configure output file tracing
     output: 'standalone',
+    // External packages for server components
+    serverExternalPackages: ['@ffmpeg/core', '@ffmpeg/ffmpeg'],
     experimental: {
         // Enable optimizations when possible
         optimizeCss: true,
         // Experimental features
-        scrollRestoration: true
+        scrollRestoration: true,
     },
     async headers() {
         return [
@@ -96,12 +98,58 @@ const nextConfig = {
         ]
     },
     // Configure webpack to optimize bundle size
-    webpack(config, { isServer }) {
-        // Optimize chunk size
+    webpack(config, { isServer, nextRuntime }) {
+        // Configure WebAssembly support
+        config.experiments = {
+            ...config.experiments,
+            asyncWebAssembly: true,
+            syncWebAssembly: true,
+            topLevelAwait: true,
+            layers: true,
+        };
+        
+        // Configure rules for FFmpeg WASM files
+        config.module.rules.push({
+            test: /\.wasm$/,
+            type: 'asset/resource',
+        });
+
+        // Add aliases for correct FFmpeg module loading
+        config.resolve.alias = {
+            ...config.resolve.alias,
+            '@ffmpeg/core': require.resolve('@ffmpeg/core'),
+            '@ffmpeg/ffmpeg': require.resolve('@ffmpeg/ffmpeg'),
+        };
+        
+        // Set WASM module filename format for server components
+        if (isServer && nextRuntime === 'nodejs') {
+            config.output.webassemblyModuleFilename = 'chunks/[id].wasm';
+            // Allow FFmpeg core to be bundled with Node.js
+            config.externals = [
+                ...config.externals.filter(external => 
+                    !(typeof external === 'string' && 
+                      (external.includes('@ffmpeg/core') || external.includes('@ffmpeg/ffmpeg')))
+                )
+            ];
+        }
+        
+        // For client side, ensure WASM modules are properly handled
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                path: false,
+                os: false,
+                crypto: false,
+            };
+        }
+        
+        // Optimize chunk splitting
         config.optimization.splitChunks = {
             chunks: 'all',
             maxInitialRequests: 25,
             minSize: 20000,
+            maxSize: 500000, // Setting max chunk size to avoid oversized chunks
             cacheGroups: {
                 defaultVendors: {
                     test: /[\\/]node_modules[\\/]/,
@@ -127,7 +175,7 @@ const nextConfig = {
     },
     // Enable type checking during builds
     typescript: {
-        // Проверять типы при сборке
+        // Check types during build
         ignoreBuildErrors: false,
     },
 };

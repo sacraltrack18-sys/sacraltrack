@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Styles for the shimmer animation
+// Add animation keyframes
 const shimmerAnimation = `
 @keyframes shimmer {
   0% {
@@ -17,123 +17,169 @@ const shimmerAnimation = `
 }
 `;
 
-// Interface for the base progress component
-interface BaseProgressProps {
+interface UploadProgressProps {
   stage: string; 
   progress: number; 
-  isActive: boolean;
+  isUploading: boolean;
+  onCancel?: () => void;
 }
 
-// Interface for the upload progress component
-interface UploadProgressProps extends BaseProgressProps {
-  onCancel: () => void;
-  confirmCancel: () => void;
-}
-
-// Main upload progress component
-export const UploadProgress: React.FC<UploadProgressProps> = ({
-  isActive,
-  stage,
-  progress,
-  onCancel,
-  confirmCancel
+const UploadProgress: React.FC<UploadProgressProps> = ({ 
+  isUploading, 
+  stage, 
+  progress, 
+  onCancel 
 }) => {
-  const [showConfirmation, setShowConfirmation] = React.useState(false);
-  
-  // Упрощенные этапы загрузки (без обработки аудио)
+  // The upload stages in order - keep these technical stages for tracking
   const stages = [
-    "Preparing upload",
-    "Uploading cover",
     "Uploading WAV",
-    "Creating release"
+    "Converting MP3",
+    "Segmenting",
+    "Preparing",
+    "Uploading Segments",
+    "Creating Playlist",
+    "Main Audio",
+    "Cover Image",
+    "MP3 Version",
+    "Finalizing"
   ];
 
-  // Map для понятных пользователю сообщений
+  // User-friendly stage messages
   const userFriendlyMessages: {[key: string]: string} = {
-    "Preparing upload": "Preparing your files",
-    "Uploading cover": "Uploading cover image",
-    "Uploading WAV": "Uploading audio file",
-    "Creating release": "Creating release",
-    "Completed": "Upload complete"
+    "Uploading WAV": "Uploading your track",
+    "Converting MP3": "Processing your audio",
+    "Segmenting": "Optimizing playback",
+    "Preparing": "Preparing your track",
+    "Uploading Segments": "Uploading track parts",
+    "Creating Playlist": "Creating track playlist",
+    "Main Audio": "Uploading main audio",
+    "Cover Image": "Uploading cover image",
+    "MP3 Version": "Creating streamable version",
+    "Finalizing": "Almost done!"
   };
-  
-  // Получаем индекс текущего этапа
+
+  // Extract detailed information from stage name
+  const getDetailedInfo = () => {
+    if (!stage) return '';
+
+    // Извлекаем информацию о сегментах
+    if (stage.toLowerCase().includes('segment')) {
+      const segmentMatch = stage.match(/(\d+)\/(\d+)/);
+      if (segmentMatch) {
+        const [_, current, total] = segmentMatch;
+        const currentSegment = parseInt(current);
+        const totalSegments = parseInt(total);
+        const percentDone = Math.round((currentSegment / totalSegments) * 100);
+        return `Processing segment ${current} of ${total} (${percentDone}% complete)`;
+      }
+    }
+    
+    // Извлекаем информацию о конвертации
+    if (stage.toLowerCase().includes('convert')) {
+      const timeMatch = stage.match(/\((\d+:\d+)\s+from\s+(\d+:\d+)\)/);
+      if (timeMatch) {
+        const [_, current, total] = timeMatch;
+        return `Converting: ${current} of ${total} total length`;
+      }
+    }
+    
+    // Извлекаем информацию о подготовке сегментов
+    if (stage.toLowerCase().includes('prepar')) {
+      const prepMatch = stage.match(/(\d+)\/(\d+)/);
+      if (prepMatch) {
+        const [_, current, total] = prepMatch;
+        const percentDone = Math.round((parseInt(current) / parseInt(total)) * 100);
+        return `Preparing segment ${current} of ${total} for streaming (${percentDone}% complete)`;
+      }
+    }
+    
+    return '';
+  };
+
+  // Map the current stage to index in the stages array
   const getCurrentStageIndex = () => {
-    if (!stage) return 0;
+    if (!stage) return -1;
     
     const stageIndex = stages.findIndex(s => 
       stage.toLowerCase().includes(s.toLowerCase())
     );
-    return stageIndex !== -1 ? stageIndex : 0;
+    return stageIndex !== -1 ? stageIndex : stages.length - 1;
   };
+
+  const currentStageIndex = getCurrentStageIndex();
   
-  // Вычисляем общий прогресс
+  // Calculate overall progress based on stages completed and current progress
   const calculateOverallProgress = () => {
-    const currentStageIndex = getCurrentStageIndex();
-    if (currentStageIndex === -1) return progress;
+    if (currentStageIndex === -1) return 0;
     
     const stageWidth = 100 / stages.length;
     const completedStagesProgress = currentStageIndex * stageWidth;
     const currentStageProgress = progress * (stageWidth / 100);
     
-    return Math.min(99, completedStagesProgress + currentStageProgress);
+    const overallProgress = completedStagesProgress + currentStageProgress;
+    
+    return overallProgress;
   };
   
-  // Получаем сообщение понятное пользователю
+  const overallProgress = calculateOverallProgress();
+
+  // Get a user-friendly message for the current stage
   const getUserFriendlyMessage = () => {
     for (const technicalTerm in userFriendlyMessages) {
       if (stage.toLowerCase().includes(technicalTerm.toLowerCase())) {
         return userFriendlyMessages[technicalTerm];
       }
     }
-    return "Uploading track";
+    return "Processing your track";
   };
 
-  // Обработка нажатия на кнопку отмены
-  const handleCancelClick = () => {
-    if (showConfirmation) {
-      confirmCancel();
-      setShowConfirmation(false);
-    } else {
-      setShowConfirmation(true);
-    }
-  };
-  
-  // Не отображаем, если неактивно
-  if (!isActive) return null;
-
-  const overallProgress = calculateOverallProgress();
+  // Only show if processing
+  if (!isUploading) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Style tag для анимации shimmer */}
+      {/* Add style tag for shimmer animation */}
       <style dangerouslySetInnerHTML={{ __html: shimmerAnimation }} />
       
-      {/* Фон с размытием */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md"></div>
+      {/* Backdrop with blur */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-lg"></div>
       
-      {/* Стеклянная карточка */}
+      {/* Glass card */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="w-[90%] max-w-xl bg-white/5 backdrop-blur-md rounded-2xl shadow-xl border border-white/10 p-8 relative z-10"
       >
-        {/* Заголовок с анимацией */}
+        {/* Close button (X) */}
+        {onCancel && (
+          <button 
+            onClick={onCancel}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all duration-200"
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        
+        {/* Header - Cleaner with subtle gradient */}
         <div className="mb-8 text-center">
           <h3 className="text-2xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
-            Publishing Track
+            Uploading Track
           </h3>
-          <p className="text-white/70 mt-1">Please wait for the upload to complete</p>
+          <p className="text-white/70 mt-1">Please keep this window open</p>
         </div>
         
-        {/* Текущий этап с понятным сообщением */}
+        {/* Current stage with friendly message */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center">
               <div className="w-5 h-5 mr-3 relative">
                 <svg className="w-5 h-5 text-[#20DDBB] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </div>
               <h4 className="text-lg font-medium text-white">{getUserFriendlyMessage()}</h4>
@@ -141,7 +187,17 @@ export const UploadProgress: React.FC<UploadProgressProps> = ({
             <span className="text-[#20DDBB] text-lg font-bold">{Math.round(progress)}%</span>
           </div>
           
-          {/* Прогресс-бар текущего этапа */}
+          {/* Detailed processing information if available */}
+          {getDetailedInfo() && (
+            <div className="mb-3 text-sm text-white/70 pl-8">
+              <div className="flex items-center">
+                <span className="w-2 h-2 bg-[#20DDBB]/50 rounded-full mr-2"></span>
+                <span>{getDetailedInfo()}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Current stage progress bar */}
           <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
             <motion.div 
               className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full"
@@ -152,7 +208,7 @@ export const UploadProgress: React.FC<UploadProgressProps> = ({
           </div>
         </div>
         
-        {/* Общий прогресс */}
+        {/* Overall progress - simplified */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <p className="text-white/70">Overall Progress</p>
@@ -160,101 +216,56 @@ export const UploadProgress: React.FC<UploadProgressProps> = ({
           </div>
           
           <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden relative">
-            {/* Основной прогресс-бар */}
+            {/* Progress track with subtle pattern */}
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAgTSAwIDIwIEwgNDAgMjAgTSAyMCAwIEwgMjAgNDAgTSAwIDMwIEwgNDAgMzAgTSAzMCAwIEwgMzAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wMyIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50"></div>
+            
+            {/* Main progress bar */}
             <motion.div 
               className="h-full bg-gradient-to-r from-[#20DDBB] via-[#20DDBB]/80 to-[#018CFD] rounded-full relative overflow-hidden"
               style={{ width: `${overallProgress}%` }}
               initial={{ width: 0 }}
               animate={{ width: `${overallProgress}%` }}
             >
-              {/* Эффект shimmer */}
+              {/* Shimmer effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
             </motion.div>
+            
+            {/* Glowing dot */}
+            <motion.div 
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg shadow-[#20DDBB]/30 transform -translate-x-1/2"
+              style={{ left: `${overallProgress}%` }}
+              initial={{ left: 0 }}
+              animate={{ left: `${overallProgress}%` }}
+              transition={{ type: "spring", damping: 15 }}
+            />
           </div>
         </div>
         
-        {/* Индикация этапов */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            {stages.map((stageName, index) => {
-              const currentIndex = getCurrentStageIndex();
-              const isCompleted = index < currentIndex;
-              const isCurrent = index === currentIndex;
-              
-              return (
-                <div 
-                  key={index} 
-                  className="flex flex-col items-center"
-                  style={{ width: `${100 / stages.length}%` }}
-                >
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center
-                                 ${isCompleted 
-                                     ? 'bg-[#20DDBB] text-black' 
-                                     : isCurrent 
-                                       ? 'bg-[#20DDBB]/20 border border-[#20DDBB] text-white' 
-                                       : 'bg-white/10 text-white/30'
-                                 }
-                                 ${isCurrent ? 'animate-pulse' : ''}`}>
-                    {isCompleted && (
-                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <p className={`text-xs mt-2 text-center 
-                              ${isCompleted 
-                                  ? 'text-[#20DDBB]' 
-                                  : isCurrent 
-                                    ? 'text-white' 
-                                    : 'text-white/30'
-                              }`}>
-                    {userFriendlyMessages[stageName] || stageName}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          <div className="w-full h-0.5 bg-white/10 relative -mt-10 z-[-1]"></div>
+        {/* Simplified step indication */}
+        <div className="flex items-center justify-between mt-6 px-1">
+          {stages.map((_, index) => {
+            // Calculate position percentage
+            const position = (index / (stages.length - 1)) * 100;
+            const isActive = position <= overallProgress;
+            
+            return (
+              <div 
+                key={index}
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isActive ? 'bg-[#20DDBB]' : 'bg-white/20'
+                }`}
+              />
+            );
+          })}
         </div>
         
-        {/* Информация и кнопка отмены */}
-        <div className="flex flex-col items-center">
-          {!showConfirmation ? (
-            <>
-              <p className="text-white/50 text-sm mb-4">
-                After upload, your track will be automatically processed in the background
-              </p>
-              <button
-                onClick={handleCancelClick}
-                className="text-white/60 hover:text-white/80 font-medium py-2 px-4 mt-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors duration-200"
-              >
-                Cancel Upload
-              </button>
-            </>
-          ) : (
-            <div className="text-center p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-              <p className="text-white font-medium mb-3">Are you sure you want to cancel the upload?</p>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => setShowConfirmation(false)}
-                  className="text-white/80 hover:text-white py-2 px-4 rounded-lg border border-white/10"
-                >
-                  Continue Upload
-                </button>
-                <button
-                  onClick={handleCancelClick}
-                  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg"
-                >
-                  Yes, Cancel
-                </button>
-              </div>
-            </div>
-          )}
+        {/* Footer reminder */}
+        <div className="mt-8 text-center text-white/50 text-sm">
+          <p>Please don't close your browser during upload</p>
         </div>
       </motion.div>
     </div>
   );
 };
 
-// Пустой компонент для обратной совместимости
-export const BackgroundProgress: React.FC<any> = () => null;
+export default UploadProgress; 
