@@ -28,7 +28,14 @@ export async function GET(req: Request) {
     }
 
     // Результаты проверки
-    const results = [];
+    type CollectionResult = {
+      collection: string;
+      status: 'created' | 'exists' | 'error';
+      message?: string;
+      error?: unknown;
+    };
+    
+    const results: CollectionResult[] = [];
 
     // 1. Создание коллекции статистики треков (если не существует)
     if (!existingCollections.includes(APPWRITE_CONFIG.statisticsCollectionId)) {
