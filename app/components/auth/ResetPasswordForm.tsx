@@ -23,6 +23,12 @@ export default function ResetPasswordForm() {
     const [resetCompleted, setResetCompleted] = useState<boolean>(false);
     
     useEffect(() => {
+        // Проверяем, что searchParams не null
+        if (!searchParams) {
+            setError('Ошибка получения параметров URL');
+            return;
+        }
+        
         // Получаем параметры из URL, которые передает Appwrite
         const userId = searchParams.get('userId');
         const secret = searchParams.get('secret');
