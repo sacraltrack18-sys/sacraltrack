@@ -5,9 +5,9 @@
 [build.environment]
   NODE_VERSION = "22.14.0"
   NPM_FLAGS = "--legacy-peer-deps"
-  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+  NEXT_TELEMETRY_DISABLED = "1"
 
-# Команда для установки с использованием флага, чтобы игнорировать конфликты зависимостей
+# Используем официальный плагин Next.js
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
@@ -15,17 +15,8 @@
 [build.lifecycle]
   onInstall = "npm install --legacy-peer-deps"
 
-[functions]
-  # Adjust this if needed based on Netlify's serverless functions capabilities
-  node_bundler = "esbuild"
-  external_node_modules = ["encoding", "appwrite", "node-appwrite"]
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = false
-  conditions = {Role = ["admin", "user"]}
+# Удалим старые редиректы, которые могут конфликтовать с маршрутизацией Next.js
+# Оставим новую конфигурацию для правильной обработки всех маршрутов
 
 [[headers]]
   for = "/*"

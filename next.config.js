@@ -38,8 +38,10 @@ const nextConfig = {
     reactStrictMode: true,
     // Cache build outputs for faster rebuilds
     productionBrowserSourceMaps: false,
-    // Configure output file tracing
+    // Configure output file tracing - важно для Netlify
     output: 'standalone',
+    // Настройка для предотвращения проблем с 404
+    trailingSlash: false,
     // External packages for server components
     serverExternalPackages: ['@ffmpeg/core', '@ffmpeg/ffmpeg'],
     experimental: {
@@ -47,6 +49,15 @@ const nextConfig = {
         optimizeCss: true,
         // Experimental features
         scrollRestoration: true,
+    },
+    // Добавляем явное правило для API роутов
+    async rewrites() {
+        return [
+            {
+                source: '/api/:path*',
+                destination: '/api/:path*',
+            },
+        ];
     },
     async headers() {
         return [
