@@ -54,8 +54,8 @@ const StatsCard = ({ icon, value, label }: { icon: React.ReactNode, value: strin
 
 export default function PostClientComponent() {
     const params = useParams();
-    const postId = params.postId as string;
-    const userId = params.userId as string;
+    const postId = (params?.postId ? (Array.isArray(params.postId) ? params.postId[0] : params.postId) : "") as string;
+    const userId = (params?.userId ? (Array.isArray(params.userId) ? params.userId[0] : params.userId) : "") as string;
     
     const { postById, setPostById, setPostsByUser } = usePostStore()
     const { setLikesByPost, likesByPost } = useLikeStore()

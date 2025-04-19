@@ -66,7 +66,7 @@ export default function SuccessPage() {
 
 function SuccessPageContent() {
   const searchParams = useSearchParams()
-  const sessionId = searchParams.get("session_id")
+  const sessionId = searchParams?.get("session_id") || null
   const router = useRouter()
   const userContext = useUser()
 
@@ -144,7 +144,7 @@ function SuccessPageContent() {
         
         // Если ID все еще отсутствует, пытаемся получить его из URL
         if (!currentUserId) {
-          const urlUserId = searchParams.get("user_id");
+          const urlUserId = searchParams?.get("user_id");
           if (urlUserId) {
             currentUserId = urlUserId;
             console.log("Using user ID from URL:", urlUserId);

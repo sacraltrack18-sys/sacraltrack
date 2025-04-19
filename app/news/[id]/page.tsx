@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 export default function NewsDetail() {
     const params = useParams();
-    const { id } = params;
+    const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : "";
     const user  = useUser();
     
     const [news, setNews] = useState<any>(null);

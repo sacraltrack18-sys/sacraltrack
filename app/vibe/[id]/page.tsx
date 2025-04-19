@@ -13,14 +13,14 @@ const VibePage = () => {
   useEffect(() => {
     const loadVibe = async () => {
       setIsLoading(true);
-      if (params.id) {
+      if (params?.id) {
         await fetchVibeById(params.id as string);
       }
       setIsLoading(false);
     };
 
     loadVibe();
-  }, [params.id, fetchVibeById]);
+  }, [params?.id, fetchVibeById]);
 
   if (isLoading || isLoadingVibes) {
     return (

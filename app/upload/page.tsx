@@ -647,7 +647,7 @@ export default function Upload() {
                 buffer += chunk;
                 
                 // Process complete events in buffer
-                const messages = [];
+                const messages: any[] = [];
                 let startIdx = 0;
                 
                 while (true) {
@@ -971,7 +971,7 @@ export default function Upload() {
                             const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
                             
                             // Load segments to Appwrite and get their IDs
-                            const segmentIds = [];
+                            const segmentIds: string[] = [];
                             const totalSegments = result.segments.length;
                             
                             console.log(`Preparing to upload ${totalSegments} segments to Appwrite...`);

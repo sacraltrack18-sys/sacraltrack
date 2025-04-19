@@ -131,7 +131,9 @@ export const useNotifications = () => {
       
       // Periodically check for new notifications
       const intervalId = setInterval(() => {
-        getUserNotifications(userContext.user.id);
+        if (userContext?.user?.id) {
+          getUserNotifications(userContext.user.id);
+        }
       }, 60000); // check every minute
       
       return () => clearInterval(intervalId);
