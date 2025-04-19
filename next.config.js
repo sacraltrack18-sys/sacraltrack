@@ -75,6 +75,10 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    {
+                        key: 'Content-Security-Policy',
+                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cloud.appwrite.io https://*.netlify.app; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*; media-src 'self' blob: data: https://*; connect-src 'self' https://cloud.appwrite.io https://*.netlify.app https://*; font-src 'self' data:; object-src 'none'; worker-src 'self' blob:;"
                     }
                 ]
             },
