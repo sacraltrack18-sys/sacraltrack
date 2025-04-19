@@ -269,7 +269,7 @@ const BannerSlider = () => {
                 )}
                 {banners[currentIndex].link_url && (
                   <Link 
-                    href={banners[currentIndex].link_url}
+                    href={banners[currentIndex].link_url as string}
                     className="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105"
                   >
                     {banners[currentIndex].action_text || 'Learn More'}
