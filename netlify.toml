@@ -34,10 +34,10 @@
 # Override installation command
 [build.lifecycle]
   onInstall = "npm install --legacy-peer-deps"
+  onBuild = "cp public/_redirects .next/_redirects"
 
 # Handling assets correctly
 [[redirects]]
-
   from = "/_next/static/*"
   to = "/_next/static/:splat"
   status = 200
@@ -57,10 +57,18 @@
   to = "/.netlify/functions/___netlify-server-handler"
   status = 200
 
+# Handle 404 errors
+[[redirects]]
+  from = "/404"
+  to = "/.netlify/functions/___netlify-server-handler"
+  status = 200
+
+# SPA fallback - this needs to be the last redirect
 [[redirects]]
   from = "/*"
   to = "/.netlify/functions/___netlify-server-handler"
   status = 200
+  force = true
 
 [[headers]]
   for = "/*"

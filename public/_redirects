@@ -6,5 +6,8 @@
 # API запросы
 /api/*  /.netlify/functions/___netlify-server-handler  200
 
-# SPA fallback
+# Обработка 404 ошибок
+/404  /.netlify/functions/___netlify-server-handler  200
+
+# SPA fallback - ВАЖНО: это должно быть последним правилом
 /*  /.netlify/functions/___netlify-server-handler  200 
