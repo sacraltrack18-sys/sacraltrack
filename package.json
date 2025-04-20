@@ -78,7 +78,9 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "appwrite": "^13.0.1",
-    "canvas": "^2.11.2",
     "hardhat": "^2.22.17"
+  },
+  "optionalDependencies": {
+    "canvas": "^2.11.2"
   }
 }

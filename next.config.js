@@ -9,58 +9,16 @@ const nextConfig = {
             {
                 protocol: 'http',
                 hostname: '**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'sacraltrack.space',
-            },
-            {
-                protocol: 'https',
-                hostname: '*.netlify.app',
-            },
-            {
-                protocol: 'https',
-                hostname: 'cloud.appwrite.io',
             }
         ],
-        unoptimized: true // Set to true for Netlify deployments
     },
-    // Optimize JS and CSS files
-    compiler: {
-        // Remove console.log in production
-        removeConsole: process.env.NODE_ENV === 'production' ? {
-            exclude: ['error', 'warn'],
-        } : false,
-    },
-    // Enable gzip compression
-    compress: true,
-    // Optimize bundle size for production
+    // Optimize for production
     reactStrictMode: true,
-    // Cache build outputs for faster rebuilds
     productionBrowserSourceMaps: false,
-    // Configure output file tracing for Netlify
     output: 'standalone',
-    // Ensure this is false for proper routing
     trailingSlash: false,
-    // Put static assets in the correct folder for Netlify
-    distDir: '.next',
     // External packages for server components
     serverExternalPackages: ['@ffmpeg/core', '@ffmpeg/ffmpeg'],
-    experimental: {
-        // Enable optimizations when possible
-        optimizeCss: true,
-        // Experimental features
-        scrollRestoration: true,
-    },
-    // Add explicit rule for API routes
-    async rewrites() {
-        return [
-            {
-                source: '/api/:path*',
-                destination: '/api/:path*',
-            },
-        ];
-    },
     // CORS and security headers
     async headers() {
         return [
@@ -78,10 +36,6 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
-                    },
-                    {
-                        key: 'Content-Security-Policy',
-                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cloud.appwrite.io https://*.netlify.app; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*; media-src 'self' blob: data: https://*; connect-src 'self' https://cloud.appwrite.io https://*.netlify.app https://*; font-src 'self' data:; object-src 'none'; worker-src 'self' blob:;"
                     }
                 ]
             },
@@ -103,15 +57,6 @@ const nextConfig = {
                         value: 'public, max-age=31536000, immutable'
                     }
                 ]
-            },
-            {
-                source: '/api/(.*)',
-                headers: [
-                    {
-                        key: 'Cache-Control',
-                        value: 'no-store, max-age=0'
-                    }
-                ]
             }
         ]
     },
@@ -123,7 +68,6 @@ const nextConfig = {
             asyncWebAssembly: true,
             syncWebAssembly: true,
             topLevelAwait: true,
-            layers: true,
         };
         
         // Configure rules for FFmpeg WASM files
@@ -147,7 +91,9 @@ const nextConfig = {
                 ...config.externals.filter(external => 
                     !(typeof external === 'string' && 
                       (external.includes('@ffmpeg/core') || external.includes('@ffmpeg/ffmpeg')))
-                )
+                ),
+                // Exclude canvas from server build to avoid native compilation errors
+                'canvas'
             ];
         }
         
@@ -162,39 +108,7 @@ const nextConfig = {
             };
         }
         
-        // Optimize chunk splitting
-        config.optimization.splitChunks = {
-            chunks: 'all',
-            maxInitialRequests: 25,
-            minSize: 20000,
-            maxSize: 500000, // Setting max chunk size to avoid oversized chunks
-            cacheGroups: {
-                defaultVendors: {
-                    test: /[\\/]node_modules[\\/]/,
-                    priority: -10,
-                    reuseExistingChunk: true,
-                },
-                stripe: {
-                    test: /[\\/]node_modules[\\/](@stripe|stripe)[\\/]/,
-                    name: 'stripe-vendor',
-                    priority: 10,
-                    reuseExistingChunk: true,
-                },
-                commons: {
-                    name: 'commons',
-                    minChunks: 2,
-                    priority: -20,
-                    reuseExistingChunk: true,
-                },
-            },
-        };
-        
         return config;
-    },
-    // Enable type checking during builds
-    typescript: {
-        // Check types during build
-        ignoreBuildErrors: false,
     },
 };
 
