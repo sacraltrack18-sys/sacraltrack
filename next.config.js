@@ -23,7 +23,7 @@ const nextConfig = {
                 hostname: 'cloud.appwrite.io',
             }
         ],
-        unoptimized: process.env.NODE_ENV === 'development'
+        unoptimized: true // Set to true for Netlify deployments
     },
     // Optimize JS and CSS files
     compiler: {
@@ -38,10 +38,12 @@ const nextConfig = {
     reactStrictMode: true,
     // Cache build outputs for faster rebuilds
     productionBrowserSourceMaps: false,
-    // Configure output file tracing - важно для Netlify
+    // Configure output file tracing for Netlify
     output: 'standalone',
-    // Настройка для предотвращения проблем с 404
+    // Ensure this is false for proper routing
     trailingSlash: false,
+    // Put static assets in the correct folder for Netlify
+    distDir: '.next',
     // External packages for server components
     serverExternalPackages: ['@ffmpeg/core', '@ffmpeg/ffmpeg'],
     experimental: {
@@ -50,7 +52,7 @@ const nextConfig = {
         // Experimental features
         scrollRestoration: true,
     },
-    // Добавляем явное правило для API роутов
+    // Add explicit rule for API routes
     async rewrites() {
         return [
             {
@@ -59,6 +61,7 @@ const nextConfig = {
             },
         ];
     },
+    // CORS and security headers
     async headers() {
         return [
             {
@@ -66,7 +69,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Access-Control-Allow-Origin',
-                        value: 'https://sacraltrack.space, https://cloud.appwrite.io, https://*.netlify.app'
+                        value: '*'
                     },
                     {
                         key: 'Access-Control-Allow-Methods',

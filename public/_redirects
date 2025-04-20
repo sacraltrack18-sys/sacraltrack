@@ -4,3 +4,16 @@
 
 # SPA fallback
 /*    /index.html   200 
+
+# Redirects for Netlify
+
+# Redirect all API requests to the server function
+/api/*  /.netlify/functions/___netlify-server-handler  200
+
+# Handle static assets
+/_next/static/*  /_next/static/:splat  200
+/_next/image*  /_next/image:splat  200
+/_next/data/*  /_next/data/:splat  200
+
+# Fallback for all other routes - SPA client-side routing
+/*  /index.html  200 
