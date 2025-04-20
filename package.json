@@ -1,15 +1,12 @@
 {
-  "name": "sacraltrack-nextjs13",
-  "version": "0.1.0",
+  "name": "sacraltrack",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/copy-ffmpeg-files.js && node scripts/copy-redirects.js",
+    "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit",
-    "build:with-types": "npm run type-check && next build && node scripts/copy-ffmpeg-files.js",
-    "init-collections": "ts-node scripts/init-collections.ts",
-    "netlify-build": "npm install --legacy-peer-deps && next build && node scripts/copy-ffmpeg-files.js && node scripts/prepare-netlify.js",
+    "lint": "next lint",
     "clean": "rm -rf .next && next dev"
   },
   "dependencies": {
