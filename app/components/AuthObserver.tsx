@@ -110,18 +110,48 @@ const AuthObserver = () => {
         throttledRefresh();
       };
       
-      // Add listener
+      // Обработчик события для проверки состояния авторизации
+      // Это событие вызывается из компонентов, когда они получают ошибку 401
+      const handleAuthCheck = () => {
+        if (checkUser && !refreshingRef.current) {
+          console.log('Checking auth state due to auth check event');
+          refreshingRef.current = true;
+          
+          // Проверяем текущего пользователя
+          if (!user) {
+            console.log('User not authorized, need to login');
+            
+            // Перенаправляем на страницу логина, если пользователь не авторизован
+            if (window.location.pathname !== '/auth/login' && 
+                window.location.pathname !== '/auth/register') {
+              router.push('/auth/login');
+            }
+          }
+          
+          // Делаем запрос на обновление состояния пользователя
+          checkUser();
+          
+          // Сбрасываем флаг обновления через некоторое время
+          setTimeout(() => {
+            refreshingRef.current = false;
+          }, 1000);
+        }
+      };
+      
+      // Add listeners
       window.addEventListener(AUTH_STATE_CHANGE_EVENT, handleAuthChange);
+      window.addEventListener('check_auth_state', handleAuthCheck);
       
       // Force update cache on component mount
       updateCacheTimestamp();
       
       return () => {
-        // Remove listener on unmount
+        // Remove listeners on unmount
         window.removeEventListener(AUTH_STATE_CHANGE_EVENT, handleAuthChange);
+        window.removeEventListener('check_auth_state', handleAuthCheck);
       };
     }
-  }, [router, currentProfile, setCurrentProfile]);
+  }, [router, currentProfile, setCurrentProfile, checkUser]);
 
   // Automatically check for user session on initial render
   useEffect(() => {

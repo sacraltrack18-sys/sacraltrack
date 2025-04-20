@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { database, Query, ID, storage, Permission, Role } from '@/libs/AppWriteClient';
+import { toast } from 'react-hot-toast';
 
 // Вспомогательная функция для преобразования ID файла в полный URL
 const getFullMediaUrl = (fileId: string): string => {
@@ -674,15 +675,21 @@ export const useVibeStore = create<VibeStore>()(
 
         likeVibe: async (vibeId, userId) => {
           try {
-            // Optimistic UI update before making network requests
+            // Проверяем наличие userId - необходим для авторизации
+            if (!userId) {
+              toast.error("Необходимо войти в аккаунт для этого действия");
+              return;
+            }
+
+            // Оптимистичное обновление UI перед сетевым запросом
             set(state => ({
               allVibePosts: state.allVibePosts.map(vibe => {
                 if (vibe.id === vibeId) {
                   const currentStats = normalizeVibeStats(vibe.stats);
-                  const updatedStats = {
+                  const updatedStats = statsToArray({
                     ...currentStats,
                     total_likes: currentStats.total_likes + 1
-                  };
+                  });
                   
                   return { ...vibe, stats: updatedStats };
                 }
@@ -691,7 +698,7 @@ export const useVibeStore = create<VibeStore>()(
               userLikedVibes: [...(state.userLikedVibes || []), vibeId]
             }));
 
-            // Use API to create like instead of direct database access
+            // Используем API для добавления лайка вместо прямого доступа к базе данных
             const response = await fetch('/api/vibes/like', {
               method: 'POST',
               headers: {
@@ -705,20 +712,35 @@ export const useVibeStore = create<VibeStore>()(
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.error || 'Error liking vibe');
+              
+              // Проверка на ошибки авторизации
+              if (response.status === 401) {
+                // Если пользователь не авторизован, показываем уведомление
+                toast.error("Требуется авторизация. Пожалуйста, войдите в аккаунт.");
+                
+                // Отправляем событие для обновления авторизации
+                if (typeof window !== 'undefined') {
+                  const authCheckEvent = new CustomEvent('check_auth_state', {});
+                  window.dispatchEvent(authCheckEvent);
+                }
+                
+                throw new Error(errorData.error || 'Ошибка авторизации');
+              }
+              
+              throw new Error(errorData.error || 'Ошибка при добавлении лайка');
             }
 
             const data = await response.json();
             console.log('Like response:', data);
 
-            // Use count value from API response to update statistics
+            // Используем значение count из ответа API для обновления статистики
             if (data.count !== undefined) {
               set(state => ({
                 allVibePosts: state.allVibePosts.map(vibe => {
                   if (vibe.id === vibeId) {
                     const currentStats = normalizeVibeStats(vibe.stats);
-                    // Convert back to array of strings to maintain compatibility
-                    // with database data format
+                    // Преобразуем обратно в массив строк для поддержки
+                    // формата данных базы данных
                     const updatedStats = statsToArray({
                       ...currentStats,
                       total_likes: data.count
@@ -734,22 +756,31 @@ export const useVibeStore = create<VibeStore>()(
               }));
             }
 
-            // Update state after successful request to synchronize with server
+            // Обновляем состояние после успешного запроса для синхронизации с сервером
             get().fetchUserLikedVibes(userId);
           } catch (error) {
             console.error('Error liking vibe:', error);
             
-            // Cancel optimistic update in case of error
+            // Отменяем оптимистичное обновление в случае ошибки
             get().fetchUserLikedVibes(userId);
             get().fetchAllVibes();
             
-            throw error;
+            // Не показываем пользователю техническую ошибку, если это не ошибка авторизации
+            if (error instanceof Error && !error.message.includes('авторизац')) {
+              toast.error("Не удалось добавить лайк. Попробуйте позже.");
+            }
           }
         },
 
         unlikeVibe: async (vibeId, userId) => {
           try {
-            // Optimistic UI update before making network requests
+            // Проверяем наличие userId - необходим для авторизации
+            if (!userId) {
+              toast.error("Необходимо войти в аккаунт для этого действия");
+              return;
+            }
+            
+            // Оптимистичное обновление UI перед сетевым запросом
             set(state => ({
               allVibePosts: state.allVibePosts.map(vibe => {
                 if (vibe.id === vibeId) {
@@ -766,7 +797,7 @@ export const useVibeStore = create<VibeStore>()(
               userLikedVibes: (state.userLikedVibes || []).filter(id => id !== vibeId)
             }));
 
-            // Use API to remove like instead of direct database access
+            // Используем API для удаления лайка вместо прямого доступа к базе данных
             const response = await fetch('/api/vibes/like', {
               method: 'POST',
               headers: {
@@ -780,20 +811,35 @@ export const useVibeStore = create<VibeStore>()(
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.error || 'Error unliking vibe');
+              
+              // Проверка на ошибки авторизации
+              if (response.status === 401) {
+                // Если пользователь не авторизован, показываем уведомление
+                toast.error("Требуется авторизация. Пожалуйста, войдите в аккаунт.");
+                
+                // Отправляем событие для обновления авторизации
+                if (typeof window !== 'undefined') {
+                  const authCheckEvent = new CustomEvent('check_auth_state', {});
+                  window.dispatchEvent(authCheckEvent);
+                }
+                
+                throw new Error(errorData.error || 'Ошибка авторизации');
+              }
+              
+              throw new Error(errorData.error || 'Ошибка при удалении лайка');
             }
 
             const data = await response.json();
             console.log('Unlike response:', data);
 
-            // Use count value from API response to update statistics
+            // Используем значение count из ответа API для обновления статистики
             if (data.count !== undefined) {
               set(state => ({
                 allVibePosts: state.allVibePosts.map(vibe => {
                   if (vibe.id === vibeId) {
                     const currentStats = normalizeVibeStats(vibe.stats);
-                    // Convert back to array of strings to maintain compatibility
-                    // with database data format
+                    // Преобразуем обратно в массив строк для поддержки
+                    // формата данных базы данных
                     const updatedStats = statsToArray({
                       ...currentStats,
                       total_likes: data.count
@@ -809,16 +855,19 @@ export const useVibeStore = create<VibeStore>()(
               }));
             }
 
-            // Update state after successful request to synchronize with server
+            // Обновляем состояние после успешного запроса для синхронизации с сервером
             get().fetchUserLikedVibes(userId);
           } catch (error) {
             console.error('Error unliking vibe:', error);
             
-            // Cancel optimistic update in case of error
+            // Отменяем оптимистичное обновление в случае ошибки
             get().fetchUserLikedVibes(userId);
             get().fetchAllVibes();
             
-            throw error;
+            // Не показываем пользователю техническую ошибку, если это не ошибка авторизации
+            if (error instanceof Error && !error.message.includes('авторизац')) {
+              toast.error("Не удалось удалить лайк. Попробуйте позже.");
+            }
           }
         },
 

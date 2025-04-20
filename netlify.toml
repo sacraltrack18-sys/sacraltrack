@@ -6,6 +6,28 @@
   NODE_VERSION = "22.14.0"
   NPM_FLAGS = "--legacy-peer-deps"
   NEXT_TELEMETRY_DISABLED = "1"
+  NEXT_USE_NETLIFY_EDGE = "true"
+  NEXT_FORCE_EDGE_IMAGES = "true"
+
+[build.processing]
+  skip_processing = false
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.images]
+  compress = true
+
+# Обязательная обработка файла _redirects
+[build.edge_functions]
 
 # Official Next.js plugin
 [[plugins]]
@@ -17,6 +39,7 @@
 
 # Handling assets correctly
 [[redirects]]
+
   from = "/_next/static/*"
   to = "/_next/static/:splat"
   status = 200
@@ -53,4 +76,9 @@
 [[headers]]
   for = "/_next/static/*"
     [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
     Cache-Control = "public, max-age=31536000, immutable" 

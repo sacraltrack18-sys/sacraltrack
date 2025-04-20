@@ -12,6 +12,7 @@ import Script from 'next/script';
 import { OnboardingProvider } from './context/OnboardingContext';
 import { ShareVibeProvider } from './components/vibe/useShareVibe';
 import { useUser } from './context/user';
+import AuthErrorHandler from './components/AuthErrorHandler';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
@@ -95,41 +96,42 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <UserProvider>
                         <OnboardingProvider>
                             <ShareVibeProvider appName="Sacral Track">
-                                <Toaster 
-                                    position="top-center"
-                                    containerStyle={{
-                                        zIndex: 10000000
-                                    }}
-                                    toastOptions={{
-                                        duration: 3000,
-                                        style: {
-                                            background: '#272B43',
-                                            color: '#fff',
+                                <AuthErrorHandler>
+                                    <Toaster 
+                                        position="top-center"
+                                        containerStyle={{
                                             zIndex: 10000000
-                                        },
-                                        success: {
-                                            iconTheme: {
-                                                primary: '#8B5CF6',
-                                                secondary: '#FFFAEE',
+                                        }}
+                                        toastOptions={{
+                                            duration: 3000,
+                                            style: {
+                                                background: '#272B43',
+                                                color: '#fff',
+                                                zIndex: 10000000
                                             },
-                                        },
-                                        error: {
-                                            iconTheme: {
-                                                primary: '#EF4444',
-                                                secondary: '#FFFAEE',
+                                            success: {
+                                                iconTheme: {
+                                                    primary: '#8B5CF6',
+                                                    secondary: '#FFFAEE',
+                                                },
                                             },
-                                        },
-                                    }}
-                                />
-                                <AllOverlays />
-                                {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
-                                {typeof window !== 'undefined' && (
-                                  <div suppressHydrationWarning>
-                                    <ClientWelcomeModal />
-                                  </div>
-                                )}
-                                {children}
-                                
+                                            error: {
+                                                iconTheme: {
+                                                    primary: '#EF4444',
+                                                    secondary: '#FFFAEE',
+                                                },
+                                            },
+                                        }}
+                                    />
+                                    <AllOverlays />
+                                    {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
+                                    {typeof window !== 'undefined' && (
+                                      <div suppressHydrationWarning>
+                                        <ClientWelcomeModal />
+                                      </div>
+                                    )}
+                                    {children}
+                                </AuthErrorHandler>
                             </ShareVibeProvider>
                         </OnboardingProvider>
                     </UserProvider>

@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/copy-ffmpeg-files.js",
+    "build": "next build && node scripts/copy-ffmpeg-files.js && node scripts/copy-redirects.js",
     "start": "next start",
     "type-check": "tsc --noEmit",
     "build:with-types": "npm run type-check && next build && node scripts/copy-ffmpeg-files.js",
     "init-collections": "ts-node scripts/init-collections.ts",
-    "netlify-build": "npm install --legacy-peer-deps && next build && node scripts/copy-ffmpeg-files.js",
+    "netlify-build": "npm install --legacy-peer-deps && next build && node scripts/copy-ffmpeg-files.js && node scripts/prepare-netlify.js",
     "clean": "rm -rf .next && next dev"
   },
   "dependencies": {
@@ -73,6 +73,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.10.7",
     "@types/canvas-confetti": "^1.9.0",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
