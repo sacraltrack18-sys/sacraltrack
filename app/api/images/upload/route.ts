@@ -4,6 +4,16 @@ import { Client, ID, Storage } from 'appwrite';
 // Указание безопасного runtime без учета зависимостей вроде sharp
 export const runtime = 'edge';
 
+// Set max payload size to 200MB
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '200mb',
+    },
+    responseLimit: false,
+  },
+};
+
 export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();

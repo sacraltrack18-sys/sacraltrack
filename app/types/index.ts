@@ -104,5 +104,5 @@ export interface UserContextTypes {
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<any>;
   register: (name: string, email: string, password: string) => Promise<any>;
-  checkUser: () => Promise<any>;
+  checkUser: () => Promise<User | null>;
 } 

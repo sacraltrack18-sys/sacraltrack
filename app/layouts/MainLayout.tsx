@@ -18,8 +18,7 @@ import AuthObserver from "@/app/components/AuthObserver";
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import ContentFilter from "@/app/components/ContentFilter";
 import { FaInfoCircle } from "react-icons/fa";
-import { useOnboarding } from "@/app/context/OnboardingContext";
-import { OnboardingGuide } from "@/app/components/onboarding/OnboardingGuide";
+import ClientWelcomeModal from '../components/ClientWelcomeModal'
 
 // Local interface for profile card
 interface ProfileCardProps {
@@ -36,7 +35,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const userContext = useUser();   
     const router = useRouter();
     const { currentProfile, setCurrentProfile } = useProfileStore();
-    const { setIsVisible } = useOnboarding();
+    const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
     const { setIsLoginOpen, setIsEditProfileOpen } = useGeneralStore();
     
@@ -55,11 +54,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }
     }, [userContext?.user?.id, currentProfile, setCurrentProfile]);
 
+    // Handle welcome modal close
+    const handleWelcomeModalClose = () => {
+        setShowWelcomeModal(false);
+    };
+
     return (
 		<>
 			<TopNav params={{ id: userContext?.user?.id as string }} />
             <AuthObserver />
-            <OnboardingGuide />
 
 		<div className="flex mx-auto w-full px-0 smooth-scroll-container content-with-top-nav">
 			
@@ -124,9 +127,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <ContentFilter />
             </motion.div>
 
-            {/* Onboarding Button */}
+            {/* Guide Button - Now using the Welcome Modal */}
             <motion.button
-                onClick={() => setIsVisible(true)}
+                onClick={() => setShowWelcomeModal(true)}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
@@ -142,10 +145,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     <span className="text-[10px] md:text-xs font-medium">Guide</span>
                 </div>
                 <span className="absolute left-full ml-2 px-2 py-1 bg-[#1A2338] rounded text-sm whitespace-nowrap
-                              opacity-0 group-hover:opacity-100 transition-opacity">
+                             opacity-0 group-hover:opacity-100 transition-opacity">
                     Show Guide
                 </span>
             </motion.button>
+            
+            {/* Welcome Modal */}
+            <ClientWelcomeModal 
+                isVisible={showWelcomeModal} 
+                onClose={handleWelcomeModalClose} 
+                hideFirstVisitCheck={true}
+            />
 		</div>
 		</>
     )

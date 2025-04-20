@@ -7,6 +7,7 @@ import { useProfileStore } from '@/app/stores/profile';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { clearUserCache } from '@/app/utils/cacheUtils';
+import { User } from '@/app/types';
 
 /**
  * AuthObserver component
@@ -158,7 +159,31 @@ const AuthObserver = () => {
     // Check session on component mount only once
     if (checkUser && !hasInitCheckedRef.current) {
       hasInitCheckedRef.current = true;
+      console.log('Initial auth check on component mount');
+      
+      // Run immediate check
       checkUser().catch(console.error);
+      
+      // Additional check after a short delay to catch OAuth redirects
+      setTimeout(() => {
+        console.log('Running delayed auth check to catch OAuth redirects');
+        if (checkUser && !refreshingRef.current) {
+          refreshingRef.current = true;
+          checkUser()
+            .then((userData) => {
+              if (userData !== null && userData !== undefined) {
+                const user = userData as User;
+                console.log('User detected in delayed check:', user);
+                // Force router refresh to update all components
+                throttledRefresh();
+              }
+            })
+            .catch(console.error)
+            .finally(() => {
+              refreshingRef.current = false;
+            });
+        }
+      }, 1000);
     }
     
     // Set up interval for periodic session checks, but with less frequency

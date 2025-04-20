@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { storage } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
 
+// Set max payload size to 200MB
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '200mb',
+    },
+    responseLimit: false,
+  },
+};
+
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();

@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 // Configure the route to use Node.js runtime
 export const runtime = 'nodejs';
 
+// Set max payload size to 200MB
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '200mb',
+    },
+    responseLimit: false,
+  },
+};
+
 export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();

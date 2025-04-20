@@ -1,26 +1,106 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
 import { BsMusicNoteBeamed } from "react-icons/bs";
 import { clearUserCache } from '@/app/utils/cacheUtils';
+import { useUser, dispatchAuthStateChange } from '@/app/context/user';
+import toast from 'react-hot-toast';
+import { User } from '@/app/types';
 
 export default function GoogleAuthSuccess() {
     const router = useRouter();
+    const userContext = useUser();
+    const [checkingAuth, setCheckingAuth] = useState(true);
+    const [retryCount, setRetryCount] = useState(0);
+    const maxRetries = 3;
 
     useEffect(() => {
         // Очистка кэша данных предыдущего пользователя
         clearUserCache();
         
-        // Перенаправление на главную через 3 секунды
-        const timer = setTimeout(() => {
-            router.push('/');
-        }, 3000);
-
-        return () => clearTimeout(timer);
-    }, [router]);
+        // Get the current user authentication state
+        const updateUserState = async () => {
+            try {
+                setCheckingAuth(true);
+                
+                // Check user authentication state
+                if (userContext && userContext.checkUser) {
+                    console.log('Checking user authentication after Google OAuth');
+                    const userData = await userContext.checkUser();
+                    
+                    if (userData !== null && userData !== undefined) {
+                        const user = userData as User;
+                        console.log('User authenticated successfully:', user);
+                        // Manually trigger auth state change event to ensure UI updates
+                        dispatchAuthStateChange(user);
+                        
+                        // Update localStorage with userId for features that depend on it
+                        if (typeof window !== 'undefined' && user.id) {
+                            localStorage.setItem('userId', user.id);
+                        }
+                        
+                        // Success notification
+                        toast.success('Successfully logged in!', {
+                            icon: '✅',
+                            duration: 3000,
+                        });
+                        
+                        setCheckingAuth(false);
+                        
+                        // Redirect to homepage after successful auth
+                        setTimeout(() => {
+                            router.push('/');
+                        }, 2000);
+                    } else {
+                        console.log('No user data returned, retrying...');
+                        // If no userData returned but no error thrown, retry auth check
+                        if (retryCount < maxRetries) {
+                            setRetryCount(prev => prev + 1);
+                            setTimeout(updateUserState, 1000); // Retry after 1 second
+                        } else {
+                            setCheckingAuth(false);
+                            console.error('Failed to authenticate after multiple retries');
+                            toast.error('Authentication issue, please try again', {
+                                duration: 5000,
+                            });
+                            
+                            // Still redirect to homepage after delay
+                            setTimeout(() => {
+                                router.push('/');
+                            }, 3000);
+                        }
+                    }
+                } else {
+                    console.error('User context or checkUser function is unavailable');
+                    setCheckingAuth(false);
+                    
+                    // Redirect to homepage even if context is unavailable
+                    setTimeout(() => {
+                        router.push('/');
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Error updating user state after Google OAuth:', error);
+                setCheckingAuth(false);
+                
+                // Notify user of the error
+                toast.error('Authentication error, please try again', {
+                    duration: 5000,
+                });
+                
+                // Still redirect even if there's an error
+                setTimeout(() => {
+                    router.push('/');
+                }, 3000);
+            }
+        };
+        
+        // Start authentication process
+        updateUserState();
+    }, [router, userContext, retryCount]);
 
     return (
         <div className="fixed inset-0 bg-[#1E1F2E] flex items-center justify-center p-4">
@@ -73,7 +153,9 @@ export default function GoogleAuthSuccess() {
                                 Welcome to Sacral Track!
                             </h2>
                             <p className="text-[#818BAC] mb-6">
-                                Get ready to embark on an amazing musical journey with us.
+                                {checkingAuth 
+                                    ? "Completing your authentication..." 
+                                    : "Get ready to embark on an amazing musical journey with us."}
                             </p>
                         </motion.div>
 
@@ -94,7 +176,9 @@ export default function GoogleAuthSuccess() {
                                         repeat: Infinity,
                                     }}
                                 >
-                                    Redirecting to homepage...
+                                    {checkingAuth 
+                                        ? `Verifying your account${".".repeat((retryCount % 3) + 1)}` 
+                                        : "Redirecting to homepage..."}
                                 </motion.span>
                             </div>
                         </motion.div>

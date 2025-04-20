@@ -34,7 +34,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const checkingRef = React.useRef<boolean>(false);
 
-  const checkUser = async () => {
+  const checkUser = async (): Promise<User | null> => {
     // Добавляем дебаунсинг с помощью ref переменной
     if (checkingRef.current) {
       return null;

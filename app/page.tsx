@@ -14,14 +14,10 @@ import MainLayout from "./layouts/MainLayout"
 import { AnimatePresence } from 'framer-motion';
 import { motion } from 'framer-motion';
 import { ContentFilterProvider, ContentFilterContext } from "@/app/context/ContentFilterContext";
-import { OnboardingProvider, useOnboarding } from "@/app/context/OnboardingContext";
 import { FaInfoCircle, FaCheckCircle } from "react-icons/fa";
 import { PostMainSkeleton } from "./components/PostMain";
 import { ErrorBoundary } from "react-error-boundary";
 import SafeVibeCard from "./components/vibe/SafeVibeCard";
-
-// Lazy load components that are not needed immediately
-const OnboardingGuide = lazy(() => import('./components/onboarding/OnboardingGuide'));
 
 // Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
 interface FeedItem {
@@ -40,47 +36,11 @@ const createFeedItem = (type: 'post' | 'vibe', data: any, created_at: string): F
 // Main Home component
 export default function Home() {
   return (
-    <OnboardingProvider>
-      <HomeContent />
-    </OnboardingProvider>
-  );
-}
-
-function HomeContent() {
-  const onboardingContext = useOnboarding();
-
-  useEffect(() => {
-    // Wrap in try-catch to handle potential undefined context
-    try {
-      // Проверяем, что контекст и функция showOnboarding существуют
-      if (onboardingContext && typeof onboardingContext.showOnboarding === 'function') {
-        const isOnboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
-        if (!isOnboardingCompleted) {
-          // Add small delay to ensure context is ready
-          setTimeout(() => {
-            onboardingContext.showOnboarding();
-          }, 0);
-        }
-      } else {
-        console.warn('Onboarding context or showOnboarding function is not available');
-      }
-    } catch (error) {
-      console.error('Error checking onboarding status:', error);
-    }
-  }, [onboardingContext]);
-
-  return (
-    <>
-      <ContentFilterProvider>
-        <GenreProvider>
-          <HomePageContent />
-        </GenreProvider>
-      </ContentFilterProvider>
-
-      <Suspense fallback={null}>
-        <OnboardingGuide />
-      </Suspense>
-    </>
+    <ContentFilterProvider>
+      <GenreProvider>
+        <HomePageContent />
+      </GenreProvider>
+    </ContentFilterProvider>
   );
 }
 

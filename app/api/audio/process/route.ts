@@ -10,6 +10,16 @@ import { ID } from '@/libs/AppWriteClient';
 import { spawn } from 'child_process';
 import { storage } from '@/libs/AppWriteClient';
 
+// Set max payload size to 200MB
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '200mb',
+    },
+    responseLimit: false,
+  },
+};
+
 // Улучшенная функция для отправки ошибки
 function sendDetailedError(writer: WritableStreamDefaultWriter, message: string, details: any = {}) {
     console.error(`[ERROR] ${message}`, details);
