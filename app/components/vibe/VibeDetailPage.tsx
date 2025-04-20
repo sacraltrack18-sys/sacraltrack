@@ -458,84 +458,64 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       }
 
       // Optimistically update UI first
-      
       // Update local state
       if (isLiked) {
         setIsLiked(false);
         setLikesCount((prev: number) => Math.max(0, prev - 1));
-        
-        // Persist in local store if we have one
-        if (unlikeVibe) {
-          try {
-            await unlikeVibe(vibe.id, user.id);
-          } catch (storeError) {
-            console.error('Error updating like in store:', storeError);
-          }
-        }
       } else {
         setIsLiked(true);
         setLikesCount((prev: number) => prev === 0 ? 1 : prev + 1);
-        
-        // Persist in local store if we have one
-        if (likeVibe) {
-          try {
-            await likeVibe(vibe.id, user.id);
-          } catch (storeError) {
-            console.error('Error updating like in store:', storeError);
-          }
-        }
       }
 
-      // Make API call with retry logic
-      let success = false;
-      let retryCount = 0;
-      const maxRetries = 2;
-      
-      while (!success && retryCount <= maxRetries) {
-        try {
-          // Add a small delay before retrying
-          if (retryCount > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+      // Make API call
+      try {
+        const response = await toggleVibeVote(vibe.id, user.id);
+        
+        // Update state with actual values from server
+        if (response && response.count !== undefined) {
+          setLikesCount(response.count);
+          setIsLiked(response.action === 'liked');
+          
+          // Update local store for persistence
+          if (response.action === 'liked' && likeVibe) {
+            await likeVibe(vibe.id, user.id);
+          } else if (response.action === 'unliked' && unlikeVibe) {
+            await unlikeVibe(vibe.id, user.id);
           }
           
-          // Call API
-          const response = await toggleVibeVote(vibe.id, user.id);
-          
-          // If we get here, the request was successful
-          if (response && response.count !== undefined) {
-            setLikesCount(response.count);
-            setIsLiked(response.action === 'liked');
-            
-            // Update local stats in vibe object
-            if (Array.isArray(vibe.stats)) {
-              const updatedStats = [...vibe.stats];
-              updatedStats[0] = response.count.toString();
-              vibe.stats = updatedStats;
-            } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-              vibe.stats = {
-                ...vibe.stats,
-                total_likes: response.count
-              };
-            }
-            success = true;
-            
-            // Make sure to update the userLikedVibes in the store for persistence
-            if (response.action === 'liked' && likeVibe) {
-              await likeVibe(vibe.id, user.id);
-            } else if (response.action === 'unliked' && unlikeVibe) {
-              await unlikeVibe(vibe.id, user.id);
-            }
-          } else {
-            // Handle unexpected response format
-            throw new Error('Invalid response format');
+          // Update local stats in vibe object
+          if (Array.isArray(vibe.stats)) {
+            const updatedStats = [...vibe.stats];
+            updatedStats[0] = response.count.toString();
+            vibe.stats = updatedStats;
+          } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+            vibe.stats = {
+              ...vibe.stats,
+              total_likes: response.count
+            };
           }
-        } catch (retryError) {
-          retryCount++;
-          
-          // If we've exhausted all retries, rethrow the error
-          if (retryCount > maxRetries) {
-            throw retryError;
+        }
+      } catch (apiError) {
+        console.error('API error when toggling like:', apiError);
+        // Revert optimistic update on error
+        setIsLiked(wasLiked);
+        setLikesCount(prevLikesCount);
+        
+        // Show user-friendly error
+        toast.error('Failed to update like. Please try again.', {
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+            borderRadius: '10px'
           }
+        });
+        
+        // If it's an auth error, we need to prompt for login
+        if (apiError.toString().includes('401') || 
+            apiError.toString().includes('unauthorized') || 
+            apiError.toString().includes('unauthenticated')) {
+          setIsLoginOpen(true);
         }
       }
     } catch (error) {
@@ -547,14 +527,13 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       
       let errorMessage = 'Could not update like. Please try again.';
       
+      // Provide more specific error messages based on error type
       if (error instanceof Error) {
-        if (error.message.includes('network') || error.message.includes('connection')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = 'Request timed out. Please try again.';
-        } else if (error.message.includes('unauthorized')) {
-          errorMessage = 'You need to log in again to perform this action.';
+        if (error.message.includes('unauthorized') || error.message.includes('authenticated')) {
+          errorMessage = 'Please log in to like this vibe.';
           setIsLoginOpen(true);
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection.';
         }
       }
       
@@ -574,54 +553,96 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     if (!vibe.id) return;
     
     try {
-      // Get the most up-to-date vibe document with stats
-      const vibeDoc = await database.getDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-        vibe.id
-      );
-      
-      if (vibeDoc && vibeDoc.stats) {
-        // Update local state with fresh stats
-        const stats = vibeDoc.stats;
+      // Получаем актуальную информацию о количестве лайков через API
+      // Это более надежный способ, чем обращение напрямую к базе данных
+      try {
+        const response = await fetch(`/api/vibes/like?vibe_id=${vibe.id}${user?.id ? `&user_id=${user.id}` : ''}`);
         
-        if (Array.isArray(stats)) {
-          setLikesCount(parseInt(stats[0], 10) || 0);
+        if (response.ok) {
+          const data = await response.json();
           
-          // Only update comments count if it's different from what we already have
-          const newCommentsCount = parseInt(stats[1], 10) || 0;
-          if (newCommentsCount !== commentsCount) {
-            setCommentsCount(newCommentsCount);
-            // If comments count has changed and is higher, refresh comments
-            if (newCommentsCount > commentsCount) {
-              fetchComments();
-            }
+          // Обновляем лайки из API-ответа
+          if (data.count !== undefined) {
+            setLikesCount(data.count);
           }
-        } else if (typeof stats === 'object') {
-          setLikesCount(stats.total_likes || 0);
           
-          // Only update comments count if it's different
-          const newCommentsCount = stats.total_comments || 0;
-          if (newCommentsCount !== commentsCount) {
-            setCommentsCount(newCommentsCount);
-            // If comments count has changed and is higher, refresh comments
-            if (newCommentsCount > commentsCount) {
-              fetchComments();
+          // Если пользователь авторизован, обновляем статус лайка
+          if (user?.id && data.hasLiked !== undefined) {
+            setIsLiked(data.hasLiked);
+          }
+          
+          // Обновляем локальные данные вайба
+          if (Array.isArray(vibe.stats) && data.count !== undefined) {
+            const updatedStats = [...vibe.stats];
+            updatedStats[0] = data.count.toString();
+            vibe.stats = updatedStats;
+          } else if (typeof vibe.stats === 'object' && vibe.stats !== null && data.count !== undefined) {
+            vibe.stats = {
+              ...vibe.stats,
+              total_likes: data.count
+            };
+          }
+          
+          return; // Если API-вызов успешен, пропускаем запрос к базе данных
+        }
+      } catch (apiError) {
+        console.error('Error fetching like status from API:', apiError);
+        // Если API недоступен, продолжаем с альтернативным методом (запрос к базе данных)
+      }
+      
+      // Запасной вариант: получаем данные напрямую из документа вайба
+      try {
+        // Get the most up-to-date vibe document with stats
+        const vibeDoc = await database.getDocument(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+          vibe.id
+        );
+        
+        if (vibeDoc && vibeDoc.stats) {
+          // Update local state with fresh stats
+          const stats = vibeDoc.stats;
+          
+          if (Array.isArray(stats)) {
+            setLikesCount(parseInt(stats[0], 10) || 0);
+            
+            // Only update comments count if it's different from what we already have
+            const newCommentsCount = parseInt(stats[1], 10) || 0;
+            if (newCommentsCount !== commentsCount) {
+              setCommentsCount(newCommentsCount);
+              // If comments count has changed and is higher, refresh comments
+              if (newCommentsCount > commentsCount) {
+                fetchComments();
+              }
+            }
+          } else if (typeof stats === 'object') {
+            setLikesCount(stats.total_likes || 0);
+            
+            // Only update comments count if it's different
+            const newCommentsCount = stats.total_comments || 0;
+            if (newCommentsCount !== commentsCount) {
+              setCommentsCount(newCommentsCount);
+              // If comments count has changed and is higher, refresh comments
+              if (newCommentsCount > commentsCount) {
+                fetchComments();
+              }
             }
           }
         }
-        
-        // Also check the like status if user is logged in
-        if (user?.id) {
-          try {
-            const hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
-            // Only update if different to avoid unnecessary re-renders
-            if (hasLiked !== isLiked) {
-              setIsLiked(hasLiked);
-            }
-          } catch (likeError) {
-            console.error('Error checking like status during refresh:', likeError);
+      } catch (dbError) {
+        console.error('Error fetching vibe document:', dbError);
+      }
+      
+      // Также проверяем статус лайка, если пользователь авторизован
+      if (user?.id) {
+        try {
+          const hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+          // Обновляем только если значение отличается, чтобы избежать лишних перерисовок
+          if (hasLiked !== isLiked) {
+            setIsLiked(hasLiked);
           }
+        } catch (likeError) {
+          console.error('Error checking like status during refresh:', likeError);
         }
       }
     } catch (error) {

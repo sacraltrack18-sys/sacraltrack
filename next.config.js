@@ -23,7 +23,7 @@ const nextConfig = {
                 hostname: 'cloud.appwrite.io',
             }
         ],
-        unoptimized: true // Изменено для Netlify
+        unoptimized: process.env.NODE_ENV === 'development'
     },
     // Optimize JS and CSS files
     compiler: {
@@ -40,18 +40,6 @@ const nextConfig = {
     productionBrowserSourceMaps: false,
     // Configure output file tracing - важно для Netlify
     output: 'standalone',
-    
-    // Добавляем настройки для более надежного экспорта на Netlify
-    generateBuildId: async () => {
-        return `build-${new Date().getTime()}`
-    },
-    
-    // Отключаем использование swcMinify, если есть проблемы
-    swcMinify: false,
-    
-    // Включаем явный экспорт статичных страниц
-    poweredByHeader: false,
-    
     // Настройка для предотвращения проблем с 404
     trailingSlash: false,
     // External packages for server components
@@ -69,16 +57,6 @@ const nextConfig = {
                 source: '/api/:path*',
                 destination: '/api/:path*',
             },
-            // Добавляем явное правило для статических ресурсов
-            {
-                source: '/_next/static/:path*',
-                destination: '/_next/static/:path*',
-            },
-            // Добавляем явное правило для изображений
-            {
-                source: '/_next/image/:path*',
-                destination: '/_next/image/:path*',
-            },
         ];
     },
     async headers() {
@@ -88,7 +66,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Access-Control-Allow-Origin',
-                        value: '*'
+                        value: 'https://sacraltrack.space, https://cloud.appwrite.io, https://*.netlify.app'
                     },
                     {
                         key: 'Access-Control-Allow-Methods',
@@ -212,8 +190,8 @@ const nextConfig = {
     },
     // Enable type checking during builds
     typescript: {
-        // Для Netlify лучше игнорировать ошибки типов при сборке
-        ignoreBuildErrors: true,
+        // Check types during build
+        ignoreBuildErrors: false,
     },
 };
 

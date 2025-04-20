@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/copy-ffmpeg-files.js && node netlify-test.js",
+    "build": "next build && node scripts/copy-ffmpeg-files.js",
     "start": "next start",
     "type-check": "tsc --noEmit",
     "build:with-types": "npm run type-check && next build && node scripts/copy-ffmpeg-files.js",
     "init-collections": "ts-node scripts/init-collections.ts",
-    "netlify-build": "npm install --legacy-peer-deps && next build && node scripts/copy-ffmpeg-files.js && node netlify-test.js",
+    "netlify-build": "npm install --legacy-peer-deps && next build && node scripts/copy-ffmpeg-files.js",
     "clean": "rm -rf .next && next dev"
   },
   "dependencies": {

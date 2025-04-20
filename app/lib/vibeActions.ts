@@ -4,27 +4,73 @@
 
 // Функция для постановки/снятия лайка вайбу
 export async function toggleVibeVote(vibeId: string, userId: string) {
-  try {
-    const response = await fetch('/api/vibes/like', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        vibe_id: vibeId
-      })
-    });
+  // Максимальное количество повторных попыток при ошибке
+  const maxRetries = 2;
+  let currentRetry = 0;
+  
+  while (currentRetry <= maxRetries) {
+    try {
+      // Если это повторная попытка, добавляем задержку
+      if (currentRetry > 0) {
+        console.log(`Retry attempt ${currentRetry} for toggle vibe vote`);
+        await new Promise(resolve => setTimeout(resolve, 500 * currentRetry));
+      }
+      
+      const response = await fetch('/api/vibes/like', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          vibe_id: vibeId
+        })
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error updating vibe like');
+      // Проверяем HTTP-статус
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || 'Error updating vibe like';
+        
+        // Если это ошибка авторизации, не повторяем попытку
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(`Authentication error: ${errorMessage}`);
+        }
+        
+        // Если это серверная ошибка, увеличиваем счетчик повторов
+        if (response.status >= 500) {
+          currentRetry++;
+          // Если исчерпали все попытки, выбрасываем ошибку
+          if (currentRetry > maxRetries) {
+            throw new Error(`Server error after ${maxRetries} retries: ${errorMessage}`);
+          }
+          // Иначе продолжаем цикл и повторяем запрос
+          continue;
+        }
+        
+        // Для других ошибок сразу выбрасываем исключение
+        throw new Error(errorMessage);
+      }
+
+      // Успешный ответ - возвращаем данные
+      return await response.json();
+    } catch (error) {
+      // Для сетевых ошибок пробуем повторные запросы
+      if (
+        error instanceof Error && 
+        (error.message.includes('network') || error.message.includes('timeout') || error.message.includes('Failed to fetch'))
+      ) {
+        currentRetry++;
+        if (currentRetry <= maxRetries) {
+          console.warn(`Network error, retrying (${currentRetry}/${maxRetries}):`, error);
+          continue;
+        }
+      }
+      
+      // Выбрасываем ошибку для обработки в компоненте
+      console.error('Error toggling vibe vote:', error);
+      throw error;
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error toggling vibe vote:', error);
-    throw error;
   }
 }
 
@@ -38,10 +84,11 @@ export async function getVibeLikeStatus(vibeId: string, userId: string) {
       throw new Error(errorData.error || 'Error getting like status');
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data.hasLiked;
   } catch (error) {
     console.error('Error getting vibe like status:', error);
-    throw error;
+    return false; // По умолчанию считаем, что пользователь не лайкнул вайб
   }
 }
 
