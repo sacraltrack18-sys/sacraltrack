@@ -149,7 +149,8 @@ export default function Register() {
             await contextUser.register(name, email, password);
             setRegistrationSuccess(true);
             
-            await account.createVerification('http://localhost:3000/verify');
+            const verifyUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/verify` : 'https://sacraltrack.space/verify';
+            await account.createVerification(verifyUrl);
             toast.success('Please check your email to verify your account');
             
             // Закрываем форму регистрации сразу после успешной регистрации

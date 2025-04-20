@@ -114,7 +114,8 @@ export default function Login() {
     const sendVerificationEmail = async () => {
         try {
             setLoading(true);
-            await account.createVerification('http://localhost:3000/verify');
+            const verifyUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/verify` : 'https://sacraltrack.space/verify';
+            await account.createVerification(verifyUrl);
             setIsEmailSent(true);
             toast.success('Verification email sent. Please check your inbox.');
             
