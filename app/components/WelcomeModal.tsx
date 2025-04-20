@@ -58,11 +58,11 @@ const CarouselDot = memo(({ isActive, index, onClick }: { isActive: boolean, ind
   <button
     className={`transition-all duration-300 ${
       isActive 
-        ? 'w-8 h-2.5 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] rounded-full' 
-        : 'w-2.5 h-2.5 bg-white/20 hover:bg-white/40 rounded-full'
+        ? 'w-12 h-3.5 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] rounded-full shadow-md shadow-[#8B5CF6]/30' 
+        : 'w-3.5 h-3.5 bg-white/20 hover:bg-white/40 hover:scale-110 rounded-full'
     }`}
     onClick={onClick}
-    aria-label={`Slide ${index + 1}`}
+    aria-label={`Go to slide ${index + 1}`}
   />
 ));
 
@@ -218,6 +218,14 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
   // Прерываем рендеринг, если модальное окно не видимо
   if (!isVisible) return <ImagePreloader />;
 
+  // Функция для обработки клика вне модального окна
+  const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Проверяем, что клик был именно по внешнему контейнеру, а не по содержимому
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -225,14 +233,15 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl modal-overlay"
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-xl modal-overlay"
+          onClick={handleOutsideClick}
         >
           <motion.div
             initial={{ scale: 0.9, y: 20, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 20, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-11/12 max-w-4xl overflow-hidden rounded-2xl bg-[#1A2338]/70 backdrop-blur-xl shadow-2xl border border-white/10 will-change-transform"
+            className="relative w-11/12 max-w-4xl overflow-y-auto max-h-[90vh] rounded-2xl bg-[#1A2338]/70 backdrop-blur-xl shadow-2xl border border-white/10 will-change-transform"
           >
             {/* Упрощенные статические элементы фона */}
             <div className="absolute inset-0 overflow-hidden">
@@ -259,28 +268,26 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
             </div>
 
             {/* Logo and header - оптимизировано */}
-            <div className="relative z-10 p-8 pt-10 text-center">
-              <div className="flex justify-center mb-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-[#20DDBB] blur-xl opacity-30 rounded-full scale-125"></div>
-                  <Image 
-                    src="/images/T-logo.svg" 
-                    alt="Sacral Track Logo" 
-                    width={80} 
-                    height={80}
-                    className="relative z-10"
+            <div className="relative z-10 p-6 md:p-10 flex flex-col">
+              {/* Лого и заголовок */}
+              <div className="mb-5 md:mb-8 flex flex-col items-center">
+                <div className="w-24 h-24 relative mb-4">
+                  <Image
+                    src="/images/T-logo.svg"
+                    alt="Sacral Track Logo"
+                    width={100}
+                    height={100}
+                    className="mx-auto drop-shadow-glow"
                     priority
-                    unoptimized
-                    loading="eager"
                   />
                 </div>
+                <h2 className="text-2xl md:text-4xl font-bold text-white text-center">
+                  Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-transparent bg-clip-text">Sacral Track</span>
+                </h2>
+                <p className="mt-3 text-white/70 text-sm md:text-base text-center max-w-xl mx-auto">
+                  The premier music platform for artists and listeners with high-quality audio and fair royalty distribution
+                </p>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-2 text-white">
-                Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] bg-clip-text text-transparent">Sacral Track</span>
-              </h2>
-              <p className="text-white/70 mb-8 max-w-2xl mx-auto">
-                The premier music streaming platform, marketplace and social network for music artists and lovers with high-quality audio and fair royalty distribution
-              </p>
 
               {/* Beta warning banner - оптимизировано */}
               <div className="mb-8 py-3 px-6 bg-[#1A2338]/80 backdrop-blur-sm rounded-lg border border-yellow-500/30 max-w-2xl mx-auto">
@@ -304,26 +311,30 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                 </AnimatePresence>
               </div>
 
-              {/* Carousel indicators - оптимизировано */}
-              <div className="flex justify-center gap-2 mb-8">
+              {/* Навигационные контролы - улучшение для мобильных */}
+              <div className="flex justify-center gap-2.5 mt-6 md:mt-10">
                 {features.map((_, index) => (
-                  <CarouselDot 
-                    key={index} 
-                    isActive={index === currentSlide} 
-                    index={index} 
+                  <CarouselDot
+                    key={index}
+                    isActive={currentSlide === index}
+                    index={index}
                     onClick={() => handleSlideChange(index)}
                   />
                 ))}
               </div>
 
+              {/* Кнопка "Get Started" - более заметная */}
+              <motion.button
+                onClick={handleClose}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="mt-8 md:mt-10 mx-auto px-8 py-3 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-white font-medium shadow-glow text-base md:text-lg"
+              >
+                Get Started
+              </motion.button>
+
               {/* Call to action buttons - оптимизировано */}
               <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-xl mx-auto">
-                <button
-                  onClick={handleClose}
-                  className="px-8 py-3 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] rounded-xl font-medium shadow-lg shadow-[#20DDBB]/20 transition-all hover:brightness-110 will-change-transform"
-                >
-                  Get Started
-                </button>
                 <Link href="/terms" className="px-8 py-3 bg-white/10 backdrop-blur-md rounded-xl font-medium hover:bg-white/20 transition-all will-change-transform">
                   Read Terms of Service
                 </Link>
@@ -333,16 +344,19 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
               <Copyright />
             </div>
 
-            {/* Close button - оптимизировано */}
-            <button
+            {/* Кнопка закрытия - более заметная на мобильных */}
+            <motion.button
               onClick={handleClose}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 backdrop-blur-md transition-colors hover:bg-white/20 will-change-transform"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="absolute top-4 right-4 z-20 p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white backdrop-blur-sm border border-white/10 transition-all duration-300"
               aria-label="Close welcome modal"
             >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </button>
+            </motion.button>
           </motion.div>
         </motion.div>
       )}

@@ -270,111 +270,126 @@ const ContentFilter = () => {
   };
   
   return (
-    <div>
-      {/* Tab buttons - improved mobile version is more compact and square */}
-      {isMobile ? (
-        <div className="flex gap-2 justify-between overflow-x-auto pb-1">
-          <MobileTabButton
-            active={activeTab === 'all'}
-            onClick={() => handleTabChange('all')}
-            icon={<AllContentIcon className="w-4 h-4" />}
-            label="All"
-          />
+    <>
+      {/* Desktop version */}
+      <div className="hidden md:block w-full">
+        <div className="w-full bg-gradient-to-br from-[#1B1C30]/80 to-[#262840]/80 backdrop-blur-md rounded-xl p-4 border border-white/10 shadow-lg">
+          <h3 className="text-lg font-medium text-white/90 mb-2 flex items-center">
+            <SparklesIcon className="w-5 h-5 mr-2 text-[#20DDBB]" />
+            Content Filter
+          </h3>
+          <p className="text-xs text-white/50 mb-4">Select what content you want to see</p>
           
-          <MobileTabButton
-            active={activeTab === 'vibe'}
-            onClick={() => handleTabChange('vibe')}
-            icon={<VibeIcon className="w-4 h-4" />}
-            label="Vibe"
-          />
-          
-          <MobileTabButton
-            active={activeTab === 'stracks'}
-            onClick={() => handleTabChange('stracks')}
-            icon={<SacralTrackIcon className="w-4 h-4" />}
-            label="Sacral"
-          />
-          
-          <MobileTabButton
-            active={activeTab === 'world'}
-            onClick={() => handleTabChange('world')}
-            icon={<WorldIcon className="w-4 h-4" />}
-            label="World"
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          <TabButton
-            active={activeTab === 'all'}
-            onClick={() => handleTabChange('all')}
-            icon={<AllContentIcon className="w-5 h-5 text-blue-400" />}
-            label="All Content"
-            description="Show everything"
-            isSpecial={false}
-          />
-          
-          <TabButton
-            active={activeTab === 'vibe'}
-            onClick={() => handleTabChange('vibe')}
-            icon={<VibeIcon className="w-5 h-5 text-pink-400" />}
-            label="Vibe"
-            description="User moments"
-            isSpecial={false}
-          />
-          
-          <TabButton
-            active={activeTab === 'stracks'}
-            onClick={() => handleTabChange('stracks')}
-            icon={<SacralTrackIcon className="w-5 h-5 text-blue-400" />}
-            label="Sacral Track"
-            description="Platform tracks"
-            isSpecial={true}
-          />
-          
-          <TabButton
-            active={activeTab === 'world'}
-            onClick={() => handleTabChange('world')}
-            icon={<WorldIcon className="w-5 h-5 text-purple-400" />}
-            label="World Tracks"
-            description="Global hits"
-            isSpecial={false}
-          />
-        </div>
-      )}
-      
-      {/* Recommendations section - hide on mobile */}
-      {!isMobile && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <FireIcon className="h-5 w-5 text-pink-400" />
-              <h3 className="text-white font-bold tracking-wide">Recommended</h3>
-            </div>
+          {/* Filter buttons */}
+          <div className="space-y-2">
+            {/* All content */}
+            <TabButton 
+              active={activeTab === 'all'} 
+              onClick={() => handleTabChange('all')}
+              icon={<AllContentIcon />}
+              label="All Content"
+              description="View all content types"
+            />
             
-            <button 
-              onClick={refreshRecommendations}
-              className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
-              disabled={loading}
-            >
-              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            {/* Vibe */}
+            <TabButton 
+              active={activeTab === 'vibe'} 
+              onClick={() => handleTabChange('vibe')}
+              icon={<VibeIcon />}
+              label="Vibes"
+              description="Social posts from artists & fans"
+            />
+            
+            {/* Sacral Tracks */}
+            <TabButton 
+              active={activeTab === 'stracks'} 
+              onClick={() => handleTabChange('stracks')}
+              icon={<SacralTrackIcon />}
+              label="Sacral Tracks"
+              description="Music tracks from artists"
+              isSpecial
+            />
+            
+            {/* World */}
+            <TabButton 
+              active={activeTab === 'world'} 
+              onClick={() => handleTabChange('world')}
+              icon={<WorldIcon />}
+              label="World"
+              description="Global trending content"
+            />
           </div>
           
-          <div className="space-y-4">
-            {loading ? (
-              <>
-                <RecommendationSkeleton />
-                <RecommendationSkeleton />
-              </>
-            ) : (
-              recommendations.map(track => (
-                <RecommendationCard key={track.id} track={track} />
-              ))
-            )}
+          {/* Recommendations section - hide on mobile */}
+          {!isMobile && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <FireIcon className="h-5 w-5 text-pink-400" />
+                  <h3 className="text-white font-bold tracking-wide">Recommended</h3>
+                </div>
+                
+                <button 
+                  onClick={refreshRecommendations}
+                  className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+                  disabled={loading}
+                >
+                  <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {loading ? (
+                  <>
+                    <RecommendationSkeleton />
+                    <RecommendationSkeleton />
+                  </>
+                ) : (
+                  recommendations.map(track => (
+                    <RecommendationCard key={track.id} track={track} />
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Mobile version - optimized for mobile display */}
+      <div className="block md:hidden w-full">
+        <div className="w-full bg-gradient-to-r from-[#1A1C30]/95 to-[#262840]/95 backdrop-blur-lg shadow-lg z-[99]">
+          <div className="flex justify-between items-center">
+            <MobileTabButton 
+              active={activeTab === 'all'} 
+              onClick={() => handleTabChange('all')}
+              icon={<AllContentIcon className="w-5 h-5" />}
+              label="All"
+            />
+            
+            <MobileTabButton 
+              active={activeTab === 'vibe'} 
+              onClick={() => handleTabChange('vibe')}
+              icon={<VibeIcon className="w-5 h-5" />}
+              label="Vibes"
+            />
+            
+            <MobileTabButton 
+              active={activeTab === 'stracks'} 
+              onClick={() => handleTabChange('stracks')}
+              icon={<SacralTrackIcon className="w-5 h-5" />}
+              label="Tracks"
+            />
+            
+            <MobileTabButton 
+              active={activeTab === 'world'} 
+              onClick={() => handleTabChange('world')}
+              icon={<WorldIcon className="w-5 h-5" />}
+              label="World"
+            />
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 
@@ -395,54 +410,42 @@ interface TabButtonProps {
   isSpecial?: boolean;
 }
 
-// Mobile tab button component - устраняем квадратные фоны под иконками
+// Компонент для мобильной версии табов
 const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps) => {
   return (
-    <motion.button
-      whileTap={{ scale: 0.92 }}
+    <button
       onClick={onClick}
-      className={`
-        flex-1 py-3 px-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1
-        ${active 
-          ? 'bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/30 backdrop-blur-md'
-          : 'bg-[#1A1C2E]/80 text-gray-400 border border-purple-900/20 backdrop-blur-sm'
-        }
-      `}
+      className={`flex flex-col items-center justify-center py-2 px-4 transition-all duration-300 relative ${
+        active
+          ? 'text-white'
+          : 'text-gray-400 hover:text-white/70'
+      }`}
     >
-      <div className="flex items-center justify-center">
+      <div className={`
+        p-1.5 rounded-lg mb-1 transition-all duration-300
+        ${active 
+          ? 'bg-gradient-to-br from-[#20DDBB]/20 to-[#8B5CF6]/20 text-white' 
+          : 'text-gray-400'
+        }
+      `}>
         {icon}
       </div>
-      <span className="text-xs font-medium">{label}</span>
+      <span className="text-[10px] font-medium">{label}</span>
       
-      {/* Simple animation only for active buttons */}
       {active && (
-        <motion.div 
-          className="absolute inset-0 rounded-xl"
-          animate={{ boxShadow: ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 4px rgba(79, 70, 229, 0.2)', '0 0 0 0 rgba(79, 70, 229, 0)'] }}
-          transition={{ duration: 2, repeat: Infinity }}
+        <motion.div
+          layoutId="activeTabIndicator-mobile"
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6]"
+          initial={false}
+          transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}
         />
       )}
-    </motion.button>
+    </button>
   );
 };
 
 // Tab button component - устраняем квадратные фоны под иконками
 const TabButton = ({ active, onClick, icon, label, description, isSpecial = false }: TabButtonProps) => {
-  // Enhanced pulse animation
-  const pulseAnimation = {
-    animate: {
-      boxShadow: active 
-        ? ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 8px rgba(79, 70, 229, 0.2)', '0 0 0 0 rgba(79, 70, 229, 0)']
-        : ['0 0 0 0 rgba(79, 70, 229, 0)', '0 0 0 4px rgba(79, 70, 229, 0.1)', '0 0 0 0 rgba(79, 70, 229, 0)']
-    },
-    transition: {
-      duration: 2.5,
-      repeat: Infinity,
-      repeatType: "loop" as "loop",
-      ease: "easeInOut"
-    }
-  };
-  
   const specialClass = isSpecial 
     ? active 
       ? 'bg-gradient-to-br from-[#2E2469] to-[#4F46E5] ring-2 ring-[#4F46E5]/50 ring-offset-1 ring-offset-[#1E1A36]' 
@@ -454,75 +457,21 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       whileHover={{ scale: active ? 1 : 1.03, y: active ? 0 : -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      {...(isSpecial ? pulseAnimation : {})}
       className={`
         relative flex-1 py-4 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden
         ${active 
-          ? `bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-lg shadow-[#4F46E5]/20 border border-[#4F46E5]/50 backdrop-blur-md ${specialClass}`
-          : `bg-gradient-to-r from-[#1E1A36]/80 to-[#2A2151]/80 backdrop-blur-lg text-gray-300 hover:bg-[#2A2151]/90 border border-white/5 hover:border-white/20 ${specialClass}`
+          ? `bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-lg shadow-[#4F46E5]/20 border border-[#4F46E5]/50 ${specialClass}`
+          : `bg-gradient-to-r from-[#1E1A36]/80 to-[#2A2151]/80 text-gray-300 hover:bg-[#2A2151]/90 border border-white/5 hover:border-white/20 ${specialClass}`
         }
       `}
     >
-      {/* Improved animated background for active tab */}
-      {active && (
-        <motion.div
-          className={`absolute inset-0 bg-gradient-to-r ${isSpecial 
-            ? 'from-[#2E2469]/30 via-[#EC4899]/30 to-[#2E2469]/30' 
-            : 'from-[#2E2469]/20 via-[#EC4899]/20 to-[#2E2469]/20'}`}
-          animate={{
-            backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-          }}
-          transition={{
-            duration: isSpecial ? 3 : 5,
-            repeat: Infinity,
-            repeatType: "loop",
-            ease: "easeInOut"
-          }}
-        />
-      )}
-      
-      {/* Enhanced shimmer effect for special tab */}
-      {isSpecial && (
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-          initial={{ x: '-100%' }}
-          animate={{ x: '100%' }}
-          transition={{
-            duration: 1.8,
-            repeat: Infinity,
-            repeatType: "loop",
-            ease: "easeInOut",
-            repeatDelay: 0.8
-          }}
-        />
-      )}
-      
       <div className="flex flex-col items-center relative z-10">
-        {/* Убираем фоновый квадрат и показываем только иконку */}
         <div className="mb-2">
           {icon}
         </div>
         <span className={`font-medium block text-sm ${isSpecial && active ? 'text-white' : isSpecial ? 'text-blue-200' : ''}`}>{label}</span>
         <span className="text-xs opacity-70">{description}</span>
       </div>
-      
-      {/* Refined and simplified music note animations */}
-      {active && (
-        <motion.div
-          className="absolute -top-2 -right-2 text-white/20"
-          animate={{ 
-            y: [0, -10, 0],
-            opacity: [0, 0.6, 0]
-          }}
-          transition={{
-            duration: 2.5,
-            repeat: Infinity,
-            repeatType: "loop",
-          }}
-        >
-          <HiMusicNote className="h-4 w-4" />
-        </motion.div>
-      )}
     </motion.button>
   );
 };

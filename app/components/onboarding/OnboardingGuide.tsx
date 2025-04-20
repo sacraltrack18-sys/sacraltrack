@@ -135,6 +135,14 @@ export const OnboardingGuide: React.FC = () => {
 
   if (!isVisible) return null;
 
+  // Функция для обработки клика вне модального окна
+  const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Проверяем, что клик был именно по внешнему контейнеру, а не по содержимому
+    if (e.target === e.currentTarget) {
+      handleComplete();
+    }
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -143,15 +151,16 @@ export const OnboardingGuide: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4, ease: "easeInOut" }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-lg"
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-lg"
+          onClick={handleOutsideClick}
         >
-          <div className="relative w-full max-w-4xl p-6">
+          <div className="relative w-full max-w-4xl p-3 md:p-6 max-h-[90vh] overflow-y-auto">
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: -20 }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="relative overflow-hidden bg-gradient-to-br from-[#1A2338]/90 to-[#2A3348]/90 backdrop-blur-xl p-10 rounded-2xl border border-[#20DDBB]/20 shadow-2xl"
+              className="relative overflow-y-auto bg-gradient-to-br from-[#1A2338]/90 to-[#2A3348]/90 backdrop-blur-xl p-5 md:p-10 rounded-2xl border border-[#20DDBB]/20 shadow-2xl"
             >
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <motion.div 
@@ -182,10 +191,10 @@ export const OnboardingGuide: React.FC = () => {
                 onClick={handleComplete}
                 whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                 whileTap={{ scale: 0.95 }}
-                className="absolute top-4 right-4 text-[#818BAC] hover:text-white transition-colors z-10 p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10"
+                className="absolute top-3 right-3 md:top-4 md:right-4 text-[#818BAC] hover:text-white transition-colors z-10 p-2 md:p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10"
                 aria-label="Close onboarding"
               >
-                <FaTimes className="w-5 h-5" />
+                <FaTimes className="w-4 h-4 md:w-5 md:h-5" />
               </motion.button>
 
               {currentStep === 0 ? (
@@ -227,11 +236,11 @@ export const OnboardingGuide: React.FC = () => {
                     <h2 className="text-4xl font-bold bg-gradient-to-r from-white to-violet-200 bg-clip-text text-transparent mb-4">
                       Welcome to Sacral Track
                     </h2>
-                    <p className="text-[#9BA3BF] text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+                    <p className="text-[#9BA3BF] text-base md:text-lg mb-6 md:mb-10 max-w-xl mx-auto leading-relaxed">
                       The premier music streaming platform, marketplace and social network for music artists and lovers with high-quality audio and fair royalty distribution.
                     </p>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 max-w-2xl mx-auto">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-5 max-w-2xl mx-auto">
                       {[
                         { icon: FaMusic, text: "Create & Share" },
                         { icon: FaHeadphones, text: "Listen & Collect" },
@@ -266,7 +275,7 @@ export const OnboardingGuide: React.FC = () => {
                     onClick={handleNext}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
-                    className="inline-flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-full shadow-lg shadow-violet-900/30 transition-all duration-300 group font-medium text-lg"
+                    className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-full shadow-lg shadow-violet-900/30 transition-all duration-300 group font-medium text-base md:text-lg"
                   >
                     <span>Explore Features</span>
                     <FaArrowRight className="text-sm transition-transform duration-300 group-hover:translate-x-1" />
@@ -314,7 +323,7 @@ export const OnboardingGuide: React.FC = () => {
                     <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-violet-200 bg-clip-text text-transparent mb-4">
                       {steps[currentStep].title}
                     </h2>
-                    <p className="text-[#9BA3BF] text-lg mb-8 max-w-lg mx-auto leading-relaxed">
+                    <p className="text-[#9BA3BF] text-base md:text-lg mb-6 md:mb-10 max-w-lg mx-auto leading-relaxed">
                       {steps[currentStep].description}
                     </p>
                     
@@ -344,21 +353,21 @@ export const OnboardingGuide: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mt-10">
+                  <div className="flex items-center justify-between mt-6 md:mt-10">
                     <motion.button
                       onClick={() => setCurrentStep(currentStep - 1)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#252742]/50 text-[#9BA3BF] rounded-full border border-[#3f2d63]/30 transition-all duration-300 group hover:text-white hover:border-violet-500/30"
+                      className="inline-flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#252742]/50 text-[#9BA3BF] rounded-full border border-[#3f2d63]/30 transition-all duration-300 group hover:text-white hover:border-violet-500/30"
                       style={{ visibility: currentStep === 0 ? 'hidden' : 'visible' }}
                     >
                       <FaArrowRight className="text-sm rotate-180 transition-transform duration-300 group-hover:-translate-x-1" />
                       <span>Previous</span>
                     </motion.button>
 
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-3">
                       {steps.map((step, index) => (
-                        <motion.div
+                        <motion.button
                           key={step.id}
                           initial={{ scale: 0.8 }}
                           animate={{ 
@@ -366,8 +375,13 @@ export const OnboardingGuide: React.FC = () => {
                             backgroundColor: index === currentStep ? '#8B5CF6' : '#252742'
                           }}
                           whileHover={{ scale: 1.2 }}
-                          className={`w-2 h-2 rounded-full cursor-pointer transition-all duration-300`}
+                          className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 ${
+                            index === currentStep 
+                              ? 'w-12 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] shadow-md shadow-[#8B5CF6]/30' 
+                              : 'w-3 bg-white/20 hover:bg-white/40'
+                          }`}
                           onClick={() => setCurrentStep(index)}
+                          aria-label={`Go to step ${index + 1}`}
                         />
                       ))}
                     </div>
@@ -376,7 +390,7 @@ export const OnboardingGuide: React.FC = () => {
                       onClick={handleNext}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.98 }}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-full shadow-lg shadow-violet-900/20 transition-all duration-300 group"
+                      className="inline-flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-full shadow-lg shadow-violet-900/20 transition-all duration-300 group"
                     >
                       <span>{currentStep === steps.length - 1 ? 'Get Started' : 'Next'}</span>
                       <FaArrowRight className="text-sm transition-transform duration-300 group-hover:translate-x-1" />
