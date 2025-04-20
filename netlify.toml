@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
+  edge_functions = "edge-functions"
 
 [build.environment]
   NODE_VERSION = "22.14.0"
@@ -25,9 +26,6 @@
 
 [build.processing.images]
   compress = true
-
-# Обязательная обработка файла _redirects
-[build.edge_functions]
 
 # Official Next.js plugin
 [[plugins]]
