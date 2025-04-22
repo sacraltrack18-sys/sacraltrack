@@ -36,11 +36,6 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
-                    },
-                    // Add header to increase payload size limit
-                    {
-                        key: 'Content-Length',
-                        value: '209715200' // 200MB in bytes
                     }
                 ]
             },
