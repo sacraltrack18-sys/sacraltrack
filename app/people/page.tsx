@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFriendsStore } from '@/app/stores/friends';
 import { useProfileStore } from '@/app/stores/profile';
@@ -30,6 +30,18 @@ import { useRouter, usePathname } from 'next/navigation';
 import { FaTrophy, FaStar, FaMedal, FaCrown } from 'react-icons/fa';
 import PeopleLayout from '@/app/layouts/PeopleLayout';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
+
+// Модифицируем наш хук для ГАРАНТИРОВАННОГО перехода
+function useSafeNavigation() {
+  // Используем только прямой переход через window.location
+  const navigateTo = useCallback((path: string) => {
+    console.log("[DEBUG] Directly navigating to:", path);
+    // Используем прямую навигацию без try/catch - просто делаем переход
+    window.location.href = path;
+  }, []);
+  
+  return { navigateTo };
+}
 
 // Определение типов для табов
 const TabTypes = {
@@ -200,13 +212,17 @@ function UserCardSkeleton() {
     );
 }
 
+// Компонент UserCard - сделаем всю карточку кликабельной и упростим навигацию
 const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemoveFriend, onRateUser }) => {
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const router = useRouter();
+    const { navigateTo } = useSafeNavigation();
+    
+    // Получаем доступ к глобальному состоянию поиска
+    const searchContext = useContext(React.createContext<string>('')); // Можно заменить на актуальный контекст поиска
     
     // Исправляем отображение числовых значений
     const getNumericValue = (value: any): number => {
@@ -280,23 +296,41 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
         onRateUser(user.user_id, value);
     };
     
-    // Навигация на профиль с проверкой
-    const navigateToProfile = (e: React.MouseEvent) => {
-        e.preventDefault();
+    // Упрощенная навигация на профиль - самый прямой способ
+    const navigateToProfile = () => {
+        window.location.href = `/profile/${user.user_id}`;
+    };
+    
+    // Обработчик добавления/удаления друзей с предотвращением всплытия
+    const handleFriendAction = (e: React.MouseEvent) => {
         e.stopPropagation();
+        e.preventDefault();
         try {
-            router.push(`/profile/${user.user_id}`);
+            isFriend ? onRemoveFriend(user.user_id) : onAddFriend(user.user_id);
         } catch (error) {
-            console.error("Navigation error:", error);
+            console.error('Friend action error:', error);
         }
+    };
+    
+    // Обработчик рейтинга с предотвращением всплытия
+    const handleRatingClick = (e: React.MouseEvent, value: number) => {
+        e.stopPropagation();
+        e.preventDefault();
+        handleStarClick(value);
     };
     
     return (
         <motion.div
-            className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative group backdrop-blur-sm"
+            className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative group backdrop-blur-sm cursor-pointer"
             whileHover={{ y: -5, transition: { duration: 0.2 } }}
+            initial={false}
+            transition={{ 
+                duration: 0.2,
+                layout: { duration: 0 }
+            }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
+            onClick={navigateToProfile}
         >
             {/* Background image with darkening */}
             <div className="absolute inset-0 w-full h-full">
@@ -322,28 +356,14 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
             </div>
             
             {/* Interactive star rating */}
-            <div className="absolute top-3 right-3 z-10 flex flex-col items-end">
+            <div className="absolute top-3 right-3 z-20 flex flex-col items-end">
                 <div className="bg-black/30 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-lg">
                     {[1, 2, 3, 4, 5].map((star) => (
                         <motion.button
                             key={star}
                             whileHover={{ scale: 1.2 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // Update local state immediately for instant feedback
-                                const newRating = star;
-                                setRating(newRating);
-                                // Create temporary updated stats for immediate UI feedback
-                                const updatedStats = {...stats, averageRating: newRating};
-                                user.stats = updatedStats as {
-                                    totalLikes: number;
-                                    totalFollowers: number;
-                                    averageRating: number;
-                                    totalRatings: number;
-                                };
-                                handleStarClick(newRating);
-                            }}
+                            onClick={(e) => handleRatingClick(e, star)}
                             onMouseEnter={() => setHoverRating(star)}
                             onMouseLeave={() => setHoverRating(0)}
                             className="p-1 focus:outline-none"
@@ -369,12 +389,8 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                 </div>
             </div>
             
-            {/* Content area with glass effect */}
-            <Link 
-                href={`/profile/${user.user_id}`}
-                className="absolute bottom-0 left-0 right-0 cursor-pointer"
-                prefetch={false}
-            >
+            {/* Content area с информацией о пользователе */}
+            <div className="absolute bottom-0 left-0 right-0 cursor-pointer z-10">
                 <div className="backdrop-blur-md bg-black/30 border-t border-white/10 p-4 transition-all duration-300 bg-gradient-to-r from-blue-900/40 via-purple-900/40 to-pink-900/40">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-400 group-hover:to-purple-400 transition-colors">
@@ -402,21 +418,14 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         {user.bio || "No bio available."}
                     </div>
                 </div>
-            </Link>
+            </div>
             
-            {/* Add/Remove friend button at bottom */}
-            <div className="absolute bottom-4 right-4" onClick={(e) => e.stopPropagation()}>
+            {/* Add/Remove friend button at bottom - с предотвращением всплытия */}
+            <div className="absolute bottom-4 right-4 z-20">
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        try {
-                            isFriend ? onRemoveFriend(user.user_id) : onAddFriend(user.user_id);
-                        } catch (error) {
-                            console.error('Friend action error:', error);
-                        }
-                    }}
+                    onClick={handleFriendAction}
                     className={`backdrop-blur-lg border border-white/20 rounded-full p-2.5 transition-colors duration-200 shadow-lg ${
                         isFriend 
                             ? 'bg-gradient-to-r from-pink-600/40 to-purple-600/40 hover:from-pink-600/60 hover:to-purple-600/60 text-white' 
@@ -429,6 +438,9 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
         </motion.div>
     );
 };
+
+// Мемоизированная версия UserCard для предотвращения лишних ререндеров
+const MemoizedUserCard = React.memo(UserCard);
 
 // Filter dropdown component
 const FilterDropdown = ({ 
@@ -457,9 +469,10 @@ const FilterDropdown = ({
             
             {isOpen && (
                 <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                     className="absolute top-full left-0 mt-2 w-48 bg-gradient-to-br from-[#1E2136] to-[#141625] rounded-xl py-2 shadow-xl border border-white/10 z-50"
                 >
                     {options.map(option => (
@@ -489,6 +502,7 @@ export default function People() {
     const [page, setPage] = useState(1);
     const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
     const [sortBy, setSortBy] = useState('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [filterBy, setFilterBy] = useState('all');
@@ -499,22 +513,35 @@ export default function People() {
     const user = useUser();
     const router = useRouter();
     const pathname = usePathname();
+    const { navigateTo } = useSafeNavigation();
     
-    // Clear state when route changes
+    // Добавим useEffect для отслеживания состояния навигации
     useEffect(() => {
-        // Для App Router в Next.js 13+ нельзя использовать router.events
-        // Вместо этого используем обычные события window
-        const handleBeforeUnload = () => {
-            console.log('Page is being unloaded, cleaning up...');
-        };
+        // Логирование при монтировании компонента
+        console.log("[DEBUG] People page mounted");
         
-        // Добавляем глобальный слушатель события
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        
-        // Очистка при размонтировании компонента
+        // Очистка при размонтировании
         return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            console.log('People page component unmounted');
+            console.log("[DEBUG] People page unmounted");
+        };
+    }, []);
+
+    // Добавим перехват ошибок навигации
+    useEffect(() => {
+        const handleRouteChange = (url: string) => {
+            console.log("[DEBUG] Route changing to:", url);
+        };
+
+        // В Next.js App Router нет events API, но можем использовать 
+        // window.addEventListener для отслеживания изменений URL
+        window.addEventListener('popstate', () => {
+            console.log("[DEBUG] popstate event occurred - URL changed");
+        });
+
+        return () => {
+            window.removeEventListener('popstate', () => {
+                console.log("[DEBUG] Cleanup popstate event listener");
+            });
         };
     }, []);
     
@@ -527,12 +554,15 @@ export default function People() {
     const loadUsers = async () => {
         try {
             setIsLoading(true);
+            console.log("[DEBUG] Loading users...");
             
             const response = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
                 [Query.limit(20)]
             );
+            
+            console.log(`[DEBUG] Loaded ${response.documents.length} users from the database`);
             
             const loadedProfiles = response.documents.map(doc => ({
                 $id: doc.$id,
@@ -549,32 +579,73 @@ export default function People() {
                 }
             }));
             
+            console.log("[DEBUG] Profiles processed and ready for display");
             setProfiles(loadedProfiles);
             setFilteredProfiles(loadedProfiles);
         } catch (error) {
-            console.error('Error loading users:', error);
+            console.error('[ERROR] Error loading users:', error);
             setError('Failed to load users. Please try again later.');
+            
+            // В случае ошибки, пытаемся использовать кэшированные данные, если они есть
+            if (profiles.length > 0) {
+                console.log("[DEBUG] Using cached profiles due to loading error");
+                setFilteredProfiles(profiles);
+            }
         } finally {
             setIsLoading(false);
         }
     };
     
-    // Обработка поиска
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Полностью переписанная функция поиска для надежной работы
+    const handleSearchInput = (text: string) => {
+        setSearchQuery(text);
+        setIsSearching(true);
         
-        if (!searchQuery.trim()) {
+        console.log("[DEBUG] SEARCH INPUT:", text);
+        
+        // Простая фильтрация без лишней логики
+        if (!text.trim()) {
             setFilteredProfiles(profiles);
+            setIsSearching(false);
             return;
         }
         
-        const filtered = profiles.filter(profile => 
-            profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (profile.username && profile.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (profile.bio && profile.bio.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
+        // Простой поиск подстроки без разбиения на термины
+        const searchTerm = text.trim().toLowerCase();
+        console.log("[DEBUG] Searching for term:", searchTerm);
         
-        setFilteredProfiles(filtered);
+        // Используем напрямую filter вместо ручного построения массива
+        const results = profiles.filter(profile => {
+            if (!profile) return false;
+            
+            const name = (profile.name || '').toLowerCase();
+            const username = (profile.username || '').toLowerCase();
+            const bio = (profile.bio || '').toLowerCase();
+            
+            // Находим совпадение по любому из полей
+            const isMatch = name.includes(searchTerm) || 
+                           username.includes(searchTerm) || 
+                           bio.includes(searchTerm);
+            
+            // Логируем совпадения для отладки
+            if (isMatch) {
+                console.log(`[DEBUG] Match found: ${profile.name}`);
+            }
+            
+            return isMatch;
+        });
+        
+        console.log(`[DEBUG] Found ${results.length} matches for "${searchTerm}" out of ${profiles.length} profiles`);
+        setFilteredProfiles(results);
+        setIsSearching(false);
+    };
+    
+    // Обработчик для поиска по кнопке
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log("[DEBUG] Search submitted with query:", searchQuery);
+        // Выполняем поиск заново - это может помочь, если что-то не сработало в handleSearchInput
+        handleSearchInput(searchQuery);
     };
     
     // Проверяем, является ли пользователь другом или есть ли отправленный запрос
@@ -883,20 +954,32 @@ export default function People() {
         initializeData();
     }, []);
     
-    // Handle click on search result
-    const handleSearchResultClick = useCallback((result: any) => {
-        try {
+    // Улучшенная версия для надежной навигации
+    const handleSearchResultClick = (result: any) => {
             if (result.type === 'profile') {
-                router.push(`/profile/${result.user_id}`);
-            } else {
-                router.push(`/post/${result.user_id}/${result.id}`);
-            }
-            setSearchQuery("");
-            setFilteredProfiles([]);
-        } catch (error) {
-            console.error('Navigation error:', error);
+            navigateTo(`/profile/${result.user_id}`);
+        } else if (result.type === 'track') {
+            navigateTo(`/post/${result.user_id}/${result.id}`);
+        } else if (result.type === 'vibe') {
+            navigateTo(`/vibe/${result.id}`);
         }
-    }, [router]);
+    };
+
+    // Фикс для "Load More" кнопки
+    const handleLoadMore = (e: React.MouseEvent) => {
+        e.preventDefault();
+        loadMoreProfiles();
+    };
+
+    // Патчим хуки эффектов для убеждения, что мы видим отфильтрованные профили
+    useEffect(() => {
+        if (profiles.length > 0 && searchQuery.trim()) {
+            // Если у нас уже есть профили и поисковый запрос - применяем фильтр снова
+            // Это полезно при первичной загрузке или при изменении фильтров
+            console.log("[DEBUG] Re-applying search filter after profiles update");
+            handleSearchInput(searchQuery);
+        }
+    }, [profiles]);
 
     return (
         <PeopleLayout>
@@ -945,8 +1028,8 @@ export default function People() {
                             className="mb-6"
                         >
                             <div className="flex flex-wrap items-center gap-4">
-                                {/* Поисковая строка */}
-                                <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[250px]">
+                                {/* Поисковая строка - улучшена обработка ввода */}
+                                <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 min-w-[250px]">
                                     <div className="relative flex-1">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <MagnifyingGlassIcon className="h-5 w-5 text-[#20DDBB]" />
@@ -955,9 +1038,19 @@ export default function People() {
                                             type="text"
                                             placeholder="Search people..."
                                             value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onChange={(e) => {
+                                                const newValue = e.target.value;
+                                                setSearchQuery(newValue);
+                                                // Гарантируем вызов поиска при каждом изменении
+                                                handleSearchInput(newValue);
+                                            }}
                                             className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
                                         />
+                                        {isSearching && (
+                                            <div className="absolute inset-y-0 right-3 flex items-center">
+                                                <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
+                                            </div>
+                                        )}
                                     </div>
                                     <motion.button
                                         whileHover={{ scale: 1.03 }}
@@ -1002,6 +1095,31 @@ export default function People() {
                                     </motion.button>
                                 </div>
                             </div>
+                            
+                            {/* Индикатор текущего поиска */}
+                            {searchQuery.trim() && (
+                                <div className="mt-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-400">
+                                            Search results for: 
+                                        </span>
+                                        <span className="bg-[#20DDBB]/10 text-[#20DDBB] px-2 py-1 rounded-md font-medium">
+                                            {searchQuery}
+                                        </span>
+                                        <span className="text-gray-400">
+                                            ({filteredProfiles.length} {filteredProfiles.length === 1 ? 'result' : 'results'})
+                                        </span>
+                                    </div>
+                                    
+                                    <button
+                                        onClick={() => handleSearchInput('')}
+                                        className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"
+                                    >
+                                        <XMarkIcon className="h-4 w-4" />
+                                        Clear
+                                    </button>
+                                </div>
+                            )}
                         </motion.div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -1009,9 +1127,9 @@ export default function People() {
                                 Array.from({ length: 6 }).map((_, index) => (
                                     <motion.div
                                         key={index}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.3 }}
                                     >
                                         <UserCardSkeleton />
                                     </motion.div>
@@ -1020,11 +1138,14 @@ export default function People() {
                                 filteredProfiles.map((profile, index) => (
                                     <motion.div
                                         key={profile.$id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ 
+                                            duration: 0.3,
+                                            delay: Math.min(index * 0.02, 0.3)
+                                        }}
                                     >
-                                        <UserCard
+                                        <MemoizedUserCard
                                             user={profile}
                                             isFriend={isFriend(profile.user_id)}
                                             onAddFriend={handleAddFriend}
@@ -1045,24 +1166,40 @@ export default function People() {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <p className="text-white text-xl mb-4">No users found</p>
-                                    <p className="text-gray-400 max-w-md">Try changing your search or filters to find people to connect with.</p>
+                                    <p className="text-white text-xl mb-4">
+                                        {searchQuery.trim() ? 
+                                            `No results found for "${searchQuery}"` : 
+                                            "No users found"}
+                                    </p>
+                                    {searchQuery.trim() ? (
+                                        <div className="mb-4">
+                                            <p className="text-gray-400 mb-2">Try different search terms or check spelling</p>
+                                            <button
+                                                onClick={() => handleSearchInput('')}
+                                                className="px-4 py-2 bg-[#20DDBB]/20 text-[#20DDBB] rounded-lg hover:bg-[#20DDBB]/30 transition-colors"
+                                            >
+                                                Clear search
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-400 max-w-md">Try changing your filters to find people to connect with.</p>
+                                    )}
                                 </motion.div>
                             }
                         </div>
                         
-                        {/* Кнопка "Загрузить еще" */}
+                        {/* Кнопка "Загрузить еще" - оптимизирована */}
                         {hasMoreProfiles && !isLoading && filteredProfiles.length > 0 && (
                             <motion.div 
                                 className="mt-10 flex justify-center"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: 0.3 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.3 }}
                             >
                                 <motion.button
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.97 }}
-                                    onClick={loadMoreProfiles}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={handleLoadMore}
                                     disabled={isLoadingMore}
                                     className="py-2.5 px-8 rounded-xl backdrop-blur-sm bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 border border-white/10 text-white hover:bg-white/10 transition-all duration-300 shadow-md flex items-center space-x-2"
                                 >
@@ -1122,8 +1259,14 @@ export default function People() {
                                     </div>
                                 </div>
                                 
-                                {/* Top Ranking Users Component */}
-                                <TopRankingUsers users={topRankedUsers} />
+                                {/* Заменяем на прямую навигацию */}
+                                {topRankedUsers.length > 0 ? (
+                                    <TopRankingUsersWithDirectNavigation users={topRankedUsers} />
+                                ) : (
+                                    <div className="text-center py-4 text-gray-400">
+                                        No users found
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </div>
@@ -1132,3 +1275,60 @@ export default function People() {
         </PeopleLayout>
     );
 }
+
+// Ультра-простая версия списка топовых пользователей с прямой навигацией
+const TopRankingUsersWithDirectNavigation = ({ users }: { users: any[] }) => {
+    // Дебаг для отслеживания проблем
+    useEffect(() => {
+        console.log("[DEBUG] TopRankingUsers data:", users);
+    }, [users]);
+    
+    if (!users || users.length === 0) {
+        return <div className="text-white/60 text-center p-4">No users found</div>;
+    }
+    
+    return (
+        <div className="space-y-2">
+            {users.map((user, index) => {
+                const userId = user?.user_id || user?.id;
+                
+                // Пропускаем пользователей без ID
+                if (!userId) return null;
+                
+                // Прямая ссылка на профиль
+                const profileUrl = `/profile/${userId}`;
+                
+                return (
+                    <div 
+                        key={`top-user-${index}`}
+                        className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10 cursor-pointer"
+                        onClick={() => {
+                            console.log(`[DEBUG] Direct navigation to: ${profileUrl}`);
+                            // Простой прямой переход без отмены событий
+                            window.location.href = profileUrl;
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-gradient-to-br ${index < 3 ? 'from-purple-500/30 to-cyan-500/30' : 'from-gray-500/20 to-slate-500/20'} border border-white/10`}>
+                                {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-medium text-white truncate">
+                                    {user.name || "Unknown User"}
+                                </div>
+                                <div className="text-xs text-gray-400 truncate">
+                                    {user.username || `User #${userId?.substring(0, 6)}`}
+                                </div>
+                            </div>
+                            <div className="text-purple-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};

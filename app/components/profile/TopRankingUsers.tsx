@@ -51,9 +51,10 @@ interface RankedUser {
 
 interface TopRankingUsersProps {
     users?: any[];
+    onUserClick?: (userId: string) => void;
 }
 
-const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers }) => {
+const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers, onUserClick }) => {
     const [users, setUsers] = useState<RankedUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
@@ -295,21 +296,29 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers 
             ) : users.length > 0 ? (
                 <div className="space-y-3">
                     {users.map((user, index) => (
-                        <Link 
+                        <motion.div
                             key={user.id}
-                            href={`/profile/${user.user_id}`}
-                            prefetch={false}
-                            className="block"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ 
+                                duration: 0.3, 
+                                delay: index * 0.05,
+                                ease: "easeOut"
+                            }}
+                            className="cursor-pointer"
+                            onClick={() => onUserClick ? onUserClick(user.user_id) : null}
                         >
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                                className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer group relative"
-                                whileHover={{ 
-                                    scale: 1.02,
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                            <Link 
+                                href={`/profile/${user.user_id}`}
+                                onClick={(e) => {
+                                    // Если есть функция onUserClick, предотвращаем стандартную навигацию
+                                    // и используем переданную функцию
+                                    if (onUserClick) {
+                                        e.preventDefault();
+                                        onUserClick(user.user_id);
+                                    }
                                 }}
+                                className="relative flex items-center space-x-3 p-2.5 rounded-xl bg-gradient-to-r hover:from-indigo-900/30 hover:to-purple-900/30 transition-all"
                             >
                                 {/* Позиционный индикатор на фоне */}
                                 {index < 3 && (
@@ -360,8 +369,8 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers 
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
                                     {getRankIcon(index)}
                                 </div>
-                            </motion.div>
-                        </Link>
+                            </Link>
+                        </motion.div>
                     ))}
                 </div>
             ) : (

@@ -131,24 +131,19 @@ const RecommendationCard = ({ track }: { track: RecommendationTrack }) => {
   );
 };
 
-// Обновленная иконка для Sacral Track - компакт-диск
-const SacralTrackIcon = ({ className = "w-5 h-5" }) => (
-  <FaCompactDisc className={className} />
-);
-
 // Обновленная иконка для All Content - бриллиант
 const AllContentIcon = ({ className = "w-5 h-5" }) => (
   <FaGem className={className} />
 );
 
-// Обновленная иконка для Vibe - звезда
+// Обновленная иконка для Vibe - магия
 const VibeIcon = ({ className = "w-5 h-5" }) => (
-  <FaStar className={className} />
+  <SparklesIcon className={className} />
 );
 
-// Обновленная иконка для World - бриллиант
+// Обновленная иконка для World - планета
 const WorldIcon = ({ className = "w-5 h-5" }) => (
-  <FaGem className={className} />
+  <FaGlobeAmericas className={className} />
 );
 
 // Main filter component
@@ -273,15 +268,10 @@ const ContentFilter = () => {
     <>
       {/* Desktop version */}
       <div className="hidden md:block w-full">
-        <div className="w-full bg-gradient-to-br from-[#1B1C30]/80 to-[#262840]/80 backdrop-blur-md rounded-xl p-4 border border-white/10 shadow-lg">
-          <h3 className="text-lg font-medium text-white/90 mb-2 flex items-center">
-            <SparklesIcon className="w-5 h-5 mr-2 text-[#20DDBB]" />
-            Content Filter
-          </h3>
-          <p className="text-xs text-white/50 mb-4">Select what content you want to see</p>
+        <div className="w-full backdrop-blur-xl rounded-2xl p-4">
           
           {/* Filter buttons */}
-          <div className="space-y-2">
+          <div className="flex flex-col space-y-2">
             {/* All content */}
             <TabButton 
               active={activeTab === 'all'} 
@@ -298,16 +288,6 @@ const ContentFilter = () => {
               icon={<VibeIcon />}
               label="Vibes"
               description="Social posts from artists & fans"
-            />
-            
-            {/* Sacral Tracks */}
-            <TabButton 
-              active={activeTab === 'stracks'} 
-              onClick={() => handleTabChange('stracks')}
-              icon={<SacralTrackIcon />}
-              label="Sacral Tracks"
-              description="Music tracks from artists"
-              isSpecial
             />
             
             {/* World */}
@@ -357,8 +337,8 @@ const ContentFilter = () => {
       
       {/* Mobile version - optimized for mobile display */}
       <div className="block md:hidden w-full">
-        <div className="w-full bg-gradient-to-r from-[#1A1C30]/95 to-[#262840]/95 backdrop-blur-lg shadow-lg z-[99]">
-          <div className="flex justify-between items-center">
+        <div className="w-full backdrop-blur-xl bg-gradient-to-r from-blue-500/10 to-pink-500/10 shadow-lg z-[99] rounded-t-2xl border-t border-white/10">
+          <div className="flex justify-between items-center px-2">
             <MobileTabButton 
               active={activeTab === 'all'} 
               onClick={() => handleTabChange('all')}
@@ -371,13 +351,6 @@ const ContentFilter = () => {
               onClick={() => handleTabChange('vibe')}
               icon={<VibeIcon className="w-5 h-5" />}
               label="Vibes"
-            />
-            
-            <MobileTabButton 
-              active={activeTab === 'stracks'} 
-              onClick={() => handleTabChange('stracks')}
-              icon={<SacralTrackIcon className="w-5 h-5" />}
-              label="Tracks"
             />
             
             <MobileTabButton 
@@ -415,27 +388,21 @@ const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps)
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center py-2 px-4 transition-all duration-300 relative ${
+      className={`flex flex-col items-center justify-center py-3 px-5 transition-all duration-300 relative ${
         active
           ? 'text-white'
           : 'text-gray-400 hover:text-white/70'
       }`}
     >
-      <div className={`
-        p-1.5 rounded-lg mb-1 transition-all duration-300
-        ${active 
-          ? 'bg-gradient-to-br from-[#20DDBB]/20 to-[#8B5CF6]/20 text-white' 
-          : 'text-gray-400'
-        }
-      `}>
+      <div className={active ? 'text-white' : 'text-gray-400'}>
         {icon}
       </div>
-      <span className="text-[10px] font-medium">{label}</span>
+      <span className="text-[9px] font-medium mt-1">{label}</span>
       
       {active && (
         <motion.div
           layoutId="activeTabIndicator-mobile"
-          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6]"
+          className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6]"
           initial={false}
           transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}
         />
@@ -458,19 +425,19 @@ const TabButton = ({ active, onClick, icon, label, description, isSpecial = fals
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={`
-        relative flex-1 py-4 px-4 rounded-xl text-center transition-all duration-300 overflow-hidden
+        relative py-4 px-4 rounded-2xl text-center transition-all duration-300 overflow-hidden
         ${active 
-          ? `bg-gradient-to-br from-[#2E2469] to-[#4F46E5] text-white shadow-lg shadow-[#4F46E5]/20 border border-[#4F46E5]/50 ${specialClass}`
-          : `bg-gradient-to-r from-[#1E1A36]/80 to-[#2A2151]/80 text-gray-300 hover:bg-[#2A2151]/90 border border-white/5 hover:border-white/20 ${specialClass}`
+          ? `bg-gradient-to-br from-[#2E2469]/90 to-[#4F46E5]/90 text-white shadow-lg shadow-[#4F46E5]/20 border border-[#4F46E5]/50 backdrop-blur-lg ${specialClass}`
+          : `bg-gradient-to-r from-[#1E1A36]/50 to-[#2A2151]/50 text-gray-300 hover:bg-[#2A2151]/60 border border-white/5 hover:border-white/20 backdrop-blur-lg ${specialClass}`
         }
       `}
     >
       <div className="flex flex-col items-center relative z-10">
-        <div className="mb-2">
+        <div className="mb-1.5">
           {icon}
         </div>
         <span className={`font-medium block text-sm ${isSpecial && active ? 'text-white' : isSpecial ? 'text-blue-200' : ''}`}>{label}</span>
-        <span className="text-xs opacity-70">{description}</span>
+        <span className="text-[9px] opacity-60">{description}</span>
       </div>
     </motion.button>
   );

@@ -125,7 +125,12 @@ const ProfileMenu = () => {
               <div className="px-6 py-3 border-b border-white/5">
                 <Link 
                   href={`/profile/${userContext?.user?.id}`}
-                  onClick={() => setShowMenu(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowMenu(false);
+                    console.log(`[NAV] Navigating to profile: ${userContext?.user?.id}`);
+                    window.location.href = `/profile/${userContext?.user?.id}`;
+                  }}
                   className="flex items-center gap-4 group/profile"
                 >
                   <div 
@@ -192,7 +197,8 @@ const ProfileMenu = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setShowMenu(false);
-                    router.push("/royalty");
+                    console.log("[NAV] Navigating to royalty");
+                    window.location.href = "/royalty";
                   }}
                   className="flex items-center gap-4 p-3 text-white/90 
                           rounded-xl transition-all duration-200 group relative
@@ -214,7 +220,8 @@ const ProfileMenu = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setShowMenu(false);
-                    router.push("/people");
+                    console.log("[NAV] Navigating to people");
+                    window.location.href = "/people";
                   }}
                   className="flex items-center gap-4 p-3 text-white/90
                           rounded-xl transition-all duration-200 group relative
@@ -238,7 +245,8 @@ const ProfileMenu = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setShowMenu(false);
-                    router.push("/news");
+                    console.log("[NAV] Navigating to news");
+                    window.location.href = "/news";
                   }}
                   className="flex items-center gap-4 p-3 text-white/90
                           rounded-xl transition-all duration-200 group relative

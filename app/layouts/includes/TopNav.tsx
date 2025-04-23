@@ -166,12 +166,14 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
             const goTo = () => {
                 if (!userContext?.user) return setIsLoginOpen(true)
+                console.log("[NAV] Navigating to upload page")
                 router.push('/upload')
             }
 
             const goToPeople = () => {
                 if (!userContext?.user) return setIsLoginOpen(true);
-                router.push("/people");
+                console.log("[NAV] Navigating to people page")
+                window.location.href = "/people";
             };
 
             const openVibeUploader = () => {
@@ -247,8 +249,12 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
         <>  
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[99990] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
                 <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center relative group">
+                    {/* Logo - улучшенная версия с более надежной навигацией */}
+                    <Link 
+                        href="/" 
+                        className="flex items-center relative group"
+                        aria-label="Go to home page"
+                    >
                         <img 
                             className="min-w-[24px] w-[24px] transition-transform duration-200 group-hover:scale-110" 
                             src="/images/T-logo.svg"

@@ -24,9 +24,19 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
         };
     }, [userContext?.user, router]);
 
-    // Компонент навигационной ссылки для мобильного меню
+    // Компонент навигационной ссылки для мобильного меню - улучшенная версия
     const NavLink = ({ href, icon, label, isActive }: { href: string, icon: React.ReactNode, label: string, isActive: boolean }) => (
-        <Link href={href} className="relative group">
+        <Link 
+            href={href} 
+            className="relative group px-2 py-1 min-w-[50px] flex flex-col items-center"
+            onClick={(e) => {
+                // Добавляем обработчик для предотвращения случайного двойного клика
+                if (isActive) {
+                    e.preventDefault();
+                    return;
+                }
+            }}
+        >
             <div className={`flex flex-col items-center py-2 px-2 rounded-lg transition-colors ${
                 isActive 
                 ? 'text-[#20DDBB]' 

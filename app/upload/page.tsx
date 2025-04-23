@@ -74,6 +74,54 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
   );
 };
 
+// WAV Upload Progress component
+interface WavUploadProgressProps {
+    isUploading: boolean;
+    progress: number;
+    onCancel: () => void;
+}
+
+const WavUploadProgress: React.FC<WavUploadProgressProps> = ({ isUploading, progress, onCancel }) => {
+    if (!isUploading) return null;
+    
+    return (
+        <div className="fixed bottom-6 right-6 z-40">
+            <div className="bg-[#2A184B] rounded-xl shadow-lg border border-[#20DDBB]/20 p-4 w-80">
+                <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center">
+                        <div className="w-5 h-5 mr-3 relative">
+                            <svg className="w-5 h-5 text-[#20DDBB] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </div>
+                        <h4 className="text-lg font-medium text-white">Uploading WAV</h4>
+                    </div>
+                    <span className="text-[#20DDBB] text-lg font-bold">{Math.round(progress)}%</span>
+                </div>
+                
+                <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden mb-3">
+                    <div 
+                        className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+                
+                <div className="flex justify-end">
+                    <button 
+                        onClick={onCancel}
+                        className="text-white/70 hover:text-white text-sm flex items-center transition-colors"
+                    >
+                        <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function Upload() {
     const router = useRouter();
     const userContext = useUser();
@@ -108,12 +156,24 @@ export default function Upload() {
     const [isCancelling, setIsCancelling] = useState(false);
     const [uploadController, setUploadController] = useState<AbortController | null>(null);
 
+    // Add new states for WAV upload
+    const [isUploadingWav, setIsUploadingWav] = useState(false);
+    const [wavUploadProgress, setWavUploadProgress] = useState(0);
+    const [wavUploadController, setWavUploadController] = useState<AbortController | null>(null);
+
     // Add effect to track isProcessing changes
     useEffect(() => {
         console.log("isProcessing changed:", isProcessing);
         console.log("Current processing stage:", processingStage);
         console.log("Current progress:", processingProgress);
     }, [isProcessing, processingStage, processingProgress]);
+
+    // Track WAV upload progress
+    useEffect(() => {
+        if (isUploadingWav) {
+            console.log(`WAV Upload Progress: ${wavUploadProgress}%`);
+        }
+    }, [isUploadingWav, wavUploadProgress]);
 
     // Check user authentication
     useEffect(() => {
@@ -191,10 +251,193 @@ export default function Upload() {
             setFileAudio(file);
             setTrackname(file.name.replace(/\.[^/.]+$/, ''));
             
+            // Automatically start WAV upload
+            startWavUpload(file);
+            
         } catch (error) {
             console.error('Error loading audio:', error);
             toast.error('Error loading audio file');
         }
+    };
+
+    // New function for WAV upload
+    const startWavUpload = async (file: File) => {
+        // Check file size (not more than 200 MB)
+        const fileSizeInMB = file.size / (1024 * 1024);
+        if (fileSizeInMB > 200) {
+            toast.error('File size must not exceed 200 MB', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️'
+            });
+            return;
+        }
+
+        // Reset any previous upload controller
+        if (wavUploadController) {
+            wavUploadController.abort();
+            setWavUploadController(null);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        setIsUploadingWav(true);
+        setWavUploadProgress(0);
+
+        const toastId = toast.loading(`Starting upload of ${file.name} (${fileSizeInMB.toFixed(2)} MB)...`, {
+            style: {
+                border: '1px solid #20DDBB',
+                padding: '16px',
+                color: '#ffffff',
+                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                fontSize: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+            },
+            icon: '🚀'
+        });
+
+        // Create FormData
+        const formData = new FormData();
+        formData.append('audio', file);
+
+        // Create new controller for cancellation
+        const controller = new AbortController();
+        setWavUploadController(controller);
+
+        console.log("Starting WAV upload for file:", file.name, fileSizeInMB.toFixed(2), "MB");
+
+        try {
+            // Make a fetch request that expects server-sent events
+            console.log("Fetching /api/audio/upload-wav...");
+            const response = await fetch('/api/audio/upload-wav', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+
+            console.log("Response received:", response.status, response.statusText);
+
+            if (!response.ok) {
+                let errorMessage = 'Server error';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || 'Server error';
+                } catch (e) {
+                    errorMessage = `Server error (${response.status}): ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            // Handle streaming response
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+
+            if (!reader) {
+                throw new Error('Failed to initialize stream reader');
+            }
+
+            console.log("Starting to read streaming response...");
+
+            // Process the stream
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    console.log("Stream reading complete");
+                    break;
+                }
+
+                // Convert the Uint8Array to a string and add to buffer
+                buffer += decoder.decode(value, { stream: true });
+                console.log("Received chunk, buffer length:", buffer.length);
+
+                // Process complete events in buffer
+                let startIdx = 0;
+                while (true) {
+                    const dataPrefix = 'data: ';
+                    const dataIdx = buffer.indexOf(dataPrefix, startIdx);
+                    if (dataIdx === -1) break;
+
+                    const dataStart = dataIdx + dataPrefix.length;
+                    const dataEnd = buffer.indexOf('\n\n', dataStart);
+
+                    if (dataEnd === -1) break; // Incomplete message
+
+                    const jsonStr = buffer.substring(dataStart, dataEnd);
+                    console.log('Processing SSE data:', jsonStr);
+
+                    try {
+                        const data = JSON.parse(jsonStr);
+                        console.log('Server update:', data);
+
+                        if (data.type === 'progress') {
+                            // Update progress
+                            setWavUploadProgress(data.progress);
+                            toast.loading(`${data.message}`, { id: toastId });
+                        } else if (data.type === 'complete') {
+                            // Handle completion
+                            setWavUploadProgress(100);
+                            toast.success(`WAV file uploaded successfully! (${fileSizeInMB.toFixed(2)} MB)`, { id: toastId });
+                            
+                            // Keep success toast visible for a moment
+                            setTimeout(() => {
+                                toast.dismiss(toastId);
+                            }, 2000);
+                        } else if (data.type === 'error') {
+                            // Handle error
+                            throw new Error(data.error || 'Unknown error during upload');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing SSE message:', e);
+                    }
+
+                    // Move start index for next iteration
+                    startIdx = dataEnd + 2;
+                }
+
+                // Remove processed messages from buffer
+                if (startIdx > 0) {
+                    buffer = buffer.substring(startIdx);
+                }
+            }
+
+            console.log('WAV upload completed successfully');
+        } catch (error) {
+            // Handle cancellation separately
+            if (error.name === 'AbortError') {
+                console.log('WAV upload was cancelled');
+                toast.error('WAV upload cancelled', { id: toastId });
+            } else {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error during WAV upload:', error);
+                toast.error(`WAV upload error: ${errorMessage}`, { id: toastId });
+            }
+        } finally {
+            // Even if there's an error, we need to reset upload controller
+            setWavUploadController(null);
+            
+            // Don't reset isUploadingWav if it was cancelled - that's handled in cancelWavUpload
+            if (!controller.signal.aborted) {
+                setIsUploadingWav(false);
+            }
+        }
+    };
+
+    // Function to cancel WAV upload
+    const cancelWavUpload = () => {
+        if (wavUploadController) {
+            wavUploadController.abort();
+        }
+        setIsUploadingWav(false);
+        setWavUploadProgress(0);
+        setWavUploadController(null);
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,11 +550,11 @@ export default function Upload() {
         });
     };
 
-    // Upload functions
+    // Modify handleUpload function to skip WAV upload when releasing track
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Валидация
+        // Validation
         if (!fileAudio) {
             toast.error('Please select an audio file', {
                 style: {
@@ -329,6 +572,11 @@ export default function Upload() {
         }
         
         console.log("=== Upload Started ===");
+
+        // Cancel any WAV upload in progress before proceeding
+        if (isUploadingWav) {
+            cancelWavUpload();
+        }
 
         // Reset cancelling flag to ensure we're starting fresh
         if (isCancelling) {
@@ -360,55 +608,55 @@ export default function Upload() {
         }
 
         // Set initial stage
-            setIsProcessing(true);
-            setProcessingStage('Preparing upload');
-            setProcessingProgress(0);
-            
-            // Add a small delay to ensure state updates are processed
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            console.log("State after setting:", {
-                isProcessing: true,
-                processingStage: 'Preparing upload',
-                processingProgress: 0
-            });
+        setIsProcessing(true);
+        setProcessingStage('Preparing upload');
+        setProcessingProgress(0);
+        
+        // Add a small delay to ensure state updates are processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log("State after setting:", {
+            isProcessing: true,
+            processingStage: 'Preparing upload',
+            processingProgress: 0
+        });
 
-            // Check file size (not more than 200 MB)
-            const fileSizeInMB = fileAudio.size / (1024 * 1024);
-            if (fileSizeInMB > 200) {
-                toast.error('File size must not exceed 200 MB', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⚠️'
-                });
-                setIsProcessing(false);
-                return;
-            }
+        // Check file size (not more than 200 MB)
+        const fileSizeInMB = fileAudio.size / (1024 * 1024);
+        if (fileSizeInMB > 200) {
+            toast.error('File size must not exceed 200 MB', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️'
+            });
+            setIsProcessing(false);
+            return;
+        }
 
         // Check audio duration (not more than 12 minutes)
-            if (audioDuration > 12 * 60) {
-                toast.error('Track duration must not exceed 12 minutes', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⏱️'
-                });
+        if (audioDuration > 12 * 60) {
+            toast.error('Track duration must not exceed 12 minutes', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⏱️'
+            });
             setIsProcessing(false);
-                return;
-            }
+            return;
+        }
 
         try {
             // Debug log to confirm states are set
@@ -439,83 +687,63 @@ export default function Upload() {
             if (genre) {
                 formData.append('genre', genre);
             }
+            // Add parameter to skip WAV upload process when using Release Track button
+            formData.append('skipWavUpload', 'true');
 
-            // Set upload stage
-            setProcessingStage('Uploading WAV');
+            // Skip the WAV upload step and begin with Converting MP3
+            setProcessingStage('Converting MP3');
             setProcessingProgress(0);
-            toast.loading(`Uploading WAV: 0%`, { id: toastId });
+            toast.loading(`Converting to MP3: 0%`, { id: toastId });
 
             // Create new controller for cancellation
             const controller = new AbortController();
             setUploadController(controller);
 
-            // Track upload progress using XMLHttpRequest
+            // Now open the connection and send the request
             const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/audio/process');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'text';
             
-            // Configure all event handlers before opening the connection
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentage = Math.round((event.loaded / event.total) * 100);
-                    setProcessingProgress(percentage);
-                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
-                    console.log(`WAV upload progress: ${percentage}%`);
-                }
-            };
-            
-            xhr.onerror = () => {
-                console.error('Network error while uploading file');
-                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
-                    id: toastId,
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⚠️'
-                });
+            // Final safety check before sending request
+            if (isCancelling) {
+                console.log("Upload was cancelled before sending request");
+                xhr.abort();
                 setIsProcessing(false);
                 setUploadController(null);
-            };
-            
+                return;
+            }
+
+            console.log("Sending XHR request...");
+            xhr.send(formData);
+
+            // Add listeners for processing progress
             xhr.onload = async () => {
-                // Проверка успешного кода ответа
-                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
-                
                 if (xhr.status !== 200) {
                     console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
                     
                     let errorMessage = 'Server error';
                     let errorDetails = '';
                     
-                    // Пытаемся извлечь детали ошибки из ответа
                     try {
-                        // Проверяем, является ли ответ JSON
                         const contentType = xhr.getResponseHeader('Content-Type');
                         if (contentType && contentType.includes('application/json')) {
                             const errorResponse = JSON.parse(xhr.responseText);
                             errorMessage = errorResponse.error || errorResponse.message || 'Server error';
                             errorDetails = errorResponse.details || '';
                         } else {
-                            // Если ответ не JSON, просто берем текст
                             errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
                         }
                     } catch (parseError) {
                         console.error('Failed to parse error response:', parseError);
-                        // Если не удалось распарсить ответ, используем статус код
                         errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
                     }
                     
-                    // Для 500 ошибок добавляем специальное сообщение
                     if (xhr.status === 500) {
                         errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
                         console.error(`Server 500 error. Response:`, xhr.responseText);
                     }
                     
-                    // Выводим подробную информацию об ошибке в консоль
                     console.error('Upload error details:', {
                         status: xhr.status,
                         statusText: xhr.statusText,
@@ -545,10 +773,6 @@ export default function Upload() {
                 }
                 
                 try {
-                    // Set progress to 100% when upload is complete
-                    setProcessingProgress(100);
-                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
-                    
                     // Now handle the SSE response
                     const response = new Response(xhr.response, {
                         status: 200,
@@ -563,7 +787,7 @@ export default function Upload() {
 
                     if (!reader) throw new Error('Failed to create reader');
 
-                    // Continue with the rest of the processing...
+                    // Continue with the rest of the processing by calling the existing handleSSEProcessing function
                     await handleSSEProcessing(reader, decoder, toastId);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -586,31 +810,13 @@ export default function Upload() {
                     setUploadController(null);
                 }
             };
-            
+
             // Add abort handler to signal
             controller.signal.addEventListener('abort', () => {
                 console.log('Upload canceled by user (from signal)');
                 xhr.abort();
                 // Toast message will be shown by handleCancelUpload
             });
-            
-            // Now open the connection and send the request after all handlers are set
-            xhr.open('POST', '/api/audio/process');
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            xhr.responseType = 'text';
-            
-            // Final safety check before sending request
-            if (isCancelling) {
-                console.log("Upload was cancelled before sending request");
-                xhr.abort();
-                setIsProcessing(false);
-                setUploadController(null);
-                return;
-            }
-            
-            console.log("Sending XHR request...");
-            xhr.send(formData);
-            
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Upload error:', error);
@@ -633,9 +839,24 @@ export default function Upload() {
             setUploadController(null);
         }
     };
-    
-    // Separate function to handle SSE processing
-    const handleSSEProcessing = async (reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, toastId: string) => {
+
+    // Add this after the state declarations
+    useEffect(() => {
+        console.log("State changed:", {
+            isProcessing,
+            processingStage,
+            processingProgress,
+            isUploadingWav,
+            wavUploadProgress
+        });
+    }, [isProcessing, processingStage, processingProgress, isUploadingWav, wavUploadProgress]);
+
+    // Add handleSSEProcessing function before the render function
+    const handleSSEProcessing = async (
+        reader: ReadableStreamDefaultReader<Uint8Array>, 
+        decoder: TextDecoder, 
+        toastId: string
+    ) => {
         try {
             let buffer = '';
             
@@ -687,12 +908,12 @@ export default function Upload() {
                 for (const update of messages) {
                     console.log('Received update type:', update.type);
                     
-                    // Обработка ошибок сервера
+                    // Error handling
                     if (update.type === 'error') {
                         const errorMessage = update.message || 'Server error during audio processing';
                         console.error('Server processing error:', errorMessage);
                         
-                        // Вывод подробностей ошибки, если они есть
+                        // Show error details if available
                         if (update.details) {
                             console.error('Error details:', update.details);
                         }
@@ -715,19 +936,19 @@ export default function Upload() {
                             duration: 5000
                         });
                         
-                        // Сбрасываем состояния обработки
+                        // Reset processing state
                         setIsProcessing(false);
                         setUploadController(null);
-                        return; // Прерываем обработку при ошибке
+                        return; // Stop processing on error
                     }
                     
                     if (update.type === 'progress') {
-                        // Map server stages to our UI stages
+                        // Map server stages to UI stages
                         let displayStage = update.stage;
                         let displayProgress = update.progress;
                         let detailedMessage = '';
                         
-                        // Extract details from details, if they exist
+                        // Extract details if available
                         const details = update.details as any;
                         
                         // Handle different types of progress
@@ -751,7 +972,7 @@ export default function Upload() {
                             }
                         } else if (update.stage.includes('Smooth segment progress')) {
                             displayStage = 'Segmenting audio';
-                            // Extract information about segment progress from string
+                            // Extract segment progress information from string
                             const match = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+) \(([0-9.]+)%\)/);
                             if (match) {
                                 const current = parseFloat(match[1]);
@@ -776,7 +997,7 @@ export default function Upload() {
                             }
                         }
                         
-                        // Use message from details, if exists and no own detailed message
+                        // Use message from details, if no detailed message is available
                         if (!detailedMessage && details?.message) {
                             detailedMessage = details.message;
                         }
@@ -785,28 +1006,22 @@ export default function Upload() {
                         setProcessingStage(displayStage);
                         setProcessingProgress(displayProgress);
                         
-                        // If this is segmenting stage, add details to stage name for UploadProgress
-                        // and update progress value based on actual segment progress
+                        // Update stage name with segment information
                         if (update.stage.includes('segment') && details?.segmentProgress) {
-                            const segmentCount = details?.totalSegments || 42; // Use total segments from details or default to 42
+                            const segmentCount = details?.totalSegments || 42;
                             const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
                             
-                            // Update stage name with segment information for component UploadProgress
                             setProcessingStage(`${displayStage} ${currentSegment}/${segmentCount}`);
-                            
-                            // Important: update progress value, so progress bar doesn't "hang" in one place
                             setProcessingProgress(details.segmentProgress);
                             
                             console.log(`Segment progress update: ${details.segmentProgress}% (segment ${currentSegment}/${segmentCount})`);
                         }
                         
-                        // Improved handling for "Smooth segment progress" logs
+                        // Handle smooth segment progress
                         const smoothSegmentMatch = (
-                            // Try to match from update.stage first
                             update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/) ||
-                            // Or try to match from details.message if available
                             (details?.message && typeof details.message === 'string' && 
-                             details.message.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/))
+                            details.message.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+)/))
                         );
                         
                         if (smoothSegmentMatch) {
@@ -814,89 +1029,10 @@ export default function Upload() {
                             const totalSegments = parseFloat(smoothSegmentMatch[2]);
                             const realProgress = (currentSegmentFloat / totalSegments) * 100;
                             
-                            // Update progress based on actual value
                             setProcessingProgress(realProgress);
-                            
-                            // Update the stage so user can see segmentation progress
                             setProcessingStage(`Segmenting audio ${Math.floor(currentSegmentFloat)}/${Math.floor(totalSegments)}`);
                             
                             console.log(`Updating progress bar to ${realProgress.toFixed(1)}% based on segment ${currentSegmentFloat}/${totalSegments}`);
-                        }
-                        
-                        // Look for detailed segmentation log info from consoled messages in details.message
-                        if (details?.message && typeof details.message === 'string') {
-                            // Check for segment creation progress
-                            const segmentProgressMatch = details.message.match(/Segment creation progress: ([0-9.]+)% \((?:processed approximately )?([0-9.]+)\/([0-9.]+)\)/);
-                            if (segmentProgressMatch) {
-                                const percentDone = parseFloat(segmentProgressMatch[1]);
-                                const currentSegment = parseFloat(segmentProgressMatch[2]);
-                                const totalSegments = parseFloat(segmentProgressMatch[3]);
-                                
-                                // Update progress display
-                                setProcessingProgress(percentDone);
-                                setProcessingStage(`Segmenting audio ${Math.floor(currentSegment)}/${Math.floor(totalSegments)}`);
-                                
-                                console.log(`Segmentation progress from message: ${percentDone}% (segment ${currentSegment}/${totalSegments})`);
-                            }
-                        }
-                        
-                        // If message about created segment
-                        const createdSegmentMatch = (
-                            update.stage.match(/Created segment segment_(\d+)\.mp3/) || 
-                            (details?.message && typeof details.message === 'string' && 
-                             details.message.match(/Created segment segment_(\d+)\.mp3/))
-                        );
-                        
-                        if (createdSegmentMatch) {
-                            const segmentNum = parseInt(createdSegmentMatch[1]);
-                            const totalSegments = details?.totalSegments || 42; // Based on logs or details
-                            const realProgress = ((segmentNum + 1) / totalSegments) * 100;
-                            
-                            // Update progress and current segment information
-                            setProcessingProgress(realProgress);
-                            setProcessingStage(`Segmenting audio ${segmentNum + 1}/${totalSegments}`);
-                            
-                            console.log(`Created segment ${segmentNum + 1}/${totalSegments}, updating progress to ${realProgress.toFixed(1)}%`);
-                        }
-                        
-                        // If log message includes information about starting segmentation
-                        if (update.stage.includes('Creating segments') || update.stage.includes('audio segments')) {
-                            // Check if there is information about the number of segments
-                            const totalSegmentsMatch = update.stage.match(/Creating (\d+) segments/i);
-                            if (totalSegmentsMatch) {
-                                const totalSegments = parseInt(totalSegmentsMatch[1]);
-                                console.log(`Starting segmentation process with ${totalSegments} segments`);
-                                // Set initial segmentation progress
-                                setProcessingStage(`Segmenting audio 0/${totalSegments}`);
-                                setProcessingProgress(1); // Start with 1% to show the process has begun
-                            }
-                        }
-                        
-                        // If this is conversion stage, add time details
-                        if (update.stage.includes('convert') && details?.message) {
-                            const timeMatch = details.message.match(/(\d+:\d+)\s+from\s+(\d+:\d+)/);
-                            if (timeMatch) {
-                                setProcessingStage(`${displayStage} (${timeMatch[1]} from ${timeMatch[2]})`);
-                                
-                                // If there is information about conversion progress, use it
-                                if (details.conversionProgress) {
-                                    const conversionProgressValue = typeof details.conversionProgress === 'string' 
-                                        ? parseInt(details.conversionProgress) 
-                                        : details.conversionProgress;
-                                        
-                                    setProcessingProgress(conversionProgressValue);
-                                }
-                            }
-                        }
-                        
-                        // If this is preparation stage, add preparation progress information
-                        if ((update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) && details?.preparationProgress) {
-                            const segmentCount = 42; // Real segment count from logs
-                            const preparedSegments = Math.floor((details.preparationProgress / 100) * segmentCount);
-                            setProcessingStage(`${displayStage} ${preparedSegments}/${segmentCount}`);
-                            
-                            // Update progress bar based on actual preparation progress
-                            setProcessingProgress(details.preparationProgress);
                         }
                         
                         // Form toast message
@@ -920,7 +1056,7 @@ export default function Upload() {
                             icon: '🎵'
                         });
                     } else if (update.type === 'complete') {
-                        // Audio processing complete, show success animation before proceeding
+                        // Audio processing complete
                         setProcessingStage('Processing complete');
                         setProcessingProgress(100);
                         toast.success('Audio processing completed!', { 
@@ -937,7 +1073,7 @@ export default function Upload() {
                             icon: '✅'
                         });
                         
-                        // Add slight delay to show completion animation
+                        // Add slight delay to show completion
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         
                         // Now upload to Appwrite
@@ -958,7 +1094,7 @@ export default function Upload() {
                         });
                         
                         try {
-                            // Convert result data to correct File/Blob objects
+                            // Process result data
                             const result = update.result;
                             
                             // Ensure all necessary data is present
@@ -970,7 +1106,7 @@ export default function Upload() {
                             const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
                             const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
                             
-                            // Load segments to Appwrite and get their IDs
+                            // Process segments
                             const segmentIds: string[] = [];
                             const totalSegments = result.segments.length;
                             
@@ -978,7 +1114,7 @@ export default function Upload() {
                             setProcessingStage('Uploading segments to Appwrite');
                             setProcessingProgress(0);
                             
-                            // Check if user exists and we have access to createPost
+                            // Check user authentication
                             if (!user) {
                                 throw new Error('Authentication error. Please sign in to the system');
                             }
@@ -989,7 +1125,7 @@ export default function Upload() {
                                 throw new Error('Segment upload function is not available. Please refresh the page');
                             }
 
-                            // Load segments one by one with progress display
+                            // Upload segments one by one with progress tracking
                             for (let i = 0; i < totalSegments; i++) {
                                 try {
                                     const segment = result.segments[i];
@@ -1010,11 +1146,11 @@ export default function Upload() {
                                     const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
                                     console.log(`Created File object: ${segmentFile.name}, size: ${segmentFile.size} bytes`);
                                     
-                                    // Load through createSegmentFile, which is obtained at the upper level component
+                                    // Upload segment
                                     console.log(`Uploading segment ${i+1} to Appwrite...`);
                                     const segmentId = await createPostHook.createSegmentFile(segmentFile);
                                     
-                                    // Check if segmentId is valid
+                                    // Validate segment ID
                                     if (!segmentId || segmentId === 'unique()') {
                                         console.warn(`Invalid segment ID received from createSegmentFile for segment ${i+1}: ${segmentId}`);
                                         // Create new ID and try to upload directly
@@ -1067,7 +1203,7 @@ export default function Upload() {
                             console.log(`All ${totalSegments} segments uploaded successfully`);
                             console.log('Segment IDs:', segmentIds);
 
-                            // Create M3U8 playlist with real URLs of segments
+                            // Create M3U8 playlist with segment IDs
                             console.log('Creating M3U8 playlist with segment IDs...');
                             let m3u8Content = result.m3u8Template;
 
@@ -1079,7 +1215,7 @@ export default function Upload() {
                                 console.warn('M3U8 template does not contain SEGMENT_PLACEHOLDER_ markers!');
                                 console.log('Creating M3U8 content manually...');
                                 
-                                // Create HLS playlist manually with simple segment IDs
+                                // Create HLS playlist manually
                                 m3u8Content = "#EXTM3U\n";
                                 m3u8Content += "#EXT-X-VERSION:3\n";
                                 m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
@@ -1089,7 +1225,6 @@ export default function Upload() {
                                 
                                 for (let i = 0; i < segmentIds.length; i++) {
                                     const segmentId = segmentIds[i];
-                                    // Simply add segment ID, without full URL
                                     m3u8Content += "#EXTINF:10,\n";
                                     m3u8Content += `${segmentId}\n`;
                                     console.log(`Added segment ${i+1} with ID ${segmentId} to M3U8 playlist`);
@@ -1110,7 +1245,6 @@ export default function Upload() {
                                     console.log(`Replacing placeholder "${placeholder}" for segment ${i+1} with ID: ${segmentId}`);
                                     
                                     if (m3u8Content.includes(placeholder)) {
-                                        // Simply use segment ID instead of full URL
                                         m3u8Content = m3u8Content.replace(placeholder, segmentId);
                                         console.log(`Placeholder ${placeholder} replaced successfully with segment ID`);
                                     } else {
@@ -1118,9 +1252,6 @@ export default function Upload() {
                                     }
                                 }
                             }
-
-                            // Debug: show final playlist
-                            console.log('Final M3U8 content (first 500 chars):', m3u8Content.substring(0, 500) + '...');
 
                             // Create M3U8 file
                             console.log('Creating M3U8 file...');
@@ -1134,45 +1265,15 @@ export default function Upload() {
                                 segments: segmentIds,
                                 trackname,
                                 genre,
-                                userId: user?.id ?? undefined,
-                                onProgress: (stage: string, progress: number) => {
-                                    // Map storage stages to UI stages
-                                    let displayStage = stage;
-                                    if (stage.includes('main audio')) {
-                                        displayStage = 'Uploading main audio';
-                                    } else if (stage.includes('cover image')) {
-                                        displayStage = 'Uploading cover image';
-                                    } else if (stage.includes('MP3')) {
-                                        displayStage = 'Uploading MP3 version';
-                                    } else if (stage.includes('playlist')) {
-                                        displayStage = 'Uploading playlist';
-                                    } else if (stage.includes('database') || stage.includes('record')) {
-                                        displayStage = 'Finalizing upload';
-                                    }
-                                    
-                                    setProcessingStage(displayStage);
-                                    setProcessingProgress(progress);
-                                    toast.loading(`${displayStage}: ${Math.round(progress)}%`, { 
-                                        id: toastId,
-                                        style: {
-                                            border: '1px solid #20DDBB',
-                                            padding: '16px',
-                                            color: '#ffffff',
-                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                                            fontSize: '16px',
-                                            borderRadius: '12px',
-                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                                        },
-                                        icon: '🎵'
-                                    });
-                                }
+                                userId: user?.id ?? undefined
                             });
 
-                            // Check for all necessary files
+                            // Check for required files
                             if (!fileAudio || !fileImage) {
                                 throw new Error('Required files for upload are missing');
                             }
                             
+                            // Create the post with all the files and data
                             const createPostResult = await createPostHook.createPost({
                                 audio: fileAudio,
                                 image: fileImage,
@@ -1216,11 +1317,11 @@ export default function Upload() {
                             });
 
                             if (createPostResult.success) {
-                                // Set final stages
+                                // Finalize upload
                                 setProcessingStage('Finalizing upload');
                                 setProcessingProgress(100);
                                 
-                                // Wait a bit to show completion
+                                // Show completion
                                 await new Promise(resolve => setTimeout(resolve, 800));
                                 
                                 // Show success toast and modal
@@ -1252,7 +1353,7 @@ export default function Upload() {
                 }
             }
         } catch (error) {
-            // Улучшенная обработка ошибок при чтении потока SSE
+            // Improved error handling for SSE stream reading
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error processing server-sent events:', error);
             
@@ -1277,21 +1378,11 @@ export default function Upload() {
         }
     };
 
-    // Add this after the state declarations
-    useEffect(() => {
-        console.log("State changed:", {
-            isProcessing,
-            processingStage,
-            processingProgress
-        });
-    }, [isProcessing, processingStage, processingProgress]);
-
     if (!user) return null;
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white">
             {/* Enhanced progress visualization with stages and percentages - moved to top level for better visibility */}
-            {/* Disable the progress bar as requested */}
             {isProcessing && (
                 <UploadProgress
                     isUploading={isProcessing}
@@ -1300,6 +1391,13 @@ export default function Upload() {
                     onCancel={handleCancelUpload}
                 />
             )}
+            
+            {/* WAV Upload Progress */}
+            <WavUploadProgress 
+                isUploading={isUploadingWav && !isProcessing}
+                progress={wavUploadProgress}
+                onCancel={cancelWavUpload}
+            />
             
             {/* Use original TopNav from layouts/includes */}
             <TopNav params={{id: ''}} />

@@ -167,16 +167,31 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
 
   // Handle click on search result
   const handleSearchResultClick = (result: SearchResult) => {
-    if (result.type === 'profile') {
-      router.push(`/profile/${result.user_id}`);
-    } else if (result.type === 'track') {
-      router.push(`/post/${result.user_id}/${result.id}`);
-    } else if (result.type === 'vibe') {
-      router.push(`/vibe/${result.id}`);
+    try {
+      console.log(`[SEARCH] Navigating to: ${result.type} ${result.id}`);
+      // Сначала закрываем поиск и очищаем поле ввода
+      setShowSearch(false);
+      setSearchQuery("");
+      setSearchProfiles([]);
+
+      // Используем прямую навигацию через window.location
+      let url = '';
+      if (result.type === 'profile') {
+        url = `/profile/${result.user_id}`;
+      } else if (result.type === 'track') {
+        url = `/post/${result.user_id}/${result.id}`;
+      } else if (result.type === 'vibe') {
+        url = `/vibe/${result.id}`;
+      }
+      
+      // Добавляем небольшую задержку перед переходом
+      setTimeout(() => {
+        console.log(`[SEARCH] Direct navigation to: ${url}`);
+        window.location.href = url;
+      }, 10);
+    } catch (error) {
+      console.error('Search navigation error:', error);
     }
-    setShowSearch(false);
-    setSearchQuery("");
-    setSearchProfiles([]);
   };
 
   // Auto-focus when search is opened

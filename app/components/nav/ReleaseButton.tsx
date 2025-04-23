@@ -15,6 +15,7 @@ const ReleaseButton = () => {
 
   const handleClick = () => {
     if (!userContext?.user) return setIsLoginOpen(true);
+    console.log("[NAV] Navigating to upload page");
     router.push("/upload");
   };
 
