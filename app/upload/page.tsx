@@ -74,360 +74,6 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
   );
 };
 
-// Функция для сегментации WAV файла в браузере
-// Добавляем функцию для клиентской сегментации WAV-файла
-const segmentWavFileInBrowser = async (
-    file: File, 
-    maxSegmentSize: number = 4.0 * 1024 * 1024, // Уменьшил до 4.0 MB для большего запаса
-    setProcessingStage: (stage: string) => void,
-    setProcessingProgress: (progress: number) => void
-): Promise<File[]> => {
-    return new Promise((resolve, reject) => {
-        try {
-            console.log(`segmentWavFileInBrowser: Начало сегментации WAV файла ${file.name}, размер=${formatFileSize(file.size)}`);
-            
-            // Проверка размера файла перед сегментацией
-            if (file.size > 200 * 1024 * 1024) {
-                throw new Error(`Файл слишком большой: ${formatFileSize(file.size)}. Максимальный размер 200MB.`);
-            }
-            
-            // Проверка MIME типа файла
-            if (!file.type.includes('wav') && !file.type.includes('audio/wav') && !file.type.includes('audio/wave')) {
-                console.warn(`Подозрительный MIME-тип файла: ${file.type}. Ожидается audio/wav.`);
-                // Не прерываем выполнение, но логируем предупреждение
-            }
-            
-            setProcessingStage('Подготовка WAV файла к сегментации');
-            setProcessingProgress(0);
-            
-            // Создаем объект FileReader для чтения файла
-            const reader = new FileReader();
-            
-            reader.onload = async (e) => {
-                try {
-                    if (!e.target?.result) {
-                        throw new Error('Ошибка чтения WAV файла: результат чтения пустой');
-                    }
-                    
-                    const wavBuffer = e.target.result as ArrayBuffer;
-                    const wavFile = new Uint8Array(wavBuffer);
-                    
-                    console.log(`WAV файл прочитан в память: ${formatFileSize(wavBuffer.byteLength)} байт`);
-                    
-                    // Проверяем заголовок WAV файла (RIFF и WAVE маркеры)
-                    const isValidWav = 
-                        wavFile[0] === 82 && // 'R'
-                        wavFile[1] === 73 && // 'I'
-                        wavFile[2] === 70 && // 'F'
-                        wavFile[3] === 70 && // 'F'
-                        wavFile[8] === 87 && // 'W'
-                        wavFile[9] === 65 && // 'A'
-                        wavFile[10] === 86 && // 'V'
-                        wavFile[11] === 69;  // 'E'
-                    
-                    if (!isValidWav) {
-                        console.error('Недействительный WAV файл: не найдены маркеры RIFF и WAVE');
-                        console.error(`Первые 12 байт: [${Array.from(wavFile.slice(0, 12)).join(', ')}]`);
-                        throw new Error('Недействительный WAV файл: неверный формат заголовка');
-                    }
-                    
-                    console.log('WAV файл: маркеры RIFF и WAVE подтверждены');
-                    
-                    // Найдем секцию "fmt " для получения метаданных
-                    let fmtOffset = -1;
-                    for (let i = 12; i < Math.min(wavFile.length, 200); i++) {
-                        if (wavFile[i] === 102 && wavFile[i+1] === 109 && wavFile[i+2] === 116 && wavFile[i+3] === 32) { // "fmt "
-                            fmtOffset = i;
-                            break;
-                        }
-                    }
-                    
-                    if (fmtOffset === -1) {
-                        throw new Error('Не удалось найти секцию fmt в WAV файле');
-                    }
-                    
-                    console.log(`WAV файл: секция fmt найдена по смещению ${fmtOffset}`);
-                    
-                    // Получаем количество каналов (16 бит в позиции fmtOffset + 10)
-                    const channels = wavFile[fmtOffset + 10] | (wavFile[fmtOffset + 11] << 8);
-                    
-                    // Получаем частоту дискретизации (32 бита в позиции fmtOffset + 12)
-                    const sampleRate = wavFile[fmtOffset + 12] | 
-                                   (wavFile[fmtOffset + 13] << 8) |
-                                   (wavFile[fmtOffset + 14] << 16) |
-                                   (wavFile[fmtOffset + 15] << 24);
-                    
-                    // Получаем битовую глубину (16 бит в позиции fmtOffset + 22)
-                    const bitsPerSample = wavFile[fmtOffset + 22] | (wavFile[fmtOffset + 23] << 8);
-                    
-                    // Найдем секцию "data"
-                    let dataOffset = -1;
-                    let dataSize = 0;
-                    for (let i = fmtOffset + 24; i < Math.min(wavFile.length, 1000); i++) {
-                        if (wavFile[i] === 100 && wavFile[i+1] === 97 && wavFile[i+2] === 116 && wavFile[i+3] === 97) { // "data"
-                            dataOffset = i + 8; // Пропускаем "data" и 4 байта размера
-                            
-                            // Получаем размер секции data (4 байта после "data")
-                            dataSize = wavFile[i+4] | 
-                                       (wavFile[i+5] << 8) |
-                                       (wavFile[i+6] << 16) |
-                                       (wavFile[i+7] << 24);
-                            break;
-                        }
-                    }
-                    
-                    if (dataOffset === -1) {
-                        throw new Error('Не удалось найти секцию data в WAV файле');
-                    }
-                    
-                    console.log(`WAV файл: секция data найдена по смещению ${dataOffset}, размер=${formatFileSize(dataSize)}`);
-                    
-                    // Проверка корректности размера data секции
-                    if (dataSize <= 0 || dataSize > wavBuffer.byteLength) {
-                        throw new Error(`Некорректный размер секции data: ${dataSize} байт. Возможно файл поврежден.`);
-                    }
-                    
-                    // Вычисляем размер одного сэмпла в байтах
-                    const bytesPerSample = bitsPerSample / 8;
-                    // Вычисляем размер фрейма (для всех каналов)
-                    const frameSize = bytesPerSample * channels;
-                    // Вычисляем количество фреймов в 1 секунде
-                    const framesPerSecond = sampleRate;
-                    // Вычисляем размер данных для 1 секунды в байтах
-                    const bytesPerSecond = frameSize * framesPerSecond;
-                    
-                    console.log(`WAV метаданные: каналы=${channels}, частота=${sampleRate}Hz, битность=${bitsPerSample}bit`);
-                    console.log(`Размер фрейма=${frameSize}B, байт/сек=${formatFileSize(bytesPerSecond)}/сек`);
-                    
-                    // Вычисляем, сколько секунд должен занимать каждый сегмент, чтобы не превышать maxSegmentSize
-                    // Берем меньшее значение для гарантии непревышения лимита, с запасом в 5%
-                    const safeMaxSegmentSize = maxSegmentSize * 0.95; // 95% от максимального размера для безопасности
-                    const segmentDurationSeconds = Math.floor((safeMaxSegmentSize - 44) / bytesPerSecond);
-                    
-                    // Убедимся, что у нас есть хотя бы 1 секунда в сегменте
-                    const effectiveSegmentDuration = Math.max(1, segmentDurationSeconds);
-                    
-                    console.log(`Длительность сегмента: ${effectiveSegmentDuration} секунд (исходя из ограничения ${formatFileSize(maxSegmentSize)})`);
-                    
-                    // Вычисляем размер сегмента в байтах (добавляем 44 байта для заголовка WAV)
-                    const segmentDataSize = effectiveSegmentDuration * bytesPerSecond;
-                    const segmentSize = segmentDataSize + 44;
-                    
-                    console.log(`Расчетный размер сегмента: ${formatFileSize(segmentSize)} (${segmentSize / 1024 / 1024} МБ)`);
-                    
-                    // Дополнительная проверка размера сегмента
-                    if (segmentSize > maxSegmentSize) {
-                        console.error(`Предупреждение: расчетный размер сегмента ${formatFileSize(segmentSize)} превышает максимальный ${formatFileSize(maxSegmentSize)}`);
-                        // Корректируем длительность сегмента
-                        const correctedDuration = Math.floor((maxSegmentSize - 44 - 1024) / bytesPerSecond); // Дополнительный запас в 1KB
-                        console.log(`Корректировка длительности сегмента: ${correctedDuration} секунд`);
-                        
-                        if (correctedDuration < 1) {
-                            throw new Error(`Невозможно создать сегмент размером меньше ${formatFileSize(maxSegmentSize)}: слишком высокий битрейт ${formatFileSize(bytesPerSecond)}/сек`);
-                        }
-                    }
-                    
-                    // Вычисляем количество сегментов
-                    const numFrames = dataSize / frameSize;
-                    const totalDuration = numFrames / framesPerSecond;
-                    const numSegments = Math.ceil(totalDuration / effectiveSegmentDuration);
-                    
-                    console.log(`Общая длительность: ${totalDuration.toFixed(2)} секунд`);
-                    console.log(`Количество сегментов: ${numSegments}`);
-                    
-                    // Если файл слишком маленький для сегментации
-                    if (numSegments <= 1 && segmentSize <= maxSegmentSize) {
-                        console.log(`Файл слишком мал для сегментации, создаем единственный сегмент размером ${formatFileSize(file.size)}`);
-                    }
-                    
-                    setProcessingStage('Создание WAV сегментов');
-                    
-                    // Создаем каждый сегмент
-                    const segments: File[] = [];
-                    
-                    // Для каждого сегмента
-                    for (let i = 0; i < numSegments; i++) {
-                        setProcessingProgress((i / numSegments) * 100);
-                        
-                        // Вычисляем начальное время и длительность сегмента
-                        const startSeconds = i * effectiveSegmentDuration;
-                        let segmentDuration = effectiveSegmentDuration;
-                        
-                        // Для последнего сегмента - возможно меньшая длительность
-                        if (i === numSegments - 1) {
-                            segmentDuration = Math.min(effectiveSegmentDuration, totalDuration - startSeconds);
-                        }
-                        
-                        // Вычисляем смещение начала и конца данных сегмента
-                        const startOffset = dataOffset + Math.floor(startSeconds * bytesPerSecond);
-                        const endOffset = Math.min(
-                            dataOffset + dataSize,
-                            startOffset + Math.floor(segmentDuration * bytesPerSecond)
-                        );
-                        
-                        // Размер данных для этого сегмента
-                        const currentSegmentDataSize = endOffset - startOffset;
-                        
-                        // Создаем новый буфер для сегмента (заголовок + данные)
-                        const segmentBuffer = new ArrayBuffer(44 + currentSegmentDataSize);
-                        const segmentView = new Uint8Array(segmentBuffer);
-                        
-                        // Копируем заголовок RIFF
-                        segmentView[0] = 82;  // 'R'
-                        segmentView[1] = 73;  // 'I'
-                        segmentView[2] = 70;  // 'F'
-                        segmentView[3] = 70;  // 'F'
-                        
-                        // Размер файла минус 8 (4 байта на "RIFF" и 4 на размер)
-                        const fileSize = 36 + currentSegmentDataSize;
-                        segmentView[4] = fileSize & 0xFF;
-                        segmentView[5] = (fileSize >> 8) & 0xFF;
-                        segmentView[6] = (fileSize >> 16) & 0xFF;
-                        segmentView[7] = (fileSize >> 24) & 0xFF;
-                        
-                        // WAVE заголовок
-                        segmentView[8] = 87;   // 'W'
-                        segmentView[9] = 65;   // 'A'
-                        segmentView[10] = 86;  // 'V'
-                        segmentView[11] = 69;  // 'E'
-                        
-                        // fmt чанк
-                        segmentView[12] = 102; // 'f'
-                        segmentView[13] = 109; // 'm'
-                        segmentView[14] = 116; // 't'
-                        segmentView[15] = 32;  // ' '
-                        
-                        // Размер fmt чанка (16 для PCM)
-                        segmentView[16] = 16;
-                        segmentView[17] = 0;
-                        segmentView[18] = 0;
-                        segmentView[19] = 0;
-                        
-                        // Копируем данные fmt из оригинального файла
-                        for (let j = 0; j < 16; j++) {
-                            segmentView[20 + j] = wavFile[fmtOffset + 8 + j];
-                        }
-                        
-                        // data чанк
-                        segmentView[36] = 100; // 'd'
-                        segmentView[37] = 97;  // 'a'
-                        segmentView[38] = 116; // 't'
-                        segmentView[39] = 97;  // 'a'
-                        
-                        // Размер data чанка
-                        segmentView[40] = currentSegmentDataSize & 0xFF;
-                        segmentView[41] = (currentSegmentDataSize >> 8) & 0xFF;
-                        segmentView[42] = (currentSegmentDataSize >> 16) & 0xFF;
-                        segmentView[43] = (currentSegmentDataSize >> 24) & 0xFF;
-                        
-                        // Копируем данные сегмента
-                        for (let j = 0; j < currentSegmentDataSize; j++) {
-                            segmentView[44 + j] = wavFile[startOffset + j];
-                        }
-                        
-                        // Создаем File из буфера
-                        const segmentFile = new File(
-                            [segmentBuffer], 
-                            `wav_segment_${i.toString().padStart(3, '0')}.wav`,
-                            { type: 'audio/wav' }
-                        );
-                        
-                        // Проверяем размер созданного сегмента
-                        if (segmentFile.size > maxSegmentSize) {
-                            console.error(`Предупреждение: сегмент ${i+1} имеет размер ${formatFileSize(segmentFile.size)}, что превышает максимальный ${formatFileSize(maxSegmentSize)}`);
-                        }
-                        
-                        console.log(`Создан сегмент ${i+1}/${numSegments}: ${segmentFile.name}, размер: ${formatFileSize(segmentFile.size)}`);
-                        segments.push(segmentFile);
-                    }
-                    
-                    setProcessingProgress(100);
-                    console.log(`Процесс сегментации завершен: ${segments.length} сегментов создано`);
-                    
-                    // Создаем манифест с метаданными о сегментах
-                    const manifest = {
-                        originalFile: file.name,
-                        totalSize: file.size,
-                        totalDuration: totalDuration,
-                        format: {
-                            sampleRate,
-                            channels,
-                            bitsPerSample
-                        },
-                        segments: segments.map((segment, index) => {
-                            const startSeconds = index * effectiveSegmentDuration;
-                            let segmentDuration = effectiveSegmentDuration;
-                            if (index === numSegments - 1) {
-                                segmentDuration = Math.min(effectiveSegmentDuration, totalDuration - startSeconds);
-                            }
-                            return {
-                                start: startSeconds,
-                                duration: segmentDuration,
-                                fileName: segment.name,
-                                fileSize: segment.size,
-                                index: index
-                            };
-                        })
-                    };
-                    
-                    // Создаем JSON-файл манифеста
-                    const manifestFile = new File(
-                        [JSON.stringify(manifest, null, 2)],
-                        'wav_manifest.json',
-                        { type: 'application/json' }
-                    );
-                    
-                    console.log(`Создан манифест: ${manifestFile.name}, размер: ${formatFileSize(manifestFile.size)}`);
-                    
-                    // Добавляем файл манифеста в начало массива сегментов
-                    segments.unshift(manifestFile);
-                    
-                    // Выполняем финальную проверку размеров всех сегментов
-                    let allSegmentsValid = true;
-                    for (let i = 0; i < segments.length; i++) {
-                        if (segments[i].size > maxSegmentSize) {
-                            console.error(`Ошибка: сегмент ${i} (${segments[i].name}) имеет размер ${formatFileSize(segments[i].size)}, превышающий лимит ${formatFileSize(maxSegmentSize)}`);
-                            allSegmentsValid = false;
-                        }
-                    }
-                    
-                    if (!allSegmentsValid) {
-                        throw new Error(`Некоторые сегменты превышают максимальный размер ${formatFileSize(maxSegmentSize)}`);
-                    }
-                    
-                    console.log(`Сегментация успешно завершена: создано ${segments.length} сегментов (включая манифест)`);
-                    resolve(segments);
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-                    console.error('Ошибка при сегментации WAV файла:', error);
-                    reject(new Error(errorMessage));
-                }
-            };
-            
-            reader.onerror = (error) => {
-                console.error('Ошибка при чтении WAV файла:', error);
-                reject(new Error('Ошибка чтения WAV файла: ' + (error?.target as any)?.error?.message || 'неизвестная ошибка'));
-            };
-            
-            // Начинаем чтение файла
-            console.log(`Начинаем чтение WAV файла в память...`);
-            reader.readAsArrayBuffer(file);
-            
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-            console.error('Ошибка при сегментации WAV файла:', error);
-            reject(new Error(errorMessage));
-        }
-    });
-};
-
-// Функция для форматирования размера файла
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' байт';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
-  return (bytes / (1024 * 1024)).toFixed(2) + ' МБ';
-}
-
 export default function Upload() {
     const router = useRouter();
     const userContext = useUser();
@@ -683,28 +329,6 @@ export default function Upload() {
         }
         
         console.log("=== Upload Started ===");
-        console.log(`Файл аудио: ${fileAudio.name}, тип: ${fileAudio.type}, размер: ${formatFileSize(fileAudio.size)}`);
-
-        // Проверка размера файла и сервер-сайд лимита
-        const fileSizeInMB = fileAudio.size / (1024 * 1024);
-        const serverSideLimit = 4.5; // Vercel serverless function limit ~4.5MB
-        
-        if (fileSizeInMB > 200) {
-            toast.error('File size must not exceed 200 MB', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⚠️'
-            });
-            setIsProcessing(false);
-            return;
-        }
 
         // Reset cancelling flag to ensure we're starting fresh
         if (isCancelling) {
@@ -736,36 +360,55 @@ export default function Upload() {
         }
 
         // Set initial stage
-        setIsProcessing(true);
-        setProcessingStage('Preparing upload');
-        setProcessingProgress(0);
+            setIsProcessing(true);
+            setProcessingStage('Preparing upload');
+            setProcessingProgress(0);
             
-        // Add a small delay to ensure state updates are processed
-        await new Promise(resolve => setTimeout(resolve, 100));
+            // Add a small delay to ensure state updates are processed
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-        console.log("State after setting:", {
-            isProcessing: true,
-            processingStage: 'Preparing upload',
-            processingProgress: 0
-        });
+            console.log("State after setting:", {
+                isProcessing: true,
+                processingStage: 'Preparing upload',
+                processingProgress: 0
+            });
+
+            // Check file size (not more than 200 MB)
+            const fileSizeInMB = fileAudio.size / (1024 * 1024);
+            if (fileSizeInMB > 200) {
+                toast.error('File size must not exceed 200 MB', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
+                setIsProcessing(false);
+                return;
+            }
 
         // Check audio duration (not more than 12 minutes)
-        if (audioDuration > 12 * 60) {
-            toast.error('Track duration must not exceed 12 minutes', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⏱️'
-            });
+            if (audioDuration > 12 * 60) {
+                toast.error('Track duration must not exceed 12 minutes', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⏱️'
+                });
             setIsProcessing(false);
-            return;
-        }
+                return;
+            }
 
         try {
             // Debug log to confirm states are set
@@ -784,207 +427,44 @@ export default function Upload() {
                 icon: '🚀'
             });
 
-            // Create new controller for cancellation
-            const controller = new AbortController();
-            setUploadController(controller);
-            
-            // ВАЖНО! Проверяем размер файла для определения стратегии загрузки
-            // Если файл больше серверного лимита, обязательно используем клиентскую сегментацию
-            const needsClientSegmentation = fileSizeInMB > serverSideLimit;
-            
-            if (needsClientSegmentation) {
-                console.log(`Файл превышает серверный лимит (${formatFileSize(fileAudio.size)} > ${serverSideLimit}MB), будет использована клиентская сегментация`);
-            } else {
-                console.log(`Размер файла (${formatFileSize(fileAudio.size)}) не превышает серверный лимит ${serverSideLimit}MB, но клиентская сегментация всё равно будет использована для WAV файлов`);
-            }
-            
-            // Для WAV файлов всегда используем клиентскую сегментацию, независимо от размера
-            const isWavFile = fileAudio.type.includes('wav') || fileAudio.name.toLowerCase().endsWith('.wav');
-            
-            if (!isWavFile) {
-                console.log(`Файл не является WAV (тип: ${fileAudio.type}), будет отправлен сервер для обработки`);
-            }
-            
-            // ИЗМЕНЯЕМ ЛОГИКУ ЗАГРУЗКИ:
-            // Вместо отправки целого WAV-файла, разбиваем его на сегменты прямо в браузере если нужно
-            // WAV-файлы или большие файлы всегда сегментируем на клиенте
-            let wavSegmentFiles: File[] = [];
-            let segmentationSuccess = false;
-            
-            if (isWavFile || needsClientSegmentation) {
-                setProcessingStage('Сегментация WAV файла');
-                setProcessingProgress(0);
-                
-                toast.loading('Сегментация WAV файла: 0%', { id: toastId });
-                
-                // Выполняем клиентскую сегментацию WAV-файла
-                try {
-                    console.log(`Начинаем клиентскую сегментацию файла размером ${formatFileSize(fileAudio.size)}`);
-                    
-                    wavSegmentFiles = await segmentWavFileInBrowser(
-                        fileAudio,
-                        4.0 * 1024 * 1024, // 4.0 MB максимальный размер сегмента
-                        setProcessingStage,
-                        setProcessingProgress
-                    );
-                    
-                    segmentationSuccess = true;
-                    console.log(`Сегментация WAV файла завершена: ${wavSegmentFiles.length} сегментов создано`);
-                    
-                    // Проверяем, что все сегменты меньше лимита
-                    const allSegmentsUnderLimit = wavSegmentFiles.every(segment => segment.size <= 4.5 * 1024 * 1024);
-                    if (!allSegmentsUnderLimit) {
-                        const oversizedSegments = wavSegmentFiles.filter(segment => segment.size > 4.5 * 1024 * 1024);
-                        console.error(`Обнаружены сегменты, превышающие лимит (${oversizedSegments.length} шт.)`);
-                        oversizedSegments.forEach((segment, i) => {
-                            console.error(`  Сегмент ${i+1}: ${segment.name}, размер: ${formatFileSize(segment.size)}`);
-                        });
-                        throw new Error(`${oversizedSegments.length} сегмента(ов) превышают серверный лимит в ${serverSideLimit}MB`);
-                    }
-                    
-                    toast.success(`WAV файл разбит на ${wavSegmentFiles.length} сегментов`, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #20DDBB',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                        },
-                        icon: '✅'
-                    });
-                    
-                    // Малая задержка для отображения сообщения
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-                    console.error('Ошибка при сегментации WAV файла:', error);
-                    
-                    toast.error(`Ошибка при сегментации WAV файла: ${errorMessage}`, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                        },
-                        icon: '⚠️'
-                    });
-                    
-                    // ВАЖНО: НЕ ПРОДОЛЖАЕМ ОТПРАВКУ, если это WAV или большой файл и сегментация не удалась
-                    if (isWavFile || needsClientSegmentation) {
-                        console.error('Отмена загрузки: для WAV или больших файлов необходима успешная сегментация');
-                        setIsProcessing(false);
-                        setUploadController(null);
-                        return;
-                    } else {
-                        console.warn('Сегментация не удалась, но файл не WAV и не превышает лимит. Попробуем продолжить с обычной загрузкой.');
-                    }
-                }
-            } else {
-                console.log('Пропускаем клиентскую сегментацию: файл не WAV и не превышает лимит сервера');
-            }
-            
-            // Извлекаем файл манифеста (первый элемент в массиве) при успешной сегментации
-            let wavManifestFile: File | null = null;
-            if (segmentationSuccess && wavSegmentFiles.length > 0) {
-                wavManifestFile = wavSegmentFiles.shift() || null;
-                console.log(`Манифест WAV: ${wavManifestFile?.name || 'отсутствует'}, размер: ${wavManifestFile ? formatFileSize(wavManifestFile.size) : 'N/A'}`);
-                
-                // Логируем размеры всех WAV сегментов
-                if (wavSegmentFiles.length > 0) {
-                    console.log('Размеры WAV сегментов:');
-                    wavSegmentFiles.forEach((segment, i) => {
-                        console.log(`  Сегмент ${i+1}: ${segment.name}, размер: ${formatFileSize(segment.size)}`);
-                    });
-                } else {
-                    console.log('WAV сегменты отсутствуют');
-                }
-            }
-            
-            // Создаем FormData только с необходимыми данными
+            // Create FormData
             const formData = new FormData();
-            
-            // Добавляем метаданные
+            formData.append('audio', fileAudio);
+            if (fileImage) {
+                formData.append('image', fileImage);
+            }
             if (trackname) {
                 formData.append('trackname', trackname);
             }
             if (genre) {
                 formData.append('genre', genre);
             }
-            
-            // Добавляем изображение обложки
-            if (fileImage) {
-                formData.append('image', fileImage);
-            }
-            
-            // Уведомляем сервер об использовании клиентской сегментации
-            if (segmentationSuccess) {
-                formData.append('clientSegmentation', 'true');
-                
-                // Добавляем манифест WAV, если он существует
-                if (wavManifestFile) {
-                    formData.append('wavManifest', wavManifestFile);
-                }
-                
-                // Добавляем все WAV сегменты в FormData с последовательными номерами
-                for (let i = 0; i < wavSegmentFiles.length; i++) {
-                    const segmentSize = formatFileSize(wavSegmentFiles[i].size);
-                    console.log(`Добавление WAV сегмента ${i+1}/${wavSegmentFiles.length} в FormData: ${wavSegmentFiles[i].name}, размер: ${segmentSize}`);
-                    formData.append(`wavSegment${i}`, wavSegmentFiles[i]);
-                }
-                
-                // Отправляем информацию о количестве сегментов
-                formData.append('wavSegmentCount', wavSegmentFiles.length.toString());
-                console.log(`Общее количество WAV сегментов: ${wavSegmentFiles.length}`);
-            } else if (isWavFile || needsClientSegmentation) {
-                // Если это WAV или большой файл и сегментация не удалась, это должно быть обработано ранее
-                console.error('Критическая ошибка: Код не должен достигать этой точки для WAV или больших файлов без успешной сегментации');
-                setIsProcessing(false);
-                setUploadController(null);
-                return;
-            } else {
-                // Добавляем оригинальный аудиофайл только если это не WAV и не большой файл
-                // и мы не используем клиентскую сегментацию
-                console.log(`Добавление целого аудиофайла в FormData: ${fileAudio.name}, размер: ${formatFileSize(fileAudio.size)}`);
-                formData.append('audio', fileAudio);
-            }
-            
-            setProcessingStage(segmentationSuccess ? 'Отправка сегментов WAV на сервер' : 'Отправка аудиофайла на сервер');
+
+            // Set upload stage
+            setProcessingStage('Uploading WAV');
             setProcessingProgress(0);
-            
-            const uploadMessage = segmentationSuccess 
-                ? `Отправка сегментов WAV: 0%` 
-                : `Отправка аудиофайла: 0%`;
-            
-            toast.loading(uploadMessage, { id: toastId });
-            
-            // Отправляем запрос с помощью XMLHttpRequest для отслеживания прогресса
+            toast.loading(`Uploading WAV: 0%`, { id: toastId });
+
+            // Create new controller for cancellation
+            const controller = new AbortController();
+            setUploadController(controller);
+
+            // Track upload progress using XMLHttpRequest
             const xhr = new XMLHttpRequest();
             
-            // Настраиваем обработчики событий
+            // Configure all event handlers before opening the connection
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     const percentage = Math.round((event.loaded / event.total) * 100);
                     setProcessingProgress(percentage);
-                    
-                    const progressMessage = segmentationSuccess 
-                        ? `Отправка сегментов WAV: ${percentage}% (${formatFileSize(event.loaded)} из ${formatFileSize(event.total)})` 
-                        : `Отправка аудиофайла: ${percentage}%`;
-                    
-                    toast.loading(progressMessage, { id: toastId });
-                    console.log(`Прогресс отправки: ${percentage}% (${formatFileSize(event.loaded)} из ${formatFileSize(event.total)})`);
+                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
+                    console.log(`WAV upload progress: ${percentage}%`);
                 }
             };
             
             xhr.onerror = () => {
-                console.error('Ошибка сети при отправке сегментов');
-                toast.error('Ошибка сети при отправке сегментов. Проверьте подключение к интернету и попробуйте снова.', { 
+                console.error('Network error while uploading file');
+                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
                     id: toastId,
                     style: {
                         border: '1px solid #FF4A4A',
@@ -1003,12 +483,12 @@ export default function Upload() {
             
             xhr.onload = async () => {
                 // Проверка успешного кода ответа
-                console.log(`Ответ сервера: статус=${xhr.status}, тип ответа=${xhr.responseType}, тип содержимого=${xhr.getResponseHeader('Content-Type')}`);
+                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
                 
                 if (xhr.status !== 200) {
-                    console.error(`Ошибка сервера: ${xhr.status} ${xhr.statusText}`);
+                    console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
                     
-                    let errorMessage = 'Ошибка сервера';
+                    let errorMessage = 'Server error';
                     let errorDetails = '';
                     
                     // Пытаемся извлечь детали ошибки из ответа
@@ -1017,31 +497,31 @@ export default function Upload() {
                         const contentType = xhr.getResponseHeader('Content-Type');
                         if (contentType && contentType.includes('application/json')) {
                             const errorResponse = JSON.parse(xhr.responseText);
-                            errorMessage = errorResponse.error || errorResponse.message || 'Ошибка сервера';
+                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
                             errorDetails = errorResponse.details || '';
                         } else {
                             // Если ответ не JSON, просто берем текст
-                            errorMessage = `Ошибка сервера (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
+                            errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
                         }
                     } catch (parseError) {
-                        console.error('Ошибка при разборе ответа сервера:', parseError);
+                        console.error('Failed to parse error response:', parseError);
                         // Если не удалось распарсить ответ, используем статус код
-                        errorMessage = `Ошибка сервера (${xhr.status}): ${xhr.statusText || 'неизвестная ошибка'}`;
+                        errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
                     }
                     
                     // Для 500 ошибок добавляем специальное сообщение
                     if (xhr.status === 500) {
-                        errorMessage = `Сервер столкнулся с ошибкой (500). Попробуйте другой аудиофайл или обратитесь в поддержку.`;
-                        console.error(`Ошибка сервера 500. Ответ:`, xhr.responseText);
+                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
+                        console.error(`Server 500 error. Response:`, xhr.responseText);
                     }
                     
                     // Выводим подробную информацию об ошибке в консоль
-                    console.error('Детали ошибки загрузки:', {
+                    console.error('Upload error details:', {
                         status: xhr.status,
                         statusText: xhr.statusText,
                         message: errorMessage,
                         details: errorDetails,
-                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'пустой ответ'
+                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'empty response'
                     });
                     
                     toast.error(errorMessage, { 
@@ -1065,11 +545,11 @@ export default function Upload() {
                 }
                 
                 try {
-                    // Устанавливаем прогресс 100% при завершении загрузки
+                    // Set progress to 100% when upload is complete
                     setProcessingProgress(100);
-                    toast.loading(`Отправка WAV сегментов: 100%`, { id: toastId });
+                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
                     
-                    // Теперь обрабатываем SSE ответ
+                    // Now handle the SSE response
                     const response = new Response(xhr.response, {
                         status: 200,
                         headers: {
@@ -1077,18 +557,18 @@ export default function Upload() {
                         }
                     });
                     
-                    // Обрабатываем server-sent events для обновлений прогресса
+                    // Handle server-sent events for progress updates
                     const reader = response.body?.getReader();
                     const decoder = new TextDecoder();
 
-                    if (!reader) throw new Error('Не удалось создать reader');
+                    if (!reader) throw new Error('Failed to create reader');
 
-                    // Продолжаем с остальной обработкой...
+                    // Continue with the rest of the processing...
                     await handleSSEProcessing(reader, decoder, toastId);
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-                    console.error('Ошибка при обработке ответа сервера:', error);
-                    toast.error(`Ошибка при обработке ответа сервера: ${errorMessage}`, { 
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.error('Error processing server response:', error);
+                    toast.error(`Error processing server response: ${errorMessage}`, { 
                         id: toastId,
                         style: {
                             border: '1px solid #FF4A4A',
@@ -1107,34 +587,34 @@ export default function Upload() {
                 }
             };
             
-            // Добавляем обработчик прерывания
+            // Add abort handler to signal
             controller.signal.addEventListener('abort', () => {
-                console.log('Загрузка отменена пользователем');
+                console.log('Upload canceled by user (from signal)');
                 xhr.abort();
-                // Сообщение toast будет показано в handleCancelUpload
+                // Toast message will be shown by handleCancelUpload
             });
             
-            // Открываем соединение и отправляем запрос
+            // Now open the connection and send the request after all handlers are set
             xhr.open('POST', '/api/audio/process');
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             xhr.responseType = 'text';
             
-            // Проверка безопасности перед отправкой
+            // Final safety check before sending request
             if (isCancelling) {
-                console.log("Загрузка была отменена перед отправкой запроса");
+                console.log("Upload was cancelled before sending request");
                 xhr.abort();
                 setIsProcessing(false);
                 setUploadController(null);
                 return;
             }
             
-            console.log("Отправка запроса с WAV сегментами...");
+            console.log("Sending XHR request...");
             xhr.send(formData);
             
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-            console.error('Ошибка загрузки:', error);
-            toast.error(`Не удалось загрузить трек: ${errorMessage}`, {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Upload error:', error);
+            toast.error(`Failed to upload track: ${errorMessage}`, {
                 style: {
                     border: '1px solid #FF4A4A',
                     padding: '16px',
@@ -1148,7 +628,7 @@ export default function Upload() {
                 duration: 5000
             });
             
-            // Сбрасываем состояние обработки
+            // Reset processing state
             setIsProcessing(false);
             setUploadController(null);
         }
@@ -1159,14 +639,9 @@ export default function Upload() {
         try {
             let buffer = '';
             
-            console.log('[SSE] Начало обработки серверных событий');
-            
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) {
-                    console.log('[SSE] Получен сигнал завершения потока');
-                    break;
-                }
+                if (done) break;
 
                 const chunk = decoder.decode(value, {stream: true});
                 buffer += chunk;
@@ -1186,7 +661,7 @@ export default function Upload() {
                     if (dataEnd === -1) break; // Incomplete message, wait for more data
                     
                     const jsonStr = buffer.substring(dataStart, dataEnd);
-                    console.log('[SSE] Получены данные, первые ~100 символов:', jsonStr.substring(0, 100) + (jsonStr.length > 100 ? '...' : ''));
+                    console.log('Processing SSE data (first 100 chars):', jsonStr.substring(0, 100) + '...');
                     
                     try {
                         const jsonData = JSON.parse(jsonStr);
@@ -1195,8 +670,8 @@ export default function Upload() {
                         // Move start index for next iteration
                         startIdx = dataEnd + 2;
                     } catch (e) {
-                        console.error('[SSE] Ошибка при разборе JSON:', e);
-                        console.log('[SSE] Проблематичная строка JSON:', jsonStr.substring(0, 150) + '...');
+                        console.error('Error parsing JSON in SSE:', e);
+                        console.log('Problematic JSON string:', jsonStr.substring(0, 150) + '...');
                         
                         // Move to next line to try and recover
                         startIdx = dataEnd + 2;
@@ -1210,12 +685,12 @@ export default function Upload() {
                 
                 // Process all extracted messages
                 for (const update of messages) {
-                    console.log('[SSE] Получено обновление типа:', update.type);
+                    console.log('Received update type:', update.type);
                     
                     // Обработка ошибок сервера
                     if (update.type === 'error') {
                         const errorMessage = update.message || 'Server error during audio processing';
-                        console.error('[SSE] Ошибка сервера:', errorMessage);
+                        console.error('Server processing error:', errorMessage);
                         
                         // Вывод подробностей ошибки, если они есть
                         if (update.details) {
@@ -1273,11 +748,6 @@ export default function Upload() {
                             // If there are preparation details
                             if (details?.preparationProgress) {
                                 detailedMessage = `Preparation: ${Math.round(details.preparationProgress)}%`;
-                            }
-                        } else if (update.stage.includes('WAV manifest')) {
-                            displayStage = 'Processing WAV manifest';
-                            if (details?.message) {
-                                detailedMessage = details.message;
                             }
                         } else if (update.stage.includes('Smooth segment progress')) {
                             displayStage = 'Segmenting audio';
@@ -1450,7 +920,7 @@ export default function Upload() {
                             icon: '🎵'
                         });
                     } else if (update.type === 'complete') {
-                        console.log('Audio processing complete, show success animation before proceeding');
+                        // Audio processing complete, show success animation before proceeding
                         setProcessingStage('Processing complete');
                         setProcessingProgress(100);
                         toast.success('Audio processing completed!', { 
@@ -1500,118 +970,168 @@ export default function Upload() {
                             const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
                             const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
                             
-                            // Process WAV segments and manifest
-                            let wavSegmentFiles: Array<File> = [];
-                            let wavManifestFile: File | null = null;
+                            // Load segments to Appwrite and get their IDs
+                            const segmentIds: string[] = [];
+                            const totalSegments = result.segments.length;
                             
-                            // Process WAV manifest if available
-                            if (result.wavManifest && result.wavManifest.data) {
-                                try {
-                                    console.log('Received WAV manifest:', result.wavManifest.name);
-                                    const manifestBlob = new Blob([result.wavManifest.data], { type: 'application/json' });
-                                    wavManifestFile = new File([manifestBlob], result.wavManifest.name, { type: 'application/json' });
-                                    console.log('Created WAV manifest file:', wavManifestFile.name, 'size:', wavManifestFile.size);
-                                } catch (error) {
-                                    console.error('Error creating WAV manifest file:', error);
-                                }
+                            console.log(`Preparing to upload ${totalSegments} segments to Appwrite...`);
+                            setProcessingStage('Uploading segments to Appwrite');
+                            setProcessingProgress(0);
+                            
+                            // Check if user exists and we have access to createPost
+                            if (!user) {
+                                throw new Error('Authentication error. Please sign in to the system');
                             }
-                            
-                            // Process WAV segments if available
-                            if (result.wavSegments && Array.isArray(result.wavSegments)) {
-                                console.log(`Found ${result.wavSegments.length} WAV segments from server processing`);
-                                
-                                // For each WAV segment, create File object
-                                for (let i = 0; i < result.wavSegments.length; i++) {
-                                    try {
-                                        const wavSegment = result.wavSegments[i];
-                                        console.log(`Processing WAV segment ${i+1}/${result.wavSegments.length}: ${wavSegment.name}`);
+
+                            // Check createSegmentFile function
+                            if (!createPostHook?.createSegmentFile) {
+                                console.error('createSegmentFile function is not available');
+                                throw new Error('Segment upload function is not available. Please refresh the page');
+                            }
+
+                            // Load segments one by one with progress display
+                            for (let i = 0; i < totalSegments; i++) {
+                                try {
+                                    const segment = result.segments[i];
+                                    console.log(`Processing segment ${i+1}/${totalSegments}: ${segment.name}`);
                                     
                                     // Check if segment has data
-                                        if (!wavSegment.data) {
-                                            console.error(`WAV segment ${i+1} has no data!`);
-                                            throw new Error(`WAV segment data ${i+1} is missing`);
+                                    if (!segment.data) {
+                                        console.error(`Segment ${i+1} has no data!`);
+                                        throw new Error(`Segment data ${i+1} is missing`);
                                     }
                                     
                                     // Convert base64 to Blob
-                                        console.log(`Creating blob from base64 data for WAV segment ${i+1}...`);
-                                        // Use atob method for more direct control
-                                        const byteString = atob(wavSegment.data);
-                                        const arrayBuffer = new ArrayBuffer(byteString.length);
-                                        const int8Array = new Uint8Array(arrayBuffer);
-                                        for (let j = 0; j < byteString.length; j++) {
-                                            int8Array[j] = byteString.charCodeAt(j);
-                                        }
-                                        
-                                        // Create Blob and File objects
-                                        const wavSegmentBlob = new Blob([int8Array], { type: 'audio/wav' });
-                                        console.log(`Created WAV blob, size: ${wavSegmentBlob.size} bytes`);
+                                    console.log(`Creating blob from base64 data for segment ${i+1}...`);
+                                    const segmentBlob = await fetch(`data:audio/mp3;base64,${segment.data}`).then(r => r.blob());
+                                    console.log(`Created blob, size: ${segmentBlob.size} bytes`);
                                     
                                     // Create File object from Blob
-                                        const wavSegmentFile = new File([wavSegmentBlob], wavSegment.name, { type: 'audio/wav' });
-                                        console.log(`Created WAV File object: ${wavSegmentFile.name}, size: ${wavSegmentFile.size} bytes`);
+                                    const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
+                                    console.log(`Created File object: ${segmentFile.name}, size: ${segmentFile.size} bytes`);
+                                    
+                                    // Load through createSegmentFile, which is obtained at the upper level component
+                                    console.log(`Uploading segment ${i+1} to Appwrite...`);
+                                    const segmentId = await createPostHook.createSegmentFile(segmentFile);
+                                    
+                                    // Check if segmentId is valid
+                                    if (!segmentId || segmentId === 'unique()') {
+                                        console.warn(`Invalid segment ID received from createSegmentFile for segment ${i+1}: ${segmentId}`);
+                                        // Create new ID and try to upload directly
+                                        const fallbackId = ID.unique();
+                                        console.log(`Trying direct upload with fallback ID: ${fallbackId}`);
                                         
-                                        // Add to array of WAV segments
-                                        wavSegmentFiles.push(wavSegmentFile);
-                                        
-                                    } catch (error) {
-                                        console.error(`Error processing WAV segment ${i+1}:`, error);
-                                        // Continue with other segments
+                                        try {
+                                            // Direct upload through Appwrite SDK
+                                            const uploadResult = await storage.createFile(
+                                                process.env.NEXT_PUBLIC_BUCKET_ID!,
+                                                fallbackId,
+                                                segmentFile
+                                            );
+                                            
+                                            // Use ID from upload result
+                                            const validSegmentId = uploadResult?.$id || fallbackId;
+                                            console.log(`Segment ${i+1} uploaded with fallback method, ID: ${validSegmentId}`);
+                                            segmentIds.push(validSegmentId);
+                                        } catch (fallbackError) {
+                                            console.error(`Fallback upload failed for segment ${i+1}:`, fallbackError);
+                                            throw new Error(`Failed to upload segment ${i+1} by any method`);
+                                        }
+                                    } else {
+                                        console.log(`Segment ${i+1} uploaded successfully, ID: ${segmentId}`);
+                                        segmentIds.push(segmentId);
                                     }
+                                    
+                                    // Update progress
+                                    const progress = Math.round((i + 1) / totalSegments * 100);
+                                    setProcessingProgress(progress);
+                                    toast.loading(`Uploading segments: ${progress}%`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #20DDBB',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                        },
+                                        icon: '🧩'
+                                    });
+                                } catch (error) {
+                                    console.error(`Error uploading segment ${i+1}:`, error);
+                                    throw new Error(`Error uploading segment ${i+1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                }
+                            }
+
+                            console.log(`All ${totalSegments} segments uploaded successfully`);
+                            console.log('Segment IDs:', segmentIds);
+
+                            // Create M3U8 playlist with real URLs of segments
+                            console.log('Creating M3U8 playlist with segment IDs...');
+                            let m3u8Content = result.m3u8Template;
+
+                            // Debug: show original playlist template
+                            console.log('Original M3U8 template (first 200 chars):', m3u8Content.substring(0, 200) + '...');
+
+                            // Check if we have placeholders for replacement
+                            if (!m3u8Content.includes('SEGMENT_PLACEHOLDER_')) {
+                                console.warn('M3U8 template does not contain SEGMENT_PLACEHOLDER_ markers!');
+                                console.log('Creating M3U8 content manually...');
+                                
+                                // Create HLS playlist manually with simple segment IDs
+                                m3u8Content = "#EXTM3U\n";
+                                m3u8Content += "#EXT-X-VERSION:3\n";
+                                m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
+                                m3u8Content += "#EXT-X-ALLOW-CACHE:YES\n";
+                                m3u8Content += "#EXT-X-TARGETDURATION:10\n";
+                                m3u8Content += "#EXT-X-PLAYLIST-TYPE:VOD\n";
+                                
+                                for (let i = 0; i < segmentIds.length; i++) {
+                                    const segmentId = segmentIds[i];
+                                    // Simply add segment ID, without full URL
+                                    m3u8Content += "#EXTINF:10,\n";
+                                    m3u8Content += `${segmentId}\n`;
+                                    console.log(`Added segment ${i+1} with ID ${segmentId} to M3U8 playlist`);
                                 }
                                 
-                                console.log(`Successfully processed ${wavSegmentFiles.length} WAV segments`);
-                                    } else {
-                                console.log('No WAV segments found in server response');
-                            }
-                            
-                            // Create segment file objects from base64 data
-                            const segmentFiles: File[] = [];
-                            for (const segment of result.segments) {
-                                if (segment && segment.data) {
-                                    try {
-                                        // Convert base64 to Blob
-                                        const byteString = atob(segment.data);
-                                        const arrayBuffer = new ArrayBuffer(byteString.length);
-                                        const int8Array = new Uint8Array(arrayBuffer);
-                                        for (let j = 0; j < byteString.length; j++) {
-                                            int8Array[j] = byteString.charCodeAt(j);
-                                        }
-                                        
-                                        // Create Blob and File
-                                        const blob = new Blob([int8Array], { type: 'audio/mp3' });
-                                        const file = new File([blob], segment.name, { type: 'audio/mp3' });
-                                        
-                                        console.log(`Processed MP3 segment ${segment.name}, size: ${file.size}`);
-                                        segmentFiles.push(file);
-                                    } catch (error) {
-                                        console.error(`Error processing MP3 segment ${segment.name}:`, error);
-                                    }
+                                m3u8Content += "#EXT-X-ENDLIST\n";
                             } else {
-                                    console.error('Invalid MP3 segment data:', segment);
+                                // Replace placeholders with segment IDs
+                                console.log('Environment variables for URLs:');
+                                console.log(`- NEXT_PUBLIC_APPWRITE_ENDPOINT: ${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined'}`);
+                                console.log(`- NEXT_PUBLIC_BUCKET_ID: ${process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined'}`);
+                                console.log(`- NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined'}`);
+                                
+                                for (let i = 0; i < segmentIds.length; i++) {
+                                    const segmentId = segmentIds[i];
+                                    const placeholder = `SEGMENT_PLACEHOLDER_${i}`;
+                                    
+                                    console.log(`Replacing placeholder "${placeholder}" for segment ${i+1} with ID: ${segmentId}`);
+                                    
+                                    if (m3u8Content.includes(placeholder)) {
+                                        // Simply use segment ID instead of full URL
+                                        m3u8Content = m3u8Content.replace(placeholder, segmentId);
+                                        console.log(`Placeholder ${placeholder} replaced successfully with segment ID`);
+                                    } else {
+                                        console.warn(`Placeholder ${placeholder} not found in M3U8 template!`);
+                                    }
                                 }
                             }
 
-                            console.log('Parameters for createPost:', {
-                                audio: fileAudio, // Only if needed and no WAV segments
-                                image: fileImage,
-                                segments: segmentFiles,
-                                wavSegments: wavSegmentFiles,
-                                wavManifest: wavManifestFile ? `${wavManifestFile.name} (${wavManifestFile.size} bytes)` : 'none',
-                                trackname,
-                                genre,
-                                userId: user?.id ?? undefined,
-                            });
+                            // Debug: show final playlist
+                            console.log('Final M3U8 content (first 500 chars):', m3u8Content.substring(0, 500) + '...');
 
-                            // Check for all necessary files
-                            if (!fileImage) {
-                                throw new Error('Image file is required for upload');
-                            }
-                            
-                            // Создаем параметры для вызова createPost
-                            const postParams: any = {
+                            // Create M3U8 file
+                            console.log('Creating M3U8 file...');
+                            const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
+
+                            console.log('Parameters for createPost:', {
+                                audio: fileAudio,
                                 image: fileImage,
-                                segments: segmentFiles,
-                                wavSegments: wavSegmentFiles,
+                                mp3: mp3File,
+                                m3u8: m3u8File,
+                                segments: segmentIds,
                                 trackname,
                                 genre,
                                 userId: user?.id ?? undefined,
@@ -1624,10 +1144,6 @@ export default function Upload() {
                                         displayStage = 'Uploading cover image';
                                     } else if (stage.includes('MP3')) {
                                         displayStage = 'Uploading MP3 version';
-                                    } else if (stage.includes('WAV')) {
-                                        displayStage = 'Uploading WAV segments';
-                                    } else if (stage.includes('WAV manifest')) {
-                                        displayStage = 'Uploading WAV manifest';
                                     } else if (stage.includes('playlist')) {
                                         displayStage = 'Uploading playlist';
                                     } else if (stage.includes('database') || stage.includes('record')) {
@@ -1650,19 +1166,54 @@ export default function Upload() {
                                         icon: '🎵'
                                     });
                                 }
-                            };
+                            });
 
-                            // Добавляем wavManifest, если он был создан
-                            if (wavManifestFile) {
-                                postParams.wavManifest = wavManifestFile;
+                            // Check for all necessary files
+                            if (!fileAudio || !fileImage) {
+                                throw new Error('Required files for upload are missing');
                             }
-
-                            // Добавляем audio только если нет WAV сегментов
-                            if (wavSegmentFiles.length === 0 && fileAudio) {
-                                postParams.audio = fileAudio;
-                            }
-
-                            const createPostResult = await createPostHook.createPost(postParams);
+                            
+                            const createPostResult = await createPostHook.createPost({
+                                audio: fileAudio,
+                                image: fileImage,
+                                mp3: mp3File,
+                                m3u8: m3u8File,
+                                segments: segmentIds,
+                                trackname,
+                                genre,
+                                userId: user?.id ?? undefined,
+                                onProgress: (stage: string, progress: number) => {
+                                    // Map storage stages to UI stages
+                                    let displayStage = stage;
+                                    if (stage.includes('main audio')) {
+                                        displayStage = 'Uploading main audio';
+                                    } else if (stage.includes('cover image')) {
+                                        displayStage = 'Uploading cover image';
+                                    } else if (stage.includes('MP3')) {
+                                        displayStage = 'Uploading MP3 version';
+                                    } else if (stage.includes('playlist')) {
+                                        displayStage = 'Uploading playlist';
+                                    } else if (stage.includes('database') || stage.includes('record')) {
+                                        displayStage = 'Finalizing upload';
+                                    }
+                                    
+                                    setProcessingStage(displayStage);
+                                    setProcessingProgress(progress);
+                                    toast.loading(`${displayStage}: ${Math.round(progress)}%`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #20DDBB',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                                        },
+                                        icon: '🎵'
+                                    });
+                                }
+                            });
 
                             if (createPostResult.success) {
                                 // Set final stages
@@ -1686,38 +1237,14 @@ export default function Upload() {
                                         borderRadius: '12px',
                                         boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
                                     },
-                                    icon: '🎉',
-                                    duration: 5000
-                                });
-                                setIsProcessing(false);
-                                setUploadController(null);
-
-                                console.log('Document created successfully, details:', {
-                                    id: createPostResult.trackId,
-                                    wavSegments: wavSegmentFiles.length,
-                                    wavManifest: wavManifestFile ? 'Uploaded' : 'Not available'
+                                    icon: '🎉'
                                 });
                             } else {
                                 throw new Error(createPostResult.error);
                             }
                         } catch (error) {
                             console.error('Error during Appwrite upload:', error);
-                            toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, { 
-                                id: toastId,
-                                style: {
-                                    border: '1px solid #FF4A4A',
-                                    padding: '16px',
-                                    color: '#ffffff',
-                                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                                    fontSize: '16px',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                                },
-                                icon: '⚠️',
-                                duration: 5000
-                            });
-                            setIsProcessing(false);
-                            setUploadController(null);
+                            throw new Error(`Appwrite upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                         }
                     } else if (update.type === 'error') {
                         throw new Error(update.error || 'An error occurred during audio processing');
