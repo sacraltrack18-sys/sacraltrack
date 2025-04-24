@@ -522,6 +522,7 @@ export default function Upload() {
                             // Создаем FormData только с ID и метаданными
                             const processFormData = new FormData();
                             processFormData.append('audioId', uploadedFileId); // Отправляем ID вместо файла
+                            processFormData.append('audioDuration', audioDuration.toString());
                             if (fileImage) {
                                 processFormData.append('image', fileImage);
                             }

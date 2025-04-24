@@ -737,6 +737,7 @@ export async function POST(request: NextRequest) {
         
         // Проверяем, передан ли ID аудиофайла вместо самого файла
         const audioId = formData.get('audioId') as string;
+        const audioDurationFromClient = formData.get('audioDuration') as string;
         const file = formData.get('audio') as File;
         const trackname = formData.get('trackname') as string;
         const artist = formData.get('artist') as string;
@@ -889,10 +890,26 @@ export async function POST(request: NextRequest) {
             message: 'Analyzing audio file duration'
         });
         
-        let duration;
+        let duration: number;
         try {
-            duration = await getAudioDuration(inputPath);
-            console.log('[API] Длительность аудио:', duration, 'секунд');
+            // Если длительность передана с клиента, используем ее
+            if (audioDurationFromClient) {
+                duration = parseFloat(audioDurationFromClient);
+                console.log('[API] Длительность аудио получена с клиента:', duration, 'секунд');
+            } else {
+                // Иначе пытаемся определить длительность через FFmpeg (обработка старого сценария)
+                try {
+                    duration = await getAudioDuration(inputPath);
+                    console.log('[API] Длительность аудио определена через FFmpeg:', duration, 'секунд');
+                } catch (ffmpegError) {
+                    console.error('[API] Ошибка при получении длительности аудио через FFmpeg:', ffmpegError);
+                    // В случае ошибки FFmpeg используем приблизительное значение на основе размера файла
+                    // Примерно 1MB WAV = 6 секунд аудио при среднем битрейте
+                    const estimatedDuration = (inputBuffer.length / (1024 * 1024)) * 6;
+                    console.log('[API] Используем приблизительную длительность на основе размера файла:', estimatedDuration, 'секунд');
+                    duration = estimatedDuration;
+                }
+            }
         } catch (error) {
             console.error('[API] Ошибка при получении длительности аудио:', error);
             sendDetailedError(writer, 'Ошибка при получении длительности аудио', error);
