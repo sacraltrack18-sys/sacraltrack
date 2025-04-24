@@ -11,6 +11,8 @@ interface UploadParams {
   mp3?: File | Blob;  // Can be null for direct upload without preprocessing
   m3u8?: File | Blob;  // Can be null for direct upload without preprocessing
   segments?: File[] | string[];  // Can be null for direct upload without preprocessing
+  wavSegments?: File[] | string[];  // For WAV segments
+  wavManifest?: File;  // Manifest file for WAV reconstruction
   trackname: string;
   genre: string;
   userId?: string;
@@ -24,81 +26,80 @@ interface UploadResult {
   error?: string;
 }
 
-/**
- * Function for image optimization before upload
- * Performs the following steps:
- * 1. Compresses the image to a maximum size of 1MB
- * 2. Limits the width/height to 1200px for quality balance
- * 3. Converts to WebP if the browser supports (better compression) or JPEG
- * 4. Uses Web Worker for better performance
- * 5. Returns the optimized image with a new name and type
- * @param imageFile Original image file
- * @returns Optimized image file
- */
-async function optimizeImage(imageFile: File): Promise<File> {
-  console.log('Starting image optimization...');
-  console.log(`Original image: ${imageFile.name}, type: ${imageFile.type}, size: ${(imageFile.size / 1024 / 1024).toFixed(2)} MB`);
-  
-  try {
-    // Check if browser supports WebP
-    const isWebPSupported = !!(window.OffscreenCanvas || (document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0));
-    
-    const options = {
-      maxSizeMB: 1, // maximum size in MB (average optimal size)
-      maxWidthOrHeight: 1200, // width/height limit for quality balance
-      useWebWorker: true, // use Web Worker for better performance
-      initialQuality: 0.8, // initial quality for JPEG (80% - good balance)
-      fileType: isWebPSupported ? 'image/webp' : 'image/jpeg', // prefer WebP if supported
-    };
-    
-    const compressedFile = await imageCompression(imageFile, options);
-    
-    // Create a new file with the correct extension and type for better compatibility
-    const fileExtension = options.fileType === 'image/webp' ? '.webp' : '.jpg';
-    const optimizedFileName = imageFile.name.replace(/\.[^/.]+$/, "") + '_optimized' + fileExtension;
-    
-    // Create a new file with optimized data and correct name/type
-    const optimizedFile = new File(
-      [compressedFile], 
-      optimizedFileName, 
-      { type: options.fileType }
-    );
-    
-    console.log(`Optimized image: ${optimizedFile.name}, type: ${optimizedFile.type}, size: ${(optimizedFile.size / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`Compression ratio: ${(imageFile.size / optimizedFile.size).toFixed(2)}x`);
-    
-    return optimizedFile;
-  } catch (error) {
-    console.error('Error during image optimization:', error);
-    console.log('Falling back to original image');
-    return imageFile; // return original in case of error
+// Configure image compression options
+const imageOptions = {
+  maxSizeMB: 1,
+  maxWidthOrHeight: 1500,
+  useWebWorker: true,
+  fileType: 'image/jpeg'
+};
+
+// Utility function for retrying uploads with exponential backoff
+const uploadWithRetry = async (file: File | Blob, fileId: string, maxRetries = 3): Promise<any> => {
+  console.log(`Starting upload with retry for file: size=${file.size} bytes, ID=${fileId}`);
+  let retries = 0;
+
+  // Get bucket ID from env (or default)
+  const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID;
+  if (!bucketId) {
+    console.error('NEXT_PUBLIC_BUCKET_ID is not defined in environment variables');
+    throw new Error('Storage bucket ID not configured');
   }
-}
+
+  // Convert Blob to File if needed
+  let fileToUpload: File;
+  if (file instanceof File) {
+    fileToUpload = file;
+  } else {
+    // Create a File from the Blob with a generated name based on the ID
+    const fileName = `blob_${fileId}.bin`;
+    fileToUpload = new File([file], fileName, { 
+      type: file.type || 'application/octet-stream',
+      lastModified: Date.now()
+    });
+    console.log(`Converted Blob to File with name: ${fileName}`);
+  }
+
+  while (retries <= maxRetries) {
+    try {
+      console.log(`Upload attempt ${retries + 1} for file ID ${fileId}...`);
+      const result = await storage.createFile(
+        bucketId,
+        fileId,
+        fileToUpload
+      );
+      console.log(`Upload successful for file ID ${fileId}`);
+      return result;
+    } catch (error) {
+      retries++;
+      
+      // If we've exhausted retries, rethrow the error
+      if (retries > maxRetries) {
+        console.error(`Upload failed after ${maxRetries} retries for file ID ${fileId}:`, error);
+        throw error;
+      }
+      
+      // Otherwise wait with exponential backoff before retrying
+      const delay = Math.pow(2, retries) * 1000; // 2s, 4s, 8s, ...
+      console.log(`Upload attempt ${retries} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // This should never be reached due to the throw inside the loop
+  return null;
+};
 
 // Function to check if a value is a file
 function isFile(value: any): value is File {
   return value && typeof value === 'object' && 'size' in value && 'type' in value && 'name' in value;
 }
 
-// Function to upload a file with retries
-async function uploadWithRetry(file: File, fileId: string, retries = 3) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      // Log information about the environment variable and upload
-      console.log(`Uploading file to bucket ID: ${process.env.NEXT_PUBLIC_BUCKET_ID}`);
-      
-      const response = await storage.createFile(
-            process.env.NEXT_PUBLIC_BUCKET_ID!,
-        fileId,
-        file
-      );
-      return response;
-    } catch (error) {
-      console.error(`Attempt ${attempt}/${retries} failed:`, error);
-      if (attempt === retries) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-    }
-  }
+// Helper function to format a file size for display
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' bytes';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 // Export a utility function to create a valid file URL from an ID
@@ -157,8 +158,122 @@ export function useCreatePost() {
     }
   }, []);
 
+  // Function to upload an individual WAV segment
+  const createWavSegmentFile = useCallback(async (wavSegmentFile: File): Promise<string> => {
+    console.log(`createWavSegmentFile called with file: ${wavSegmentFile?.name}, size: ${wavSegmentFile?.size} bytes`);
+    
+    if (!wavSegmentFile) {
+      console.error('WAV segment file is null or undefined!');
+      throw new Error('WAV segment file is required');
+    }
+
+    if (!isFile(wavSegmentFile)) {
+      console.error('Provided WAV segment is not a valid file!', wavSegmentFile);
+      throw new Error('WAV segment must be a valid file');
+    }
+
+    // Generate a unique ID for the WAV segment
+    const wavSegmentId = ID.unique();
+    console.log(`Generated WAV segment ID: ${wavSegmentId}`);
+
+    try {
+      // Check storage availability
+      if (!storage) {
+        console.error('Storage client is undefined!');
+        throw new Error('Storage client is not available');
+      }
+      
+      if (typeof storage.createFile !== 'function') {
+        console.error('storage.createFile is not a function!', storage);
+        throw new Error('Storage client API is not available');
+      }
+      
+      // Get bucket ID from env (or default) - Use the same bucket ID for WAV segments as requested
+      const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID;
+      if (!bucketId) {
+        console.error('NEXT_PUBLIC_BUCKET_ID is not defined in environment variables');
+        throw new Error('Storage bucket ID not configured');
+      }
+      
+      console.log(`Uploading WAV segment to Appwrite, bucket: ${bucketId}...`);
+      
+      // Upload WAV segment to Appwrite Storage with retries
+      const result = await storage.createFile(
+        bucketId,
+        wavSegmentId,
+        wavSegmentFile
+      );
+      
+      console.log(`WAV segment uploaded successfully, Appwrite ID: ${result?.$id}`);
+
+      // Return the ID of the uploaded WAV segment
+      return result?.$id || wavSegmentId;
+    } catch (error) {
+      console.error('Error uploading WAV segment file to Appwrite:', error);
+      const errorMessage = error instanceof Error 
+        ? `Upload failed: ${error.message}` 
+        : 'Unknown error during upload';
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  // Function to upload a WAV manifest file and get its ID
+  const createWavManifestFile = useCallback(async (manifestFile: File): Promise<string> => {
+    console.log(`createWavManifestFile called with file: ${manifestFile?.name}, size: ${manifestFile?.size} bytes`);
+    
+    if (!manifestFile) {
+      console.error('WAV manifest file is null or undefined!');
+      throw new Error('WAV manifest file is required');
+    }
+
+    if (!isFile(manifestFile)) {
+      console.error('Provided WAV manifest is not a valid file!', manifestFile);
+      throw new Error('WAV manifest must be a valid file');
+    }
+
+    // Generate a unique ID for the manifest
+    const manifestId = ID.unique();
+    console.log(`Generated WAV manifest ID: ${manifestId}`);
+
+    try {
+      // Check storage availability
+      if (!storage) {
+        console.error('Storage client is undefined!');
+        throw new Error('Storage client is not available');
+      }
+      
+      if (typeof storage.createFile !== 'function') {
+        console.error('storage.createFile is not a function!', storage);
+        throw new Error('Storage client API is not available');
+      }
+      
+      // Get bucket ID from env (or default)
+      const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID;
+      if (!bucketId) {
+        console.error('NEXT_PUBLIC_BUCKET_ID is not defined in environment variables');
+        throw new Error('Storage bucket ID not configured');
+      }
+      
+      console.log(`Uploading WAV manifest to Appwrite, bucket: ${bucketId}...`);
+      
+      // Upload WAV manifest to Appwrite Storage with retries
+      const result = await uploadWithRetry(manifestFile, manifestId);
+      
+      console.log(`WAV manifest uploaded successfully, Appwrite ID: ${result?.$id}`);
+
+      // Return the ID of the uploaded manifest
+      return result?.$id || manifestId;
+    } catch (error) {
+      console.error('Error uploading WAV manifest file to Appwrite:', error);
+      const errorMessage = error instanceof Error 
+        ? `Upload failed: ${error.message}` 
+        : 'Unknown error during upload';
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   const createPost = useCallback(async (params: UploadParams): Promise<UploadResult> => {
-    const { audio, image, mp3, m3u8, segments, trackname, genre, userId = 'anonymous', onProgress } = params;
+    const { audio, image, mp3, m3u8, segments, wavSegments, wavManifest, trackname, genre, userId = 'anonymous', onProgress } = params;
                                 
     try {
       // Check parameter correctness
@@ -195,6 +310,14 @@ export function useCreatePost() {
         }
       }
 
+      if (wavSegments) {
+        for (const wavSegment of wavSegments) {
+          if (typeof wavSegment !== 'string' && !isFile(wavSegment)) {
+            throw new Error('Each WAV segment must be a valid file or ID string');
+          }
+        }
+      }
+
       // Check API client availability
       if (!storage || typeof storage.createFile !== 'function') {
         console.error('Storage client is not properly initialized');
@@ -214,52 +337,59 @@ export function useCreatePost() {
       console.log(`Database ID: ${process.env.NEXT_PUBLIC_DATABASE_ID}`);
       console.log(`Collection ID: ${process.env.NEXT_PUBLIC_COLLECTION_ID_POST}`);
 
-      // Function to calculate remaining time
-      const getEstimatedTime = (progress: number) => {
-        const elapsedTime = Date.now() - startTime;
-        const estimatedTotalTime = (elapsedTime / progress) * 100;
-        const remainingTime = Math.max(0, estimatedTotalTime - elapsedTime);
-        const minutes = Math.floor(remainingTime / 60000);
-        const seconds = Math.floor((remainingTime % 60000) / 1000);
-        return `Estimated time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-      };
-
-      // Report progress
+      // Helper function to update progress with consistent formatting
       const updateProgress = (stage: string, progress: number) => {
         if (onProgress) {
-          console.log(`Progress update: ${stage} - ${progress}%`);
-          onProgress(stage, progress, getEstimatedTime(progress));
+          // Calculate time spent so far in seconds
+          const timeSpentSec = Math.round((Date.now() - startTime) / 1000);
+          const minutes = Math.floor(timeSpentSec / 60);
+          const seconds = timeSpentSec % 60;
+          
+          // Create time spent string
+          const timeSpent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          
+          // Estimate remaining time based on progress
+          let estimatedTimeLeft = '';
+          if (progress > 5) { // Only start estimating after 5% to avoid wild initial estimates
+            const totalEstimatedSec = (timeSpentSec / progress) * 100;
+            const remainingSec = Math.max(0, Math.round(totalEstimatedSec - timeSpentSec));
+            const remainingMin = Math.floor(remainingSec / 60);
+            const remainingSecs = remainingSec % 60;
+            estimatedTimeLeft = `${remainingMin}:${remainingSecs.toString().padStart(2, '0')}`;
+          }
+          
+          console.log(`Progress update: ${stage} - ${Math.round(progress)}% (${timeSpent} elapsed, ~${estimatedTimeLeft} remaining)`);
+          onProgress(stage, progress, estimatedTimeLeft);
         }
       };
 
-      // Upload main audio file if provided
-      updateProgress('Uploading main audio', 0);
+      // First, upload original audio (WAV) only if there are no WAV segments
       let audioId = '';
-      if (audio && isFile(audio)) {
+      if (audio && isFile(audio) && (!wavSegments || wavSegments.length === 0)) {
+        updateProgress('Uploading original audio', 5);
         audioId = ID.unique();
         const audioUploadResult = await uploadWithRetry(audio, audioId);
-        // Use the ID returned from Appwrite instead of the generated one
         if (audioUploadResult && audioUploadResult.$id) {
           audioId = audioUploadResult.$id;
-          console.log(`Audio file uploaded with ID: ${audioId}`);
+          console.log(`Original audio uploaded with ID: ${audioId}`);
         } else {
           console.log(`Using generated audio ID: ${audioId}`);
         }
+      } else if (wavSegments && wavSegments.length > 0) {
+        console.log('Using WAV segments instead of original WAV file');
       }
 
-      // Cover optimization and upload
-      updateProgress('Preparing cover image', 25);
-      console.log('Original image size:', Math.round(image.size / 1024), 'KB');
+      // Upload image with compression
+      updateProgress('Compressing and uploading cover image', 15);
+      const imageId = ID.unique();
+      console.log(`Compressing image: original size ${formatFileSize(image.size)}`);
       
-      // Optimize image before upload
-      updateProgress('Optimizing image...', 27);
-      const optimizedImage = await optimizeImage(image);
-      console.log('Optimized image size:', Math.round(optimizedImage.size / 1024), 'KB');
-      updateProgress('Image optimized', 30);
+      // Explicitly cast the result of imageCompression to any to avoid type error
+      // The library actually returns a Blob that is compatible with storage.createFile
+      const optimizedImage = await imageCompression(image, imageOptions) as any;
       
-      // Upload optimized image
-      updateProgress('Uploading cover image', 33);
-        const imageId = ID.unique();
+      console.log(`Image compressed: new size ${formatFileSize(optimizedImage.size)}`);
+      
       const imageUploadResult = await uploadWithRetry(optimizedImage, imageId);
       // Use the ID returned from Appwrite
       const finalImageId = imageUploadResult && imageUploadResult.$id ? imageUploadResult.$id : imageId;
@@ -285,10 +415,10 @@ export function useCreatePost() {
       }
 
       // Handle segments upload if provided
-      updateProgress('Processing segments', 60);
+      updateProgress('Processing MP3 segments', 60);
       let segmentIds: string[] = [];
       if (segments && segments.length > 0) {
-        console.log(`Processing ${segments.length} segments:`, segments);
+        console.log(`Processing ${segments.length} MP3 segments:`, segments);
         for (let i = 0; i < segments.length; i++) {
           const segment = segments[i];
           if (isFile(segment)) {
@@ -296,46 +426,98 @@ export function useCreatePost() {
             const segmentFile = segment as File;
             try {
               const uploadResult = await storage.createFile(
-            process.env.NEXT_PUBLIC_BUCKET_ID!,
+                process.env.NEXT_PUBLIC_BUCKET_ID!,
                 ID.unique(),
                 segmentFile
               );
               const segmentId = uploadResult.$id;
-              console.log(`Uploaded segment file ${segmentFile.name}, got Appwrite ID: ${segmentId}`);
+              console.log(`Uploaded MP3 segment file ${segmentFile.name}, got Appwrite ID: ${segmentId}`);
               segmentIds.push(segmentId);
             } catch (error) {
-              console.error(`Error uploading segment ${i}:`, error);
-              throw new Error(`Failed to upload segment ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              console.error(`Error uploading MP3 segment ${i}:`, error);
+              throw new Error(`Failed to upload MP3 segment ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           } else if (typeof segment === 'string') {
             // If it's already an ID string, just use it
-            console.log(`Using provided segment ID: ${segment}`);
+            console.log(`Using provided MP3 segment ID: ${segment}`);
             segmentIds.push(segment);
           }
           // Update progress for each segment
-          updateProgress(`Processing segment ${i+1}/${segments.length}`, 60 + (i / segments.length * 10));
+          updateProgress(`Processing MP3 segment ${i+1}/${segments.length}`, 60 + (i / segments.length * 10));
         }
-        console.log(`Final segment IDs for M3U8 and DB:`, segmentIds);
+        console.log(`Final MP3 segment IDs for M3U8 and DB:`, segmentIds);
       }
 
-      // Generate M3U8 playlist from segment IDs
-        console.log(`Generating M3U8 playlist from segments IDs:`, segmentIds);
-        
-        // Log environment variables to debug
-        console.log('Environment variables check:');
-        console.log('NEXT_PUBLIC_APPWRITE_ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined');
-        console.log('NEXT_PUBLIC_BUCKET_ID:', process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined');
-        console.log('NEXT_PUBLIC_APPWRITE_PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined');
-        
-        // Ensure we have proper environment variables with fallbacks
-        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-        const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
-        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
-        
-        if (!bucketId || !projectId) {
-          console.error('Missing required environment variables for M3U8 generation');
+      // Handle WAV segments upload if provided
+      updateProgress('Processing WAV segments', 50);
+      let wavSegmentIds: string[] = [];
+      if (wavSegments && wavSegments.length > 0) {
+        console.log(`Processing ${wavSegments.length} WAV segments:`, wavSegments);
+        for (let i = 0; i < wavSegments.length; i++) {
+          const wavSegment = wavSegments[i];
+          if (isFile(wavSegment)) {
+            // If it's a file, upload it to the same bucket
+            const wavSegmentFile = wavSegment as File;
+            try {
+              const uploadResult = await storage.createFile(
+                process.env.NEXT_PUBLIC_BUCKET_ID!,
+                ID.unique(),
+                wavSegmentFile
+              );
+              const wavSegmentId = uploadResult.$id;
+              console.log(`Uploaded WAV segment file ${wavSegmentFile.name}, got Appwrite ID: ${wavSegmentId}`);
+              wavSegmentIds.push(wavSegmentId);
+            } catch (error) {
+              console.error(`Error uploading WAV segment ${i}:`, error);
+              throw new Error(`Failed to upload WAV segment ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          } else if (typeof wavSegment === 'string') {
+            // If it's already an ID string, just use it
+            console.log(`Using provided WAV segment ID: ${wavSegment}`);
+            wavSegmentIds.push(wavSegment);
+          }
+          // Update progress for each WAV segment
+          updateProgress(`Processing WAV segment ${i+1}/${wavSegments.length}`, 50 + (i / wavSegments.length * 10));
         }
-        
+        console.log(`Final WAV segment IDs for DB:`, wavSegmentIds);
+      }
+
+      // Upload WAV manifest if provided
+      updateProgress('Processing WAV manifest', 30);
+      let wavManifestId = '';
+      if (wavManifest && isFile(wavManifest)) {
+        console.log(`Processing WAV manifest: ${wavManifest.name}, size: ${formatFileSize(wavManifest.size)}`);
+        try {
+          wavManifestId = ID.unique();
+          const manifestUploadResult = await uploadWithRetry(wavManifest, wavManifestId);
+          // Use the ID returned from Appwrite
+          if (manifestUploadResult && manifestUploadResult.$id) {
+            wavManifestId = manifestUploadResult.$id;
+            console.log(`WAV manifest uploaded with ID: ${wavManifestId}`);
+          } else {
+            console.log(`Using generated WAV manifest ID: ${wavManifestId}`);
+          }
+        } catch (error) {
+          console.error('Error uploading WAV manifest:', error);
+          // Continue with the process even if manifest upload fails
+        }
+      }
+
+      // Log environment variables to debug
+      console.log('Environment variables check:');
+      console.log('NEXT_PUBLIC_APPWRITE_ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined');
+      console.log('NEXT_PUBLIC_BUCKET_ID:', process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined');
+      console.log('NEXT_PUBLIC_APPWRITE_PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined');
+      
+      // Ensure we have proper environment variables with fallbacks
+      const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+      const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
+      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+      
+      if (!bucketId || !projectId) {
+        console.error('Missing required environment variables for M3U8 generation');
+      }
+      
       // Generate M3U8 playlist if segments are available and no m3u8 file provided
       updateProgress('Generating playlist', 70);
       let m3u8Id = '';
@@ -382,6 +564,8 @@ export function useCreatePost() {
         trackname,
         genre,
         segments: segmentIds.length > 0 ? JSON.stringify(segmentIds) : '',
+        wav_segments: wavSegmentIds.length > 0 ? JSON.stringify(wavSegmentIds) : '',
+        wav_manifest_id: wavManifestId,
       });
 
       const post = await database.createDocument(
@@ -398,6 +582,8 @@ export function useCreatePost() {
           genre: genre,
           price: "2",
           segments: segmentIds.length > 0 ? JSON.stringify(segmentIds) : '',
+          wav_segments: wavSegmentIds.length > 0 ? JSON.stringify(wavSegmentIds) : '',
+          wav_manifest_id: wavManifestId,
           created_at: new Date().toISOString(),
         }
       );
@@ -405,7 +591,8 @@ export function useCreatePost() {
       console.log('Document created successfully, details:', {
         id: post.$id,
         m3u8_url: post.m3u8_url,
-        segments: post.segments
+        segments: post.segments,
+        wav_segments: post.wav_segments
       });
 
       updateProgress('Upload completed', 100);
@@ -471,5 +658,5 @@ export function useCreatePost() {
     return playlist;
   };
 
-  return { createPost, createSegmentFile };
+  return { createPost, createSegmentFile, createWavSegmentFile, createWavManifestFile };
 } 

@@ -749,6 +749,11 @@ export default function Upload() {
                             if (details?.preparationProgress) {
                                 detailedMessage = `Preparation: ${Math.round(details.preparationProgress)}%`;
                             }
+                        } else if (update.stage.includes('WAV manifest')) {
+                            displayStage = 'Processing WAV manifest';
+                            if (details?.message) {
+                                detailedMessage = details.message;
+                            }
                         } else if (update.stage.includes('Smooth segment progress')) {
                             displayStage = 'Segmenting audio';
                             // Extract information about segment progress from string
@@ -920,7 +925,7 @@ export default function Upload() {
                             icon: '🎵'
                         });
                     } else if (update.type === 'complete') {
-                        // Audio processing complete, show success animation before proceeding
+                        console.log('Audio processing complete, show success animation before proceeding');
                         setProcessingStage('Processing complete');
                         setProcessingProgress(100);
                         toast.success('Audio processing completed!', { 
@@ -970,215 +975,118 @@ export default function Upload() {
                             const mp3Blob = await fetch(result.mp3File).then(r => r.blob());
                             const mp3File = new File([mp3Blob], 'audio.mp3', { type: 'audio/mp3' });
                             
-                            // Load segments to Appwrite and get their IDs
-                            const segmentIds: string[] = [];
-                            const totalSegments = result.segments.length;
+                            // Process WAV segments and manifest
+                            let wavSegmentFiles: Array<File> = [];
+                            let wavManifestFile: File | null = null;
                             
-                            console.log(`Preparing to upload ${totalSegments} segments to Appwrite...`);
-                            setProcessingStage('Uploading segments to Appwrite');
-                            setProcessingProgress(0);
-                            
-                            // Check if user exists and we have access to createPost
-                            if (!user) {
-                                throw new Error('Authentication error. Please sign in to the system');
-                            }
-
-                            // Check createSegmentFile function
-                            if (!createPostHook?.createSegmentFile) {
-                                console.error('createSegmentFile function is not available');
-                                throw new Error('Segment upload function is not available. Please refresh the page');
-                            }
-
-                            // Load segments one by one with progress display
-                            for (let i = 0; i < totalSegments; i++) {
+                            // Process WAV manifest if available
+                            if (result.wavManifest && result.wavManifest.data) {
                                 try {
-                                    const segment = result.segments[i];
-                                    console.log(`Processing segment ${i+1}/${totalSegments}: ${segment.name}`);
-                                    
-                                    // Check if segment has data
-                                    if (!segment.data) {
-                                        console.error(`Segment ${i+1} has no data!`);
-                                        throw new Error(`Segment data ${i+1} is missing`);
-                                    }
-                                    
-                                    // Convert base64 to Blob
-                                    console.log(`Creating blob from base64 data for segment ${i+1}...`);
-                                    const segmentBlob = await fetch(`data:audio/mp3;base64,${segment.data}`).then(r => r.blob());
-                                    console.log(`Created blob, size: ${segmentBlob.size} bytes`);
-                                    
-                                    // Create File object from Blob
-                                    const segmentFile = new File([segmentBlob], segment.name, { type: 'audio/mp3' });
-                                    console.log(`Created File object: ${segmentFile.name}, size: ${segmentFile.size} bytes`);
-                                    
-                                    // Load through createSegmentFile, which is obtained at the upper level component
-                                    console.log(`Uploading segment ${i+1} to Appwrite...`);
-                                    const segmentId = await createPostHook.createSegmentFile(segmentFile);
-                                    
-                                    // Check if segmentId is valid
-                                    if (!segmentId || segmentId === 'unique()') {
-                                        console.warn(`Invalid segment ID received from createSegmentFile for segment ${i+1}: ${segmentId}`);
-                                        // Create new ID and try to upload directly
-                                        const fallbackId = ID.unique();
-                                        console.log(`Trying direct upload with fallback ID: ${fallbackId}`);
-                                        
-                                        try {
-                                            // Direct upload through Appwrite SDK
-                                            const uploadResult = await storage.createFile(
-                                                process.env.NEXT_PUBLIC_BUCKET_ID!,
-                                                fallbackId,
-                                                segmentFile
-                                            );
-                                            
-                                            // Use ID from upload result
-                                            const validSegmentId = uploadResult?.$id || fallbackId;
-                                            console.log(`Segment ${i+1} uploaded with fallback method, ID: ${validSegmentId}`);
-                                            segmentIds.push(validSegmentId);
-                                        } catch (fallbackError) {
-                                            console.error(`Fallback upload failed for segment ${i+1}:`, fallbackError);
-                                            throw new Error(`Failed to upload segment ${i+1} by any method`);
-                                        }
-                                    } else {
-                                        console.log(`Segment ${i+1} uploaded successfully, ID: ${segmentId}`);
-                                        segmentIds.push(segmentId);
-                                    }
-                                    
-                                    // Update progress
-                                    const progress = Math.round((i + 1) / totalSegments * 100);
-                                    setProcessingProgress(progress);
-                                    toast.loading(`Uploading segments: ${progress}%`, { 
-                                        id: toastId,
-                                        style: {
-                                            border: '1px solid #20DDBB',
-                                            padding: '16px',
-                                            color: '#ffffff',
-                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                                            fontSize: '16px',
-                                            borderRadius: '12px',
-                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                                        },
-                                        icon: '🧩'
-                                    });
+                                    console.log('Received WAV manifest:', result.wavManifest.name);
+                                    const manifestBlob = new Blob([result.wavManifest.data], { type: 'application/json' });
+                                    wavManifestFile = new File([manifestBlob], result.wavManifest.name, { type: 'application/json' });
+                                    console.log('Created WAV manifest file:', wavManifestFile.name, 'size:', wavManifestFile.size);
                                 } catch (error) {
-                                    console.error(`Error uploading segment ${i+1}:`, error);
-                                    throw new Error(`Error uploading segment ${i+1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                    console.error('Error creating WAV manifest file:', error);
                                 }
                             }
-
-                            console.log(`All ${totalSegments} segments uploaded successfully`);
-                            console.log('Segment IDs:', segmentIds);
-
-                            // Create M3U8 playlist with real URLs of segments
-                            console.log('Creating M3U8 playlist with segment IDs...');
-                            let m3u8Content = result.m3u8Template;
-
-                            // Debug: show original playlist template
-                            console.log('Original M3U8 template (first 200 chars):', m3u8Content.substring(0, 200) + '...');
-
-                            // Check if we have placeholders for replacement
-                            if (!m3u8Content.includes('SEGMENT_PLACEHOLDER_')) {
-                                console.warn('M3U8 template does not contain SEGMENT_PLACEHOLDER_ markers!');
-                                console.log('Creating M3U8 content manually...');
+                            
+                            // Process WAV segments if available
+                            if (result.wavSegments && Array.isArray(result.wavSegments)) {
+                                console.log(`Found ${result.wavSegments.length} WAV segments from server processing`);
                                 
-                                // Create HLS playlist manually with simple segment IDs
-                                m3u8Content = "#EXTM3U\n";
-                                m3u8Content += "#EXT-X-VERSION:3\n";
-                                m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
-                                m3u8Content += "#EXT-X-ALLOW-CACHE:YES\n";
-                                m3u8Content += "#EXT-X-TARGETDURATION:10\n";
-                                m3u8Content += "#EXT-X-PLAYLIST-TYPE:VOD\n";
-                                
-                                for (let i = 0; i < segmentIds.length; i++) {
-                                    const segmentId = segmentIds[i];
-                                    // Simply add segment ID, without full URL
-                                    m3u8Content += "#EXTINF:10,\n";
-                                    m3u8Content += `${segmentId}\n`;
-                                    console.log(`Added segment ${i+1} with ID ${segmentId} to M3U8 playlist`);
-                                }
-                                
-                                m3u8Content += "#EXT-X-ENDLIST\n";
-                            } else {
-                                // Replace placeholders with segment IDs
-                                console.log('Environment variables for URLs:');
-                                console.log(`- NEXT_PUBLIC_APPWRITE_ENDPOINT: ${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined'}`);
-                                console.log(`- NEXT_PUBLIC_BUCKET_ID: ${process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined'}`);
-                                console.log(`- NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined'}`);
-                                
-                                for (let i = 0; i < segmentIds.length; i++) {
-                                    const segmentId = segmentIds[i];
-                                    const placeholder = `SEGMENT_PLACEHOLDER_${i}`;
-                                    
-                                    console.log(`Replacing placeholder "${placeholder}" for segment ${i+1} with ID: ${segmentId}`);
-                                    
-                                    if (m3u8Content.includes(placeholder)) {
-                                        // Simply use segment ID instead of full URL
-                                        m3u8Content = m3u8Content.replace(placeholder, segmentId);
-                                        console.log(`Placeholder ${placeholder} replaced successfully with segment ID`);
-                                    } else {
-                                        console.warn(`Placeholder ${placeholder} not found in M3U8 template!`);
+                                // For each WAV segment, create File object
+                                for (let i = 0; i < result.wavSegments.length; i++) {
+                                    try {
+                                        const wavSegment = result.wavSegments[i];
+                                        console.log(`Processing WAV segment ${i+1}/${result.wavSegments.length}: ${wavSegment.name}`);
+                                        
+                                        // Check if segment has data
+                                        if (!wavSegment.data) {
+                                            console.error(`WAV segment ${i+1} has no data!`);
+                                            throw new Error(`WAV segment data ${i+1} is missing`);
+                                        }
+                                        
+                                        // Convert base64 to Blob
+                                        console.log(`Creating blob from base64 data for WAV segment ${i+1}...`);
+                                        // Use atob method for more direct control
+                                        const byteString = atob(wavSegment.data);
+                                        const arrayBuffer = new ArrayBuffer(byteString.length);
+                                        const int8Array = new Uint8Array(arrayBuffer);
+                                        for (let j = 0; j < byteString.length; j++) {
+                                            int8Array[j] = byteString.charCodeAt(j);
+                                        }
+                                        
+                                        // Create Blob and File objects
+                                        const wavSegmentBlob = new Blob([int8Array], { type: 'audio/wav' });
+                                        console.log(`Created WAV blob, size: ${wavSegmentBlob.size} bytes`);
+                                        
+                                        // Create File object from Blob
+                                        const wavSegmentFile = new File([wavSegmentBlob], wavSegment.name, { type: 'audio/wav' });
+                                        console.log(`Created WAV File object: ${wavSegmentFile.name}, size: ${wavSegmentFile.size} bytes`);
+                                        
+                                        // Add to array of WAV segments
+                                        wavSegmentFiles.push(wavSegmentFile);
+                                        
+                                    } catch (error) {
+                                        console.error(`Error processing WAV segment ${i+1}:`, error);
+                                        // Continue with other segments
                                     }
                                 }
+                                
+                                console.log(`Successfully processed ${wavSegmentFiles.length} WAV segments`);
+                            } else {
+                                console.log('No WAV segments found in server response');
                             }
-
-                            // Debug: show final playlist
-                            console.log('Final M3U8 content (first 500 chars):', m3u8Content.substring(0, 500) + '...');
-
-                            // Create M3U8 file
-                            console.log('Creating M3U8 file...');
-                            const m3u8File = new File([m3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
+                            
+                            // Create segment file objects from base64 data
+                            const segmentFiles: File[] = [];
+                            for (const segment of result.segments) {
+                                if (segment && segment.data) {
+                                    try {
+                                        // Convert base64 to Blob
+                                        const byteString = atob(segment.data);
+                                        const arrayBuffer = new ArrayBuffer(byteString.length);
+                                        const int8Array = new Uint8Array(arrayBuffer);
+                                        for (let j = 0; j < byteString.length; j++) {
+                                            int8Array[j] = byteString.charCodeAt(j);
+                                        }
+                                        
+                                        // Create Blob and File
+                                        const blob = new Blob([int8Array], { type: 'audio/mp3' });
+                                        const file = new File([blob], segment.name, { type: 'audio/mp3' });
+                                        
+                                        console.log(`Processed MP3 segment ${segment.name}, size: ${file.size}`);
+                                        segmentFiles.push(file);
+                                    } catch (error) {
+                                        console.error(`Error processing MP3 segment ${segment.name}:`, error);
+                                    }
+                                } else {
+                                    console.error('Invalid MP3 segment data:', segment);
+                                }
+                            }
 
                             console.log('Parameters for createPost:', {
-                                audio: fileAudio,
+                                audio: fileAudio, // Only if needed and no WAV segments
                                 image: fileImage,
-                                mp3: mp3File,
-                                m3u8: m3u8File,
-                                segments: segmentIds,
+                                segments: segmentFiles,
+                                wavSegments: wavSegmentFiles,
+                                wavManifest: wavManifestFile ? `${wavManifestFile.name} (${wavManifestFile.size} bytes)` : 'none',
                                 trackname,
                                 genre,
                                 userId: user?.id ?? undefined,
-                                onProgress: (stage: string, progress: number) => {
-                                    // Map storage stages to UI stages
-                                    let displayStage = stage;
-                                    if (stage.includes('main audio')) {
-                                        displayStage = 'Uploading main audio';
-                                    } else if (stage.includes('cover image')) {
-                                        displayStage = 'Uploading cover image';
-                                    } else if (stage.includes('MP3')) {
-                                        displayStage = 'Uploading MP3 version';
-                                    } else if (stage.includes('playlist')) {
-                                        displayStage = 'Uploading playlist';
-                                    } else if (stage.includes('database') || stage.includes('record')) {
-                                        displayStage = 'Finalizing upload';
-                                    }
-                                    
-                                    setProcessingStage(displayStage);
-                                    setProcessingProgress(progress);
-                                    toast.loading(`${displayStage}: ${Math.round(progress)}%`, { 
-                                        id: toastId,
-                                        style: {
-                                            border: '1px solid #20DDBB',
-                                            padding: '16px',
-                                            color: '#ffffff',
-                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                                            fontSize: '16px',
-                                            borderRadius: '12px',
-                                            boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                                        },
-                                        icon: '🎵'
-                                    });
-                                }
                             });
-
+                            
                             // Check for all necessary files
-                            if (!fileAudio || !fileImage) {
-                                throw new Error('Required files for upload are missing');
+                            if (!fileImage) {
+                                throw new Error('Image file is required for upload');
                             }
                             
-                            const createPostResult = await createPostHook.createPost({
-                                audio: fileAudio,
+                            // Создаем параметры для вызова createPost
+                            const postParams: any = {
                                 image: fileImage,
-                                mp3: mp3File,
-                                m3u8: m3u8File,
-                                segments: segmentIds,
+                                segments: segmentFiles,
+                                wavSegments: wavSegmentFiles,
                                 trackname,
                                 genre,
                                 userId: user?.id ?? undefined,
@@ -1191,6 +1099,10 @@ export default function Upload() {
                                         displayStage = 'Uploading cover image';
                                     } else if (stage.includes('MP3')) {
                                         displayStage = 'Uploading MP3 version';
+                                    } else if (stage.includes('WAV')) {
+                                        displayStage = 'Uploading WAV segments';
+                                    } else if (stage.includes('WAV manifest')) {
+                                        displayStage = 'Uploading WAV manifest';
                                     } else if (stage.includes('playlist')) {
                                         displayStage = 'Uploading playlist';
                                     } else if (stage.includes('database') || stage.includes('record')) {
@@ -1213,7 +1125,19 @@ export default function Upload() {
                                         icon: '🎵'
                                     });
                                 }
-                            });
+                            };
+
+                            // Добавляем wavManifest, если он был создан
+                            if (wavManifestFile) {
+                                postParams.wavManifest = wavManifestFile;
+                            }
+
+                            // Добавляем audio только если нет WAV сегментов
+                            if (wavSegmentFiles.length === 0 && fileAudio) {
+                                postParams.audio = fileAudio;
+                            }
+
+                            const createPostResult = await createPostHook.createPost(postParams);
 
                             if (createPostResult.success) {
                                 // Set final stages
@@ -1237,14 +1161,38 @@ export default function Upload() {
                                         borderRadius: '12px',
                                         boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
                                     },
-                                    icon: '🎉'
+                                    icon: '🎉',
+                                    duration: 5000
+                                });
+                                setIsProcessing(false);
+                                setUploadController(null);
+
+                                console.log('Document created successfully, details:', {
+                                    id: createPostResult.trackId,
+                                    wavSegments: wavSegmentFiles.length,
+                                    wavManifest: wavManifestFile ? 'Uploaded' : 'Not available'
                                 });
                             } else {
                                 throw new Error(createPostResult.error);
                             }
                         } catch (error) {
                             console.error('Error during Appwrite upload:', error);
-                            throw new Error(`Appwrite upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                            toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, { 
+                                id: toastId,
+                                style: {
+                                    border: '1px solid #FF4A4A',
+                                    padding: '16px',
+                                    color: '#ffffff',
+                                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                    fontSize: '16px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                                },
+                                icon: '⚠️',
+                                duration: 5000
+                            });
+                            setIsProcessing(false);
+                            setUploadController(null);
                         }
                     } else if (update.type === 'error') {
                         throw new Error(update.error || 'An error occurred during audio processing');
