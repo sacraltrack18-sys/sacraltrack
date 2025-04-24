@@ -159,11 +159,37 @@ export function DirectUploadAudio({ onUploadComplete }: UploadCompleteProps) {
             setUploadProgress(20);
             setProcessingStage('Подготовка к обработке аудио');
             
-            // 3. Теперь делаем запрос к нашему API для обработки файла
-            const apiUrl = '/api/audio/process';
+            // 3. Отправляем данные об уже загруженных файлах на API обработки
+            // ВАЖНО: Сначала отправляем запрос, а потом устанавливаем EventSource
+            const processEndpoint = '/api/audio/process-appwrite';
             
-            // Создаем EventSource для получения статуса обработки
-            eventSourceRef.current = new EventSource(apiUrl);
+            // Создаем уникальный идентификатор для отслеживания задачи
+            const taskId = ID.unique();
+            
+            toast.loading('Отправка информации на сервер обработки...');
+            
+            // Отправляем POST запрос для запуска обработки
+            await axios.post(processEndpoint, {
+                fileId: audioFileId,
+                bucketId: BUCKET_ID,
+                imageId: imageFileId,
+                trackname: trackInfo.trackname,
+                artist: trackInfo.artist,
+                genre: trackInfo.genre,
+                taskId: taskId
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            toast.dismiss();
+            toast.success('Начинаем обработку аудио');
+            
+            // 4. Создаем EventSource для отслеживания прогресса обработки
+            // Используем отдельный endpoint для SSE, чтобы избежать проблем с загрузкой
+            const progressEndpoint = `/api/audio/progress?taskId=${taskId}`;
+            eventSourceRef.current = new EventSource(progressEndpoint);
             
             // Обрабатываем сообщения от сервера
             eventSourceRef.current.onmessage = (event) => {
@@ -177,21 +203,7 @@ export function DirectUploadAudio({ onUploadComplete }: UploadCompleteProps) {
                 setIsUploading(false);
             };
             
-            // 4. Отправляем данные об уже загруженных файлах на API обработки
-            const response = await axios.post(apiUrl, {
-                fileId: audioFileId,
-                bucketId: BUCKET_ID,
-                imageId: imageFileId,
-                trackname: trackInfo.trackname,
-                artist: trackInfo.artist,
-                genre: trackInfo.genre
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            console.log('API response:', response);
+            console.log('Processing started with taskId:', taskId);
             
         } catch (error: any) {
             console.error('Ошибка загрузки:', error);
