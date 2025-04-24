@@ -10,11 +10,11 @@ import { ID } from '@/libs/AppWriteClient';
 import { spawn } from 'child_process';
 import { storage } from '@/libs/AppWriteClient';
 
-// Set max payload size to 200MB
+// Set max payload size to 220MB
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '200mb',
+      sizeLimit: '220mb',
     },
     responseLimit: false,
   },
@@ -48,9 +48,9 @@ async function validateFile(file: File): Promise<{ isValid: boolean; error?: str
         return { isValid: false, error: 'Файл должен быть в формате WAV' };
     }
     
-    if (file.size > 200 * 1024 * 1024) { // 200MB
+    if (file.size > 220 * 1024 * 1024) { // 220MB
         console.error(`[VALIDATE] Файл слишком большой: ${file.size} байт`);
-        return { isValid: false, error: 'Размер файла не должен превышать 200МБ' };
+        return { isValid: false, error: 'Размер файла не должен превышать 220МБ' };
     }
     
     console.log('[VALIDATE] Файл успешно прошел валидацию');

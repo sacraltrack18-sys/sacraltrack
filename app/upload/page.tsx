@@ -741,7 +741,7 @@ export default function Upload() {
                             displayStage = 'Segmenting audio';
                             // If there are segment details
                             if (details?.segmentProgress) {
-                                detailedMessage = `Segmenting: ${Math.round(details.segmentProgress)}% (${Math.floor(details.segmentProgress / 100 * 42)}/${42} segments)`;
+                                detailedMessage = `Segmenting: ${Math.round(details.segmentProgress)}% (${Math.floor(details.segmentProgress / 100 * 400)}/${400} segments)`;
                             }
                         } else if (update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) {
                             displayStage = 'Preparing segments';
@@ -769,7 +769,7 @@ export default function Upload() {
                             const match = update.stage.match(/Created segment segment_(\d+)\.mp3/);
                             if (match) {
                                 const segmentNum = parseInt(match[1]);
-                                const totalSegments = 42; // Based on logs
+                                const totalSegments = 400; // Based on logs
                                 detailedMessage = `Created segment ${segmentNum+1} of ${totalSegments}`;
                                 // Update progress based on created segment
                                 displayProgress = ((segmentNum+1) / totalSegments) * 100;
@@ -788,7 +788,7 @@ export default function Upload() {
                         // If this is segmenting stage, add details to stage name for UploadProgress
                         // and update progress value based on actual segment progress
                         if (update.stage.includes('segment') && details?.segmentProgress) {
-                            const segmentCount = details?.totalSegments || 42; // Use total segments from details or default to 42
+                            const segmentCount = details?.totalSegments || 400; // Use total segments from details or default to 400
                             const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
                             
                             // Update stage name with segment information for component UploadProgress
@@ -849,7 +849,7 @@ export default function Upload() {
                         
                         if (createdSegmentMatch) {
                             const segmentNum = parseInt(createdSegmentMatch[1]);
-                            const totalSegments = details?.totalSegments || 42; // Based on logs or details
+                            const totalSegments = details?.totalSegments || 400; // Based on logs or details
                             const realProgress = ((segmentNum + 1) / totalSegments) * 100;
                             
                             // Update progress and current segment information
@@ -891,7 +891,7 @@ export default function Upload() {
                         
                         // If this is preparation stage, add preparation progress information
                         if ((update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) && details?.preparationProgress) {
-                            const segmentCount = 42; // Real segment count from logs
+                            const segmentCount = 400; // Real segment count from logs
                             const preparedSegments = Math.floor((details.preparationProgress / 100) * segmentCount);
                             setProcessingStage(`${displayStage} ${preparedSegments}/${segmentCount}`);
                             

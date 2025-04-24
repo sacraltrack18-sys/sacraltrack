@@ -9,5 +9,15 @@
     "env": {
       "NPM_FLAGS": "--omit=optional"
     }
+  },
+  "functions": {
+    "api/audio/process": {
+      "memory": 3008,
+      "maxDuration": 300,
+      "includeFiles": "./**",
+      "bodyParser": {
+        "sizeLimit": "220mb"
+      }
+    }
   }
 } 
