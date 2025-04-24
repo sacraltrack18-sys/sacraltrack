@@ -735,111 +735,46 @@ export async function POST(request: NextRequest) {
             throw new Error(`Ошибка при получении данных формы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
         
-        // Проверяем, передан ли ID аудиофайла вместо самого файла
-        const audioId = formData.get('audioId') as string;
-        const audioDurationFromClient = formData.get('audioDuration') as string;
         const file = formData.get('audio') as File;
         const trackname = formData.get('trackname') as string;
         const artist = formData.get('artist') as string;
         const genre = formData.get('genre') as string;
         const imageFile = formData.get('image') as File;
-        
-        let inputBuffer: Buffer;
-        
-        // Если передан audioId, значит файл уже загружен в Appwrite
-        if (audioId) {
-            console.log('[API] Получен ID аудиофайла из Appwrite:', audioId);
-            
-            // Отправляем прогресс о начале загрузки файла из Appwrite
-            sendProgress(writer, 5, 'Getting file from Appwrite', {
-                type: 'file_load',
-                message: 'Retrieving audio file from Appwrite Storage'
-            });
-            
-            try {
-                // Получаем файл из Appwrite Storage по ID
-                const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
-                
-                // Проверяем существование файла
-                const fileInfo = await storage.getFile(bucketId, audioId);
-                console.log('[API] Информация о файле получена:', fileInfo);
-                
-                // Скачиваем файл из Appwrite Storage
-                sendProgress(writer, 10, 'Downloading file', {
-                    type: 'download',
-                    message: 'Downloading audio file from storage'
-                });
-                
-                // URL для загрузки файла
-                const projectId = process.env.NEXT_PUBLIC_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-                const endpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
-                const downloadUrl = `${endpoint}/storage/buckets/${bucketId}/files/${audioId}/download?project=${projectId}`;
-                
-                console.log('[API] Загрузка файла из Appwrite по URL:', downloadUrl);
-                
-                // Загружаем файл по URL
-                const response = await fetch(downloadUrl);
-                if (!response.ok) {
-                    throw new Error(`Ошибка загрузки файла из Appwrite: ${response.status} ${response.statusText}`);
-                }
-                
-                // Получаем данные файла как ArrayBuffer
-                const arrayBuffer = await response.arrayBuffer();
-                inputBuffer = Buffer.from(arrayBuffer);
-                
-                console.log('[API] Файл успешно загружен из Appwrite, размер:', inputBuffer.length, 'байт');
-                
-                sendProgress(writer, 15, 'File downloaded', {
-                    type: 'download',
-                    message: 'File successfully downloaded from storage'
-                });
-            } catch (error) {
-                console.error('[API] Ошибка при получении файла из Appwrite:', error);
-                sendDetailedError(writer, 'Ошибка при получении файла из Appwrite', error);
-                throw error;
-            }
-        } else if (file) {
-            // Если передан сам файл, используем его как раньше
-            console.log('[API] Получен WAV-файл напрямую:', {
-                fileName: file?.name,
-                fileType: file?.type,
-                fileSize: file?.size
-            });
-            
-            // Проверка файла с улучшенной обработкой ошибок
-            try {
-                const validation = await validateFile(file);
-                if (!validation.isValid) {
-                    console.error('[API] Проверка файла не пройдена:', validation.error);
-                    sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
-                    throw new Error(validation.error);
-                }
-                console.log('[API] Проверка файла пройдена успешно');
-            } catch (error) {
-                console.error('[API] Ошибка при валидации файла:', error);
-                sendDetailedError(writer, 'Ошибка при валидации файла', error);
-                throw error;
-            }
-            
-            // Конвертируем файл в буфер
-            try {
-                console.log('[API] Преобразование файла в буфер...');
-                inputBuffer = Buffer.from(await file.arrayBuffer());
-                console.log('[API] Размер входного буфера:', inputBuffer.length, 'байт');
-            } catch (error) {
-                console.error('[API] Ошибка при преобразовании файла в буфер:', error);
-                sendDetailedError(writer, 'Ошибка при преобразовании файла в буфер', error);
-                throw error;
-            }
-        } else {
-            const error = 'Файл не предоставлен (ни ID, ни сам файл)';
+
+        console.log('[API] Получены данные формы:', {
+            fileName: file?.name,
+            fileType: file?.type,
+            fileSize: file?.size,
+            trackname,
+            artist,
+            genre,
+            hasImage: !!imageFile
+        });
+
+        if (!file) {
+            const error = 'Файл не предоставлен';
             console.error('[API] ' + error);
             sendDetailedError(writer, error);
             throw new Error(error);
         }
 
+        // Проверка файла с улучшенной обработкой ошибок
+        try {
+            const validation = await validateFile(file);
+            if (!validation.isValid) {
+                console.error('[API] Проверка файла не пройдена:', validation.error);
+                sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
+                throw new Error(validation.error);
+            }
+            console.log('[API] Проверка файла пройдена успешно');
+        } catch (error) {
+            console.error('[API] Ошибка при валидации файла:', error);
+            sendDetailedError(writer, 'Ошибка при валидации файла', error);
+            throw error;
+        }
+        
         // Сообщаем о начале обработки файла
-        sendProgress(writer, 15, 'File Validated', {
+        sendProgress(writer, 10, 'File Validated', {
             type: 'validation',
             message: 'File validation passed, preparing for processing'
         });
@@ -868,20 +803,27 @@ export async function POST(request: NextRequest) {
         }
 
         // Сохранение входного файла и сообщение о прогрессе
-        sendProgress(writer, 20, 'Saving File', {
+        sendProgress(writer, 15, 'Saving File', {
             type: 'saving',
-            message: 'Saving audio file to temporary storage'
+            message: 'Saving uploaded file to temporary storage'
         });
         
         try {
-            console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + inputBuffer.length + ' байт');
-            await fs.writeFile(inputPath, inputBuffer);
+            console.log('[API] Преобразование файла в буфер...');
+            const buffer = Buffer.from(await file.arrayBuffer());
+            console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
+            await fs.writeFile(inputPath, buffer);
             console.log('[API] Входной файл успешно сохранен:', inputPath);
         } catch (error) {
             console.error('[API] Ошибка при сохранении входного файла:', error);
             sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
             throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
+        
+        sendProgress(writer, 20, 'File Saved', {
+            type: 'saving',
+            message: 'File saved successfully, checking audio duration'
+        });
 
         // Проверка длительности с улучшенной обработкой ошибок
         console.log('[API] Проверка длительности аудио...');
@@ -890,26 +832,10 @@ export async function POST(request: NextRequest) {
             message: 'Analyzing audio file duration'
         });
         
-        let duration: number;
+        let duration;
         try {
-            // Если длительность передана с клиента, используем ее
-            if (audioDurationFromClient) {
-                duration = parseFloat(audioDurationFromClient);
-                console.log('[API] Длительность аудио получена с клиента:', duration, 'секунд');
-            } else {
-                // Иначе пытаемся определить длительность через FFmpeg (обработка старого сценария)
-                try {
-                    duration = await getAudioDuration(inputPath);
-                    console.log('[API] Длительность аудио определена через FFmpeg:', duration, 'секунд');
-                } catch (ffmpegError) {
-                    console.error('[API] Ошибка при получении длительности аудио через FFmpeg:', ffmpegError);
-                    // В случае ошибки FFmpeg используем приблизительное значение на основе размера файла
-                    // Примерно 1MB WAV = 6 секунд аудио при среднем битрейте
-                    const estimatedDuration = (inputBuffer.length / (1024 * 1024)) * 6;
-                    console.log('[API] Используем приблизительную длительность на основе размера файла:', estimatedDuration, 'секунд');
-                    duration = estimatedDuration;
-                }
-            }
+            duration = await getAudioDuration(inputPath);
+            console.log('[API] Длительность аудио:', duration, 'секунд');
         } catch (error) {
             console.error('[API] Ошибка при получении длительности аудио:', error);
             sendDetailedError(writer, 'Ошибка при получении длительности аудио', error);
