@@ -426,7 +426,7 @@ export function useCreatePost() {
             const segmentFile = segment as File;
             try {
               const uploadResult = await storage.createFile(
-                process.env.NEXT_PUBLIC_BUCKET_ID!,
+            process.env.NEXT_PUBLIC_BUCKET_ID!,
                 ID.unique(),
                 segmentFile
               );
@@ -502,22 +502,22 @@ export function useCreatePost() {
           // Continue with the process even if manifest upload fails
         }
       }
-
-      // Log environment variables to debug
-      console.log('Environment variables check:');
-      console.log('NEXT_PUBLIC_APPWRITE_ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined');
-      console.log('NEXT_PUBLIC_BUCKET_ID:', process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined');
-      console.log('NEXT_PUBLIC_APPWRITE_PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined');
-      
-      // Ensure we have proper environment variables with fallbacks
-      const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-      const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
-      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
-      
-      if (!bucketId || !projectId) {
-        console.error('Missing required environment variables for M3U8 generation');
-      }
-      
+        
+        // Log environment variables to debug
+        console.log('Environment variables check:');
+        console.log('NEXT_PUBLIC_APPWRITE_ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'undefined');
+        console.log('NEXT_PUBLIC_BUCKET_ID:', process.env.NEXT_PUBLIC_BUCKET_ID || 'undefined');
+        console.log('NEXT_PUBLIC_APPWRITE_PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'undefined');
+        
+        // Ensure we have proper environment variables with fallbacks
+        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+        const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
+        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+        
+        if (!bucketId || !projectId) {
+          console.error('Missing required environment variables for M3U8 generation');
+        }
+        
       // Generate M3U8 playlist if segments are available and no m3u8 file provided
       updateProgress('Generating playlist', 70);
       let m3u8Id = '';

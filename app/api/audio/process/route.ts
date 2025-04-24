@@ -526,8 +526,8 @@ const createWavSegments = async (
     console.log(`WAV file info: duration=${duration}s, size=${fileSize}B, bitRate=${bitRate}bps`);
     console.log(`Audio stream: sampleRate=${sampleRate}Hz, channels=${channels}, bitsPerSample=${bitsPerSample}`);
 
-    // Максимальный размер сегмента (4.4MB в байтах)
-    const MAX_SEGMENT_SIZE = 4.4 * 1024 * 1024;
+    // Максимальный размер сегмента (4.3MB в байтах)
+    const MAX_SEGMENT_SIZE = 4.3 * 1024 * 1024;
     
     // Расчет размера одной секунды аудио
     const bytesPerSecond = bitRate / 8;
@@ -1054,53 +1054,53 @@ const prepareSegments = async (
     
     try {
         // Функция для параллельной обработки с ограничением - используем ту же логику как в других функциях
-        const parallelProcess = async (items: number[], processFn: (index: number) => Promise<any>, concurrencyLimit: number) => {
-            const results: any[] = new Array(items.length);
-            const executing: Promise<any>[] = [];
-            let index = 0;
+    const parallelProcess = async (items: number[], processFn: (index: number) => Promise<any>, concurrencyLimit: number) => {
+        const results: any[] = new Array(items.length);
+        const executing: Promise<any>[] = [];
+        let index = 0;
+        
+        // Создаем очередь для обработки всех элементов
+        const enqueue = async (): Promise<void> => {
+            // Обрабатываем текущий элемент
+            const i = index++;
             
-            // Создаем очередь для обработки всех элементов
-            const enqueue = async (): Promise<void> => {
-                // Обрабатываем текущий элемент
-                const i = index++;
-                
-                // Если все элементы уже в обработке, завершаем
-                if (i >= items.length) return;
-                
-                // Создаем промис для текущего элемента и добавляем его в список выполняющихся
-                const execPromise = processFn(items[i])
-                    .then(result => {
-                        // Сохраняем результат в массиве
-                        results[i] = result;
-                        // Удаляем текущий промис из списка выполняющихся
-                        const execIndex = executing.indexOf(execPromise);
-                        if (execIndex >= 0) executing.splice(execIndex, 1);
-                        // Добавляем следующий элемент в очередь
-                        return enqueue();
-                    });
-                
-                // Добавляем промис в список выполняющихся
-                executing.push(execPromise);
-                
-                // Если достигли лимита параллельных операций, ждем завершения хотя бы одной
-                if (executing.length >= concurrencyLimit) {
-                    await Promise.race(executing);
-                }
-            };
+            // Если все элементы уже в обработке, завершаем
+            if (i >= items.length) return;
             
-            // Запускаем начальные параллельные операции
-            const initPromises: Promise<void>[] = [];
-            for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
-                initPromises.push(enqueue());
+            // Создаем промис для текущего элемента и добавляем его в список выполняющихся
+            const execPromise = processFn(items[i])
+                .then(result => {
+                    // Сохраняем результат в массиве
+                    results[i] = result;
+                    // Удаляем текущий промис из списка выполняющихся
+                    const execIndex = executing.indexOf(execPromise);
+                    if (execIndex >= 0) executing.splice(execIndex, 1);
+                    // Добавляем следующий элемент в очередь
+                    return enqueue();
+                });
+            
+            // Добавляем промис в список выполняющихся
+            executing.push(execPromise);
+            
+            // Если достигли лимита параллельных операций, ждем завершения хотя бы одной
+            if (executing.length >= concurrencyLimit) {
+                await Promise.race(executing);
             }
-            
-            // Ждем завершения всех операций
-            await Promise.all(initPromises);
-            await Promise.all(executing);
-            
-            return results;
         };
         
+        // Запускаем начальные параллельные операции
+        const initPromises: Promise<void>[] = [];
+        for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
+            initPromises.push(enqueue());
+        }
+        
+        // Ждем завершения всех операций
+        await Promise.all(initPromises);
+        await Promise.all(executing);
+        
+        return results;
+    };
+    
         // Создаем массив индексов для параллельной обработки
         const indices = Array.from({ length: segments.length }, (_, i) => i);
         
@@ -1117,16 +1117,16 @@ const prepareSegments = async (
         // Останавливаем интервал обновлений
         if (progressInterval) {
             clearInterval(progressInterval);
-        }
-        
+    }
+    
         console.log('All MP3 segments prepared: ', segmentFiles.length);
         sendProgress(writer, 90, 'MP3 segments prepared', {
-            type: 'preparation',
+        type: 'preparation',
             message: 'All MP3 segments prepared for client',
             preparationProgress: 100
-        });
-        
-        return segmentFiles;
+    });
+    
+    return segmentFiles;
     } catch (error) {
         // Останавливаем интервал обновлений в случае ошибки
         if (progressInterval) {
@@ -1217,50 +1217,16 @@ export async function POST(request: NextRequest) {
             throw new Error(`Ошибка при получении данных формы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
         
-        const file = formData.get('audio') as File;
+        // Проверка, выполнена ли сегментация на клиенте
+        const isClientSegmentation = formData.get('clientSegmentation') === 'true';
+        console.log('[API] Клиентская сегментация:', isClientSegmentation);
+        
+        // Получение основных параметров из формы
         const trackname = formData.get('trackname') as string;
         const artist = formData.get('artist') as string;
         const genre = formData.get('genre') as string;
         const imageFile = formData.get('image') as File;
-
-        console.log('[API] Получены данные формы:', {
-            fileName: file?.name,
-            fileType: file?.type,
-            fileSize: file?.size,
-            trackname,
-            artist,
-            genre,
-            hasImage: !!imageFile
-        });
-
-        if (!file) {
-            const error = 'Файл не предоставлен';
-            console.error('[API] ' + error);
-            sendDetailedError(writer, error);
-            throw new Error(error);
-        }
-
-        // Проверка файла с улучшенной обработкой ошибок
-        try {
-            const validation = await validateFile(file);
-            if (!validation.isValid) {
-                console.error('[API] Проверка файла не пройдена:', validation.error);
-                sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
-                throw new Error(validation.error);
-            }
-            console.log('[API] Проверка файла пройдена успешно');
-        } catch (error) {
-            console.error('[API] Ошибка при валидации файла:', error);
-            sendDetailedError(writer, 'Ошибка при валидации файла', error);
-            throw error;
-        }
         
-        // Сообщаем о начале обработки файла
-        sendProgress(writer, 10, 'File Validated', {
-            type: 'validation',
-            message: 'File validation passed, preparing for processing'
-        });
-
         // Создание временной директории с улучшенной обработкой ошибок
         try {
             tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-'));
@@ -1271,70 +1237,206 @@ export async function POST(request: NextRequest) {
             throw new Error(`Не удалось создать временную директорию: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
         
-        const inputPath = path.join(tempDir, 'input.wav');
         const outputPath = path.join(tempDir, 'output.mp3');
         const segmentsDir = path.join(tempDir, 'segments');
+        const wavSegmentsDir = path.join(tempDir, 'wav_segments');
 
+        // Создаем директории для сегментов
         try {
             await fs.mkdir(segmentsDir, { recursive: true });
-            console.log('[API] Создана директория для сегментов:', segmentsDir);
+            console.log('[API] Создана директория для MP3 сегментов:', segmentsDir);
+            
+            await fs.mkdir(wavSegmentsDir, { recursive: true });
+            console.log('[API] Создана директория для WAV сегментов:', wavSegmentsDir);
         } catch (error) {
-            console.error('[API] Ошибка при создании директории для сегментов:', error);
-            sendDetailedError(writer, 'Ошибка при создании директории для сегментов', error);
-            throw new Error(`Не удалось создать директорию для сегментов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            console.error('[API] Ошибка при создании директорий для сегментов:', error);
+            sendDetailedError(writer, 'Ошибка при создании директорий для сегментов', error);
+            throw new Error(`Не удалось создать директории для сегментов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
+        
+        // Переменные для хранения путей к файлам и информации о сегментах
+        let inputPath = ''; // путь к входному WAV файлу
+        let wavSegmentPaths: string[] = []; // пути к WAV сегментам
+        let wavManifestPath = ''; // путь к манифесту WAV
+        let wavManifestData: any = null; // данные манифеста
+        
+        if (isClientSegmentation) {
+            // ОБРАБОТКА СЕГМЕНТОВ ОТ КЛИЕНТА
+            console.log('[API] Обработка WAV сегментов, полученных от клиента');
+            sendProgress(writer, 10, 'Processing WAV segments', {
+                type: 'clientSegments',
+                message: 'Processing WAV segments from client'
+            });
+            
+            // Получаем количество WAV сегментов
+            const wavSegmentCount = parseInt(formData.get('wavSegmentCount') as string || '0');
+            console.log(`[API] Количество WAV сегментов от клиента: ${wavSegmentCount}`);
+            
+            // Получаем файл манифеста WAV, если он есть
+            const wavManifestFile = formData.get('wavManifest') as File;
+            if (wavManifestFile) {
+                wavManifestPath = path.join(wavSegmentsDir, 'wav_manifest.json');
+                try {
+                    const manifestBuffer = Buffer.from(await wavManifestFile.arrayBuffer());
+                    await fs.writeFile(wavManifestPath, manifestBuffer);
+                    console.log(`[API] Файл манифеста WAV сохранен: ${wavManifestPath}`);
+                    
+                    // Читаем и парсим манифест
+                    const manifestContent = await fs.readFile(wavManifestPath, 'utf8');
+                    wavManifestData = JSON.parse(manifestContent);
+                    console.log(`[API] Манифест WAV успешно прочитан: ${wavManifestPath}`);
+                    console.log(`[API] Информация о WAV: каналы=${wavManifestData.format.channels}, частота=${wavManifestData.format.sampleRate}Hz`);
+                } catch (error) {
+                    console.error('[API] Ошибка при сохранении/чтении файла манифеста WAV:', error);
+                    sendDetailedError(writer, 'Ошибка при обработке манифеста WAV', error);
+                    // Продолжаем выполнение, даже если чтение манифеста не удалось
+                }
+            } else {
+                console.log('[API] Файл манифеста WAV не предоставлен');
+            }
+            
+            // Сохраняем WAV сегменты
+            for (let i = 0; i < wavSegmentCount; i++) {
+                const segmentKey = `wavSegment${i}`;
+                const segmentFile = formData.get(segmentKey) as File;
+                
+                if (segmentFile) {
+                    const segmentPath = path.join(wavSegmentsDir, segmentFile.name);
+                    try {
+                        const segmentBuffer = Buffer.from(await segmentFile.arrayBuffer());
+                        await fs.writeFile(segmentPath, segmentBuffer);
+                        wavSegmentPaths.push(segmentPath);
+                        console.log(`[API] Сохранен WAV сегмент ${i+1}/${wavSegmentCount}: ${segmentPath}, размер=${segmentBuffer.length} байт`);
+                    } catch (error) {
+                        console.error(`[API] Ошибка при сохранении WAV сегмента ${i+1}:`, error);
+                        sendDetailedError(writer, `Ошибка при сохранении WAV сегмента ${i+1}`, error);
+                        // Продолжаем с оставшимися сегментами
+                    }
+                } else {
+                    console.error(`[API] WAV сегмент ${i+1} не найден в FormData`);
+                }
+            }
+            
+            console.log(`[API] Сохранено ${wavSegmentPaths.length} из ${wavSegmentCount} WAV сегментов`);
+            
+            if (wavSegmentPaths.length === 0) {
+                throw new Error('Не удалось сохранить ни одного WAV сегмента');
+            }
+            
+            sendProgress(writer, 30, 'WAV segments processed', {
+                type: 'clientSegments',
+                message: `Processed ${wavSegmentPaths.length} WAV segments from client`
+            });
+            
+            // Создаем входной WAV файл из первого сегмента для получения формата
+            // Это нужно только для того, чтобы продолжить с существующим кодом
+            inputPath = path.join(tempDir, 'input.wav');
+            
+            try {
+                // Копируем первый WAV сегмент как образец для конвертации
+                await fs.copyFile(wavSegmentPaths[0], inputPath);
+                console.log(`[API] Создан входной WAV файл из первого сегмента: ${inputPath}`);
+            } catch (error) {
+                console.error('[API] Ошибка при создании входного WAV файла:', error);
+                sendDetailedError(writer, 'Ошибка при создании входного WAV файла', error);
+                throw new Error(`Не удалось создать входной WAV файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            }
+        } else {
+            // ОБРАБОТКА ПОЛНОГО WAV ФАЙЛА (старый код)
+            const file = formData.get('audio') as File;
 
-        // Сохранение входного файла и сообщение о прогрессе
-        sendProgress(writer, 15, 'Saving File', {
-            type: 'saving',
-            message: 'Saving uploaded file to temporary storage'
-        });
-        
-        try {
-            console.log('[API] Преобразование файла в буфер...');
-            const buffer = Buffer.from(await file.arrayBuffer());
-            console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
-            await fs.writeFile(inputPath, buffer);
-            console.log('[API] Входной файл успешно сохранен:', inputPath);
-        } catch (error) {
-            console.error('[API] Ошибка при сохранении входного файла:', error);
-            sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
-            throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
-        }
-        
-        sendProgress(writer, 20, 'File Saved', {
-            type: 'saving',
-            message: 'File saved successfully, checking audio duration'
-        });
+            console.log('[API] Получены данные формы:', {
+                fileName: file?.name,
+                fileType: file?.type,
+                fileSize: file?.size,
+                trackname,
+                artist,
+                genre,
+                hasImage: !!imageFile
+            });
 
-        // Проверка длительности с улучшенной обработкой ошибок
-        console.log('[API] Проверка длительности аудио...');
-        sendProgress(writer, 25, 'Checking Duration', {
-            type: 'duration',
-            message: 'Analyzing audio file duration'
-        });
-        
-        let duration;
-        try {
-            duration = await getAudioDuration(inputPath);
-            console.log('[API] Длительность аудио:', duration, 'секунд');
-        } catch (error) {
-            console.error('[API] Ошибка при получении длительности аудио:', error);
-            sendDetailedError(writer, 'Ошибка при получении длительности аудио', error);
-            throw new Error(`Не удалось определить длительность аудио: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            if (!file) {
+                const error = 'Файл не предоставлен';
+                console.error('[API] ' + error);
+                sendDetailedError(writer, error);
+                throw new Error(error);
+            }
+
+            // Проверка файла с улучшенной обработкой ошибок
+            try {
+                const validation = await validateFile(file);
+                if (!validation.isValid) {
+                    console.error('[API] Проверка файла не пройдена:', validation.error);
+                    sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
+                    throw new Error(validation.error);
+                }
+                console.log('[API] Проверка файла пройдена успешно');
+            } catch (error) {
+                console.error('[API] Ошибка при валидации файла:', error);
+                sendDetailedError(writer, 'Ошибка при валидации файла', error);
+                throw error;
+            }
+            
+            // Сообщаем о начале обработки файла
+            sendProgress(writer, 10, 'File Validated', {
+                type: 'validation',
+                message: 'File validation passed, preparing for processing'
+            });
+
+            inputPath = path.join(tempDir, 'input.wav');
+
+            // Сохранение входного файла и сообщение о прогрессе
+            sendProgress(writer, 15, 'Saving File', {
+                type: 'saving',
+                message: 'Saving uploaded file to temporary storage'
+            });
+            
+            try {
+                console.log('[API] Преобразование файла в буфер...');
+                const buffer = Buffer.from(await file.arrayBuffer());
+                console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
+                await fs.writeFile(inputPath, buffer);
+                console.log('[API] Входной файл успешно сохранен:', inputPath);
+            } catch (error) {
+                console.error('[API] Ошибка при сохранении входного файла:', error);
+                sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
+                throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            }
+            
+            sendProgress(writer, 20, 'File Saved', {
+                type: 'saving',
+                message: 'File saved successfully, checking audio duration'
+            });
+
+            // Проверка длительности с улучшенной обработкой ошибок
+            console.log('[API] Проверка длительности аудио...');
+            sendProgress(writer, 25, 'Checking Duration', {
+                type: 'duration',
+                message: 'Analyzing audio file duration'
+            });
+            
+            let duration;
+            try {
+                duration = await getAudioDuration(inputPath);
+                console.log('[API] Длительность аудио:', duration, 'секунд');
+            } catch (error) {
+                console.error('[API] Ошибка при получении длительности аудио:', error);
+                sendDetailedError(writer, 'Ошибка при получении длительности аудио', error);
+                throw new Error(`Не удалось определить длительность аудио: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            }
+            
+            if (duration > 720) { // 12 минут
+                const error = 'Длительность аудиофайла не должна превышать 12 минут';
+                console.error('[API] ' + error + `. Текущая длительность: ${duration} секунд`);
+                sendDetailedError(writer, error, { duration });
+                throw new Error(error);
+            }
+            
+            sendProgress(writer, 30, 'Duration Check Passed', {
+                type: 'duration',
+                message: `Audio duration: ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`
+            });
         }
-        
-        if (duration > 720) { // 12 минут
-            const error = 'Длительность аудиофайла не должна превышать 12 минут';
-            console.error('[API] ' + error + `. Текущая длительность: ${duration} секунд`);
-            sendDetailedError(writer, error, { duration });
-            throw new Error(error);
-        }
-        
-        sendProgress(writer, 30, 'Duration Check Passed', {
-            type: 'duration',
-            message: `Audio duration: ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`
-        });
         
         // Конвертация аудио с улучшенной обработкой ошибок
         try {
@@ -1393,28 +1495,28 @@ export async function POST(request: NextRequest) {
         const segments = await createSegments(outputPath, segmentsDir, writer);
         console.log('Created segments:', segments.length);
 
-        // Создаем директорию для WAV сегментов
-        const wavSegmentsDir = path.join(tempDir, 'wav_segments');
-        try {
-            await fs.mkdir(wavSegmentsDir, { recursive: true });
-            console.log('[API] Создана директория для WAV сегментов:', wavSegmentsDir);
-        } catch (error) {
-            console.error('[API] Ошибка при создании директории для WAV сегментов:', error);
-            sendDetailedError(writer, 'Ошибка при создании директории для WAV сегментов', error);
-            throw new Error(`Не удалось создать директорию для WAV сегментов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        // Проверяем, нужно ли создавать WAV сегменты или они уже предоставлены клиентом
+        let wavSegments;
+        if (isClientSegmentation) {
+            console.log('Using WAV segments from client...');
+            // Используем сегменты, полученные от клиента
+            wavSegments = {
+                segments: wavSegmentPaths,
+                manifest: wavManifestPath
+            };
+        } else {
+            // Создаем WAV сегменты из исходного файла
+            console.log('Creating WAV segments from original file...');
+            wavSegments = await createWavSegments(inputPath, wavSegmentsDir, writer);
         }
-
-        // Сначала создаем сегменты WAV для сохранения оригинала в высоком качестве
-        console.log('Creating WAV segments for original quality...');
-        const wavSegments = await createWavSegments(inputPath, wavSegmentsDir, writer);
-        console.log('Created WAV segments:', wavSegments.segments.length);
+        console.log('WAV segments ready:', wavSegments.segments.length);
 
         // Подготавливаем сегменты WAV для клиента
         console.log('Preparing WAV segments...');
         const wavSegmentFiles = await prepareWavSegments(wavSegments.segments, wavSegmentsDir, writer, wavSegments.manifest);
         console.log('WAV segment files prepared:', wavSegmentFiles.segments.length);
 
-        // Вместо вызова uploadSegments, используем prepareSegments для MP3 сегментов
+        // Подготавливаем MP3 сегменты
         console.log('Preparing MP3 segments...');
         const segmentFiles = await prepareSegments(segments, segmentsDir, writer);
         console.log('MP3 segment files prepared:', segmentFiles.length);
