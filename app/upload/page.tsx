@@ -9,8 +9,7 @@ import { useUser } from '@/app/context/user';
 import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ID } from 'appwrite';
-import { storage } from '@/libs/AppWriteClient';
+import { ID, storage } from '@/libs/AppWriteClient';
 
 import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
@@ -360,55 +359,55 @@ export default function Upload() {
         }
 
         // Set initial stage
-            setIsProcessing(true);
-            setProcessingStage('Preparing upload');
-            setProcessingProgress(0);
-            
-            // Add a small delay to ensure state updates are processed
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            console.log("State after setting:", {
-                isProcessing: true,
-                processingStage: 'Preparing upload',
-                processingProgress: 0
-            });
+        setIsProcessing(true);
+        setProcessingStage('Preparing upload');
+        setProcessingProgress(0);
+        
+        // Add a small delay to ensure state updates are processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log("State after setting:", {
+            isProcessing: true,
+            processingStage: 'Preparing upload',
+            processingProgress: 0
+        });
 
-            // Check file size (not more than 200 MB)
-            const fileSizeInMB = fileAudio.size / (1024 * 1024);
-            if (fileSizeInMB > 200) {
-                toast.error('File size must not exceed 200 MB', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⚠️'
-                });
-                setIsProcessing(false);
-                return;
-            }
+        // Check file size (not more than 200 MB)
+        const fileSizeInMB = fileAudio.size / (1024 * 1024);
+        if (fileSizeInMB > 200) {
+            toast.error('File size must not exceed 200 MB', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️'
+            });
+            setIsProcessing(false);
+            return;
+        }
 
         // Check audio duration (not more than 12 minutes)
-            if (audioDuration > 12 * 60) {
-                toast.error('Track duration must not exceed 12 minutes', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⏱️'
-                });
+        if (audioDuration > 12 * 60) {
+            toast.error('Track duration must not exceed 12 minutes', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⏱️'
+            });
             setIsProcessing(false);
-                return;
-            }
+            return;
+        }
 
         try {
             // Debug log to confirm states are set
@@ -427,44 +426,320 @@ export default function Upload() {
                 icon: '🚀'
             });
 
-            // Create FormData
-            const formData = new FormData();
-            formData.append('audio', fileAudio);
-            if (fileImage) {
-                formData.append('image', fileImage);
-            }
-            if (trackname) {
-                formData.append('trackname', trackname);
-            }
-            if (genre) {
-                formData.append('genre', genre);
-            }
-
-            // Set upload stage
-            setProcessingStage('Uploading WAV');
-            setProcessingProgress(0);
-            toast.loading(`Uploading WAV: 0%`, { id: toastId });
-
             // Create new controller for cancellation
             const controller = new AbortController();
             setUploadController(controller);
 
-            // Track upload progress using XMLHttpRequest
-            const xhr = new XMLHttpRequest();
+            // Set upload stage for WAV directly to Appwrite
+            setProcessingStage('Uploading WAV to storage');
+            setProcessingProgress(0);
+            toast.loading(`Uploading WAV directly to storage: 0%`, { id: toastId });
+
+            // Генерируем уникальный ID для аудиофайла
+            const audioId = ID.unique();
+            const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID || '';
             
-            // Configure all event handlers before opening the connection
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentage = Math.round((event.loaded / event.total) * 100);
-                    setProcessingProgress(percentage);
-                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
-                    console.log(`WAV upload progress: ${percentage}%`);
-                }
-            };
-            
-            xhr.onerror = () => {
-                console.error('Network error while uploading file');
-                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
+            console.log("Uploading WAV directly to Appwrite Storage:", {
+                audioId,
+                bucketId,
+                fileName: fileAudio.name,
+                fileSize: fileAudio.size
+            });
+
+            // Загружаем WAV напрямую в Appwrite Storage, минуя Vercel
+            try {
+                // Создаем обработчик для отслеживания прогресса загрузки
+                // Здесь мы можем использовать XHR для отслеживания прогресса
+                // или встроенный метод Appwrite, если он поддерживает обратные вызовы прогресса
+                const uploadProgress = (progress: number) => {
+                    setProcessingProgress(progress);
+                    toast.loading(`Uploading WAV directly to storage: ${Math.round(progress)}%`, { id: toastId });
+                    console.log(`WAV upload progress: ${Math.round(progress)}%`);
+                };
+
+                // Начинаем с 0%
+                uploadProgress(0);
+
+                // Использование встроенного метода отслеживания загрузки
+                // Appwrite SDK не имеет встроенного отслеживания прогресса, поэтому создаем свой XHR
+                const xhr = new XMLHttpRequest();
+                const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
+                const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
+                
+                xhr.open('POST', `${appwriteEndpoint}/storage/buckets/${bucketId}/files`);
+                xhr.setRequestHeader('X-Appwrite-Project', projectId);
+                xhr.setRequestHeader('X-Appwrite-Response-Format', '1.0.0');
+                
+                // Отслеживаем прогресс загрузки
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentage = Math.round((event.loaded / event.total) * 100);
+                        uploadProgress(percentage);
+                    }
+                };
+
+                // Обработка ошибок
+                xhr.onerror = () => {
+                    console.error('Network error while uploading to Appwrite');
+                    toast.error('Network error during direct upload. Please check your internet connection and try again.', { 
+                        id: toastId,
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️'
+                    });
+                    setIsProcessing(false);
+                    setUploadController(null);
+                };
+
+                // Обработка завершения загрузки
+                xhr.onload = async () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Успешная загрузка в Appwrite
+                        console.log('WAV file uploaded successfully to Appwrite Storage');
+                        
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            const uploadedFileId = response.$id || audioId;
+                            
+                            console.log('Appwrite response:', response);
+                            console.log('Uploaded file ID:', uploadedFileId);
+                            
+                            // Обновляем прогресс до 100%
+                            uploadProgress(100);
+                            toast.loading(`WAV uploaded to storage, starting processing...`, { id: toastId });
+                            
+                            // Теперь отправляем только ID файла на сервер для обработки, а не сам файл
+                            setProcessingStage('Processing audio');
+                            setProcessingProgress(0);
+                            
+                            // Создаем FormData только с ID и метаданными
+                            const processFormData = new FormData();
+                            processFormData.append('audioId', uploadedFileId); // Отправляем ID вместо файла
+                            if (fileImage) {
+                                processFormData.append('image', fileImage);
+                            }
+                            if (trackname) {
+                                processFormData.append('trackname', trackname);
+                            }
+                            if (genre) {
+                                processFormData.append('genre', genre);
+                            }
+                            
+                            // Отправляем запрос на обработку с ID файла вместо самого файла
+                            const processXhr = new XMLHttpRequest();
+                            processXhr.open('POST', '/api/audio/process');
+                            processXhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            processXhr.responseType = 'text';
+                            
+                            // Обработка ошибок при обработке аудио
+                            processXhr.onerror = () => {
+                                console.error('Network error during audio processing');
+                                toast.error('Network error during audio processing. File was uploaded but processing failed.', { 
+                                    id: toastId,
+                                    style: {
+                                        border: '1px solid #FF4A4A',
+                                        padding: '16px',
+                                        color: '#ffffff',
+                                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                        fontSize: '16px',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                                    },
+                                    icon: '⚠️'
+                                });
+                                setIsProcessing(false);
+                                setUploadController(null);
+                            };
+                            
+                            // Обработка ответа от сервера
+                            processXhr.onload = async () => {
+                                // Проверка успешного кода ответа
+                                console.log(`Server response status: ${processXhr.status}, response type: ${processXhr.responseType}, content type: ${processXhr.getResponseHeader('Content-Type')}`);
+                                
+                                if (processXhr.status !== 200) {
+                                    console.error(`Server error: ${processXhr.status} ${processXhr.statusText}`);
+                                    
+                                    let errorMessage = 'Server error';
+                                    let errorDetails = '';
+                                    
+                                    // Пытаемся извлечь детали ошибки из ответа
+                                    try {
+                                        // Проверяем, является ли ответ JSON
+                                        const contentType = processXhr.getResponseHeader('Content-Type');
+                                        if (contentType && contentType.includes('application/json')) {
+                                            const errorResponse = JSON.parse(processXhr.responseText);
+                                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
+                                            errorDetails = errorResponse.details || '';
+                                        } else {
+                                            // Если ответ не JSON, просто берем текст
+                                            errorMessage = `Server error (${processXhr.status}): ${processXhr.responseText.substring(0, 100)}`;
+                                        }
+                                    } catch (parseError) {
+                                        console.error('Failed to parse error response:', parseError);
+                                        // Если не удалось распарсить ответ, используем статус код
+                                        errorMessage = `Server error (${processXhr.status}): ${processXhr.statusText || 'unknown error'}`;
+                                    }
+                                    
+                                    // Для 500 ошибок добавляем специальное сообщение
+                                    if (processXhr.status === 500) {
+                                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
+                                        console.error(`Server 500 error. Response:`, processXhr.responseText);
+                                    }
+                                    
+                                    // Выводим подробную информацию об ошибке в консоль
+                                    console.error('Processing error details:', {
+                                        status: processXhr.status,
+                                        statusText: processXhr.statusText,
+                                        message: errorMessage,
+                                        details: errorDetails,
+                                        responseText: processXhr.responseText ? processXhr.responseText.substring(0, 500) + '...' : 'empty response'
+                                    });
+                                    
+                                    toast.error(errorMessage, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #FF4A4A',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                                        },
+                                        icon: '⚠️',
+                                        duration: 5000
+                                    });
+                                    
+                                    setIsProcessing(false);
+                                    setUploadController(null);
+                                    return;
+                                }
+                                
+                                try {
+                                    // Now handle the SSE response
+                                    const response = new Response(processXhr.response, {
+                                        status: 200,
+                                        headers: {
+                                            'Content-Type': 'text/event-stream'
+                                        }
+                                    });
+                                    
+                                    // Handle server-sent events for progress updates
+                                    const reader = response.body?.getReader();
+                                    const decoder = new TextDecoder();
+
+                                    if (!reader) throw new Error('Failed to create reader');
+
+                                    // Continue with the rest of the processing...
+                                    await handleSSEProcessing(reader, decoder, toastId);
+                                } catch (error) {
+                                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                                    console.error('Error processing server response:', error);
+                                    toast.error(`Error processing server response: ${errorMessage}`, { 
+                                        id: toastId,
+                                        style: {
+                                            border: '1px solid #FF4A4A',
+                                            padding: '16px',
+                                            color: '#ffffff',
+                                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                            fontSize: '16px',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                                        },
+                                        icon: '⚠️',
+                                        duration: 5000
+                                    });
+                                    setIsProcessing(false);
+                                    setUploadController(null);
+                                }
+                            };
+                            
+                            // Add abort handler to signal
+                            controller.signal.addEventListener('abort', () => {
+                                console.log('Processing canceled by user (from signal)');
+                                processXhr.abort();
+                                // Toast message will be shown by handleCancelUpload
+                            });
+                            
+                            // Отправляем запрос на обработку
+                            console.log("Sending process request with audioId:", uploadedFileId);
+                            processXhr.send(processFormData);
+                        } catch (parseError) {
+                            console.error('Error parsing Appwrite response:', parseError);
+                            toast.error('Error processing upload response. Please try again.', {
+                                id: toastId,
+                                style: {
+                                    border: '1px solid #FF4A4A',
+                                    padding: '16px',
+                                    color: '#ffffff',
+                                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                    fontSize: '16px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                                },
+                                icon: '⚠️',
+                                duration: 5000
+                            });
+                            setIsProcessing(false);
+                            setUploadController(null);
+                        }
+                    } else {
+                        // Ошибка при загрузке в Appwrite
+                        console.error('Error uploading to Appwrite Storage:', xhr.status, xhr.statusText);
+                        let errorMessage = 'Error uploading to storage';
+                        
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMessage = errorResponse.message || 'Unknown error during upload';
+                            console.error('Appwrite error details:', errorResponse);
+                        } catch (e) {
+                            errorMessage = `Upload error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
+                        }
+                        
+                        toast.error(errorMessage, {
+                            id: toastId,
+                            style: {
+                                border: '1px solid #FF4A4A',
+                                padding: '16px',
+                                color: '#ffffff',
+                                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                                fontSize: '16px',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                            },
+                            icon: '⚠️',
+                            duration: 5000
+                        });
+                        
+                        setIsProcessing(false);
+                        setUploadController(null);
+                    }
+                };
+
+                // Формируем FormData для загрузки в Appwrite
+                const formData = new FormData();
+                formData.append('fileId', audioId);
+                formData.append('file', fileAudio);
+                
+                // Добавляем обработчик отмены
+                controller.signal.addEventListener('abort', () => {
+                    console.log('Upload to Appwrite canceled');
+                    xhr.abort();
+                });
+                
+                // Отправляем запрос напрямую в Appwrite
+                xhr.send(formData);
+                
+            } catch (uploadError) {
+                console.error('Error during direct upload to Appwrite:', uploadError);
+                toast.error(`Upload error: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`, {
                     id: toastId,
                     style: {
                         border: '1px solid #FF4A4A',
@@ -475,142 +750,13 @@ export default function Upload() {
                         borderRadius: '12px',
                         boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
                     },
-                    icon: '⚠️'
+                    icon: '⚠️',
+                    duration: 5000
                 });
+                
                 setIsProcessing(false);
                 setUploadController(null);
-            };
-            
-            xhr.onload = async () => {
-                // Проверка успешного кода ответа
-                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
-                
-                if (xhr.status !== 200) {
-                    console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
-                    
-                    let errorMessage = 'Server error';
-                    let errorDetails = '';
-                    
-                    // Пытаемся извлечь детали ошибки из ответа
-                    try {
-                        // Проверяем, является ли ответ JSON
-                        const contentType = xhr.getResponseHeader('Content-Type');
-                        if (contentType && contentType.includes('application/json')) {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
-                            errorDetails = errorResponse.details || '';
-                        } else {
-                            // Если ответ не JSON, просто берем текст
-                            errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
-                        }
-                    } catch (parseError) {
-                        console.error('Failed to parse error response:', parseError);
-                        // Если не удалось распарсить ответ, используем статус код
-                        errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
-                    }
-                    
-                    // Для 500 ошибок добавляем специальное сообщение
-                    if (xhr.status === 500) {
-                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
-                        console.error(`Server 500 error. Response:`, xhr.responseText);
-                    }
-                    
-                    // Выводим подробную информацию об ошибке в консоль
-                    console.error('Upload error details:', {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        message: errorMessage,
-                        details: errorDetails,
-                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'empty response'
-                    });
-                    
-                    toast.error(errorMessage, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                        },
-                        icon: '⚠️',
-                        duration: 5000
-                    });
-                    
-                    setIsProcessing(false);
-                    setUploadController(null);
-                    return;
-                }
-                
-                try {
-                    // Set progress to 100% when upload is complete
-                    setProcessingProgress(100);
-                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
-                    
-                    // Now handle the SSE response
-                    const response = new Response(xhr.response, {
-                        status: 200,
-                        headers: {
-                            'Content-Type': 'text/event-stream'
-                        }
-                    });
-                    
-                    // Handle server-sent events for progress updates
-                    const reader = response.body?.getReader();
-                    const decoder = new TextDecoder();
-
-                    if (!reader) throw new Error('Failed to create reader');
-
-                    // Continue with the rest of the processing...
-                    await handleSSEProcessing(reader, decoder, toastId);
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    console.error('Error processing server response:', error);
-                    toast.error(`Error processing server response: ${errorMessage}`, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                        },
-                        icon: '⚠️',
-                        duration: 5000
-                    });
-                    setIsProcessing(false);
-                    setUploadController(null);
-                }
-            };
-            
-            // Add abort handler to signal
-            controller.signal.addEventListener('abort', () => {
-                console.log('Upload canceled by user (from signal)');
-                xhr.abort();
-                // Toast message will be shown by handleCancelUpload
-            });
-            
-            // Now open the connection and send the request after all handlers are set
-            xhr.open('POST', '/api/audio/process');
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            xhr.responseType = 'text';
-            
-            // Final safety check before sending request
-            if (isCancelling) {
-                console.log("Upload was cancelled before sending request");
-                xhr.abort();
-                setIsProcessing(false);
-                setUploadController(null);
-                return;
             }
-            
-            console.log("Sending XHR request...");
-            xhr.send(formData);
-            
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Upload error:', error);

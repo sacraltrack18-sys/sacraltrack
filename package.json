@@ -19,6 +19,7 @@
     "@stripe/stripe-js": "^3.5.0",
     "@types/formidable": "^3.4.5",
     "@types/hls.js": "^0.13.3",
+    "@vercel/blob": "^1.0.0",
     "autoprefixer": "10.4.15",
     "axios": "^1.6.8",
     "bcryptjs": "^3.0.2",
