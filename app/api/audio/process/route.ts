@@ -6,9 +6,8 @@ import os from 'os';
 import NodeID3 from 'node-id3';
 import ffmpeg from 'fluent-ffmpeg';
 import { FfprobeData } from 'fluent-ffmpeg';
-import { ID } from '@/libs/AppWriteClient';
+import { ID, storage } from '@/libs/AppWriteClient';
 import { spawn } from 'child_process';
-import { storage } from '@/libs/AppWriteClient';
 
 // Set max payload size to 200MB
 export const config = {
@@ -67,9 +66,24 @@ function getAudioDuration(inputPath: string): Promise<number> {
                 console.error('[DURATION] Ошибка при получении длительности аудио:', err);
                 reject(err);
             } else {
+                // Проверяем наличие необходимых данных
+                if (!metadata || !metadata.format) {
+                    console.error('[DURATION] Отсутствуют метаданные формата');
+                    // Вместо отказа, предполагаем минимальную длительность для коротких файлов
+                    resolve(0.5); // Предполагаем минимальную длительность 0.5 секунд
+                    return;
+                }
+                
                 const duration = metadata.format.duration || 0;
-                console.log('[DURATION] Длительность аудио:', duration, 'секунд');
-                resolve(duration);
+                
+                // Если длительность слишком мала или не определена, устанавливаем минимальное значение
+                if (duration <= 0.01) {
+                    console.log('[DURATION] Обнаружен очень короткий файл, устанавливаем минимальную длительность');
+                    resolve(0.5); // Минимальная обрабатываемая длительность
+                } else {
+                    console.log('[DURATION] Длительность аудио:', duration, 'секунд');
+                    resolve(duration);
+                }
             }
         });
     });
@@ -725,60 +739,6 @@ export async function POST(request: NextRequest) {
             message: 'Initializing audio processing...'
         });
         
-        // Получение данных формы
-        let formData;
-        try {
-            formData = await request.formData();
-            console.log('[API] Форма успешно получена');
-        } catch (error) {
-            console.error('[API] Ошибка при получении данных формы:', error);
-            throw new Error(`Ошибка при получении данных формы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
-        }
-        
-        const file = formData.get('audio') as File;
-        const trackname = formData.get('trackname') as string;
-        const artist = formData.get('artist') as string;
-        const genre = formData.get('genre') as string;
-        const imageFile = formData.get('image') as File;
-
-        console.log('[API] Получены данные формы:', {
-            fileName: file?.name,
-            fileType: file?.type,
-            fileSize: file?.size,
-            trackname,
-            artist,
-            genre,
-            hasImage: !!imageFile
-        });
-
-        if (!file) {
-            const error = 'Файл не предоставлен';
-            console.error('[API] ' + error);
-            sendDetailedError(writer, error);
-            throw new Error(error);
-        }
-
-        // Проверка файла с улучшенной обработкой ошибок
-        try {
-            const validation = await validateFile(file);
-            if (!validation.isValid) {
-                console.error('[API] Проверка файла не пройдена:', validation.error);
-                sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
-                throw new Error(validation.error);
-            }
-            console.log('[API] Проверка файла пройдена успешно');
-        } catch (error) {
-            console.error('[API] Ошибка при валидации файла:', error);
-            sendDetailedError(writer, 'Ошибка при валидации файла', error);
-            throw error;
-        }
-        
-        // Сообщаем о начале обработки файла
-        sendProgress(writer, 10, 'File Validated', {
-            type: 'validation',
-            message: 'File validation passed, preparing for processing'
-        });
-
         // Создание временной директории с улучшенной обработкой ошибок
         try {
             tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-'));
@@ -803,27 +763,223 @@ export async function POST(request: NextRequest) {
         }
 
         // Сохранение входного файла и сообщение о прогрессе
-        sendProgress(writer, 15, 'Saving File', {
-            type: 'saving',
-            message: 'Saving uploaded file to temporary storage'
+        sendProgress(writer, 5, 'Preparing Audio', {
+            type: 'init',
+            message: 'Preparing to process audio...'
         });
         
-        try {
-            console.log('[API] Преобразование файла в буфер...');
-            const buffer = Buffer.from(await file.arrayBuffer());
-            console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
-            await fs.writeFile(inputPath, buffer);
-            console.log('[API] Входной файл успешно сохранен:', inputPath);
-        } catch (error) {
-            console.error('[API] Ошибка при сохранении входного файла:', error);
-            sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
-            throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        let trackname: string = '';
+        let artist: string = '';
+        let genre: string = '';
+        let imageFile: File | null = null;
+        let fileId: string | null = null;
+        let bucketId: string | null = null;
+        
+        // Определяем, был ли файл загружен через форму или через Appwrite
+        let contentType = request.headers.get('content-type') || '';
+        
+        if (contentType.includes('multipart/form-data')) {
+            // Получение данных формы
+            console.log('[API] Обработка формы с файлом');
+            
+            try {
+                const formData = await request.formData();
+                console.log('[API] Форма успешно получена');
+                
+                const file = formData.get('audio') as File;
+                trackname = formData.get('trackname') as string;
+                artist = formData.get('artist') as string;
+                genre = formData.get('genre') as string;
+                imageFile = formData.get('image') as File;
+
+                console.log('[API] Получены данные формы:', {
+                    fileName: file?.name,
+                    fileType: file?.type,
+                    fileSize: file?.size,
+                    trackname,
+                    artist,
+                    genre,
+                    hasImage: !!imageFile
+                });
+
+                if (!file) {
+                    const error = 'Файл не предоставлен';
+                    console.error('[API] ' + error);
+                    sendDetailedError(writer, error);
+                    throw new Error(error);
+                }
+
+                // Проверка файла с улучшенной обработкой ошибок
+                try {
+                    const validation = await validateFile(file);
+                    if (!validation.isValid) {
+                        console.error('[API] Проверка файла не пройдена:', validation.error);
+                        sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
+                        throw new Error(validation.error);
+                    }
+                    console.log('[API] Проверка файла пройдена успешно');
+                } catch (error) {
+                    console.error('[API] Ошибка при валидации файла:', error);
+                    sendDetailedError(writer, 'Ошибка при валидации файла', error);
+                    throw error;
+                }
+                
+                // Сообщаем о начале обработки файла
+                sendProgress(writer, 10, 'File Validated', {
+                    type: 'validation',
+                    message: 'File validation passed, preparing for processing'
+                });
+                
+                try {
+                    console.log('[API] Преобразование файла в буфер...');
+                    const buffer = Buffer.from(await file.arrayBuffer());
+                    console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
+                    await fs.writeFile(inputPath, buffer);
+                    console.log('[API] Входной файл успешно сохранен:', inputPath);
+                } catch (error) {
+                    console.error('[API] Ошибка при сохранении входного файла:', error);
+                    sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
+                    throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+                }
+                
+                sendProgress(writer, 20, 'File Saved', {
+                    type: 'saving',
+                    message: 'File saved successfully, checking audio duration'
+                });
+                
+            } catch (error) {
+                console.error('[API] Ошибка при получении данных формы:', error);
+                throw new Error(`Ошибка при получении данных формы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+            }
+        } else if (contentType.includes('application/json')) {
+            // Получаем данные о файле из Appwrite
+            console.log('[API] Обработка запроса с файлом из Appwrite');
+            
+            try {
+                const jsonData = await request.json();
+                fileId = jsonData.fileId;
+                bucketId = jsonData.bucketId;
+                trackname = jsonData.trackname || '';
+                artist = jsonData.artist || '';
+                genre = jsonData.genre || '';
+                
+                if (!fileId || !bucketId) {
+                    throw new Error('Отсутствуют необходимые параметры fileId или bucketId');
+                }
+                
+                console.log('[API] Получены данные из Appwrite:', {
+                    fileId,
+                    bucketId,
+                    trackname,
+                    artist,
+                    genre
+                });
+                
+                // Скачиваем файл из Appwrite
+                console.log('[API] Скачивание файла из Appwrite...');
+                sendProgress(writer, 10, 'Downloading File', {
+                    type: 'downloading',
+                    message: 'Downloading audio file from storage...'
+                });
+                
+                try {
+                    // Получаем файл из Appwrite Storage как двоичные данные
+                    const fileResponse = await storage.getFileDownload(bucketId, fileId);
+                    
+                    // Проверяем, что получили файл
+                    if (!fileResponse) {
+                        throw new Error('Не удалось получить файл из Appwrite');
+                    }
+                    
+                    // Преобразуем ответ в Buffer и сохраняем как файл
+                    let buffer: Buffer;
+                    
+                    // Определяем тип возвращаемых данных и обрабатываем соответствующим образом
+                    if (fileResponse instanceof Blob || fileResponse instanceof File) {
+                        // Если это Blob или File, используем arrayBuffer
+                        buffer = Buffer.from(await fileResponse.arrayBuffer());
+                    } else if (fileResponse instanceof ArrayBuffer) {
+                        // Если это ArrayBuffer
+                        buffer = Buffer.from(fileResponse);
+                    } else if (Buffer.isBuffer(fileResponse)) {
+                        // Если это уже Buffer
+                        buffer = fileResponse;
+                    } else if (typeof fileResponse === 'object' && fileResponse !== null) {
+                        // В крайнем случае, пробуем получить исходные двоичные данные
+                        console.log('[API] Преобразование ответа Appwrite в буфер', typeof fileResponse);
+                        // Если это объект Response из fetch API
+                        const arrayBuffer = await (fileResponse as any).arrayBuffer?.();
+                        if (arrayBuffer) {
+                            buffer = Buffer.from(arrayBuffer);
+                        } else {
+                            throw new Error('Неподдерживаемый тип данных от Appwrite Storage');
+                        }
+                    } else {
+                        throw new Error('Неподдерживаемый тип данных от Appwrite Storage');
+                    }
+                    
+                    await fs.writeFile(inputPath, buffer);
+                    console.log('[API] Файл из Appwrite успешно сохранен:', inputPath);
+                    
+                    // Проверка изображения, если указан ID
+                    if (jsonData.imageId) {
+                        try {
+                            const imageResponse = await storage.getFileDownload(bucketId, jsonData.imageId);
+                            
+                            // Обрабатываем изображение аналогично основному файлу
+                            let imageBuffer: Buffer;
+                            
+                            if (imageResponse instanceof Blob || imageResponse instanceof File) {
+                                imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+                            } else if (imageResponse instanceof ArrayBuffer) {
+                                imageBuffer = Buffer.from(imageResponse);
+                            } else if (Buffer.isBuffer(imageResponse)) {
+                                imageBuffer = imageResponse;
+                            } else if (typeof imageResponse === 'object' && imageResponse !== null) {
+                                console.log('[API] Преобразование ответа изображения Appwrite', typeof imageResponse);
+                                const arrayBuffer = await (imageResponse as any).arrayBuffer?.();
+                                if (arrayBuffer) {
+                                    imageBuffer = Buffer.from(arrayBuffer);
+                                } else {
+                                    throw new Error('Неподдерживаемый тип данных изображения от Appwrite Storage');
+                                }
+                            } else {
+                                throw new Error('Неподдерживаемый тип данных изображения от Appwrite Storage');
+                            }
+                            
+                            const imagePath = path.join(tempDir, 'cover.jpg');
+                            await fs.writeFile(imagePath, imageBuffer);
+                            
+                            // Создаем File объект из буфера
+                            imageFile = new File([imageBuffer], 'cover.jpg', { type: 'image/jpeg' });
+                            console.log('[API] Изображение из Appwrite успешно сохранено');
+                        } catch (imgError) {
+                            console.error('[API] Ошибка при получении изображения из Appwrite:', imgError);
+                            // Продолжаем без изображения
+                        }
+                    }
+                    
+                    sendProgress(writer, 20, 'File Downloaded', {
+                        type: 'downloading',
+                        message: 'File successfully downloaded, checking audio duration'
+                    });
+                } catch (error) {
+                    console.error('[API] Ошибка при скачивании файла из Appwrite:', error);
+                    sendDetailedError(writer, 'Ошибка при скачивании файла из хранилища', error);
+                    throw error;
+                }
+            } catch (error) {
+                console.error('[API] Ошибка при обработке JSON данных:', error);
+                sendDetailedError(writer, 'Ошибка при обработке данных запроса', error);
+                throw error;
+            }
+        } else {
+            // Неподдерживаемый тип запроса
+            const error = `Неподдерживаемый тип содержимого: ${contentType}`;
+            console.error('[API] ' + error);
+            sendDetailedError(writer, error);
+            throw new Error(error);
         }
-        
-        sendProgress(writer, 20, 'File Saved', {
-            type: 'saving',
-            message: 'File saved successfully, checking audio duration'
-        });
 
         // Проверка длительности с улучшенной обработкой ошибок
         console.log('[API] Проверка длительности аудио...');
