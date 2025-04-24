@@ -88,15 +88,17 @@ const convertAudio = async (
             message: 'Starting audio conversion to MP3...'
         });
 
-        // Упрощенные параметры для FFmpeg без проблемных опций
+        // Улучшенные параметры для FFmpeg с аппаратным ускорением и многопоточностью
         const ffmpegProcess = spawn('ffmpeg', [
-            '-y',                  // Автоматически перезаписывать существующие файлы без запроса
+            '-hwaccel', 'auto',    // Аппаратное ускорение
             '-i', inputPath,
             '-vn',                 // Отключаем видео потоки
             '-ar', '44100',        // Аудио sample rate
             '-ac', '2',            // Stereo
             '-b:a', '192k',        // Битрейт (увеличен до 192k)
+            '-threads', '0',       // Используем все доступные потоки процессора
             '-f', 'mp3',           // Формат выходного файла
+            '-preset', 'ultrafast',
             outputPath
         ]);
 
@@ -120,10 +122,11 @@ const convertAudio = async (
             const now = Date.now();
             const timeSinceLastUpdate = (now - lastUpdateTime) / 1000; // в секундах
             
-            // Предполагаем скорость обработки на основе предыдущих обновлений (в 5x скорости реального времени)
+            // Предполагаем скорость обработки на основе предыдущих обновлений (в 10x скорости реального времени)
+            // Можно настроить множитель в зависимости от производительности вашей системы
             const estimatedProgressIncrease = Math.min(
-                (timeSinceLastUpdate * 5) / duration * 100, // оценка увеличения процента
-                2 // Максимальное увеличение за одно обновление - 2%
+                (timeSinceLastUpdate * 10) / duration * 100, // оценка увеличения процента
+                1 // Максимальное увеличение за одно обновление - 1%
             );
             
             // Обновляем предполагаемый прогресс, не превышая следующую ожидаемую отметку
@@ -134,7 +137,7 @@ const convertAudio = async (
             
             // Рассчитываем предполагаемое текущее время воспроизведения
             const estimatedCurrentTime = Math.min(
-                lastReportedTime + timeSinceLastUpdate * 5, // предполагаемое увеличение времени
+                lastReportedTime + timeSinceLastUpdate * 10, // предполагаемое увеличение времени
                 duration // Не превышаем общую длительность
             );
             
@@ -153,19 +156,14 @@ const convertAudio = async (
             
             // Обновляем время последнего обновления
             lastUpdateTime = now;
-            
-            // Автоматически увеличиваем lastReportedProgress даже без реальных обновлений от FFmpeg
-            // Это обеспечит движение прогресс-бара даже если FFmpeg не отправляет обновления
-            lastReportedProgress = Math.min(lastReportedProgress + 0.5, 99);
-            lastReportedTime = Math.min(lastReportedTime + timeSinceLastUpdate * 2, duration - 1);
         };
 
-        // Запускаем интервал для плавных обновлений прогресса (каждые 500 мс)
-        progressInterval = setInterval(sendSmoothProgress, 500);
+        // Запускаем интервал для плавных обновлений прогресса (каждые 200 мс)
+        progressInterval = setInterval(sendSmoothProgress, 200);
 
         ffmpegProcess.stderr.on('data', (data) => {
             const output = data.toString();
-            console.log(`FFmpeg output: ${output.substring(0, 200)}`);
+            console.log(`FFmpeg output: ${output.substring(0, 100)}`);
             
             // Извлекаем длительность, если еще не обнаружена
             if (duration === 0) {
@@ -176,10 +174,6 @@ const convertAudio = async (
                     const seconds = parseFloat(durationMatch[3]);
                     duration = hours * 3600 + minutes * 60 + seconds;
                     console.log(`Detected duration: ${duration} seconds`);
-                    
-                    // Устанавливаем начальные значения для плавного прогресса
-                    lastReportedTime = 0;
-                    lastReportedProgress = 0;
                 }
             }
             
@@ -291,84 +285,194 @@ const createSegments = async (
     const totalSegments = Math.ceil(duration / segmentDuration);
     console.log(`Creating ${totalSegments} segments...`);
 
-    // Упрощенный подход: создаем все сегменты сразу с помощью FFmpeg
-    const outputTemplate = path.join(outputDir, 'segment_%03d.mp3');
+    const segments: string[] = [];
     
-    return new Promise((resolve, reject) => {
-        // Показываем плавный прогресс сегментации
-        const segmentationStartPercent = 50;
-        const segmentationEndPercent = 70;
-        let progressValue = segmentationStartPercent;
-        const progressInterval = setInterval(() => {
-            progressValue = Math.min(progressValue + 0.5, segmentationEndPercent - 1);
-            const segmentProgress = ((progressValue - segmentationStartPercent) / (segmentationEndPercent - segmentationStartPercent)) * 100;
-            
-            sendProgress(writer, progressValue, 'Segmenting audio', {
-                type: 'segmentation',
-                progress: progressValue,
-                segmentProgress: segmentProgress,
-                totalSegments: totalSegments,
-                currentSegment: Math.floor((segmentProgress / 100) * totalSegments),
-                message: `Creating segments: ${Math.round(segmentProgress)}% (approximately ${Math.floor((segmentProgress / 100) * totalSegments)}/${totalSegments})`
-            });
-        }, 500);
+    // Переменные для расчета прогресса
+    const segmentationStartPercent = 50;
+    const segmentationEndPercent = 70;
+    
+    // Переменные для плавного обновления прогресса
+    let completedSegments = 0;
+    let lastUpdateTime = Date.now();
+    let progressInterval: NodeJS.Timeout | null = null;
+    
+    // Функция для обновления плавного прогресса
+    const sendSmoothProgress = () => {
+        const now = Date.now();
+        const timeSinceLastUpdate = (now - lastUpdateTime) / 1000; // в секундах
         
-        // Создаем сегменты с помощью FFmpeg segment
-        const ffmpegProcess = spawn('ffmpeg', [
-            '-y',                  // Автоматически перезаписывать существующие файлы без запроса
-            '-i', inputPath,
-            '-f', 'segment',
-            '-segment_time', segmentDuration.toString(),
-            '-c:a', 'libmp3lame',
-            '-ar', '44100',
-            '-ac', '2',
-            '-b:a', '192k',
-            outputTemplate
-        ]);
+        // Предполагаем прогресс в текущих сегментах
+        const estimatedSegmentProgress = Math.min(
+            completedSegments + (timeSinceLastUpdate * 0.3),
+            totalSegments - 0.05 // чуть меньше полного значения
+        );
         
-        // Обрабатываем вывод FFmpeg для отладки
-        ffmpegProcess.stderr.on('data', (data) => {
-            console.log(`Segment FFmpeg output: ${data.toString().substring(0, 200)}`);
+        // Процент прогресса сегментации
+        const segmentProgress = (estimatedSegmentProgress / totalSegments) * 100;
+        
+        // Общий прогресс
+        const progress = segmentationStartPercent + (segmentProgress / 100) * (segmentationEndPercent - segmentationStartPercent);
+        
+        console.log(`Smooth segment progress: ${estimatedSegmentProgress.toFixed(2)}/${totalSegments} (${segmentProgress.toFixed(1)}%)`);
+        
+        sendProgress(writer, progress, 'Segmenting audio', {
+            type: 'segmentation',
+            progress: progress,
+            segmentProgress: segmentProgress,
+            totalSegments: totalSegments,
+            currentSegment: Math.floor(estimatedSegmentProgress),
+            message: `Segment creation progress: ${Math.floor(segmentProgress)}% (processed approximately ${Math.floor(estimatedSegmentProgress)}/${totalSegments})`
         });
+    };
+    
+    // Запускаем интервал плавных обновлений (каждые 200 мс)
+    progressInterval = setInterval(sendSmoothProgress, 200);
+    
+    // Функция для создания одного сегмента
+    const createSegment = async (index: number): Promise<string> => {
+        const startTime = index * segmentDuration;
+        const segmentName = `segment_${index.toString().padStart(3, '0')}.mp3`;
+        const segmentPath = path.join(outputDir, segmentName);
         
-        ffmpegProcess.on('close', (code) => {
-            clearInterval(progressInterval);
-            
-            if (code === 0) {
-                // Чтение директории для получения списка созданных сегментов
-                fs.readdir(outputDir).then(files => {
-                    const segments = files.filter(file => file.startsWith('segment_') && file.endsWith('.mp3'))
-                                         .sort(); // Сортируем для правильного порядка
-                                         
-                    console.log(`Created ${segments.length} segments successfully`);
-                    
-                    // Отправляем финальный прогресс сегментации
-                    sendProgress(writer, segmentationEndPercent, 'Segmentation complete', {
-                        type: 'segmentation',
-                        progress: segmentationEndPercent,
-                        segmentProgress: 100,
-                        totalSegments: totalSegments,
-                        currentSegment: totalSegments,
-                        message: `Created ${segments.length} segments successfully`
-                    });
-                    
-                    resolve(segments);
-                }).catch(err => {
-                    console.error('Error reading segment directory:', err);
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const ffmpegProcess = spawn('ffmpeg', [
+                    '-hwaccel', 'auto',
+                    '-i', inputPath,
+                    '-ss', startTime.toString(),
+                    '-t', segmentDuration.toString(),
+                    '-vn',
+                    '-ar', '44100',
+                    '-ac', '2',
+                    '-b:a', '192k',
+                    '-threads', '0',
+                    '-f', 'mp3',
+                    '-preset', 'ultrafast',
+                    segmentPath
+                ]);
+
+                ffmpegProcess.on('close', (code) => {
+                    if (code === 0) {
+                        console.log(`Created segment ${segmentName}`);
+                        
+                        // Увеличиваем счетчик завершенных сегментов
+                        completedSegments++;
+                        lastUpdateTime = Date.now();
+                        
+                        // Отправляем точное обновление прогресса после завершения сегмента
+                        const exactSegmentProgress = (completedSegments / totalSegments) * 100;
+                        const exactProgress = segmentationStartPercent + (exactSegmentProgress / 100) * (segmentationEndPercent - segmentationStartPercent);
+                        
+                        sendProgress(writer, exactProgress, 'Segmenting audio', {
+                            type: 'segmentation',
+                            progress: exactProgress,
+                            segmentProgress: exactSegmentProgress,
+                            totalSegments: totalSegments,
+                            currentSegment: completedSegments,
+                            message: `Segment creation progress: ${Math.round(exactSegmentProgress)}% (${completedSegments}/${totalSegments})`
+                        });
+                        
+                        resolve();
+                    } else {
+                        reject(new Error(`FFmpeg process exited with code ${code} for segment ${index}`));
+                    }
+                });
+
+                ffmpegProcess.on('error', (err) => {
                     reject(err);
                 });
-            } else {
-                console.error(`FFmpeg segmentation process exited with code ${code}`);
-                reject(new Error(`FFmpeg segmentation process exited with code ${code}`));
+            });
+            
+            return segmentName;
+        } catch (error) {
+            console.error(`Error creating segment ${index}:`, error);
+            throw error;
+        }
+    };
+
+    // Функция для параллельной обработки с ограничением
+    const parallelProcess = async (items: number[], processFn: (index: number) => Promise<any>, concurrencyLimit: number) => {
+        const results: any[] = new Array(items.length);
+        const executing: Promise<any>[] = [];
+        let index = 0;
+        
+        // Создаем очередь для обработки всех элементов
+        const enqueue = async (): Promise<void> => {
+            // Обрабатываем текущий элемент
+            const i = index++;
+            
+            // Если все элементы уже в обработке, завершаем
+            if (i >= items.length) return;
+            
+            // Создаем промис для текущего элемента и добавляем его в список выполняющихся
+            const execPromise = processFn(items[i])
+                .then(result => {
+                    // Сохраняем результат в массиве
+                    results[i] = result;
+                    // Удаляем текущий промис из списка выполняющихся
+                    const execIndex = executing.indexOf(execPromise);
+                    if (execIndex >= 0) executing.splice(execIndex, 1);
+                    // Добавляем следующий элемент в очередь
+                    return enqueue();
+                });
+            
+            // Добавляем промис в список выполняющихся
+            executing.push(execPromise);
+            
+            // Если достигли лимита параллельных операций, ждем завершения хотя бы одной
+            if (executing.length >= concurrencyLimit) {
+                await Promise.race(executing);
             }
+        };
+        
+        // Запускаем начальные параллельные операции
+        const initPromises: Promise<void>[] = [];
+        for (let i = 0; i < concurrencyLimit && i < items.length; i++) {
+            initPromises.push(enqueue());
+        }
+        
+        // Ждем завершения всех операций
+        await Promise.all(initPromises);
+        await Promise.all(executing);
+        
+        return results;
+    };
+
+    try {
+        // Создаем массив индексов для параллельной обработки
+        const indices = Array.from({ length: totalSegments }, (_, i) => i);
+        
+        // Определяем количество параллельных операций для сегментации
+        // Используем меньшее значение (3), так как сегментация требует больше ресурсов
+        const concurrency = 3;
+        
+        // Обрабатываем сегменты параллельно
+        const segmentNames = await parallelProcess(indices, createSegment, concurrency);
+        segments.push(...segmentNames);
+        
+        // Останавливаем интервал обновлений
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+        
+        console.log(`Created ${segments.length} segments successfully using parallel processing`);
+        sendProgress(writer, 70, 'Segmentation complete', {
+            type: 'segmentation',
+            message: `Created ${segments.length} segments successfully using parallel processing`,
+            segmentProgress: 100,
+            totalSegments: totalSegments,
+            currentSegment: totalSegments
         });
         
-        ffmpegProcess.on('error', (err) => {
+        return segments;
+    } catch (error) {
+        // Останавливаем интервал обновлений в случае ошибки
+        if (progressInterval) {
             clearInterval(progressInterval);
-            console.error('Error during segmentation:', err);
-            reject(err);
-        });
-    });
+        }
+        console.error('Error during parallel segment creation:', error);
+        throw error;
+    }
 };
 
 // Функция для подготовки сегментов без загрузки в Appwrite
@@ -606,312 +710,337 @@ function sendError(writer: WritableStreamDefaultWriter, error: string, details?:
 }
 
 export async function POST(request: NextRequest) {
-    // Create a response with streaming support
+    let tempDir = '';
+    const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
-
-    // Create a response object with proper headers
-    const response = new Response(stream.readable, {
-        headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-        },
-    });
-
-    // Process in background
-    (async () => {
-        try {
-            // Check if the request is multipart/form-data
-            const contentType = request.headers.get('content-type');
-            if (!contentType || !contentType.includes('multipart/form-data')) {
-                sendError(writer, 'Request must be multipart/form-data');
-                writer.close();
-                return;
-            }
-
-            const formData = await request.formData();
-            const audio = formData.get('audio') as File;
-            const image = formData.get('image') as File;
-            const trackname = formData.get('trackname') as string;
-            const genre = formData.get('genre') as string;
-            const skipWavUpload = formData.get('skipWavUpload') === 'true'; // New parameter to skip WAV upload
-
-            console.log('Received files:', { 
-                audioName: audio?.name, 
-                audioSize: audio?.size, 
-                audioType: audio?.type,
-                imageName: image?.name,
-                skipWavUpload: skipWavUpload
-            });
-
-            // Validate the audio file
-            if (!audio) {
-                sendError(writer, 'No audio file provided');
-                writer.close();
-                return;
-            }
-
-            const audioValidation = await validateFile(audio);
-            if (!audioValidation.isValid) {
-                sendError(writer, audioValidation.error || 'Invalid audio file');
-                writer.close();
-                return;
-            }
-
-            // Валидация иных входных данных
-            if (!trackname || trackname.trim() === '') {
-                sendError(writer, 'Track name is required');
-                writer.close();
-                return;
-            }
-
-            if (!genre || genre.trim() === '') {
-                sendError(writer, 'Genre is required');
-                writer.close();
-                return;
-            }
-
-            // Create a temporary directory for processing
-            const processId = ID.unique();
-            const tmpDir = path.join(os.tmpdir(), 'audio-processing', processId);
-            console.log('Using temporary directory:', tmpDir);
-            
-            try {
-                await fs.mkdir(tmpDir, { recursive: true });
-                await fs.mkdir(path.join(tmpDir, 'segments'), { recursive: true });
-            } catch (error) {
-                console.error('Error creating temp directory:', error);
-                sendError(writer, 'Failed to create temporary directory');
-                writer.close();
-                return;
-            }
-
-            // Save the audio file to disk
-            console.log('Saving audio file to temporary location...');
-            const audioBuffer = await audio.arrayBuffer();
-            const audioPath = path.join(tmpDir, `original.wav`);
-            await fs.writeFile(audioPath, Buffer.from(audioBuffer));
-            console.log('Audio file saved to:', audioPath);
-
-            // If we're not skipping WAV upload progress (for backward compatibility)
-            if (!skipWavUpload) {
-                // Simulate WAV upload progress since we already have the WAV file
-                const totalSteps = 10;
-                for (let i = 0; i <= totalSteps; i++) {
-                    // Skip if the next step is already 100%
-                    if (i === totalSteps) {
-                        sendProgress(writer, 30, 'Uploading WAV', {
-                            type: 'upload',
-                            progress: 100,
-                            message: 'Upload complete'
-                        });
-                    } else {
-                        // Interpolate progress from 0 to 30%
-                        const progress = (i / totalSteps) * 30;
-                        sendProgress(writer, progress, 'Uploading WAV', {
-                            type: 'upload',
-                            progress: (i / totalSteps) * 100,
-                            message: `Uploading WAV file: ${Math.round((i / totalSteps) * 100)}%`
-                        });
-                    }
-                    // Add delay between steps
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-            }
-
-            // Проверка длительности аудио (не более 12 минут)
-            try {
-                console.log('Checking audio duration...');
-                const audioDuration = await getAudioDuration(audioPath);
-                
-                if (audioDuration > 12 * 60) { // 12 minutes in seconds
-                    sendError(writer, 'Audio duration exceeds the maximum allowed (12 minutes)');
-                    writer.close();
-                    return;
-                }
-                
-                console.log('Audio duration check passed:', audioDuration, 'seconds');
-            } catch (error) {
-                console.error('Error checking audio duration:', error);
-                sendError(writer, 'Failed to check audio duration');
-                writer.close();
-                return;
-            }
-
-            // Convert audio to MP3
-            const mp3Path = path.join(tmpDir, 'audio.mp3');
-            try {
-                sendProgress(writer, skipWavUpload ? 0 : 30, 'Converting to MP3', {
-                    type: 'conversion',
-                    message: 'Starting audio conversion'
-                });
-                
-                console.log('Converting audio to MP3...');
-                await convertAudio(audioPath, mp3Path, writer);
-                console.log('Audio conversion completed:', mp3Path);
-            } catch (error) {
-                console.error('Error converting audio:', error);
-                sendError(writer, 'Failed to convert audio');
-                writer.close();
-                return;
-            }
-
-            // Добавляем метаданные
-            if (trackname || genre || image) {
-                console.log('Adding metadata...');
-                sendProgress(writer, 45, 'Adding Metadata...', {
-                    type: 'metadata',
-                    message: 'Adding track information...'
-                });
-                
-                const tags: any = {
-                    title: trackname,
-                    genre: genre,
-                    year: new Date().getFullYear().toString(),
-                    comment: {
-                        language: 'eng',
-                        text: 'Processed with Sacral Track'
-                    }
-                };
-
-                if (image) {
-                    const imageBuffer = Buffer.from(await image.arrayBuffer());
-                    tags.image = {
-                        mime: image.type,
-                        type: {
-                            id: 3,
-                            name: 'front cover'
-                        },
-                        description: 'Album cover',
-                        imageBuffer
-                    };
-                }
-
-                await NodeID3.write(tags, mp3Path);
-                console.log('Metadata added successfully');
-                
-                sendProgress(writer, 50, 'Metadata Added', {
-                    type: 'metadata',
-                    message: 'Track information successfully added'
-                });
-            }
-
-            // Создаем сегменты с подробным отслеживанием прогресса
-            console.log('Creating audio segments...');
-            const segments = await createSegments(mp3Path, path.join(tmpDir, 'segments'), writer);
-            console.log('Created segments:', segments.length);
-
-            // Вместо вызова uploadSegments, используем prepareSegments
-            console.log('Preparing segments...');
-            const segmentFiles = await prepareSegments(segments, path.join(tmpDir, 'segments'), writer);
-            console.log('Segment files prepared:', segmentFiles.length);
-
-            // Начинаем процесс финализации с плавным прогрессом
-            console.log('Starting finalization process...');
-            
-            // Переменные для плавного прогресса финализации
-            let finalizationProgress = 90;
-            const finalizationStartTime = Date.now();
-            
-            // Функция для обновления прогресса финализации
-            const updateFinalizationProgress = () => {
-                const now = Date.now();
-                const elapsed = (now - finalizationStartTime) / 1000; // в секундах
-                
-                // Увеличиваем прогресс со временем, но не более 99%
-                finalizationProgress = Math.min(99, 90 + (elapsed * 1.5)); // примерно +1.5% за секунду
-                
-                console.log(`Finalization smooth progress: ${finalizationProgress.toFixed(1)}%`);
-                
-                sendProgress(writer, finalizationProgress, 'Finalizing', {
-                    type: 'finalization',
-                    message: 'Preparing audio file for completion...'
-                });
-            };
-            
-            // Запускаем интервал плавного прогресса финализации
-            const finalProgressInterval = setInterval(updateFinalizationProgress, 200);
-
-            // Читаем финальный аудио файл
-            const audioData = await fs.readFile(mp3Path);
-            console.log('Final audio file size:', audioData.length);
-
-            // Создаем шаблон M3U8 плейлиста 
-            // (конкретные URL-адреса будут добавлены клиентом после загрузки в Appwrite)
-            console.log('Creating M3U8 playlist template...');
-            sendProgress(writer, 95, 'Creating Playlist', {
-                type: 'playlist',
-                message: 'Creating M3U8 playlist template'
-            });
-            
-            let m3u8Content = "#EXTM3U\n";
-            m3u8Content += "#EXT-X-VERSION:3\n";
-            m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
-            m3u8Content += "#EXT-X-ALLOW-CACHE:YES\n";
-            m3u8Content += "#EXT-X-TARGETDURATION:10\n";
-            
-            // Добавляем маркеры для сегментов, клиент заменит их на реальные URL
-            for (let i = 0; i < segmentFiles.length; i++) {
-                m3u8Content += "#EXTINF:10.0,\n";
-                m3u8Content += `SEGMENT_PLACEHOLDER_${i}\n`;
-            }
-            
-            m3u8Content += "#EXT-X-ENDLIST";
-            
-            console.log('M3U8 playlist template created');
-            
-            // Останавливаем интервал прогресса финализации
-            if (finalProgressInterval) {
-                clearInterval(finalProgressInterval);
-            }
-            
-            // Отправляем финальный результат
-            sendProgress(writer, 100, 'Processing Complete', {
-                type: 'complete',
-                message: 'Audio processing successfully completed'
-            });
-            
-            // Отправляем результат клиенту
-            console.log('Sending final result to client...');
-            sendComplete(writer, { 
-                result: {
-                    segments: segmentFiles, // Отправляем данные сегментов
-                    mp3File: `data:audio/mp3;base64,${audioData.toString('base64')}`,
-                    m3u8Template: m3u8Content // Отправляем шаблон M3U8 плейлиста
-                }
-            });
-
-            writer.close();
-            console.log('Processing completed successfully');
-
-        } catch (error) {
-            // Останавливаем интервал прогресса, если он активен
-            const finalProgressInterval = setInterval(() => {}, 1000);
-            
-            console.error('[API] Ошибка при обработке аудио:', error);
-            
-            // Форматируем сообщение об ошибке для логирования и отправки
-            const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-            const errorDetails = error instanceof Error && error.stack ? error.stack : 'Нет информации о стеке вызовов';
-            
-            console.error('[API] Детали ошибки:', {
-                message: errorMessage,
-                stack: errorDetails,
-                timestamp: new Date().toISOString()
-            });
-            
-            writer.close();
-
-            // Очистка временной директории
-            // We don't have access to tmpDir here since it's defined in the async block
-            // If we need cleanup, we should handle it differently or restructure the code
-            
-            // Возвращаем ответ с детальной информацией об ошибке
-            return response;
-        }
-    })();
     
-    // Return the response outside the async function
-    return response;
+    // Переменная для интервала прогресса на финальных этапах
+    let finalProgressInterval: NodeJS.Timeout | null = null;
+
+    try {
+        console.log('[API] Начало обработки запроса на загрузку аудио...');
+        sendProgress(writer, 0, 'Processing Started', {
+            type: 'init',
+            message: 'Initializing audio processing...'
+        });
+        
+        // Получение данных формы
+        let formData;
+        try {
+            formData = await request.formData();
+            console.log('[API] Форма успешно получена');
+        } catch (error) {
+            console.error('[API] Ошибка при получении данных формы:', error);
+            throw new Error(`Ошибка при получении данных формы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+        
+        const file = formData.get('audio') as File;
+        const trackname = formData.get('trackname') as string;
+        const artist = formData.get('artist') as string;
+        const genre = formData.get('genre') as string;
+        const imageFile = formData.get('image') as File;
+
+        console.log('[API] Получены данные формы:', {
+            fileName: file?.name,
+            fileType: file?.type,
+            fileSize: file?.size,
+            trackname,
+            artist,
+            genre,
+            hasImage: !!imageFile
+        });
+
+        if (!file) {
+            const error = 'Файл не предоставлен';
+            console.error('[API] ' + error);
+            sendDetailedError(writer, error);
+            throw new Error(error);
+        }
+
+        // Проверка файла с улучшенной обработкой ошибок
+        try {
+            const validation = await validateFile(file);
+            if (!validation.isValid) {
+                console.error('[API] Проверка файла не пройдена:', validation.error);
+                sendDetailedError(writer, `Валидация файла не пройдена: ${validation.error}`);
+                throw new Error(validation.error);
+            }
+            console.log('[API] Проверка файла пройдена успешно');
+        } catch (error) {
+            console.error('[API] Ошибка при валидации файла:', error);
+            sendDetailedError(writer, 'Ошибка при валидации файла', error);
+            throw error;
+        }
+        
+        // Сообщаем о начале обработки файла
+        sendProgress(writer, 10, 'File Validated', {
+            type: 'validation',
+            message: 'File validation passed, preparing for processing'
+        });
+
+        // Создание временной директории с улучшенной обработкой ошибок
+        try {
+            tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-'));
+            console.log('[API] Создана временная директория:', tempDir);
+        } catch (error) {
+            console.error('[API] Ошибка при создании временной директории:', error);
+            sendDetailedError(writer, 'Ошибка при создании временной директории', error);
+            throw new Error(`Не удалось создать временную директорию: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+        
+        const inputPath = path.join(tempDir, 'input.wav');
+        const outputPath = path.join(tempDir, 'output.mp3');
+        const segmentsDir = path.join(tempDir, 'segments');
+
+        try {
+            await fs.mkdir(segmentsDir, { recursive: true });
+            console.log('[API] Создана директория для сегментов:', segmentsDir);
+        } catch (error) {
+            console.error('[API] Ошибка при создании директории для сегментов:', error);
+            sendDetailedError(writer, 'Ошибка при создании директории для сегментов', error);
+            throw new Error(`Не удалось создать директорию для сегментов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+
+        // Сохранение входного файла и сообщение о прогрессе
+        sendProgress(writer, 15, 'Saving File', {
+            type: 'saving',
+            message: 'Saving uploaded file to temporary storage'
+        });
+        
+        try {
+            console.log('[API] Преобразование файла в буфер...');
+            const buffer = Buffer.from(await file.arrayBuffer());
+            console.log('[API] Сохранение входного файла: путь=' + inputPath + ', размер=' + buffer.length + ' байт');
+            await fs.writeFile(inputPath, buffer);
+            console.log('[API] Входной файл успешно сохранен:', inputPath);
+        } catch (error) {
+            console.error('[API] Ошибка при сохранении входного файла:', error);
+            sendDetailedError(writer, 'Ошибка при сохранении входного файла', error);
+            throw new Error(`Не удалось сохранить входной файл: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+        
+        sendProgress(writer, 20, 'File Saved', {
+            type: 'saving',
+            message: 'File saved successfully, checking audio duration'
+        });
+
+        // Проверка длительности с улучшенной обработкой ошибок
+        console.log('[API] Проверка длительности аудио...');
+        sendProgress(writer, 25, 'Checking Duration', {
+            type: 'duration',
+            message: 'Analyzing audio file duration'
+        });
+        
+        let duration;
+        try {
+            duration = await getAudioDuration(inputPath);
+            console.log('[API] Длительность аудио:', duration, 'секунд');
+        } catch (error) {
+            console.error('[API] Ошибка при получении длительности аудио:', error);
+            sendDetailedError(writer, 'Ошибка при получении длительности аудио', error);
+            throw new Error(`Не удалось определить длительность аудио: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+        
+        if (duration > 720) { // 12 минут
+            const error = 'Длительность аудиофайла не должна превышать 12 минут';
+            console.error('[API] ' + error + `. Текущая длительность: ${duration} секунд`);
+            sendDetailedError(writer, error, { duration });
+            throw new Error(error);
+        }
+        
+        sendProgress(writer, 30, 'Duration Check Passed', {
+            type: 'duration',
+            message: `Audio duration: ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`
+        });
+        
+        // Конвертация аудио с улучшенной обработкой ошибок
+        try {
+            console.log('[API] Начало конвертации аудио...');
+            await convertAudio(inputPath, outputPath, writer);
+            console.log('[API] Аудио успешно конвертировано в MP3:', outputPath);
+        } catch (error) {
+            console.error('[API] Ошибка при конвертации аудио:', error);
+            sendDetailedError(writer, 'Ошибка при конвертации аудио в MP3', error);
+            throw new Error(`Не удалось конвертировать аудио: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+
+        // Добавляем метаданные
+        if (trackname || artist || genre || imageFile) {
+            console.log('Adding metadata...');
+            sendProgress(writer, 45, 'Adding Metadata...', {
+                type: 'metadata',
+                message: 'Adding track information...'
+            });
+            
+            const tags: any = {
+                title: trackname,
+                artist: artist,
+                genre: genre,
+                year: new Date().getFullYear().toString(),
+                comment: {
+                    language: 'eng',
+                    text: 'Processed with Sacral Track'
+                }
+            };
+
+            if (imageFile) {
+                const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+                tags.image = {
+                    mime: imageFile.type,
+                    type: {
+                        id: 3,
+                        name: 'front cover'
+                    },
+                    description: 'Album cover',
+                    imageBuffer
+                };
+            }
+
+            await NodeID3.write(tags, outputPath);
+            console.log('Metadata added successfully');
+            
+            sendProgress(writer, 50, 'Metadata Added', {
+                type: 'metadata',
+                message: 'Track information successfully added'
+            });
+        }
+
+        // Создаем сегменты с подробным отслеживанием прогресса
+        console.log('Creating audio segments...');
+        const segments = await createSegments(outputPath, segmentsDir, writer);
+        console.log('Created segments:', segments.length);
+
+        // Вместо вызова uploadSegments, используем prepareSegments
+        console.log('Preparing segments...');
+        const segmentFiles = await prepareSegments(segments, segmentsDir, writer);
+        console.log('Segment files prepared:', segmentFiles.length);
+
+        // Начинаем процесс финализации с плавным прогрессом
+        console.log('Starting finalization process...');
+        
+        // Переменные для плавного прогресса финализации
+        let finalizationProgress = 90;
+        const finalizationStartTime = Date.now();
+        
+        // Функция для обновления прогресса финализации
+        const updateFinalizationProgress = () => {
+            const now = Date.now();
+            const elapsed = (now - finalizationStartTime) / 1000; // в секундах
+            
+            // Увеличиваем прогресс со временем, но не более 99%
+            finalizationProgress = Math.min(99, 90 + (elapsed * 1.5)); // примерно +1.5% за секунду
+            
+            console.log(`Finalization smooth progress: ${finalizationProgress.toFixed(1)}%`);
+            
+            sendProgress(writer, finalizationProgress, 'Finalizing', {
+                type: 'finalization',
+                message: 'Preparing audio file for completion...'
+            });
+        };
+        
+        // Запускаем интервал плавного прогресса финализации
+        finalProgressInterval = setInterval(updateFinalizationProgress, 200);
+
+        // Читаем финальный аудио файл
+        const audioData = await fs.readFile(outputPath);
+        console.log('Final audio file size:', audioData.length);
+
+        // Создаем шаблон M3U8 плейлиста 
+        // (конкретные URL-адреса будут добавлены клиентом после загрузки в Appwrite)
+        console.log('Creating M3U8 playlist template...');
+        sendProgress(writer, 95, 'Creating Playlist', {
+            type: 'playlist',
+            message: 'Creating M3U8 playlist template'
+        });
+        
+        let m3u8Content = "#EXTM3U\n";
+        m3u8Content += "#EXT-X-VERSION:3\n";
+        m3u8Content += "#EXT-X-MEDIA-SEQUENCE:0\n";
+        m3u8Content += "#EXT-X-ALLOW-CACHE:YES\n";
+        m3u8Content += "#EXT-X-TARGETDURATION:10\n";
+        
+        // Добавляем маркеры для сегментов, клиент заменит их на реальные URL
+        for (let i = 0; i < segmentFiles.length; i++) {
+            m3u8Content += "#EXTINF:10.0,\n";
+            m3u8Content += `SEGMENT_PLACEHOLDER_${i}\n`;
+        }
+        
+        m3u8Content += "#EXT-X-ENDLIST";
+        
+        console.log('M3U8 playlist template created');
+        
+        // Останавливаем интервал прогресса финализации
+        if (finalProgressInterval) {
+            clearInterval(finalProgressInterval);
+            finalProgressInterval = null;
+        }
+        
+        // Отправляем финальный результат
+        sendProgress(writer, 100, 'Processing Complete', {
+            type: 'complete',
+            message: 'Audio processing successfully completed'
+        });
+        
+        // Отправляем результат клиенту
+        console.log('Sending final result to client...');
+        sendComplete(writer, { 
+            result: {
+                segments: segmentFiles, // Отправляем данные сегментов
+                mp3File: `data:audio/mp3;base64,${audioData.toString('base64')}`,
+                m3u8Template: m3u8Content // Отправляем шаблон M3U8 плейлиста
+            }
+        });
+
+        writer.close();
+        console.log('Processing completed successfully');
+
+        return new Response(stream.readable, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
+            }
+        });
+
+    } catch (error) {
+        // Останавливаем интервал прогресса, если он активен
+        if (finalProgressInterval) {
+            clearInterval(finalProgressInterval);
+            finalProgressInterval = null;
+        }
+        
+        console.error('[API] Ошибка при обработке аудио:', error);
+        
+        const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+        const errorDetails = error instanceof Error ? error.stack : '';
+        
+        // Используем улучшенную функцию отправки ошибки
+        sendDetailedError(writer, errorMessage, { 
+            stack: errorDetails,
+            timestamp: new Date().toISOString(),
+            tempDir: tempDir ? tempDir : 'не создана'
+        });
+        
+        writer.close();
+
+        // Очистка временной директории
+        if (tempDir) {
+            try {
+                await fs.rm(tempDir, { recursive: true, force: true });
+                console.log('[API] Очищена временная директория:', tempDir);
+            } catch (cleanupError) {
+                console.error('[API] Ошибка при очистке временной директории:', cleanupError);
+            }
+        }
+
+        // Возвращаем ответ с детальной информацией об ошибке
+        return new Response(stream.readable, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
+            }
+        });
+    }
 } 

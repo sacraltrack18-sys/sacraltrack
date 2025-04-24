@@ -2,7 +2,7 @@
 
 {/*UPLOAD PAGE*/}
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { useUser } from '@/app/context/user';
@@ -19,6 +19,8 @@ import GenreSelector from '../components/upload/GenreSelector';
 import SuccessModal from '../components/upload/SuccessModal';
 import RequirementsTooltip from '../components/upload/RequirementsTooltip';
 import UploadProgress from '../components/upload/UploadProgress';
+import useChunkedUploader from '../components/upload/ChunkedUploader';
+import UploadMethodToggle from '../components/upload/UploadMethodToggle';
 
 // Copyright notification component
 interface CopyrightNotificationProps {
@@ -108,534 +110,18 @@ export default function Upload() {
     const [isCancelling, setIsCancelling] = useState(false);
     const [uploadController, setUploadController] = useState<AbortController | null>(null);
 
-    // Add effect to track isProcessing changes
-    useEffect(() => {
-        console.log("isProcessing changed:", isProcessing);
-        console.log("Current processing stage:", processingStage);
-        console.log("Current progress:", processingProgress);
-    }, [isProcessing, processingStage, processingProgress]);
-
-    // Check user authentication
-    useEffect(() => {
-        if (!user) router.push('/');
-    }, [user, router]);
-
-    // Проверяем наличие необходимых функций
-    useEffect(() => {
-        if (!createPostHook?.createPost || !createPostHook?.createSegmentFile) {
-            console.error('Functions createPost or createSegmentFile not available');
-            toast.error('Initialization error. Please refresh the page');
-        }
-    }, [createPostHook]);
-
-    // Очистка при размонтировании компонента
-    useEffect(() => {
-        return () => {
-            // Отменяем все незавершенные загрузки при уходе со страницы
-            if (uploadController) {
-                uploadController.abort();
-            }
-        };
-    }, [uploadController]);
-
-    // Audio player functions
-    const handleAudioPlay = () => {
-        if (!audioElement.current) return;
-        
-        if (isAudioPlaying) {
-            audioElement.current.pause();
-        } else {
-            audioElement.current.play();
-        }
-        setIsAudioPlaying(!isAudioPlaying);
-    };
-
-    const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!audioElement.current) return;
-
-        const progressBar = e.currentTarget;
-        const clickPosition = e.clientX - progressBar.getBoundingClientRect().left;
-        const progressBarWidth = progressBar.offsetWidth;
-        const clickPercentage = (clickPosition / progressBarWidth) * 100;
-        const newTime = (clickPercentage / 100) * audioDuration;
-
-        audioElement.current.currentTime = newTime;
-        setAudioProgress(clickPercentage);
-    };
-
-    // File handling functions
-    const handleAudioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            // Create audio element for preview
-            const audio = new Audio();
-            audio.src = URL.createObjectURL(file);
-            
-            audio.onloadedmetadata = () => {
-                setAudioDuration(audio.duration);
-                audioElement.current = audio;
-                
-                audio.ontimeupdate = () => {
-                    setAudioProgress((audio.currentTime / audio.duration) * 100);
-                };
-                
-                audio.onended = () => {
-                    setIsAudioPlaying(false);
-                    setAudioProgress(0);
-                    audio.currentTime = 0;
-                };
-            };
-
-            setFileAudio(file);
-            setTrackname(file.name.replace(/\.[^/.]+$/, ''));
-            
-        } catch (error) {
-            console.error('Error loading audio:', error);
-            toast.error('Error loading audio file');
-        }
-    };
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            const preview = URL.createObjectURL(file);
-            setFileImage(file);
-            setImagePreview(preview);
-            
-            // Show copyright notification when image is selected
-            setShowCopyrightNotice(true);
-        } catch (error) {
-            console.error('Error loading image:', error);
-            toast.error('Error loading image file');
-        }
-    };
-
-    // Clear functions
-    const clearAudio = () => {
-        if (audioElement.current) {
-            audioElement.current.pause();
-            audioElement.current = null;
-        }
-        setFileAudio(null);
-        setIsAudioPlaying(false);
-        setAudioProgress(0);
-        setAudioDuration(0);
-        setTrackname('');
-    };
-
-    const clearImage = () => {
-        setFileImage(null);
-        setImagePreview(null);
-    };
-
-    const clearAll = () => {
-        clearAudio();
-        clearImage();
-        setGenre('');
-        setProcessingStage('');
-        setProcessingProgress(0);
-        setIsProcessing(false);
-    };
-
-    // Функция отмены загрузки
-    const handleCancelUpload = () => {
-        if (!uploadController) {
-            console.log("No active upload to cancel");
-            return;
-        }
-        
-        console.log("Cancelling upload process");
-        setIsCancelling(true);
-        
-        // Показываем пользователю, что идет отмена
-        toast.loading('Cancelling upload...', { 
-            id: 'cancel-toast',
-            style: {
-                border: '1px solid #018CFD',
-                padding: '16px',
-                color: '#ffffff',
-                background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                fontSize: '16px',
-                borderRadius: '12px'
-            },
-            icon: '🛑'
-        });
-        
-        // Отмена запроса и загрузки
-        console.log("Aborting upload controller");
-        uploadController.abort();
-        
-        // Abort any server-side processing by sending a cancel request
-        console.log("Sending server-side cancel request");
-        fetch('/api/audio/cancel', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userId: user?.id }),
-        }).catch(error => {
-            console.error('Error cancelling server process:', error);
-        }).finally(() => {
-            console.log("Server cancel request completed");
-        
-        // Reset all states immediately
-        setIsProcessing(false);
-        setIsCancelling(false);
-        setProcessingStage('');
-        setProcessingProgress(0);
-            setUploadController(null);
-        
-        // Reset all form fields
-        clearAll();
-        
-        toast.success('Upload cancelled', { 
-            id: 'cancel-toast',
-            style: {
-                border: '1px solid #018CFD',
-                padding: '16px',
-                color: '#ffffff',
-                background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                fontSize: '16px',
-                borderRadius: '12px'
-            },
-            icon: '✓'
-            });
-        });
-    };
-
-    // Upload functions
-    const handleUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        // Валидация
-        if (!fileAudio) {
-            toast.error('Please select an audio file', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '🎵'
-            });
-            return;
-        }
-        
-        console.log("=== Upload Started ===");
-
-        // Reset cancelling flag to ensure we're starting fresh
-        if (isCancelling) {
-            console.log("Upload was in cancelling state, resetting");
-            setIsCancelling(false);
-            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
-        }
-        
-        console.log("Initial state:", {
-            fileAudio,
-            fileImage,
-            trackname,
-            genre,
-            isProcessing,
-            isCancelling
-        });
-
-        if (!fileAudio || !fileImage || !trackname || !genre) {
-            console.log("Validation failed:", { fileAudio, fileImage, trackname, genre });
-            return;
-        }
-
-        // Reset any previous upload controller to avoid interference
-        if (uploadController) {
-            console.log("Aborting previous upload controller");
-            uploadController.abort();
-            setUploadController(null);
-            await new Promise(resolve => setTimeout(resolve, 100)); // Give time for state to update
-        }
-
-        // Set initial stage
-            setIsProcessing(true);
-            setProcessingStage('Preparing upload');
-            setProcessingProgress(0);
-            
-            // Add a small delay to ensure state updates are processed
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            console.log("State after setting:", {
-                isProcessing: true,
-                processingStage: 'Preparing upload',
-                processingProgress: 0
-            });
-
-            // Check file size (not more than 200 MB)
-            const fileSizeInMB = fileAudio.size / (1024 * 1024);
-            if (fileSizeInMB > 200) {
-                toast.error('File size must not exceed 200 MB', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⚠️'
-                });
-                setIsProcessing(false);
-                return;
-            }
-
-        // Check audio duration (not more than 12 minutes)
-            if (audioDuration > 12 * 60) {
-                toast.error('Track duration must not exceed 12 minutes', {
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⏱️'
-                });
-            setIsProcessing(false);
-                return;
-            }
-
-        try {
-            // Debug log to confirm states are set
-            console.log("Progress bar state:", { isProcessing: true, processingStage: 'Preparing upload', processingProgress: 0 });
-            
-            const toastId = toast.loading('Starting upload...', {
-                style: {
-                    border: '1px solid #20DDBB',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
-                },
-                icon: '🚀'
-            });
-
-            // Create FormData
-            const formData = new FormData();
-            formData.append('audio', fileAudio);
-            if (fileImage) {
-                formData.append('image', fileImage);
-            }
-            if (trackname) {
-                formData.append('trackname', trackname);
-            }
-            if (genre) {
-                formData.append('genre', genre);
-            }
-
-            // Set upload stage
-            setProcessingStage('Uploading WAV');
-            setProcessingProgress(0);
-            toast.loading(`Uploading WAV: 0%`, { id: toastId });
-
-            // Create new controller for cancellation
-            const controller = new AbortController();
-            setUploadController(controller);
-
-            // Track upload progress using XMLHttpRequest
-            const xhr = new XMLHttpRequest();
-            
-            // Configure all event handlers before opening the connection
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentage = Math.round((event.loaded / event.total) * 100);
-                    setProcessingProgress(percentage);
-                    toast.loading(`Uploading WAV: ${percentage}%`, { id: toastId });
-                    console.log(`WAV upload progress: ${percentage}%`);
-                }
-            };
-            
-            xhr.onerror = () => {
-                console.error('Network error while uploading file');
-                toast.error('Network error while uploading file. Please check your internet connection and try again.', { 
-                    id: toastId,
-                    style: {
-                        border: '1px solid #FF4A4A',
-                        padding: '16px',
-                        color: '#ffffff',
-                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                        fontSize: '16px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                    },
-                    icon: '⚠️'
-                });
-                setIsProcessing(false);
-                setUploadController(null);
-            };
-            
-            xhr.onload = async () => {
-                // Проверка успешного кода ответа
-                console.log(`Server response status: ${xhr.status}, response type: ${xhr.responseType}, content type: ${xhr.getResponseHeader('Content-Type')}`);
-                
-                if (xhr.status !== 200) {
-                    console.error(`Server error: ${xhr.status} ${xhr.statusText}`);
-                    
-                    let errorMessage = 'Server error';
-                    let errorDetails = '';
-                    
-                    // Пытаемся извлечь детали ошибки из ответа
-                    try {
-                        // Проверяем, является ли ответ JSON
-                        const contentType = xhr.getResponseHeader('Content-Type');
-                        if (contentType && contentType.includes('application/json')) {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            errorMessage = errorResponse.error || errorResponse.message || 'Server error';
-                            errorDetails = errorResponse.details || '';
-                        } else {
-                            // Если ответ не JSON, просто берем текст
-                            errorMessage = `Server error (${xhr.status}): ${xhr.responseText.substring(0, 100)}`;
-                        }
-                    } catch (parseError) {
-                        console.error('Failed to parse error response:', parseError);
-                        // Если не удалось распарсить ответ, используем статус код
-                        errorMessage = `Server error (${xhr.status}): ${xhr.statusText || 'unknown error'}`;
-                    }
-                    
-                    // Для 500 ошибок добавляем специальное сообщение
-                    if (xhr.status === 500) {
-                        errorMessage = `Server encountered an error (500). Please try with a different audio file or contact support.`;
-                        console.error(`Server 500 error. Response:`, xhr.responseText);
-                    }
-                    
-                    // Выводим подробную информацию об ошибке в консоль
-                    console.error('Upload error details:', {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        message: errorMessage,
-                        details: errorDetails,
-                        responseText: xhr.responseText ? xhr.responseText.substring(0, 500) + '...' : 'empty response'
-                    });
-                    
-                    toast.error(errorMessage, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                        },
-                        icon: '⚠️',
-                        duration: 5000
-                    });
-                    
-                    setIsProcessing(false);
-                    setUploadController(null);
-                    return;
-                }
-                
-                try {
-                    // Set progress to 100% when upload is complete
-                    setProcessingProgress(100);
-                    toast.loading(`Uploading WAV: 100%`, { id: toastId });
-                    
-                    // Now handle the SSE response
-                    const response = new Response(xhr.response, {
-                        status: 200,
-                        headers: {
-                            'Content-Type': 'text/event-stream'
-                        }
-                    });
-                    
-                    // Handle server-sent events for progress updates
-                    const reader = response.body?.getReader();
-                    const decoder = new TextDecoder();
-
-                    if (!reader) throw new Error('Failed to create reader');
-
-                    // Continue with the rest of the processing...
-                    await handleSSEProcessing(reader, decoder, toastId);
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    console.error('Error processing server response:', error);
-                    toast.error(`Error processing server response: ${errorMessage}`, { 
-                        id: toastId,
-                        style: {
-                            border: '1px solid #FF4A4A',
-                            padding: '16px',
-                            color: '#ffffff',
-                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                        },
-                        icon: '⚠️',
-                        duration: 5000
-                    });
-                    setIsProcessing(false);
-                    setUploadController(null);
-                }
-            };
-            
-            // Add abort handler to signal
-            controller.signal.addEventListener('abort', () => {
-                console.log('Upload canceled by user (from signal)');
-                xhr.abort();
-                // Toast message will be shown by handleCancelUpload
-            });
-            
-            // Now open the connection and send the request after all handlers are set
-            xhr.open('POST', '/api/audio/process');
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            xhr.responseType = 'text';
-            
-            // Final safety check before sending request
-            if (isCancelling) {
-                console.log("Upload was cancelled before sending request");
-                xhr.abort();
-                setIsProcessing(false);
-                setUploadController(null);
-                return;
-            }
-            
-            console.log("Sending XHR request...");
-            xhr.send(formData);
-            
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error('Upload error:', error);
-            toast.error(`Failed to upload track: ${errorMessage}`, {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⚠️',
-                duration: 5000
-            });
-            
-            // Reset processing state
-            setIsProcessing(false);
-            setUploadController(null);
-        }
-    };
+    // Добавляем переменную состояния для отслеживания метода загрузки
+    const [useChunkedMethod, setUseChunkedMethod] = useState(true);
     
-    // Separate function to handle SSE processing
-    const handleSSEProcessing = async (reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, toastId: string) => {
+    // Добавляем состояния для обработки чанковой загрузки
+    const [chunkedUploadToastId, setChunkedUploadToastId] = useState<string | null>(null);
+    
+    // Отдельная функция для обработки SSE ответов
+    const handleSSEProcessing = async (
+        reader: ReadableStreamDefaultReader<Uint8Array>, 
+        decoder: TextDecoder, 
+        toastId: string
+    ) => {
         try {
             let buffer = '';
             
@@ -1277,6 +763,251 @@ export default function Upload() {
         }
     };
 
+    // Используем useMemo для хука, чтобы избежать его вызова внутри функций
+    const chunkedUploader = useMemo(() => {
+        if (!fileAudio) return null;
+        
+        return useChunkedUploader({
+            file: fileAudio,
+            onProgress: (progress, stage) => {
+                if (!chunkedUploadToastId) return;
+                
+                console.log(`Chunk upload progress: ${progress}% - ${stage}`);
+                setProcessingProgress(progress);
+                setProcessingStage(`${stage} (${Math.round(progress)}%)`);
+                
+                toast.loading(`${stage}: ${Math.round(progress)}%`, { 
+                    id: chunkedUploadToastId,
+                    style: {
+                        border: '1px solid #20DDBB',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                    },
+                    icon: '🧩'
+                });
+            },
+            onComplete: async (result) => {
+                if (!chunkedUploadToastId) return;
+                
+                console.log('Чанковая загрузка завершена:', result);
+                
+                // Теперь необходимо отправить запрос на склейку и обработку чанков
+                setProcessingStage('Processing uploaded chunks');
+                setProcessingProgress(30);
+                toast.loading(`Processing chunks: 30%`, { 
+                    id: chunkedUploadToastId,
+                    style: {
+                        border: '1px solid #20DDBB',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                    },
+                    icon: '🔄'
+                });
+                
+                try {
+                    // Создаем контроллер отмены
+                    const controller = new AbortController();
+                    setUploadController(controller);
+                    
+                    // Загружаем изображение
+                    let imageId = '';
+                    if (fileImage) {
+                        setProcessingStage('Uploading cover image');
+                        setProcessingProgress(35);
+                        toast.loading(`Uploading cover image: 0%`, { id: chunkedUploadToastId });
+                        
+                        const imageFormData = new FormData();
+                        imageFormData.append('image', fileImage);
+                        
+                        const imageResponse = await fetch('/api/images/upload', {
+                            method: 'POST',
+                            body: imageFormData,
+                            signal: controller.signal
+                        });
+                        
+                        if (!imageResponse.ok) {
+                            throw new Error('Failed to upload cover image');
+                        }
+                        
+                        const imageResult = await imageResponse.json();
+                        imageId = imageResult.imageId;
+                        
+                        setProcessingProgress(40);
+                        toast.loading(`Uploading cover image: 100%`, { id: chunkedUploadToastId });
+                    }
+                    
+                    // Отправляем запрос на обработку чанков
+                    setProcessingStage('Starting audio processing');
+                    setProcessingProgress(45);
+                    toast.loading(`Starting audio processing: 45%`, { id: chunkedUploadToastId });
+                    
+                    const processResponse = await fetch('/api/audio/process-chunks', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            segmentIds: result.segmentIds,
+                            originalFilename: result.originalFilename,
+                            totalSize: result.totalSize,
+                            trackname,
+                            genre,
+                            imageId
+                        }),
+                        signal: controller.signal
+                    });
+
+                    // Получаем reader и проверяем, что он существует
+                    const reader = processResponse.body?.getReader();
+                    if (!reader) {
+                        throw new Error('Failed to create reader for processing response');
+                    }
+                    
+                    // Обрабатываем Server-Sent Events из ответа
+                    await handleSSEProcessing(reader, new TextDecoder(), chunkedUploadToastId);
+                } catch (error) {
+                    throw error; // Пробрасываем ошибку для обработки в onError
+                }
+            },
+            onError: (error) => {
+                console.error('Ошибка в чанковой загрузке:', error);
+                throw error; // Пробрасываем ошибку для обработки в главном try/catch
+            }
+        });
+    }, [fileAudio, fileImage, chunkedUploadToastId, trackname, genre]);
+
+    // Create the uploader config but don't call the hook yet
+    const uploaderConfig = useMemo(() => {
+        if (!fileAudio) return null;
+        
+        return {
+            file: fileAudio,
+            onProgress: (progress: number, stage: string) => {
+                if (!chunkedUploadToastId) return;
+                
+                console.log(`Chunk upload progress: ${progress}% - ${stage}`);
+                setProcessingProgress(progress);
+                setProcessingStage(`${stage} (${Math.round(progress)}%)`);
+                
+                toast.loading(`${stage}: ${Math.round(progress)}%`, { 
+                    id: chunkedUploadToastId,
+                    style: {
+                        border: '1px solid #20DDBB',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                    },
+                    icon: '🧩'
+                });
+            },
+            onComplete: async (result: { segmentIds: string[], totalSize: number, originalFilename: string }) => {
+                if (!chunkedUploadToastId) return;
+                
+                console.log('Чанковая загрузка завершена:', result);
+                
+                // Теперь необходимо отправить запрос на склейку и обработку чанков
+                setProcessingStage('Processing uploaded chunks');
+                setProcessingProgress(30);
+                toast.loading(`Processing chunks: 30%`, { 
+                    id: chunkedUploadToastId,
+                    style: {
+                        border: '1px solid #20DDBB',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                    },
+                    icon: '🔄'
+                });
+                
+                try {
+                    // Создаем контроллер отмены
+                    const controller = new AbortController();
+                    setUploadController(controller);
+                    
+                    // Загружаем изображение
+                    let imageId = '';
+                    if (fileImage) {
+                        setProcessingStage('Uploading cover image');
+                        setProcessingProgress(35);
+                        toast.loading(`Uploading cover image: 0%`, { id: chunkedUploadToastId });
+                        
+                        const imageFormData = new FormData();
+                        imageFormData.append('image', fileImage);
+                        
+                        const imageResponse = await fetch('/api/images/upload', {
+                            method: 'POST',
+                            body: imageFormData,
+                            signal: controller.signal
+                        });
+                        
+                        if (!imageResponse.ok) {
+                            throw new Error('Failed to upload cover image');
+                        }
+                        
+                        const imageResult = await imageResponse.json();
+                        imageId = imageResult.imageId;
+                        
+                        setProcessingProgress(40);
+                        toast.loading(`Uploading cover image: 100%`, { id: chunkedUploadToastId });
+                    }
+                    
+                    // Отправляем запрос на обработку чанков
+                    setProcessingStage('Starting audio processing');
+                    setProcessingProgress(45);
+                    toast.loading(`Starting audio processing: 45%`, { id: chunkedUploadToastId });
+                    
+                    const processResponse = await fetch('/api/audio/process-chunks', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            segmentIds: result.segmentIds,
+                            originalFilename: result.originalFilename,
+                            totalSize: result.totalSize,
+                            trackname,
+                            genre,
+                            imageId
+                        }),
+                        signal: controller.signal
+                    });
+
+                    // Получаем reader и проверяем, что он существует
+                    const reader = processResponse.body?.getReader();
+                    if (!reader) {
+                        throw new Error('Failed to create reader for processing response');
+                    }
+                    
+                    // Обрабатываем Server-Sent Events из ответа
+                    await handleSSEProcessing(reader, new TextDecoder(), chunkedUploadToastId);
+                } catch (error) {
+                    throw error; // Пробрасываем ошибку для обработки в onError
+                }
+            },
+            onError: (error: Error) => {
+                console.error('Ошибка в чанковой загрузке:', error);
+                throw error; // Пробрасываем ошибку для обработки в главном try/catch
+            }
+        };
+    }, [fileAudio, fileImage, chunkedUploadToastId, trackname, genre]);
+
+    // Now call the hook directly in the component body
+    const chunkedUploader = uploaderConfig ? useChunkedUploader(uploaderConfig) : null;
+
     // Add this after the state declarations
     useEffect(() => {
         console.log("State changed:", {
@@ -1285,6 +1016,395 @@ export default function Upload() {
             processingProgress
         });
     }, [isProcessing, processingStage, processingProgress]);
+
+    // Определение всех необходимых функций-обработчиков
+    
+    // Функция для отмены загрузки
+    const handleCancelUpload = () => {
+        if (uploadController) {
+            uploadController.abort();
+        }
+        setIsCancelling(true);
+        setIsProcessing(false);
+        setUploadController(null);
+        setProcessingStage('');
+        setProcessingProgress(0);
+        
+        // Отменяем все активные тосты
+        if (chunkedUploadToastId) {
+            toast.dismiss(chunkedUploadToastId);
+            setChunkedUploadToastId(null);
+        }
+        
+        toast.error('Upload cancelled', {
+            style: {
+                border: '1px solid #FF4A4A',
+                padding: '16px',
+                color: '#ffffff',
+                background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                fontSize: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+            },
+            icon: '❌',
+            duration: 3000
+        });
+    };
+    
+    // Функция для управления воспроизведением аудио
+    const handleAudioPlay = () => {
+        if (!audioElement.current) return;
+        
+        if (isAudioPlaying) {
+            audioElement.current.pause();
+        } else {
+            audioElement.current.play();
+        }
+        
+        setIsAudioPlaying(!isAudioPlaying);
+    };
+    
+    // Функция для управления прогрессом воспроизведения аудио
+    const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!audioElement.current || !audioDuration) return;
+        
+        const progressBar = e.currentTarget;
+        const rect = progressBar.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const width = rect.width;
+        
+        // Вычисляем позицию в процентах и устанавливаем время воспроизведения
+        const percentage = offsetX / width;
+        const newTime = percentage * audioDuration;
+        
+        audioElement.current.currentTime = newTime;
+        setAudioProgress(percentage * 100);
+    };
+    
+    // Функция для очистки загруженного аудио
+    const clearAudio = () => {
+        if (audioElement.current) {
+            audioElement.current.pause();
+        }
+        
+        setFileAudio(null);
+        setIsAudioPlaying(false);
+        setAudioProgress(0);
+        setAudioDuration(0);
+    };
+    
+    // Функция для обработки выбора аудио файла
+    const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            
+            // Проверка на тип файла (должен быть WAV)
+            if (!file.type.includes('audio/wav')) {
+                toast.error('Please upload a WAV file', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️',
+                    duration: 3000
+                });
+                return;
+            }
+            
+            // Проверка на размер файла (до 200 МБ)
+            if (file.size > 200 * 1024 * 1024) {
+                toast.error('File size exceeds 200MB limit', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️',
+                    duration: 3000
+                });
+                return;
+            }
+            
+            setFileAudio(file);
+            
+            // Создаем аудио элемент для получения длительности и управления воспроизведением
+            const audio = new Audio(URL.createObjectURL(file));
+            audio.addEventListener('loadedmetadata', () => {
+                setAudioDuration(audio.duration);
+                audioElement.current = audio;
+                
+                // Обновляем прогресс воспроизведения
+                audio.addEventListener('timeupdate', () => {
+                    if (audio.duration) {
+                        setAudioProgress((audio.currentTime / audio.duration) * 100);
+                    }
+                });
+                
+                // Останавливаем воспроизведение по окончании
+                audio.addEventListener('ended', () => {
+                    setIsAudioPlaying(false);
+                    setAudioProgress(0);
+                    audio.currentTime = 0;
+                });
+            });
+            
+            // Уведомляем пользователя
+            toast.success('Audio file selected!', {
+                style: {
+                    border: '1px solid #20DDBB',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                },
+                icon: '🎵',
+                duration: 2000
+            });
+            
+            // Показываем уведомление об авторских правах
+            setTimeout(() => {
+                setShowCopyrightNotice(true);
+            }, 1000);
+        }
+    };
+    
+    // Функция для обработки выбора изображения
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            
+            // Проверка на тип файла (должно быть изображение)
+            if (!file.type.includes('image/')) {
+                toast.error('Please upload an image file', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️',
+                    duration: 3000
+                });
+                return;
+            }
+            
+            // Проверка на размер файла (до 5 МБ)
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('Image file size exceeds 5MB limit', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️',
+                    duration: 3000
+                });
+                return;
+            }
+            
+            setFileImage(file);
+            
+            // Создаем URL для предварительного просмотра
+            setImagePreview(URL.createObjectURL(file));
+            
+            // Уведомляем пользователя
+            toast.success('Cover image selected!', {
+                style: {
+                    border: '1px solid #20DDBB',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                },
+                icon: '🖼️',
+                duration: 2000
+            });
+        }
+    };
+    
+    // Функция для очистки загруженного изображения
+    const clearImage = () => {
+        setFileImage(null);
+        
+        // Очищаем URL предварительного просмотра
+        if (imagePreview) {
+            URL.revokeObjectURL(imagePreview);
+            setImagePreview(null);
+        }
+    };
+    
+    // Основная функция загрузки трека
+    const handleUpload = async () => {
+        // Проверка наличия всех необходимых данных
+        if (!fileAudio || !fileImage || !trackname || !genre) {
+            toast.error('Please fill in all required fields', {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️',
+                duration: 3000
+            });
+            return;
+        }
+        
+        // Устанавливаем состояние обработки
+        setIsProcessing(true);
+        setProcessingStage('Starting upload');
+        setProcessingProgress(0);
+        
+        try {
+            // Создаем уникальный ID для тоста
+            const toastId = 'upload-' + Date.now();
+            
+            // Начинаем показывать процесс загрузки
+            toast.loading('Starting upload...', { 
+                id: toastId,
+                style: {
+                    border: '1px solid #20DDBB',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(32, 221, 187, 0.2)'
+                },
+                icon: '🚀'
+            });
+            
+            // В зависимости от выбранного метода, вызываем соответствующую функцию загрузки
+            if (useChunkedMethod) {
+                // Используем функцию чанковой загрузки
+                await handleChunkedUpload(toastId);
+            } else {
+                // Логика для обычной загрузки (если она нужна)
+                toast.error('Standard upload method is not implemented yet', {
+                    id: toastId,
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️',
+                    duration: 3000
+                });
+                
+                setIsProcessing(false);
+                setProcessingStage('');
+                setProcessingProgress(0);
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке трека:', error);
+            
+            // Показываем ошибку пользователю
+            toast.error(`Failed to upload track: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+                style: {
+                    border: '1px solid #FF4A4A',
+                    padding: '16px',
+                    color: '#ffffff',
+                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                    fontSize: '16px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                },
+                icon: '⚠️',
+                duration: 5000
+            });
+            
+            // Сбрасываем состояние загрузки
+            setIsProcessing(false);
+            setProcessingStage('');
+            setProcessingProgress(0);
+            setChunkedUploadToastId(null);
+        }
+    };
+    
+    // Функция для полной очистки всех данных формы
+    const clearAll = () => {
+        // Очищаем аудио
+        clearAudio();
+        
+        // Очищаем изображение
+        clearImage();
+        
+        // Сбрасываем состояния формы
+        setTrackname('');
+        setGenre('');
+        
+        // Сбрасываем состояния обработки
+        setIsProcessing(false);
+        setProcessingStage('');
+        setProcessingProgress(0);
+        setUploadedTrackId('');
+        setChunkedUploadToastId(null);
+        
+        // Сбрасываем контроллеры
+        setUploadController(null);
+        
+        // Закрываем уведомления
+        setShowCopyrightNotice(false);
+        
+        // Перезагружаем страницу, если необходимо полностью сбросить состояние
+        // window.location.reload();
+    };
+
+    // Функция для чанкованной загрузки
+    const handleChunkedUpload = async (toastId: string) => {
+        try {
+            // Устанавливаем статус загрузки
+            setProcessingStage('Uploading audio in chunks');
+            setProcessingProgress(0);
+            
+            // Устанавливаем ID тоста для использования в колбэках хука
+            setChunkedUploadToastId(toastId);
+            
+            // Запускаем загрузку чанков через хук инициализированный через useMemo
+            if (!fileAudio) {
+                throw new Error("No audio file to upload");
+            }
+            
+            if (!chunkedUploader) {
+                throw new Error("Upload handler not initialized");
+            }
+            
+            // Вызываем метод загрузки
+            await chunkedUploader.uploadChunks();
+            
+        } catch (error) {
+            console.error('Ошибка в процессе чанкованной загрузки:', error);
+            setChunkedUploadToastId(null);
+            throw error; // Пробрасываем ошибку для обработки в главном try/catch
+        }
+    };
 
     if (!user) return null;
 
@@ -1505,73 +1625,80 @@ export default function Upload() {
                 </div>
 
                 {/* Upload button with info tooltip */}
-                <div className="mt-12 flex justify-end">
-                    <div className="relative group">
-                        <button
-                            onClick={isProcessing ? handleCancelUpload : handleUpload}
-                            disabled={(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing}
-                            className={`px-10 py-4 rounded-xl font-medium text-lg
-                                    transition-all duration-300 transform
-                                    ${(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing
-                                        ? 'bg-white/5 text-white/40 cursor-not-allowed'
-                                        : isProcessing 
-                                          ? 'bg-gradient-to-r from-[#0047AB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#018CFD]/20'
-                                          : 'bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#20DDBB]/20'
-                                    }`}
-                        >
-                            <div className="flex items-center">
-                                {isProcessing ? 'Cancel Upload' : 'Release Track'}
-                                {!isProcessing && (
-                                    <span className="ml-2 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">
-                                        i
-                                    </span>
-                                )}
-                            </div>
-                        </button>
+                <div className="mt-12">
+                    <UploadMethodToggle
+                        useChunkedMethod={useChunkedMethod}
+                        setUseChunkedMethod={setUseChunkedMethod}
+                    />
+                    
+                    <div className="flex justify-end mt-4">
+                        <div className="relative group">
+                            <button
+                                onClick={isProcessing ? handleCancelUpload : handleUpload}
+                                disabled={(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing}
+                                className={`px-10 py-4 rounded-xl font-medium text-lg
+                                        transition-all duration-300 transform
+                                        ${(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing
+                                            ? 'bg-white/5 text-white/40 cursor-not-allowed'
+                                            : isProcessing 
+                                              ? 'bg-gradient-to-r from-[#0047AB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#018CFD]/20'
+                                              : 'bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#20DDBB]/20'
+                                        }`}
+                            >
+                                <div className="flex items-center">
+                                    {isProcessing ? 'Cancel Upload' : 'Release Track'}
+                                    {!isProcessing && (
+                                        <span className="ml-2 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">
+                                            i
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
                         
-                        {/* Hover tooltip with validation info */}
-                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-[#2A184B] rounded-lg shadow-lg 
-                                      p-4 text-sm text-white/80 opacity-0 group-hover:opacity-100 transition-opacity 
-                                      pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-50
-                                      border border-[#20DDBB]/20 before:content-[''] before:absolute before:top-full 
-                                      before:right-4 before:border-l-[8px] before:border-l-transparent 
-                                      before:border-r-[8px] before:border-r-transparent before:border-t-[8px] 
-                                      before:border-t-[#2A184B]">
-                            <h4 className="font-medium text-[#20DDBB] mb-2">Before releasing:</h4>
-                            <ul className="space-y-1.5">
-                                <li className="flex items-start">
-                                    <span className={`mr-2 ${fileAudio ? 'text-green-400' : 'text-red-400'}`}>
-                                        {fileAudio ? '✓' : '×'}
-                                    </span>
-                                    <span>Audio file uploaded</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className={`mr-2 ${fileImage ? 'text-green-400' : 'text-red-400'}`}>
-                                        {fileImage ? '✓' : '×'}
-                                    </span>
-                                    <span>Cover image selected</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className={`mr-2 ${trackname ? 'text-green-400' : 'text-red-400'}`}>
-                                        {trackname ? '✓' : '×'}
-                                    </span>
-                                    <span>Track name provided</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className={`mr-2 ${genre ? 'text-green-400' : 'text-red-400'}`}>
-                                        {genre ? '✓' : '×'}
-                                    </span>
-                                    <span>Genre selected</span>
-                                </li>
-                            </ul>
-                            
-                            <div className="mt-4 pt-3 border-t border-white/10">
-                                <p className="text-xs text-[#20DDBB]/90 font-medium">
-                                    By clicking "Release Track" you agree to and sign the royalty agreement with Sacral Track.
-                                </p>
-                                <Link href="/terms" className="text-white/60 text-xs hover:text-[#20DDBB] mt-1 block transition-colors">
-                                    Read full agreement →
-                                </Link>
+                            {/* Hover tooltip with validation info */}
+                            <div className="absolute bottom-full right-0 mb-2 w-64 bg-[#2A184B] rounded-lg shadow-lg 
+                                          p-4 text-sm text-white/80 opacity-0 group-hover:opacity-100 transition-opacity 
+                                          pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-50
+                                          border border-[#20DDBB]/20 before:content-[''] before:absolute before:top-full 
+                                          before:right-4 before:border-l-[8px] before:border-l-transparent 
+                                          before:border-r-[8px] before:border-r-transparent before:border-t-[8px] 
+                                          before:border-t-[#2A184B]">
+                                <h4 className="font-medium text-[#20DDBB] mb-2">Before releasing:</h4>
+                                <ul className="space-y-1.5">
+                                    <li className="flex items-start">
+                                        <span className={`mr-2 ${fileAudio ? 'text-green-400' : 'text-red-400'}`}>
+                                            {fileAudio ? '✓' : '×'}
+                                        </span>
+                                        <span>Audio file uploaded</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className={`mr-2 ${fileImage ? 'text-green-400' : 'text-red-400'}`}>
+                                            {fileImage ? '✓' : '×'}
+                                        </span>
+                                        <span>Cover image selected</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className={`mr-2 ${trackname ? 'text-green-400' : 'text-red-400'}`}>
+                                            {trackname ? '✓' : '×'}
+                                        </span>
+                                        <span>Track name provided</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className={`mr-2 ${genre ? 'text-green-400' : 'text-red-400'}`}>
+                                            {genre ? '✓' : '×'}
+                                        </span>
+                                        <span>Genre selected</span>
+                                    </li>
+                                </ul>
+                                
+                                <div className="mt-4 pt-3 border-t border-white/10">
+                                    <p className="text-xs text-[#20DDBB]/90 font-medium">
+                                        By clicking "Release Track" you agree to and sign the royalty agreement with Sacral Track.
+                                    </p>
+                                    <Link href="/terms" className="text-white/60 text-xs hover:text-[#20DDBB] mt-1 block transition-colors">
+                                        Read full agreement →
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>
