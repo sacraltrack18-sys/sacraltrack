@@ -28,8 +28,6 @@ export const config = {
   matcher: [
     '/upload', 
     '/upload/:path*', 
-    '/upload', 
-    '/api/audio/:path*',
-    '/upload/*'
+    '/api/audio/:path*'
   ],
 }; 
