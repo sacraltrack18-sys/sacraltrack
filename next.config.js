@@ -22,6 +22,7 @@ const nextConfig = {
     // CORS and security headers
     async headers() {
         return [
+            // Основные заголовки CORS для всех страниц
             {
                 source: '/(.*)',
                 headers: [
@@ -36,7 +37,27 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
+                    }
+                ]
+            },
+            // Строгие заголовки безопасности только для страницы загрузки
+            {
+                source: '/upload',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
                     },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'require-corp'
+                    }
+                ]
+            },
+            // API для обработки аудио тоже требует заголовков безопасности
+            {
+                source: '/api/audio/:path*',
+                headers: [
                     {
                         key: 'Cross-Origin-Opener-Policy',
                         value: 'same-origin'
