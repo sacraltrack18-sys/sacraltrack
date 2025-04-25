@@ -40,7 +40,7 @@ const nextConfig = {
                     }
                 ]
             },
-            // Заголовки безопасности для страницы загрузки (дублирование для надежности)
+            // Заголовки безопасности только для страницы загрузки и обработки аудио
             {
                 source: '/upload',
                 headers: [
@@ -81,6 +81,16 @@ const nextConfig = {
                     }
                 ]
             },
+            // Добавляем специальные заголовки для обеспечения корректной работы изображений
+            {
+                source: '/((?!upload|api/audio).*)',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    }
+                ]
+            },
             // Cache static assets
             {
                 source: '/images/(.*)',
@@ -88,6 +98,11 @@ const nextConfig = {
                     {
                         key: 'Cache-Control',
                         value: 'public, max-age=31536000, immutable'
+                    },
+                    // Разрешаем встраивание изображений на других страницах
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
                     }
                 ]
             },

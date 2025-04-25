@@ -9,6 +9,11 @@ export default function SharedArrayBufferError() {
     window.location.reload();
   };
 
+  // Функция для перехода только на страницу загрузки
+  const handleRedirectToUpload = () => {
+    window.location.href = '/upload';
+  };
+
   return (
     <motion.div 
       className="max-w-2xl mx-auto p-6 bg-gradient-to-br from-[#2A184B] to-[#1f1239] rounded-xl shadow-lg border border-[#20DDBB]/10 mt-8"
@@ -33,6 +38,7 @@ export default function SharedArrayBufferError() {
               <li>Вы используете режим инкогнито</li>
               <li>Вы используете устаревший браузер</li>
               <li>Необходимые заголовки безопасности не были применены</li>
+              <li>Вы пытаетесь использовать обработку аудио не на странице загрузки</li>
             </ul>
           </div>
           
@@ -43,11 +49,18 @@ export default function SharedArrayBufferError() {
               <li>Выйдите из режима инкогнито, если он используется</li>
               <li>Попробуйте обновить страницу</li>
               <li>Попробуйте очистить кэш и cookies</li>
+              <li>Перейдите непосредственно на страницу загрузки</li>
               <li>Если проблема не решается, обратитесь в службу поддержки</li>
             </ul>
           </div>
           
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end space-x-4">
+            <button
+              onClick={handleRedirectToUpload}
+              className="bg-[#1a0f2e] text-white font-medium py-2 px-4 rounded-lg hover:bg-[#2a184b] transition-colors"
+            >
+              Перейти на страницу загрузки
+            </button>
             <button
               onClick={handleReload}
               className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white font-medium py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"

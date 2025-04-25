@@ -72,6 +72,13 @@ export const useClientAudioProcessor = () => {
     // Проверка поддержки SharedArrayBuffer
     if (typeof SharedArrayBuffer === 'undefined') {
       console.error('SharedArrayBuffer не поддерживается в этом браузере или отсутствуют необходимые заголовки безопасности');
+      
+      // Проверка текущего URL
+      const isUploadPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/upload');
+      if (!isUploadPage) {
+        throw new Error('Обработка аудио с WebAssembly доступна только на странице загрузки (/upload). На других страницах приложения строгие заголовки безопасности отключены для корректной загрузки изображений.');
+      }
+      
       throw new Error('Ваш браузер не поддерживает некоторые функции, необходимые для обработки аудио. Возможные причины: использование режима инкогнито, отсутствие заголовков безопасности на сервере или старая версия браузера.');
     }
 
