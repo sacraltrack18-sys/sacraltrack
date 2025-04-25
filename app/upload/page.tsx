@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ID } from 'appwrite';
 import { storage } from '@/libs/AppWriteClient';
+import { checkSecurityHeaders } from './header-checker';
 
 import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
@@ -1369,6 +1370,13 @@ export default function Upload() {
             processingProgress
         });
     }, [isProcessing, processingStage, processingProgress]);
+
+    // Проверка заголовков безопасности при загрузке компонента
+    React.useEffect(() => {
+        // Проверяем заголовки безопасности
+        const hasProperHeaders = checkSecurityHeaders();
+        console.log('Security headers check result:', hasProperHeaders);
+    }, []);
 
     if (!user) return null;
 
