@@ -40,47 +40,6 @@ const nextConfig = {
                     }
                 ]
             },
-            // Строгие заголовки безопасности для страницы загрузки и подпутей
-            {
-                source: '/upload',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    },
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    }
-                ]
-            },
-            {
-                source: '/upload/:path*',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    },
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    }
-                ]
-            },
-            // API для обработки аудио тоже требует заголовков безопасности
-            {
-                source: '/api/audio/:path*',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    },
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    }
-                ]
-            },
             // Cache static assets
             {
                 source: '/images/(.*)',
