@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ID } from 'appwrite';
 import { storage } from '@/libs/AppWriteClient';
-import { checkSecurityHeaders } from './header-checker';
+import { checkSecurityHeaders, setupNavigationHandlers } from './header-checker';
 
 import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
@@ -1381,6 +1381,14 @@ export default function Upload() {
         if (hasProperHeaders) {
             console.log('Headers are correctly set, SharedArrayBuffer should be available');
         }
+        
+        // Настраиваем обработчики навигации для страницы /upload
+        const cleanupHandlers = setupNavigationHandlers();
+        
+        // Очистка при размонтировании компонента
+        return () => {
+            if (cleanupHandlers) cleanupHandlers();
+        };
     }, []);
 
     if (!user) return null;

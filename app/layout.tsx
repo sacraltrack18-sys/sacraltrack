@@ -8,6 +8,7 @@ import Background from '@/app/components/Background';
 import { PlayerProvider } from '@/app/context/playerContext'; 
 import GlobalLoader from './components/GlobalLoader'
 import ClientWelcomeModal from './components/ClientWelcomeModal';
+import HeadersManager from './components/HeadersManager';
 import Script from 'next/script';
 import { OnboardingProvider } from './context/OnboardingContext';
 import { ShareVibeProvider } from './components/vibe/useShareVibe';
@@ -97,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <OnboardingProvider>
                             <ShareVibeProvider appName="Sacral Track">
                                 <AuthErrorHandler>
+                                    <HeadersManager />
                                     <Toaster 
                                         position="top-center"
                                         containerStyle={{
