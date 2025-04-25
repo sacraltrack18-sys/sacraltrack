@@ -8,8 +8,11 @@ export function middleware(request: NextRequest) {
   // Проверяем, является ли текущий URL страницей загрузки
   const url = request.nextUrl.pathname;
   
-  // Применяем строгие заголовки безопасности только для страницы загрузки и ее API
-  if (url.startsWith('/upload') || url.startsWith('/api/audio/process')) {
+  // Применяем строгие заголовки безопасности для страницы загрузки и подпутей
+  if (url === '/upload' || 
+      url.startsWith('/upload/') || 
+      url === '/api/audio/process' || 
+      url.startsWith('/api/audio/process/')) {
     // Добавляем необходимые заголовки для SharedArrayBuffer
     response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
@@ -23,7 +26,17 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// Применяем middleware ко всем маршрутам, кроме статических ресурсов и API
+// Применяем middleware, исключая статические ресурсы
 export const config = {
-  matcher: '/((?!_next/static|_next/image|favicon.ico).*)',
+  matcher: [
+    /*
+     * Match all request paths except:
+     * 1. /api/auth routes
+     * 2. /_next (Next.js internals)
+     * 3. /fonts, /icons (inside public directory)
+     * 4. /favicon.ico, /sitemap.xml (static files)
+     * 5. all files in the public directory
+     */
+    '/((?!api/auth|_next/static|_next/image|fonts/|icons/|favicon.ico|sitemap.xml|robots.txt|.+\\.png|.+\\.jpg|.+\\.jpeg|.+\\.gif|.+\\.webp).*)',
+  ],
 }; 

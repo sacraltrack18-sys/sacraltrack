@@ -20,6 +20,18 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
       return;
     }
 
+    // Проверяем доступность SharedArrayBuffer в браузере
+    if (typeof SharedArrayBuffer === 'undefined') {
+      console.error('SharedArrayBuffer недоступен. Проверьте заголовки безопасности на сервере.');
+      setStatus('error');
+      onError(`Для обработки аудио требуется поддержка SharedArrayBuffer. 
+      Пожалуйста, убедитесь, что:
+      1. Вы используете современный браузер (Chrome, Firefox, Edge)
+      2. Вы не в режиме инкогнито
+      3. Страница загружена по HTTPS с правильными заголовками безопасности`);
+      return;
+    }
+
     const handleProcessing = async () => {
       try {
         setStatus('processing');
