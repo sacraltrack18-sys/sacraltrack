@@ -3,17 +3,37 @@
 import { useState, useCallback } from 'react';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
+/**
+ * Параметры для функции обработки аудио
+ * @param audioFile - Исходный WAV-файл для обработки
+ * @param onProgress - Опциональный колбэк для отслеживания прогресса
+ */
 interface ProcessAudioParams {
   audioFile: File;
   onProgress?: (stage: string, progress: number, message?: string) => void;
 }
 
+/**
+ * Представляет один сегмент аудио для HLS-стриминга
+ * @property name - Имя сегмента
+ * @property data - Бинарные данные сегмента
+ * @property file - Объект File для загрузки на сервер
+ */
 interface AudioSegment {
   name: string;
   data: Uint8Array;
   file: File;
 }
 
+/**
+ * Результат процесса обработки аудио
+ * @property success - Флаг успешного завершения
+ * @property mp3File - Готовый MP3-файл
+ * @property segments - Массив сегментов для HLS
+ * @property m3u8Content - Содержимое M3U8 плейлиста
+ * @property duration - Длительность аудио в секундах
+ * @property error - Сообщение об ошибке, если процесс не удался
+ */
 interface ProcessAudioResult {
   success: boolean;
   mp3File?: File;
@@ -96,7 +116,14 @@ export const useClientAudioProcessor = () => {
     return m3u8Content;
   }, []);
 
-  // Основная функция для обработки аудио
+  /**
+   * Основная функция для обработки аудио
+   * Выполняет следующие шаги:
+   * 1. Загрузка FFmpeg WebAssembly
+   * 2. Конвертация WAV в MP3
+   * 3. Сегментация MP3 для HLS
+   * 4. Создание M3U8 плейлиста
+   */
   const processAudio = useCallback(async ({ audioFile, onProgress }: ProcessAudioParams): Promise<ProcessAudioResult> => {
     if (!audioFile) {
       return { success: false, error: 'Аудио файл не предоставлен' };
