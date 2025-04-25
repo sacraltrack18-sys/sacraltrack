@@ -36,6 +36,14 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'require-corp'
                     }
                 ]
             },
