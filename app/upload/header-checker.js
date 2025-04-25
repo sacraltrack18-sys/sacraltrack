@@ -7,8 +7,30 @@ export function checkSecurityHeaders() {
   // Проверка наличия SharedArrayBuffer
   if (typeof SharedArrayBuffer !== 'undefined') {
     console.log('✅ SharedArrayBuffer is available!');
+    // Clear reload attempts counter if headers are good
+    if (window.sessionStorage.getItem('headerReloadAttempts')) {
+      window.sessionStorage.removeItem('headerReloadAttempts');
+    }
+    return true;
   } else {
     console.error('❌ SharedArrayBuffer is NOT available!');
+    
+    // Get current reload attempts
+    let attempts = parseInt(window.sessionStorage.getItem('headerReloadAttempts') || '0');
+    
+    // Try reloading page a maximum of 2 times to get headers applied
+    if (attempts < 2) {
+      attempts++;
+      window.sessionStorage.setItem('headerReloadAttempts', attempts.toString());
+      console.log(`Reloading page to apply headers (attempt ${attempts}/2)...`);
+      
+      // Small delay before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+      return false;
+    }
   }
   
   // Попробуем получить информацию о заголовках косвенным путем

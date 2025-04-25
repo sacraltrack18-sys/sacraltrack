@@ -1376,6 +1376,11 @@ export default function Upload() {
         // Проверяем заголовки безопасности
         const hasProperHeaders = checkSecurityHeaders();
         console.log('Security headers check result:', hasProperHeaders);
+        
+        // Если заголовки проверены и все в порядке, можно переходить к обработке
+        if (hasProperHeaders) {
+            console.log('Headers are correctly set, SharedArrayBuffer should be available');
+        }
     }, []);
 
     if (!user) return null;

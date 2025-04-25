@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useClientAudioProcessor } from '@/app/hooks/useClientAudioProcessor';
 import { motion } from 'framer-motion';
+import SharedArrayBufferError from './SharedArrayBufferError';
 
 interface ClientAudioProcessorProps {
   audioFile: File | null;
@@ -14,6 +15,7 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
   const { processAudio, isProcessing, progress, stage } = useClientAudioProcessor();
   const [status, setStatus] = useState<'idle' | 'processing' | 'error' | 'completed'>('idle');
   const [currentTask, setCurrentTask] = useState<string>('');
+  const [showSharedArrayBufferError, setShowSharedArrayBufferError] = useState<boolean>(false);
 
   useEffect(() => {
     if (!audioFile) {
@@ -24,6 +26,7 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
     if (typeof SharedArrayBuffer === 'undefined') {
       console.error('SharedArrayBuffer недоступен. Проверьте заголовки безопасности на сервере.');
       setStatus('error');
+      setShowSharedArrayBufferError(true);
       onError(`Для обработки аудио требуется поддержка SharedArrayBuffer. 
       Пожалуйста, убедитесь, что:
       1. Вы используете современный браузер (Chrome, Firefox, Edge)
@@ -58,6 +61,7 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
         // Проверяем, связана ли ошибка с SharedArrayBuffer
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('SharedArrayBuffer') || errorMessage.includes('browser')) {
+          setShowSharedArrayBufferError(true);
           onError(`Ошибка обработки: ${errorMessage}. 
           Рекомендации: 
           1. Используйте последнюю версию Chrome, Firefox или Edge
@@ -72,25 +76,31 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
     handleProcessing();
   }, [audioFile, processAudio, onProcessed, onError]);
 
+  if (showSharedArrayBufferError) {
+    return <SharedArrayBufferError />;
+  }
+
   if (!isProcessing && status !== 'processing') {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
       <motion.div 
-        className="bg-gradient-to-br from-[#2A184B] to-[#1f1239] p-6 rounded-2xl shadow-xl border border-[#20DDBB]/20 w-[90%] max-w-md"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
+        className="bg-gradient-to-br from-[#2A184B] to-[#1f1239] p-8 rounded-xl max-w-lg w-full mx-4 shadow-xl border border-[#20DDBB]/10"
       >
-        <div className="text-center">
-          <h3 className="text-2xl font-semibold text-white mb-4">Обработка аудио</h3>
-          <p className="text-white/70 mb-2">{stage}</p>
-          {currentTask && <p className="text-white/50 text-sm mb-6">{currentTask}</p>}
-          
-          {/* Progress bar */}
-          <div className="w-full h-3 bg-[#20DDBB]/10 rounded-full overflow-hidden mb-4">
+        <div className="text-center mb-4">
+          <h3 className="text-xl font-bold text-white">Обработка аудио</h3>
+          <p className="text-white/70 text-sm mt-1">
+            Происходит обработка прямо в вашем браузере, подождите...
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <p className="text-[#20DDBB] font-medium mb-2">{currentTask || stage}</p>
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
             <motion.div 
               className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD]"
               initial={{ width: 0 }}
@@ -98,16 +108,11 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
               transition={{ duration: 0.3 }}
             />
           </div>
-          
-          <div className="flex justify-between text-sm text-white/60 mb-6">
-            <span>Прогресс: {progress}%</span>
-            <span>{stage}</span>
-          </div>
-          
-          <div className="text-center text-white/60 text-sm">
-            <p>Пожалуйста, не закрывайте это окно до завершения обработки.</p>
-            <p className="mt-2 text-xs">Вся обработка происходит локально на вашем устройстве.</p>
-          </div>
+          <p className="text-right text-white/70 text-sm mt-1">{progress}%</p>
+        </div>
+
+        <div className="mt-6 text-center text-white/50 text-xs">
+          <p>Обработка выполняется локально на вашем устройстве, <br />данные не отправляются на сервер</p>
         </div>
       </motion.div>
     </div>
