@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useClientAudioProcessor } from '@/app/hooks/useClientAudioProcessor';
 import { motion } from 'framer-motion';
-import SharedArrayBufferError from './SharedArrayBufferError';
 
 interface ClientAudioProcessorProps {
   audioFile: File | null;
@@ -15,23 +14,23 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
   const { processAudio, isProcessing, progress, stage } = useClientAudioProcessor();
   const [status, setStatus] = useState<'idle' | 'processing' | 'error' | 'completed'>('idle');
   const [currentTask, setCurrentTask] = useState<string>('');
-  const [showSharedArrayBufferError, setShowSharedArrayBufferError] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     if (!audioFile) {
       return;
     }
 
-    // Проверяем доступность SharedArrayBuffer в браузере
+    // Check for SharedArrayBuffer availability in the browser
     if (typeof SharedArrayBuffer === 'undefined') {
-      console.error('SharedArrayBuffer недоступен. Проверьте заголовки безопасности на сервере.');
+      console.error('SharedArrayBuffer is not available. Check security headers on the server.');
       setStatus('error');
-      setShowSharedArrayBufferError(true);
-      onError(`Для обработки аудио требуется поддержка SharedArrayBuffer. 
-      Пожалуйста, убедитесь, что:
-      1. Вы используете современный браузер (Chrome, Firefox, Edge)
-      2. Вы не в режиме инкогнито
-      3. Страница загружена по HTTPS с правильными заголовками безопасности`);
+      setErrorMessage('Audio processing requires SharedArrayBuffer support.');
+      onError(`Audio processing requires SharedArrayBuffer support.
+      Please make sure that:
+      1. You are using a modern browser
+      2. You are not in incognito mode
+      3. The page is loaded via HTTPS with proper security headers`);
       return;
     }
 
@@ -52,22 +51,21 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
           onProcessed(result.mp3File, result.segments, result.m3u8Content, result.duration);
         } else {
           setStatus('error');
-          onError(result.error || 'Неизвестная ошибка при обработке');
+          setErrorMessage(result.error || 'Unknown error during processing');
+          onError(result.error || 'Unknown error during processing');
         }
       } catch (error) {
         console.error('Audio processing error:', error);
         setStatus('error');
         
-        // Проверяем, связана ли ошибка с SharedArrayBuffer
+        // Check if the error is related to SharedArrayBuffer
         const errorMessage = error instanceof Error ? error.message : String(error);
+        
         if (errorMessage.includes('SharedArrayBuffer') || errorMessage.includes('browser')) {
-          setShowSharedArrayBufferError(true);
-          onError(`Ошибка обработки: ${errorMessage}. 
-          Рекомендации: 
-          1. Используйте последнюю версию Chrome, Firefox или Edge
-          2. Не используйте режим инкогнито
-          3. Если проблема не решена, обратитесь в поддержку`);
+          setErrorMessage('Audio processing error: unable to use SharedArrayBuffer');
+          onError(`Audio processing error: ${errorMessage}`);
         } else {
+          setErrorMessage(errorMessage);
           onError(errorMessage);
         }
       }
@@ -76,8 +74,44 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
     handleProcessing();
   }, [audioFile, processAudio, onProcessed, onError]);
 
-  if (showSharedArrayBufferError) {
-    return <SharedArrayBufferError />;
+  if (status === 'error') {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-br from-[#2A184B] to-[#1f1239] p-8 rounded-xl max-w-lg w-full mx-4 shadow-xl border border-[#20DDBB]/10"
+        >
+          <div className="text-center mb-4">
+            <h3 className="text-xl font-bold text-white">Audio Processing Error</h3>
+            <p className="text-white/70 text-sm mt-3">
+              {errorMessage}
+            </p>
+          </div>
+
+          <div className="mt-6">
+            <div className="bg-[#1a0f2e] p-4 rounded-lg mb-4">
+              <h4 className="text-white font-semibold mb-2">Recommendations:</h4>
+              <ul className="list-disc list-inside text-white/70 space-y-1 text-sm">
+                <li>Make sure you're using a modern browser</li>
+                <li>Don't use incognito mode</li>
+                <li>Verify the page is loaded via HTTPS</li>
+                <li>Try refreshing the page</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white font-medium py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
   }
 
   if (!isProcessing && status !== 'processing') {
@@ -92,9 +126,9 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
         className="bg-gradient-to-br from-[#2A184B] to-[#1f1239] p-8 rounded-xl max-w-lg w-full mx-4 shadow-xl border border-[#20DDBB]/10"
       >
         <div className="text-center mb-4">
-          <h3 className="text-xl font-bold text-white">Обработка аудио</h3>
+          <h3 className="text-xl font-bold text-white">Audio Processing</h3>
           <p className="text-white/70 text-sm mt-1">
-            Происходит обработка прямо в вашем браузере, подождите...
+            Processing is happening directly in your browser, please wait...
           </p>
         </div>
 
@@ -112,7 +146,7 @@ const ClientAudioProcessor = ({ audioFile, onProcessed, onError }: ClientAudioPr
         </div>
 
         <div className="mt-6 text-center text-white/50 text-xs">
-          <p>Обработка выполняется локально на вашем устройстве, <br />данные не отправляются на сервер</p>
+          <p>Processing is done locally on your device, <br />data is not sent to the server</p>
         </div>
       </motion.div>
     </div>

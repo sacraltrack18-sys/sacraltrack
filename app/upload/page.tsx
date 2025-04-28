@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ID } from 'appwrite';
 import { storage } from '@/libs/AppWriteClient';
-import { checkSecurityHeaders, setupNavigationHandlers } from './header-checker';
 
 import TopNav from '@/app/layouts/includes/TopNav';
 import AudioPlayer from '../components/upload/AudioPlayer';
@@ -110,7 +109,7 @@ export default function Upload() {
     const [uploadedTrackId, setUploadedTrackId] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     
-    // Добавим состояние для контроля отмены
+    // Add state for cancellation control
     const [isCancelling, setIsCancelling] = useState(false);
     const [uploadController, setUploadController] = useState<AbortController | null>(null);
 
@@ -142,10 +141,10 @@ export default function Upload() {
         }
     }, [createPostHook]);
 
-    // Очистка при размонтировании компонента
+    // Cleanup when component unmounts
     useEffect(() => {
         return () => {
-            // Отменяем все незавершенные загрузки при уходе со страницы
+            // Cancel all unfinished uploads when leaving the page
             if (uploadController) {
                 uploadController.abort();
             }
@@ -268,7 +267,7 @@ export default function Upload() {
         setIsProcessing(false);
     };
 
-    // Функция отмены загрузки
+    // Cancel upload function
     const handleCancelUpload = () => {
         if (!uploadController) {
             console.log("No active upload to cancel");
@@ -278,7 +277,7 @@ export default function Upload() {
         console.log("Cancelling upload process");
         setIsCancelling(true);
         
-        // Показываем пользователю, что идет отмена
+        // Show the user that cancellation is in progress
         toast.loading('Cancelling upload...', { 
             id: 'cancel-toast',
             style: {
@@ -292,7 +291,7 @@ export default function Upload() {
             icon: '🛑'
         });
         
-        // Отмена запроса и загрузки
+        // Cancel request and upload
         console.log("Aborting upload controller");
         uploadController.abort();
         
@@ -353,7 +352,7 @@ export default function Upload() {
         setClientMp3Duration(duration);
         setShowAudioProcessor(false);
         
-        toast.success('Аудио успешно обработано', {
+        toast.success('Audio successfully processed', {
             style: {
                 border: '1px solid #20DDBB',
                 padding: '16px',
@@ -374,7 +373,7 @@ export default function Upload() {
         setAudioProcessingError(error);
         setShowAudioProcessor(false);
         
-        toast.error(`Ошибка обработки аудио: ${error}`, {
+        toast.error(`Audio processing error: ${error}`, {
             style: {
                 border: '1px solid #FF4A4A',
                 padding: '16px',
@@ -389,11 +388,11 @@ export default function Upload() {
         });
     };
 
-    // Обновленная функция загрузки файла с использованием клиентской загрузки
+    // Updated upload function using client-side upload
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Валидация
+        // Validation
         if (!fileAudio) {
             toast.error('Please select an audio file', {
                 style: {
@@ -442,58 +441,58 @@ export default function Upload() {
         }
 
         // Set initial stage
-        setIsProcessing(true);
-        setProcessingStage('Preparing upload');
-        setProcessingProgress(0);
-        
-        // Add a small delay to ensure state updates are processed
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        console.log("State after setting:", {
-            isProcessing: true,
-            processingStage: 'Preparing upload',
-            processingProgress: 0
-        });
-
-        // Check file size (not more than 200 MB)
-        const fileSizeInMB = fileAudio.size / (1024 * 1024);
-        if (fileSizeInMB > 200) {
-            toast.error('File size must not exceed 200 MB', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⚠️'
+            setIsProcessing(true);
+            setProcessingStage('Preparing upload');
+            setProcessingProgress(0);
+            
+            // Add a small delay to ensure state updates are processed
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log("State after setting:", {
+                isProcessing: true,
+                processingStage: 'Preparing upload',
+                processingProgress: 0
             });
-            setIsProcessing(false);
-            return;
-        }
+
+            // Check file size (not more than 200 MB)
+            const fileSizeInMB = fileAudio.size / (1024 * 1024);
+            if (fileSizeInMB > 200) {
+                toast.error('File size must not exceed 200 MB', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
+                setIsProcessing(false);
+                return;
+            }
 
         // Check audio duration (not more than 12 minutes)
-        if (audioDuration > 12 * 60) {
-            toast.error('Track duration must not exceed 12 minutes', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⏱️'
-            });
+            if (audioDuration > 12 * 60) {
+                toast.error('Track duration must not exceed 12 minutes', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⏱️'
+                });
             setIsProcessing(false);
-            return;
-        }
+                return;
+            }
 
         try {
-            // Создаем тост для отображения прогресса
+            // Create toast to display progress
             const toastId = toast.loading('Starting upload...', {
                 style: {
                     border: '1px solid #20DDBB',
@@ -506,12 +505,12 @@ export default function Upload() {
                 },
                 icon: '🚀'
             });
-            
-            // Используем прямую клиентскую загрузку аудио файла
+
+            // Use direct client-side upload for audio file
             setProcessingStage('Uploading WAV');
             setProcessingProgress(0);
             
-            // Сначала загружаем WAV файл напрямую с клиента в Appwrite
+            // First upload the WAV file directly from the client to Appwrite
             const audioUploadResult = await clientUploadHook.uploadAudio(fileAudio, (stage, progress) => {
                 setProcessingProgress(progress);
                 toast.loading(`Uploading WAV: ${Math.round(progress)}%`, { id: toastId });
@@ -521,7 +520,7 @@ export default function Upload() {
                 throw new Error(`Failed to upload audio: ${audioUploadResult.error}`);
             }
             
-            // Загружаем изображение
+            // Upload image
             setProcessingStage('Uploading cover image');
             const imageUploadResult = await clientUploadHook.uploadImage(fileImage, (stage, progress) => {
                 const scaledProgress = 40 + (progress / 100) * 20;
@@ -533,7 +532,7 @@ export default function Upload() {
                 throw new Error(`Failed to upload image: ${imageUploadResult.error}`);
             }
             
-            // Теперь отправляем запрос на обработку аудио, передавая только идентификаторы файлов
+            // Now send a request to process the audio, passing only the file identifiers
             setProcessingStage('Processing audio');
             setProcessingProgress(60);
             toast.loading(`Processing audio... This may take a while.`, { id: toastId });
@@ -546,7 +545,7 @@ export default function Upload() {
                 userId: user?.id
             };
             
-            // Отправляем запрос на обработку аудио
+            // Send request to process audio
             const processResponse = await fetch('/api/audio/process', {
                 method: 'POST',
                 headers: {
@@ -568,7 +567,7 @@ export default function Upload() {
                 throw new Error(errorMessage);
             }
             
-            // Читаем Server-Sent Events для получения обновлений о прогрессе
+            // Read Server-Sent Events to get progress updates
             const reader = processResponse.body?.getReader();
             const decoder = new TextDecoder();
             
@@ -576,7 +575,7 @@ export default function Upload() {
                 throw new Error('Failed to create reader from response');
             }
             
-            // Обрабатываем события прогресса
+            // Process progress events
             await handleSSEProcessing(reader, decoder, toastId);
             
         } catch (error) {
@@ -584,22 +583,22 @@ export default function Upload() {
             console.error('Upload error:', error);
             
             toast.error(`Failed to upload track: ${errorMessage}`, {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
-                icon: '⚠️',
-                duration: 5000
-            });
-            
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
+                        icon: '⚠️',
+                        duration: 5000
+                    });
+                    
             // Reset processing state
-            setIsProcessing(false);
-            setUploadController(null);
+                    setIsProcessing(false);
+                    setUploadController(null);
         }
     };
     
@@ -613,18 +612,18 @@ export default function Upload() {
             return;
         }
         
-        // Базовые проверки
+        // Basic checks
         if (!fileAudio || !fileImage || !trackname || !genre) {
             toast.error('Please fill in all required fields', {
-                style: {
-                    border: '1px solid #FF4A4A',
-                    padding: '16px',
-                    color: '#ffffff',
-                    background: 'linear-gradient(to right, #2A184B, #1f1239)',
-                    fontSize: '16px',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
-                },
+                        style: {
+                            border: '1px solid #FF4A4A',
+                            padding: '16px',
+                            color: '#ffffff',
+                            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                            fontSize: '16px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                        },
                 icon: '❌'
             });
             return;
@@ -648,11 +647,11 @@ export default function Upload() {
         });
         
         try {
-            // Создаем M3U8 файл и готовим сегменты для загрузки
+            // Create M3U8 file and prepare segments for upload
             const segmentFiles = clientSegments.map(segment => segment.file);
             const m3u8File = new File([clientM3u8Content], 'playlist.m3u8', { type: 'application/vnd.apple.mpegurl' });
             
-            // Используем клиентский хук для создания поста с сегментами
+            // Use the client hook to create a post with segments
             const result = await clientCreatePostHook.createPost({
                 audio: fileAudio,
                 mp3: clientMp3File || undefined,
@@ -673,7 +672,7 @@ export default function Upload() {
                 throw new Error(result.error || 'Failed to create post');
             }
             
-            // Показываем сообщение об успешной загрузке
+            // Show successful upload message
             toast.success('Track uploaded successfully!', {
                 id: toastId,
                 style: {
@@ -689,11 +688,11 @@ export default function Upload() {
                 duration: 5000
             });
             
-            // Показываем модальное окно с успешной загрузкой
+            // Show success modal
             setUploadedTrackId(result.trackId);
             setShowSuccessModal(true);
             
-            // Сбрасываем состояние формы
+            // Reset form state
             clearAll();
             setIsProcessing(false);
         } catch (error) {
@@ -718,7 +717,7 @@ export default function Upload() {
             setIsProcessing(false);
         }
     };
-
+    
     // Separate function to handle SSE processing
     const handleSSEProcessing = async (reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, toastId: string) => {
         try {
@@ -772,12 +771,12 @@ export default function Upload() {
                 for (const update of messages) {
                     console.log('Received update type:', update.type);
                     
-                    // Обработка ошибок сервера
+                    // Server error handling
                     if (update.type === 'error') {
                         const errorMessage = update.message || 'Server error during audio processing';
                         console.error('Server processing error:', errorMessage);
                         
-                        // Вывод подробностей ошибки, если они есть
+                        // Output error details if available
                         if (update.details) {
                             console.error('Error details:', update.details);
                         }
@@ -800,10 +799,10 @@ export default function Upload() {
                             duration: 5000
                         });
                         
-                        // Сбрасываем состояния обработки
+                        // Reset processing states
                         setIsProcessing(false);
                         setUploadController(null);
-                        return; // Прерываем обработку при ошибке
+                        return; // Stop processing on error
                     }
                     
                     if (update.type === 'progress') {
@@ -1331,13 +1330,11 @@ export default function Upload() {
                             console.error('Error during Appwrite upload:', error);
                             throw new Error(`Appwrite upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                         }
-                    } else if (update.type === 'error') {
-                        throw new Error(update.error || 'An error occurred during audio processing');
                     }
                 }
             }
         } catch (error) {
-            // Улучшенная обработка ошибок при чтении потока SSE
+            // Improved error handling when reading SSE stream
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error processing server-sent events:', error);
             
@@ -1373,21 +1370,11 @@ export default function Upload() {
 
     // Проверка заголовков безопасности при загрузке компонента
     React.useEffect(() => {
-        // Проверяем заголовки безопасности
-        const hasProperHeaders = checkSecurityHeaders();
-        console.log('Security headers check result:', hasProperHeaders);
-        
-        // Если заголовки проверены и все в порядке, можно переходить к обработке
-        if (hasProperHeaders) {
-            console.log('Headers are correctly set, SharedArrayBuffer should be available');
-        }
-        
-        // Настраиваем обработчики навигации для страницы /upload
-        const cleanupHandlers = setupNavigationHandlers();
+        console.log('Upload page initialized');
         
         // Очистка при размонтировании компонента
         return () => {
-            if (cleanupHandlers) cleanupHandlers();
+            console.log('Unmounting Upload component');
         };
     }, []);
 
@@ -1618,13 +1605,13 @@ export default function Upload() {
                     </div>
                 </div>
 
-                {/* Upload button with info tooltip */}
+                {/* Upload button with info tooltip - сделаем более округлым */}
                 <div className="mt-12 flex justify-end">
                     <div className="relative group">
                         <button
                             onClick={isProcessing ? handleCancelUpload : handleDirectUpload}
                             disabled={(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing}
-                            className={`px-10 py-4 rounded-xl font-medium text-lg
+                            className={`px-10 py-4 rounded-full font-medium text-lg
                                     transition-all duration-300 transform
                                     ${(!fileAudio || !fileImage || !trackname || !genre) && !isProcessing
                                         ? 'bg-white/5 text-white/40 cursor-not-allowed'

@@ -5,41 +5,102 @@
 // Функция для постановки/снятия лайка вайбу
 export async function toggleVibeVote(vibeId: string, userId: string) {
   // Максимальное количество повторных попыток при ошибке
-  const maxRetries = 2;
+  const maxRetries = 3;
   let currentRetry = 0;
+  
+  // Добавляем дебаунс для предотвращения спам-кликов
+  const debounceKey = `vibe_like_${vibeId}_${userId}`;
+  const lastRequestTime = localStorage.getItem(debounceKey);
+  const now = Date.now();
+  
+  // Если последний запрос был менее 1 секунды назад, предотвращаем новый запрос
+  if (lastRequestTime && now - parseInt(lastRequestTime) < 1000) {
+    console.log('[VibeAction] Throttling like request to prevent spam');
+    throw new Error('Please wait before trying again');
+  }
+  
+  // Сохраняем время запроса
+  localStorage.setItem(debounceKey, now.toString());
+  
+  // Генерируем уникальный идентификатор запроса для отслеживания
+  const requestUuid = Math.random().toString(36).substring(2, 15);
+  console.log(`[VibeAction] Starting toggle vibe vote request ${requestUuid} for vibe ${vibeId}`);
   
   while (currentRetry <= maxRetries) {
     try {
       // Если это повторная попытка, добавляем задержку
       if (currentRetry > 0) {
-        console.log(`Retry attempt ${currentRetry} for toggle vibe vote`);
+        console.log(`[VibeAction] Retry attempt ${currentRetry}/${maxRetries} for toggle vibe vote request ${requestUuid}`);
         await new Promise(resolve => setTimeout(resolve, 500 * currentRetry));
       }
       
+      // Собираем данные для отправки
+      const payload = {
+        user_id: userId,
+        vibe_id: vibeId,
+        timestamp: new Date().toISOString(), // Добавляем временную метку для уникальности запроса
+        request_id: requestUuid // Добавляем идентификатор запроса для отслеживания
+      };
+      
+      console.log(`[VibeAction] Sending request ${requestUuid}: ${JSON.stringify(payload)}`);
+      
+      // Создаем контроллер для отмены запроса с увеличенным таймаутом для повторных попыток
+      const controller = new AbortController();
+      const timeout = 10000 + (currentRetry * 2000); // Увеличиваем таймаут для каждой повторной попытки
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      try {
       const response = await fetch('/api/vibes/like', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          vibe_id: vibeId
-        })
-      });
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'X-Request-ID': requestUuid, // Добавляем идентификатор запроса в заголовок
+            'X-Retry-Count': currentRetry.toString() // Добавляем счетчик попыток
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+          // Важно: отключаем кэширование
+          cache: 'no-store'
+        });
+        
+        // Очищаем таймаут
+        clearTimeout(timeoutId);
+        
+        console.log(`[VibeAction] Request ${requestUuid} received response with status ${response.status}`);
 
       // Проверяем HTTP-статус
       if (!response.ok) {
+          // Пытаемся извлечь детали ошибки
+          let errorMessage;
+          let errorDetails;
+          
+          try {
         const errorData = await response.json();
-        const errorMessage = errorData.error || 'Error updating vibe like';
+            errorMessage = errorData.error || `Server returned ${response.status}`;
+            errorDetails = errorData.details;
+            console.error(`[VibeAction] Request ${requestUuid} error details:`, errorData);
+          } catch (parseError) {
+            errorMessage = `Server returned ${response.status} (${response.statusText})`;
+            console.error(`[VibeAction] Request ${requestUuid} could not parse error response:`, parseError);
+          }
         
         // Если это ошибка авторизации, не повторяем попытку
         if (response.status === 401 || response.status === 403) {
           throw new Error(`Authentication error: ${errorMessage}`);
         }
+          
+          // Если это 404, значит ресурс не найден - тоже не повторяем попытку
+          if (response.status === 404) {
+            throw new Error(`Resource not found: ${errorMessage}`);
+          }
         
         // Если это серверная ошибка, увеличиваем счетчик повторов
         if (response.status >= 500) {
           currentRetry++;
+            console.error(`[VibeAction] Server error ${response.status} for request ${requestUuid}: ${errorMessage}`);
+            
           // Если исчерпали все попытки, выбрасываем ошибку
           if (currentRetry > maxRetries) {
             throw new Error(`Server error after ${maxRetries} retries: ${errorMessage}`);
@@ -52,26 +113,68 @@ export async function toggleVibeVote(vibeId: string, userId: string) {
         throw new Error(errorMessage);
       }
 
-      // Успешный ответ - возвращаем данные
-      return await response.json();
+        // Успешный ответ - парсим и проверяем данные
+        const data = await response.json();
+        console.log(`[VibeAction] Request ${requestUuid} successful response:`, data);
+        
+        // Проверяем структуру ответа
+        if (!data || (data.count === undefined && data.action === undefined)) {
+          console.error('[VibeAction] Invalid response format:', data);
+          throw new Error('Invalid server response format');
+        }
+        
+        // Возвращаем проверенные данные
+        return {
+          count: typeof data.count === 'number' ? data.count : 0,
+          action: data.action || (data.count > 0 ? 'liked' : 'unliked')
+        };
+      } catch (fetchError) {
+        // Очищаем таймаут в случае ошибки
+        clearTimeout(timeoutId);
+        
+        // Проверяем, была ли отмена запроса из-за таймаута
+        if (fetchError.name === 'AbortError') {
+          console.error(`[VibeAction] Request ${requestUuid} timed out after ${timeout}ms`);
+          
+          // Увеличиваем счетчик попыток при таймауте
+          currentRetry++;
+          
+          // Если не исчерпали попытки, продолжаем
+          if (currentRetry <= maxRetries) {
+            continue;
+          }
+          
+          throw new Error(`Request timed out after ${maxRetries} attempts. Please try again later.`);
+        }
+        
+        // Пробрасываем ошибку дальше
+        throw fetchError;
+      }
     } catch (error) {
       // Для сетевых ошибок пробуем повторные запросы
       if (
         error instanceof Error && 
-        (error.message.includes('network') || error.message.includes('timeout') || error.message.includes('Failed to fetch'))
+        (error.message.includes('network') || 
+         error.message.includes('timeout') || 
+         error.message.includes('Failed to fetch') ||
+         error.message.includes('Network request failed'))
       ) {
         currentRetry++;
         if (currentRetry <= maxRetries) {
-          console.warn(`Network error, retrying (${currentRetry}/${maxRetries}):`, error);
+          console.warn(`[VibeAction] Network error for request ${requestUuid}, retrying (${currentRetry}/${maxRetries}):`, error);
           continue;
         }
       }
       
-      // Выбрасываем ошибку для обработки в компоненте
-      console.error('Error toggling vibe vote:', error);
+      // Если это не сетевая ошибка или исчерпаны попытки,
+      // выбрасываем ошибку для обработки в компоненте
+      console.error(`[VibeAction] Error in toggleVibeVote request ${requestUuid}:`, error);
       throw error;
     }
   }
+  
+  // Этот код не должен выполняться, но добавим его для TypeScript
+  throw new Error(`[VibeAction] Unexpected error in toggleVibeVote request ${requestUuid}`);
 }
 
 // Функция для получения статуса лайка

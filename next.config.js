@@ -24,8 +24,51 @@ const nextConfig = {
         return [
             // Основные заголовки CORS для всех страниц
             {
-                source: '/(.*)',
+                source: '/((?!upload|api/audio).*)',
                 headers: [
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, PUT, DELETE, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    // Более гибкие настройки для всех страниц, разрешающие внешние переходы
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'unsafe-none'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'unsafe-none'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    }
+                ]
+            },
+            // Настройки для страницы upload и вложенных маршрутов с использованием credentialless
+            {
+                source: '/upload/:path*',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    },
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
                     {
                         key: 'Access-Control-Allow-Origin',
                         value: '*'
@@ -40,7 +83,7 @@ const nextConfig = {
                     }
                 ]
             },
-            // Заголовки безопасности только для страницы загрузки и обработки аудио
+            // Отдельно для корневого пути /upload также с credentialless
             {
                 source: '/upload',
                 headers: [
@@ -50,24 +93,27 @@ const nextConfig = {
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    }
-                ]
-            },
-            {
-                source: '/upload/:slug*',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
+                        value: 'credentialless'
                     },
                     {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, PUT, DELETE, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization'
                     }
                 ]
             },
-            // Добавляем заголовки для API аудио маршрутов
+            // Аналогично для API аудио-маршрутов также с credentialless
             {
                 source: '/api/audio/:path*',
                 headers: [
@@ -77,17 +123,23 @@ const nextConfig = {
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    }
-                ]
-            },
-            // Добавляем специальные заголовки для обеспечения корректной работы изображений
-            {
-                source: '/((?!upload|api/audio).*)',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
                         value: 'credentialless'
+                    },
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, PUT, DELETE, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization'
                     }
                 ]
             },
@@ -98,11 +150,6 @@ const nextConfig = {
                     {
                         key: 'Cache-Control',
                         value: 'public, max-age=31536000, immutable'
-                    },
-                    // Разрешаем встраивание изображений на других страницах
-                    {
-                        key: 'Cross-Origin-Resource-Policy',
-                        value: 'cross-origin'
                     }
                 ]
             },

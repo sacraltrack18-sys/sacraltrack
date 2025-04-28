@@ -243,7 +243,7 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
   if (!isHomePage) return null;
 
   return (
-    <div className="relative flex items-center" ref={searchContainerRef}>
+    <div className="relative flex items-center justify-end md:justify-start" ref={searchContainerRef}>
       <button
         id="search-button"
         onClick={() => setShowSearch(!showSearch)}
@@ -261,7 +261,7 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
             animate={{ width: "min(350px, 80vw)", opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="absolute right-12 top-1/2 -translate-y-1/2 z-50"
+            className="absolute right-12 md:left-12 top-1/2 -translate-y-1/2 z-50 origin-right md:origin-left w-[calc(100vw-80px)] md:w-auto"
           >
             <div className="relative">
               <input
@@ -295,7 +295,8 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                   className="absolute top-full mt-2 w-full bg-gradient-to-b from-[#24183D] to-[#1D1131] rounded-xl 
-                           shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto border border-indigo-900/50"
+                           shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto border border-indigo-900/50 
+                           right-0 md:left-0"
                 >
                   {searchProfiles.length === 0 && !isLoading ? (
                     <div className="py-6 px-4 text-center">

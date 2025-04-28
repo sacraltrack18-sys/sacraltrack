@@ -1111,8 +1111,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
                             whileTap={{ scale: 0.97 }}
                             aria-label={`Buy track ${post.trackname} for $2`}
                         >
-                            <span className="text-lg">$2</span>
-                            <span className="font-semibold">Buy Track</span>
+                            <span className="font-semibold">Buy</span>
                             {isProcessingPayment && (
                                 <motion.div
                                     className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"

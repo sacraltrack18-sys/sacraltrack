@@ -357,6 +357,9 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   }, [comments]);
 
+  // Добавляем состояние для отслеживания запроса лайка в процессе
+  const [isLikeInProgress, setIsLikeInProgress] = useState(false);
+
   const handleLikeToggle = async () => {
     if (!user) {
       setIsLoginOpen(true);
@@ -367,7 +370,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     const wasLiked = isLiked;
     const prevLikesCount = likesCount;
 
+    // Prevent spamming the like button
+    if (isLikeInProgress) {
+      return;
+    }
+
     try {
+      // Set flag to prevent multiple simultaneous requests
+      setIsLikeInProgress(true);
+
+      // Добавляем визуальную индикацию процесса лайка
+      console.log(`[VIBE-CARD] Toggling like for vibe ${vibe.id} by user ${user.id}`);
+      
       // Optimistically update UI first
       if (isLiked) {
         setIsLiked(false);
@@ -379,85 +393,88 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         setLikesCount(prev => prev === 0 ? 1 : prev + 1);
       }
 
-      // Make API call with retry logic
-      let success = false;
-      let retryCount = 0;
-      const maxRetries = 2;
-      
-      while (!success && retryCount <= maxRetries) {
-        try {
-          // Add a small delay before retrying
-          if (retryCount > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+      // Создаем уникальный ID операции для отладки
+      const operationId = Math.random().toString(36).substring(2, 10);
+      console.log(`[VIBE-CARD] Starting like operation ${operationId} for vibe ${vibe.id}`);
+
+      try {
+        // Сразу отправляем запрос к API напрямую
+        const response = await toggleVibeVote(vibe.id, user.id);
+        
+        // Если мы дошли сюда, запрос был успешным
+        if (response && response.count !== undefined) {
+          console.log(`[VIBE-CARD] Like operation ${operationId} succeeded. Action: ${response.action}, Count: ${response.count}`);
+          
+          // Принудительно обновляем UI с сервера, а не полагаемся на оптимистичное обновление
+          setLikesCount(response.count);
+          setIsLiked(response.action === 'liked');
+          
+          // Обновляем статистику в объекте вайба
+          if (vibe.stats) {
+            if (Array.isArray(vibe.stats)) {
+              const updatedStats = [...vibe.stats];
+              updatedStats[0] = response.count.toString();
+              vibe.stats = updatedStats;
+            } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+              vibe.stats = {
+                ...vibe.stats,
+                total_likes: response.count
+              };
+            }
           }
           
-          // Call API directly to toggle like state
-          const response = await toggleVibeVote(vibe.id, user.id);
+          // Вызываем соответствующий колбэк
+          if (response.action === 'liked' && onLike) {
+            onLike(vibe.id);
+          } else if (response.action === 'unliked' && onUnlike) {
+            onUnlike(vibe.id);
+          }
           
-          // If we get here, the request was successful
-          if (response && response.count !== undefined) {
-            setLikesCount(response.count);
-            setIsLiked(response.action === 'liked');
-            success = true;
-            
-            // Call appropriate callback
-            if (response.action === 'liked' && onLike) {
-              onLike(vibe.id);
-            } else if (response.action === 'unliked' && onUnlike) {
-              onUnlike(vibe.id);
-            }
-            
-            // Also update the store to keep state in sync
+          // Также обновляем хранилище для синхронизации состояния
+          try {
             if (response.action === 'liked' && likeVibe) {
               await likeVibe(vibe.id, user.id);
             } else if (response.action === 'unliked' && unlikeVibe) {
               await unlikeVibe(vibe.id, user.id);
             }
-          } else {
-            // Handle unexpected response format
-            throw new Error('Invalid response format');
+          } catch (storeError) {
+            // Если обновление хранилища не удалось, логируем ошибку, но не показываем пользователю
+            console.error(`[VIBE-CARD] Store update error in operation ${operationId}:`, storeError);
           }
-
-          // Update actual stats after a short delay
-          setTimeout(() => refreshVibeStats(), 500);
-        } catch (retryError) {
-          retryCount++;
-          console.error(`Retry ${retryCount}/${maxRetries} failed:`, retryError);
-          
-          // If we've exhausted all retries, throw the error to be caught by outer try/catch
-          if (retryCount > maxRetries) {
-            throw retryError;
-          }
+        } else {
+          // Обрабатываем неожиданный формат ответа
+          console.error(`[VIBE-CARD] Invalid response format in operation ${operationId}:`, response);
+          throw new Error('Invalid response format');
         }
+
+        // Обновляем актуальную статистику после небольшой задержки
+        refreshVibeStats();
+      } catch (apiError) {
+        // Если произошла ошибка при вызове API, откатываем оптимистичное обновление
+        console.error(`[VIBE-CARD] API error in like operation ${operationId}:`, apiError);
+        
+        // Восстанавливаем исходное состояние
+        setIsLiked(wasLiked);
+        setLikesCount(prevLikesCount);
+        
+        // Показываем понятное сообщение об ошибке пользователю
+        if (apiError.message?.includes('timeout') || apiError.message?.includes('network')) {
+          toast.error('Проблема с сетью. Пожалуйста, проверьте соединение.');
+        } else if (apiError.message?.includes('auth') || apiError.message?.includes('401')) {
+          toast.error('Требуется авторизация. Пожалуйста, войдите в аккаунт снова.');
+          // Открываем форму логина, если это ошибка авторизации
+          setIsLoginOpen(true);
+        } else {
+          toast.error('Не удалось обновить лайк. Пожалуйста, попробуйте позже.');
+        }
+        
+        throw apiError; // Пробрасываем ошибку дальше для обработки
       }
     } catch (error) {
-      console.error('Error toggling like:', error);
-      
-      // Revert to previous state in case of error
-      setIsLiked(wasLiked);
-      setLikesCount(prevLikesCount);
-      
-      let errorMessage = 'Could not update like. Please try again.';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('network') || error.message.includes('connection')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = 'Request timed out. Please try again.';
-        } else if (error.message.includes('unauthorized')) {
-          errorMessage = 'You need to log in again to perform this action.';
-          setIsLoginOpen(true);
-        }
-      }
-      
-      toast.error(errorMessage, {
-        duration: 3000,
-        style: {
-          background: '#333',
-          color: '#fff',
-          borderRadius: '10px'
-        }
-      });
+      console.error(`[VIBE-CARD] General error handling like toggle:`, error);
+    } finally {
+      // Всегда сбрасываем флаг, независимо от результата
+      setIsLikeInProgress(false);
     }
   };
 
@@ -475,6 +492,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     if (!vibe.id) return;
     
     try {
+      console.log(`[VIBE-CARD] Refreshing stats for vibe ${vibe.id}`);
       const vibeDoc = await database.getDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
@@ -486,15 +504,33 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         const stats = vibeDoc.stats;
         
         if (Array.isArray(stats)) {
-          setLikesCount(parseInt(stats[0], 10) || 0);
-          setCommentsCount(parseInt(stats[1], 10) || 0);
+          const newLikesCount = parseInt(stats[0], 10) || 0;
+          const newCommentsCount = parseInt(stats[1], 10) || 0;
+          
+          console.log(`[VIBE-CARD] Stats refreshed: likes=${newLikesCount}, comments=${newCommentsCount}`);
+          
+          setLikesCount(newLikesCount);
+          setCommentsCount(newCommentsCount);
+          
+          // Обновляем объект вайба тоже для согласованности
+          vibe.stats = stats;
         } else if (typeof stats === 'object') {
-          setLikesCount(stats.total_likes || 0);
-          setCommentsCount(stats.total_comments || 0);
+          const newLikesCount = stats.total_likes || 0;
+          const newCommentsCount = stats.total_comments || 0;
+          
+          console.log(`[VIBE-CARD] Stats refreshed: likes=${newLikesCount}, comments=${newCommentsCount}`);
+          
+          setLikesCount(newLikesCount);
+          setCommentsCount(newCommentsCount);
+          
+          // Обновляем объект вайба тоже для согласованности
+          vibe.stats = stats;
         }
+      } else {
+        console.log(`[VIBE-CARD] No stats found in refreshed vibe document`);
       }
     } catch (error) {
-      console.error('Error refreshing vibe stats:', error);
+      console.error('[VIBE-CARD] Error refreshing vibe stats:', error);
     }
   };
 

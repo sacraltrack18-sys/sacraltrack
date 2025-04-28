@@ -1194,12 +1194,16 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 bg-black/70 backdrop-blur-md z-[99999] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           className="bg-gradient-to-br from-[#2A2151] to-[#1E1A36] rounded-2xl max-w-md w-full p-8 text-center border border-white/10 shadow-xl"
+          onClick={e => e.stopPropagation()}
         >
           <h3 className="text-white text-2xl font-bold mb-4">Sign In Required</h3>
           <p className="text-gray-300 mb-8">
@@ -1224,7 +1228,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-md z-[99999] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div

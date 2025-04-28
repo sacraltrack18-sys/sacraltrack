@@ -87,6 +87,7 @@ interface UserVerificationCardProps {
   userPhone?: number;
   onEmailVerified?: () => void;
   onPhoneVerified?: (phoneNumber: number) => void;
+  showPhoneVerification?: boolean;
 }
 
 interface VerificationStepProps {
@@ -212,7 +213,8 @@ export default function UserVerificationCard({
   userEmail,
   userPhone,
   onEmailVerified,
-  onPhoneVerified
+  onPhoneVerified,
+  showPhoneVerification = true
 }: UserVerificationCardProps) {
   const [isFullyVerified, setIsFullyVerified] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
@@ -642,7 +644,7 @@ export default function UserVerificationCard({
                 </div>
               </motion.div>
               
-              <PhoneVerificationStep />
+              {showPhoneVerification && <PhoneVerificationStep />}
               
               {isFullyVerified && (
               <div className="gradient-border always-glow mt-6">

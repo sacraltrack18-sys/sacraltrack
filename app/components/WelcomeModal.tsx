@@ -233,7 +233,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-xl modal-overlay"
+          className="fixed inset-0 z-[999990] flex items-center justify-center bg-black/70 backdrop-blur-xl modal-overlay"
           onClick={handleOutsideClick}
         >
           <motion.div
@@ -241,7 +241,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 20, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-11/12 max-w-4xl overflow-y-auto max-h-[90vh] rounded-2xl bg-[#1A2338]/70 backdrop-blur-xl shadow-2xl border border-white/10 will-change-transform"
+            className="relative w-11/12 max-w-4xl overflow-y-auto max-h-[90vh] rounded-2xl bg-[#1A2338]/70 backdrop-blur-xl shadow-2xl border border-white/10 will-change-transform z-[1000000] modal-content"
           >
             {/* Упрощенные статические элементы фона */}
             <div className="absolute inset-0 overflow-hidden">

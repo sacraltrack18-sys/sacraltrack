@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { database, ID, Query, account } from "@/libs/AppWriteClient";
 import { APPWRITE_CONFIG } from "@/libs/AppWriteClient";
 import { cookies } from "next/headers";
+// Импортируем node-appwrite для серверных операций
+import * as NodeAppwrite from 'node-appwrite';
+
+// Проверка наличия ID коллекции для лайков вайбов
+if (!APPWRITE_CONFIG.vibeLikesCollectionId) {
+  console.error("ERROR: vibeLikesCollectionId is not set in APPWRITE_CONFIG");
+}
+
+const VIBE_LIKES_COLLECTION_ID = APPWRITE_CONFIG.vibeLikesCollectionId || process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES || '67f22ff30010feacfd1b';
 
 // Улучшенная проверка активной сессии пользователя
 async function verifyUserSession(userId: string): Promise<boolean> {
@@ -39,9 +48,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { user_id, vibe_id } = body;
 
-    if (!user_id || !vibe_id) {
+    console.log(`[VIBE-LIKE] Processing like request for vibe ${vibe_id} from user ${user_id}`);
+    console.log(`[VIBE-LIKE] Using collection ID: ${VIBE_LIKES_COLLECTION_ID}`);
+
+    // Более детальная проверка входных данных
+    if (!user_id) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing user_id field" },
+        { status: 400 }
+      );
+    }
+    
+    if (!vibe_id) {
+      return NextResponse.json(
+        { error: "Missing vibe_id field" },
         { status: 400 }
       );
     }
@@ -57,31 +77,133 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Проверяем, существует ли вайб перед работой с лайками
+    try {
+      const vibeExists = await database.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+        vibe_id
+      );
+      
+      if (!vibeExists || !vibeExists.$id) {
+        return NextResponse.json(
+          { error: "Vibe not found" },
+          { status: 404 }
+        );
+      }
+    } catch (vibeError) {
+      // Если вайб не найден, сообщаем об этом
+      console.error("Error checking vibe existence:", vibeError);
+      return NextResponse.json(
+        { error: "Vibe not found or unable to access" },
+        { status: 404 }
+      );
+    }
+
     // Проверяем, существует ли уже лайк
-    const existingLikes = await database.listDocuments(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.vibeLikesCollectionId, // ID коллекции vibe_likes
-      [
-        Query.equal("user_id", user_id),
-        Query.equal("vibe_id", vibe_id)
-      ]
-    );
+    let existingLikes;
+    try {
+      existingLikes = await database.listDocuments(
+        APPWRITE_CONFIG.databaseId,
+        VIBE_LIKES_COLLECTION_ID, // Используем константу с ID коллекции vibe_likes
+        [
+          Query.equal("user_id", user_id),
+          Query.equal("vibe_id", vibe_id)
+        ]
+      );
+      
+      console.log(`[VIBE-LIKE] Found ${existingLikes.documents.length} existing likes`);
+      
+    } catch (listError) {
+      console.error("Error listing existing likes:", listError);
+      console.error(`Database ID: ${APPWRITE_CONFIG.databaseId}, Collection ID: ${VIBE_LIKES_COLLECTION_ID}`);
+      return NextResponse.json(
+        { error: "Failed to check existing likes", details: listError.message || "Unknown error" },
+        { status: 500 }
+      );
+    }
 
     // Если лайк уже существует, удаляем его (анлайк)
     if (existingLikes.documents.length > 0) {
-      await database.deleteDocument(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.vibeLikesCollectionId, // ID коллекции vibe_likes
-        existingLikes.documents[0].$id
-      );
+      try {
+        const likeToDelete = existingLikes.documents[0];
+        const likeId = likeToDelete.$id;
+        
+        // Проверяем, что получили валидный ID
+        if (!likeId) {
+          console.error("Invalid like document structure:", likeToDelete);
+          return NextResponse.json(
+            { error: "Invalid like document structure" },
+            { status: 500 }
+          );
+        }
+        
+        console.log(`[VIBE-LIKE] Attempting to delete like with ID: ${likeId}`);
+        
+        // Делаем более надежное удаление с перехватом возможных ошибок
+        try {
+          // Пробуем получить документ перед удалением чтобы убедиться, что он существует
+          await database.getDocument(
+            APPWRITE_CONFIG.databaseId,
+            VIBE_LIKES_COLLECTION_ID,
+            likeId
+          );
+          
+          // Если документ существует, удаляем его
+          await database.deleteDocument(
+            APPWRITE_CONFIG.databaseId,
+            VIBE_LIKES_COLLECTION_ID,
+            likeId
+          );
+          
+          console.log(`[VIBE-LIKE] Successfully deleted like with ID: ${likeId}`);
+        } catch (docError) {
+          // Если ошибка связана с тем, что документ не найден (404), 
+          // продолжаем как будто он был удален успешно
+          if (docError.code === 404) {
+            console.log(`[VIBE-LIKE] Like document with ID ${likeId} already deleted or not found`);
+          } else {
+            // Для других ошибок логируем и выбрасываем исключение
+            console.error(`[VIBE-LIKE] Error deleting like with ID ${likeId}:`, docError);
+            throw docError;
+          }
+        }
 
-      // Возвращаем обновленный счетчик лайков
-      const updatedLikesCount = await getLikesCount(vibe_id);
-      return NextResponse.json({ 
-        success: true, 
-        action: "unliked",
-        count: updatedLikesCount
-      });
+        // Обновляем счетчик лайков в документе вайба
+        try {
+          await updateVibeStats(vibe_id);
+        } catch (statsError) {
+          console.error("Error while updating vibe stats after unlike:", statsError);
+          // Продолжаем выполнение даже при ошибке обновления статистики
+        }
+
+        // Возвращаем обновленный счетчик лайков
+        const updatedLikesCount = await getLikesCount(vibe_id);
+        return NextResponse.json({ 
+          success: true, 
+          action: "unliked",
+          count: updatedLikesCount
+        });
+      } catch (deleteError) {
+        console.error("Detailed error when deleting like:", deleteError);
+        
+        // Проверяем на специфические ошибки Appwrite
+        if (deleteError.code === 401 || deleteError.code === 403) {
+          return NextResponse.json(
+            { error: "You don't have permission to remove this like" },
+            { status: deleteError.code }
+          );
+        }
+        
+        return NextResponse.json(
+          { 
+            error: "Failed to remove like", 
+            details: deleteError.message || "Unknown database error",
+            code: deleteError.code || 500
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Иначе создаем новый лайк
@@ -91,7 +213,7 @@ export async function POST(request: NextRequest) {
       // Создаем документ только с необходимыми и существующими полями
       const newLike = await database.createDocument(
         APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.vibeLikesCollectionId, // ID коллекции vibe_likes
+        VIBE_LIKES_COLLECTION_ID, // Используем константу с ID коллекции vibe_likes
         ID.unique(),
         {
           user_id: user_id,
@@ -101,6 +223,17 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      console.log(`[VIBE-LIKE] Successfully created new like with ID: ${newLike.$id}`);
+
+      // Обновляем счетчик лайков в документе вайба
+      try {
+        await updateVibeStats(vibe_id);
+      } catch (statsError) {
+        console.error("Error while updating vibe stats:", statsError);
+        // Продолжаем выполнение даже при ошибке обновления статистики,
+        // так как основная операция (создание лайка) уже успешно выполнена
+      }
+
       // Возвращаем обновленный счетчик лайков
       const updatedLikesCount = await getLikesCount(vibe_id);
       return NextResponse.json({ 
@@ -109,7 +242,7 @@ export async function POST(request: NextRequest) {
         count: updatedLikesCount,
         like: newLike.$id // Возвращаем только ID созданного лайка, а не весь объект
       });
-    } catch (dbError: any) {
+    } catch (dbError) {
       console.error("Database error when creating like:", dbError);
       
       // Проверяем на ошибки авторизации из Appwrite
@@ -125,10 +258,16 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      throw dbError; // Re-throw для обработки в блоке catch
+      return NextResponse.json(
+        { 
+          error: dbError.message || "Database error occurred",
+          details: JSON.stringify(dbError)
+        },
+        { status: 500 }
+      );
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error managing like:", error);
     
     // Определяем HTTP-статус исходя из типа ошибки
@@ -147,7 +286,10 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: error.message || errorMessage },
+      { 
+        error: error.message || errorMessage,
+        details: error.stack ? error.stack.split('\n')[0] : 'No stack trace'
+      },
       { status }
     );
   }
@@ -158,7 +300,7 @@ async function getLikesCount(vibe_id: string): Promise<number> {
   try {
     const likesData = await database.listDocuments(
       APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.vibeLikesCollectionId, // ID коллекции vibe_likes
+      VIBE_LIKES_COLLECTION_ID, // Используем константу с ID коллекции vibe_likes
       [
         Query.equal("vibe_id", vibe_id)
       ]
@@ -167,6 +309,65 @@ async function getLikesCount(vibe_id: string): Promise<number> {
     return likesData.total;
   } catch (error) {
     console.error("Error counting likes:", error);
+    return 0;
+  }
+}
+
+// Функция для обновления статистики вайба
+async function updateVibeStats(vibe_id: string): Promise<void> {
+  try {
+    // Создаем серверного клиента Appwrite с API-ключом для обхода проблем с авторизацией
+    const client = new NodeAppwrite.Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL!)
+      .setProject(process.env.NEXT_PUBLIC_ENDPOINT!)
+      .setKey(process.env.APPWRITE_API_KEY!);
+
+    const databases = new NodeAppwrite.Databases(client);
+    
+    // Получаем текущий вайб
+    const vibe = await databases.getDocument(
+      APPWRITE_CONFIG.databaseId,
+      process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+      vibe_id
+    );
+    
+    // Получаем количество лайков и комментариев
+    const [likesCount, commentsCount] = await Promise.all([
+      getLikesCount(vibe_id),
+      getCommentsCount(vibe_id)
+    ]);
+    
+    // Обновляем документ вайба через серверный клиент
+    await databases.updateDocument(
+      APPWRITE_CONFIG.databaseId,
+      process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+      vibe_id,
+      {
+        stats: [likesCount, commentsCount]
+      }
+    );
+    
+    console.log(`[VIBE-LIKE] Successfully updated vibe stats: likes=${likesCount}, comments=${commentsCount}`);
+  } catch (error) {
+    console.error("Error updating vibe stats:", error);
+    throw error; // Re-throw the error to properly handle it in the calling function
+  }
+}
+
+// Функция для получения количества комментариев для вайба
+async function getCommentsCount(vibe_id: string): Promise<number> {
+  try {
+    const commentsData = await database.listDocuments(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.vibeCommentsCollectionId, // ID коллекции vibe_comments
+      [
+        Query.equal("vibe_id", vibe_id)
+      ]
+    );
+    
+    return commentsData.total;
+  } catch (error) {
+    console.error("Error counting comments:", error);
     return 0;
   }
 }
@@ -193,37 +394,25 @@ export async function GET(request: NextRequest) {
     if (user_id) {
       const userLikes = await database.listDocuments(
         APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.vibeLikesCollectionId, // ID коллекции vibe_likes
+        VIBE_LIKES_COLLECTION_ID, // Используем константу с ID коллекции vibe_likes
         [
           Query.equal("user_id", user_id),
           Query.equal("vibe_id", vibe_id)
         ]
       );
       
-      hasLiked = userLikes.documents.length > 0;
+      hasLiked = userLikes.total > 0;
     }
 
     return NextResponse.json({
       count: likesCount,
       hasLiked
     });
-
-  } catch (error: any) {
-    console.error("Error getting likes info:", error);
-    
-    // Определяем HTTP-статус исходя из типа ошибки
-    let status = 500;
-    if (error.code === 401) {
-      status = 401;
-    } else if (error.code === 403) {
-      status = 403;
-    } else if (error.code === 404) {
-      status = 404;
-    }
-    
+  } catch (error) {
+    console.error("Error getting likes:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to get likes information" },
-      { status }
+      { error: "Failed to get likes information" },
+      { status: 500 }
     );
   }
 } 

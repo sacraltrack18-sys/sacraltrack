@@ -185,8 +185,30 @@
   position: fixed;
   inset: 0;
   z-index: 9999 !important;
-  background-color: rgba(0, 0, 0, 0.95) !important;
-  backdrop-filter: blur(10px) !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(15px) !important;
+}
+
+/* Специальные стили для WelcomeModal с максимальным z-index */
+.welcome-modal-wrapper {
+  position: relative;
+  z-index: 1000000 !important;
+}
+
+.welcome-modal-wrapper .modal-overlay {
+  z-index: 999990 !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(15px) !important;
+}
+
+.welcome-modal-wrapper .modal-content {
+  z-index: 1000001 !important;
+  position: relative;
+}
+
+/* Когда WelcomeModal активен, блокируем прокрутку body */
+body.welcome-modal-open {
+  overflow: hidden !important;
 }
 
 @keyframes fadeIn {
@@ -583,7 +605,7 @@ body {
 
 /* Fix background elements to position properly under the top nav */
 #TopNav {
-  z-index: 999;
+  z-index: 999995;
   position: fixed;
   top: 0;
   left: 0;

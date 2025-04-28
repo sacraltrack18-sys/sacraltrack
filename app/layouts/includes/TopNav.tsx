@@ -247,13 +247,21 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
     return (
         <>  
-            <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[99990] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
+            <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[999995] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
                 <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo - улучшенная версия с более надежной навигацией */}
                     <Link 
                         href="/" 
                         className="flex items-center relative group"
                         aria-label="Go to home page"
+                        onClick={(e) => {
+                            // Только для страницы people используем прямой переход
+                            if (pathname === '/people') {
+                                e.preventDefault();
+                                console.log('[NAV] Navigating from people to homepage');
+                                window.location.href = '/';
+                            }
+                        }}
                     >
                         <img 
                             className="min-w-[24px] w-[24px] transition-transform duration-200 group-hover:scale-110" 
@@ -306,11 +314,11 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-2 md:gap-3">
-                        {/* Release Button */}
-                        <ReleaseButton />
+                        {/* Release Button - скрыта на странице people */}
+                        {pathname !== '/people' && <ReleaseButton />}
 
-                        {/* VIBE Button */}
-                        <VibeButton onOpenVibeUploader={openVibeUploader} />
+                        {/* VIBE Button - скрыта на странице people */}
+                        {pathname !== '/people' && <VibeButton onOpenVibeUploader={openVibeUploader} />}
 
                         {/* Notification Bell */}
                         <NotificationBell />

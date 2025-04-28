@@ -21,7 +21,18 @@ export default function ClientWelcomeModal({ isVisible, onClose, hideFirstVisitC
   // Используем useEffect для проверки, что компонент смонтирован на клиенте
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    
+    // Блокируем скролл если модальное окно открыто
+    if (isVisible) {
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('welcome-modal-open');
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('welcome-modal-open');
+    };
+  }, [isVisible]);
   
   // Не отображаем ничего до монтирования на клиенте
   if (!isMounted) {
@@ -29,13 +40,16 @@ export default function ClientWelcomeModal({ isVisible, onClose, hideFirstVisitC
   }
   
   // После монтирования рендерим WelcomeModal внутри Suspense
+  // с высоким z-index для показа поверх всего контента, но не TopNav
   return (
-    <Suspense fallback={null}>
-      <WelcomeModal 
-        isVisible={isVisible} 
-        onClose={onClose} 
-        hideFirstVisitCheck={hideFirstVisitCheck}
-      />
-    </Suspense>
+    <div className="welcome-modal-wrapper" style={{ position: 'relative', zIndex: 999990 }}>
+      <Suspense fallback={null}>
+        <WelcomeModal 
+          isVisible={isVisible} 
+          onClose={onClose} 
+          hideFirstVisitCheck={hideFirstVisitCheck}
+        />
+      </Suspense>
+    </div>
   );
 } 

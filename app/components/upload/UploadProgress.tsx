@@ -62,7 +62,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
   const getDetailedInfo = () => {
     if (!stage) return '';
 
-    // Извлекаем информацию о сегментах
+    // Extract segment information
     if (stage.toLowerCase().includes('segment')) {
       const segmentMatch = stage.match(/(\d+)\/(\d+)/);
       if (segmentMatch) {
@@ -74,7 +74,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
       }
     }
     
-    // Извлекаем информацию о конвертации
+    // Extract conversion information
     if (stage.toLowerCase().includes('convert')) {
       const timeMatch = stage.match(/\((\d+:\d+)\s+from\s+(\d+:\d+)\)/);
       if (timeMatch) {
@@ -83,7 +83,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
       }
     }
     
-    // Извлекаем информацию о подготовке сегментов
+    // Extract segment preparation information
     if (stage.toLowerCase().includes('prepar')) {
       const prepMatch = stage.match(/(\d+)\/(\d+)/);
       if (prepMatch) {

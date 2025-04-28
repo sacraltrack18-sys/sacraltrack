@@ -10,6 +10,7 @@ import { AudioPlayer } from '@/app/components/AudioPlayer';
 import { toast } from 'react-hot-toast';
 import { TbLoader } from 'react-icons/tb';
 import EmptyPurchasesSkeleton from './EmptyPurchasesSkeleton';
+import useGetProfileByUserId from '@/app/hooks/useGetProfileByUserId';
 
 interface TrackData {
   $id: string;
@@ -26,6 +27,7 @@ interface TrackData {
   profile: {
     name: string;
     image: string;
+    display_name?: string;
   };
 }
 
@@ -37,6 +39,10 @@ interface Purchase {
   purchase_date: string;
   amount: string;
   track?: TrackData;
+  authorProfile?: {
+    name: string;
+    image: string;
+  };
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -77,6 +83,11 @@ export default function PurchasedTracks() {
 
       // Get array of track_ids from purchases
       const trackIds = purchasesResponse.documents.map(purchase => purchase.track_id);
+      
+      // Collect all author_ids for profile fetching
+      const authorIds = purchasesResponse.documents.map(purchase => purchase.author_id);
+      
+      console.log('Fetching profiles for author IDs:', authorIds);
 
       // 2. Get all tracks in one query
       const tracksResponse = await database.listDocuments(
@@ -94,7 +105,7 @@ export default function PurchasedTracks() {
           const trackWithDefaults = {
             ...track,
             profile: track.profile || {
-              name: 'Unknown Artist',
+              name: 'Unknown User',
               image: null
             }
           };
@@ -102,11 +113,80 @@ export default function PurchasedTracks() {
         })
       );
 
-      // 3. Combine purchases with their corresponding tracks
+      // 3. Fetch author profiles in one batch query
+      // Изменим подход и запросим каждый профиль по отдельности
+      // Это может решить проблему, если запрос по массиву ID работает некорректно
+      console.log('Using individual profile fetch approach');
+      
+      // Создаем массив промисов для запроса каждого профиля
+      const profilePromises = authorIds.map(async (authorId) => {
+        try {
+          console.log(`Fetching profile for author ID: ${authorId}`);
+          
+          // Пробуем найти профиль по user_id
+          let response = await database.listDocuments(
+            String(process.env.NEXT_PUBLIC_DATABASE_ID),
+            String(process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE),
+            [Query.equal('user_id', authorId)]
+          );
+          
+          // Если не нашли по user_id, попробуем по id
+          if (response.documents.length === 0) {
+            console.log(`No profile found by user_id for author ID: ${authorId}, trying to find by id`);
+            response = await database.listDocuments(
+              String(process.env.NEXT_PUBLIC_DATABASE_ID),
+              String(process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE),
+              [Query.equal('id', authorId)]
+            );
+          }
+          
+          console.log(`For author ID ${authorId}, found ${response.documents.length} profiles`);
+          
+          // Возвращаем первый профиль, если найден
+          if (response.documents.length > 0) {
+            console.log(`Profile for author ID ${authorId}:`, response.documents[0]);
+            return response.documents[0];
+          }
+          
+          console.log(`No profile found for author ID: ${authorId} (tried both user_id and id fields)`);
+          return null;
+        } catch (error) {
+          console.error(`Error fetching profile for author ID: ${authorId}`, error);
+          return null;
+        }
+      });
+      
+      // Ждем завершения всех запросов
+      const profileResults = await Promise.all(profilePromises);
+      
+      // Фильтруем null значения и создаем новый массив профилей
+      const authorProfiles = profileResults.filter((profile): profile is NonNullable<typeof profile> => profile !== null);
+      
+      console.log('Individual profile fetch results:', authorProfiles);
+      
+      // Создаем карту профилей как раньше
+      const authorProfilesMap = new Map(
+        authorProfiles.map(profile => [
+          profile.user_id,
+          {
+            // Используем только name, без display_name
+            name: profile.name || 'Unknown User',
+            image: profile.image || profile.banner_image || null
+          }
+        ])
+      );
+
+      // 4. Combine purchases with their corresponding tracks and author profiles
       const purchasesWithTracks = purchasesResponse.documents.map((purchase: Models.Document) => {
         const track = tracksMap.get(purchase.track_id);
+        const authorProfile = authorProfilesMap.get(purchase.author_id);
         
-        return {
+        // Log details about this purchase for debugging
+        console.log(`Processing purchase: ${purchase.$id}, author_id: ${purchase.author_id}`);
+        console.log(`Found authorProfile:`, authorProfile);
+        
+        // Создаем объект Purchase с правильными типами
+        const purchaseObj: Purchase = {
           $id: purchase.$id,
           user_id: purchase.user_id,
           track_id: purchase.track_id,
@@ -115,9 +195,15 @@ export default function PurchasedTracks() {
           amount: purchase.amount,
           track: track ? {
             ...track,
-            profile: track.profile || { name: 'Unknown Artist', image: null }
-          } as unknown as TrackData : undefined
-        } as Purchase;
+            profile: track.profile || { 
+              name: 'Unknown User', 
+              image: null
+            }
+          } as unknown as TrackData : undefined,
+          authorProfile: authorProfile || { name: 'Unknown User', image: null }
+        };
+
+        return purchaseObj;
       });
 
       // Append new purchases to existing ones when loading more
@@ -269,11 +355,19 @@ export default function PurchasedTracks() {
                 <div className="flex items-center gap-3">
                   <img
                     className="w-12 h-12 rounded-full object-cover"
-                    src={purchase.track?.profile?.image ? useCreateBucketUrl(purchase.track.profile.image) : '/images/placeholders/user-placeholder.svg'}
-                    alt={purchase.track?.profile?.name || 'Artist'}
+                    src={purchase.authorProfile?.image 
+                      ? useCreateBucketUrl(purchase.authorProfile.image) 
+                      : '/images/placeholders/user-placeholder.svg'}
+                    alt={purchase.authorProfile?.name || 'Artist'}
                   />
                   <div>
-                    <p className="text-white font-medium">{purchase.track?.profile?.name || 'Unknown Artist'}</p>
+                    <p className="text-white font-medium">
+                      {purchase.authorProfile?.name && purchase.authorProfile.name !== 'Unknown User' 
+                        ? purchase.authorProfile.name 
+                        : purchase.track?.profile?.name && purchase.track.profile.name !== 'Unknown User'
+                          ? purchase.track.profile.name
+                          : 'Unknown User'}
+                    </p>
                     <p className="text-[#818BAC] text-sm">{purchase.track?.trackname || 'Untitled Track'}</p>
                   </div>
                 </div>

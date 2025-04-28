@@ -149,7 +149,7 @@ const useCreatePurchase = (): CreatePurchaseHook => {
           amount: royaltyAmount,
           track_id: data.track_id,
           created_at: new Date().toISOString(),
-          read: "false"
+          read: false
         }
       );
 

@@ -312,7 +312,8 @@ const ProfileMenu = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setShowMenu(false);
-                    router.push("/terms");
+                    console.log("[NAV] Navigating to terms");
+                    window.location.href = "/terms";
                   }}
                   className="flex items-center gap-2 mb-3 text-white/90
                           transition-all duration-200 group
