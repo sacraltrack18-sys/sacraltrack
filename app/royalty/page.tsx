@@ -332,13 +332,7 @@ export default function RoyaltyPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              {/* Content Header - Увеличенный отступ сверху */}
-              <div className="pb-3">
-                <h1 className="text-3xl font-bold text-white mb-2">Royalty Dashboard</h1>
-                <p className="text-[#9BA3BF]">
-                  Track your earnings, manage your withdrawals, and more.
-                </p>
-              </div>
+              {/* Content Header - Removed per user request */}
             </motion.div>
             
             {/* Purchase Notification (animated) */}

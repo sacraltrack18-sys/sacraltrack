@@ -62,7 +62,7 @@ const CopyrightNotification = ({ isVisible, onClose }: CopyrightNotificationProp
             Dear artist, by uploading content you agree to our royalty and copyright terms. Your rights will be protected under our agreement.
           </p>
           <div className="flex justify-end">
-            <Link href="/terms" className="text-[#20DDBB] text-sm hover:underline">
+            <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#20DDBB] text-sm hover:underline">
               Read Agreement
             </Link>
           </div>
@@ -1677,7 +1677,7 @@ export default function Upload() {
                                 <p className="text-xs text-[#20DDBB]/90 font-medium">
                                     By clicking "Release Track" you agree to and sign the royalty agreement with Sacral Track.
                                 </p>
-                                <Link href="/terms" className="text-white/60 text-xs hover:text-[#20DDBB] mt-1 block transition-colors">
+                                <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/60 text-xs hover:text-[#20DDBB] mt-1 block transition-colors">
                                     Read full agreement →
                                 </Link>
                             </div>

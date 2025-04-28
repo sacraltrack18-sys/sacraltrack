@@ -14,7 +14,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
           <p className="text-white mb-4">
           Only the artist who created the original composition can upload a track to the Sacral Track store. 
           If the uploaded track is not your authorship,
-          it will be removed from the platform. For more information about the terms of use, <a href="/terms" className="text-[#5492FA] hover:text-white">Please read here.</a>
+          it will be removed from the platform. For more information about the terms of use, <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#20DDBB] hover:text-white underline">Please read here.</a>
           </p>
           <p className="text-white mb-6">
           *By uploading a track, you agree to the terms of the "Sacral Track - Artists agreement", 

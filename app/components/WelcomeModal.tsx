@@ -77,6 +77,46 @@ const Copyright = memo(() => (
 
 Copyright.displayName = 'Copyright';
 
+// Компонент для карточек с типами вайбов
+const VibeTypeCard = memo(({ title, description, className }: { title: string, description: string, className?: string }) => (
+  <div className={`bg-[#251B42]/50 p-4 rounded-lg border border-purple-500/20 ${className}`}>
+    <h4 className="text-purple-400 font-medium mb-2">{title}</h4>
+    <p className="text-white/70 text-sm">{description}</p>
+  </div>
+));
+
+VibeTypeCard.displayName = 'VibeTypeCard';
+
+// Компонент для слайдов с социальными функциями
+const SocialFeatureSlide = memo(({ title, description, icon, isActive }: { 
+  title: string, 
+  description: string, 
+  icon: string,
+  isActive: boolean 
+}) => {
+  if (!isActive) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="bg-[#251B42]/50 p-6 rounded-lg border border-purple-500/20 h-full will-change-transform"
+    >
+      <div className="flex flex-col items-center text-center">
+        <div className="w-16 h-16 rounded-full bg-[#20DDBB]/20 flex items-center justify-center mb-4">
+          <span className="text-2xl">{icon}</span>
+        </div>
+        <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
+        <p className="text-white/70">{description}</p>
+      </div>
+    </motion.div>
+  );
+});
+
+SocialFeatureSlide.displayName = 'SocialFeatureSlide';
+
 interface WelcomeModalProps {
   isVisible?: boolean;
   onClose?: () => void;
@@ -86,7 +126,9 @@ interface WelcomeModalProps {
 const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck = false }: WelcomeModalProps) => {
   const [isVisible, setIsVisible] = useState(propIsVisible || false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentSocialSlide, setCurrentSocialSlide] = useState(0);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
+  const [socialIntervalId, setSocialIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Синхронизируем внутреннее состояние с пропсами
@@ -100,23 +142,42 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
   const features = useMemo(() => [
     {
       title: "Music Streaming Platform",
-      description: "Enjoy high-quality audio streaming (192-256 kbps) and premium downloads (WAV & 320 kbps) from emerging and established artists",
+      description: "Enjoy high-quality audio streaming (192-256 kbps) and premium downloads (WAV & 320 kbps) from emerging and established artists. All music is available for free streaming.",
       icon: "🎵"
     },
     {
       title: "Music Marketplace",
-      description: "Buy and sell music directly with transparent pricing and fair artist royalties, supporting creators directly",
+      description: "Buy and sell music directly with transparent pricing and fair artist royalties, supporting creators directly. Publication is completely free for artists.",
       icon: "💽"
     },
     {
       title: "Social Network",
-      description: "Connect with music artists and fans, share vibes, follow creators, and participate in a vibrant music community",
+      description: "Connect with music artists and fans, share vibes (photos, videos, stickers), follow creators, and participate in a vibrant music community",
       icon: "👥"
     },
     {
       title: "Artist Recognition",
       description: "Discover and gain visibility with Top 100 charts, user ratings, and trending content features",
-      icon: "🏆"
+      icon: "��"
+    }
+  ], []);
+
+  // Оптимизированный и мемоизированный массив социальных функций
+  const socialFeatures = useMemo(() => [
+    {
+      title: "Photo Vibes",
+      description: "Share visual moments with your audience through high-quality photo vibes",
+      icon: "📸"
+    },
+    {
+      title: "Video Vibes",
+      description: "Create immersive experiences with short video content and visual stories",
+      icon: "🎬"
+    },
+    {
+      title: "Sticker Vibes",
+      description: "Express your creativity with custom stickers and animated reactions",
+      icon: "🎭"
     }
   ], []);
 
@@ -165,6 +226,17 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     };
   }, [isInitialized, isVisible]);
 
+  // Запуск соц. карусели после инициализации
+  useEffect(() => {
+    if (isInitialized && isVisible) {
+      startSocialCarousel();
+    }
+    
+    return () => {
+      if (socialIntervalId) clearInterval(socialIntervalId);
+    };
+  }, [isInitialized, isVisible]);
+
   // Управление каруселью
   const startCarousel = useCallback(() => {
     if (intervalId) clearInterval(intervalId);
@@ -182,6 +254,42 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
       if (intervalId) clearInterval(intervalId);
     };
   }, [features.length, intervalId]);
+
+  // Управление соц. каруселью
+  const startSocialCarousel = useCallback(() => {
+    if (socialIntervalId) clearInterval(socialIntervalId);
+    
+    const timer = setTimeout(() => {
+      const id = setInterval(() => {
+        setCurrentSocialSlide(prev => (prev < socialFeatures.length - 1 ? prev + 1 : 0));
+      }, 4000);
+      
+      setSocialIntervalId(id);
+    }, 1000);
+    
+    return () => {
+      clearTimeout(timer);
+      if (socialIntervalId) clearInterval(socialIntervalId);
+    };
+  }, [socialFeatures.length, socialIntervalId]);
+
+  // Мемоизированный обработчик для переключения слайдов
+  const handleSlideChange = useCallback((index: number) => {
+    setCurrentSlide(index);
+    
+    // Рестарт таймера при ручном переключении
+    if (intervalId) clearInterval(intervalId);
+    startCarousel();
+  }, [intervalId, startCarousel]);
+
+  // Мемоизированный обработчик для переключения соц. слайдов
+  const handleSocialSlideChange = useCallback((index: number) => {
+    setCurrentSocialSlide(index);
+    
+    // Рестарт таймера при ручном переключении
+    if (socialIntervalId) clearInterval(socialIntervalId);
+    startSocialCarousel();
+  }, [socialIntervalId, startSocialCarousel]);
 
   // Оптимизированное закрытие
   const handleClose = useCallback(() => {
@@ -202,18 +310,10 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
       }, 300);
     }
     
-    // Очистка интервала
+    // Очистка интервалов
     if (intervalId) clearInterval(intervalId);
-  }, [intervalId, onClose]);
-
-  // Мемоизированный обработчик для переключения слайдов
-  const handleSlideChange = useCallback((index: number) => {
-    setCurrentSlide(index);
-    
-    // Рестарт таймера при ручном переключении
-    if (intervalId) clearInterval(intervalId);
-    startCarousel();
-  }, [intervalId, startCarousel]);
+    if (socialIntervalId) clearInterval(socialIntervalId);
+  }, [intervalId, socialIntervalId, onClose]);
 
   // Прерываем рендеринг, если модальное окно не видимо
   if (!isVisible) return <ImagePreloader />;
@@ -227,83 +327,146 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isVisible && (
         <motion.div
+          className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-[99999]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[999990] flex items-center justify-center bg-black/70 backdrop-blur-xl modal-overlay"
           onClick={handleOutsideClick}
         >
           <motion.div
-            initial={{ scale: 0.9, y: 20, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 20, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-11/12 max-w-4xl overflow-y-auto max-h-[90vh] rounded-2xl bg-[#1A2338]/70 backdrop-blur-xl shadow-2xl border border-white/10 will-change-transform z-[1000000] modal-content"
+            className="relative max-w-4xl w-full max-h-[90vh] mx-4 bg-gradient-to-b from-[#1A1A2E]/95 to-[#16213E]/95 rounded-xl border border-white/10 shadow-xl overflow-y-auto custom-scrollbar"
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 20 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Упрощенные статические элементы фона */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/5 blur-3xl"
-              />
-              <div 
-                className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-r from-[#8B5CF6]/20 to-[#8B5CF6]/5 blur-3xl"
-              />
+            {/* Плавающий градиентный фон */}
+            <div className="absolute inset-0 overflow-hidden rounded-xl z-0">
+              <div className="absolute -inset-[100px] opacity-30">
+                <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-600/40 via-transparent to-transparent animate-pulse-slow absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#20DDBB]/40 via-transparent to-transparent animate-pulse-slower absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2"></div>
+              </div>
             </div>
 
-            {/* Audio wave visualization - оптимизированная статическая версия */}
-            <div className="absolute bottom-0 left-0 right-0 opacity-20">
-              <Image 
-                src="/images/wave-visualizer.svg" 
-                alt="Audio Wave" 
-                width={800} 
-                height={200}
-                className="w-full transform scale-y-50"
-                priority
-                unoptimized // для SVG лучше использовать unoptimized
-                loading="eager"
-              />
+            {/* Top nav with dark background */}
+            <div className="sticky top-0 left-0 right-0 z-20 bg-black/40 backdrop-blur-md border-b border-white/10 flex justify-between items-center px-6 py-3">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/images/T-logo.svg"
+                  alt="Sacral Track Logo"
+                  width={24}
+                  height={24}
+                  className="drop-shadow-glow"
+                  priority
+                />
+                <span className="text-white font-semibold">Sacral Track</span>
+              </div>
+              <motion.button
+                onClick={handleClose}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white backdrop-blur-sm border border-white/10 transition-all duration-300"
+                aria-label="Close welcome modal"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </motion.button>
             </div>
 
-            {/* Logo and header - оптимизировано */}
-            <div className="relative z-10 p-6 md:p-10 flex flex-col">
+            <div className="relative z-10 p-6 md:p-8 flex flex-col">
               {/* Лого и заголовок */}
               <div className="mb-5 md:mb-8 flex flex-col items-center">
-                <div className="w-24 h-24 relative mb-4">
+                <div className="w-20 h-20 relative mb-4">
                   <Image
                     src="/images/T-logo.svg"
                     alt="Sacral Track Logo"
-                    width={100}
-                    height={100}
+                    width={80}
+                    height={80}
                     className="mx-auto drop-shadow-glow"
                     priority
                   />
                 </div>
-                <h2 className="text-2xl md:text-4xl font-bold text-white text-center">
+                <h2 className="text-2xl md:text-3xl font-bold text-white text-center">
                   Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-transparent bg-clip-text">Sacral Track</span>
                 </h2>
                 <p className="mt-3 text-white/70 text-sm md:text-base text-center max-w-xl mx-auto">
+                  Music Platform / Social Network
+                </p>
+                <p className="mt-2 text-white/60 text-xs md:text-sm text-center max-w-xl mx-auto">
                   The premier music platform for artists and listeners with high-quality audio and fair royalty distribution
                 </p>
               </div>
 
-              {/* Beta warning banner - оптимизировано */}
-              <div className="mb-8 py-3 px-6 bg-[#1A2338]/80 backdrop-blur-sm rounded-lg border border-yellow-500/30 max-w-2xl mx-auto">
-                <p className="text-yellow-400 font-medium flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span>BETA VERSION</span>
+              {/* Social Network section with slides */}
+              <div className="mb-8 max-w-2xl mx-auto bg-[#1A2338]/70 backdrop-blur-lg rounded-xl border border-[#20DDBB]/20 p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-[#20DDBB]/20 flex items-center justify-center">
+                    <span className="text-2xl">✨</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">Social Network</h3>
+                </div>
+                <p className="text-white/80 mb-6">
+                  Connect with music artists and fans, share vibes, follow creators, and participate
+                  in a vibrant music community
                 </p>
-                <p className="text-white/70 text-sm mt-1">
-                  We're constantly improving the platform. Explore features and help us make it better!
-                </p>
+
+                {/* Social features carousel */}
+                <div className="h-[200px] mb-4">
+                  <AnimatePresence mode="wait">
+                    {socialFeatures.map((feature, index) => (
+                      <SocialFeatureSlide 
+                        key={index} 
+                        title={feature.title} 
+                        description={feature.description} 
+                        icon={feature.icon}
+                        isActive={index === currentSocialSlide} 
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                {/* Social slide navigation */}
+                <div className="flex justify-center gap-2.5 mt-4">
+                  {socialFeatures.map((_, index) => (
+                    <CarouselDot
+                      key={index}
+                      isActive={currentSocialSlide === index}
+                      index={index}
+                      onClick={() => handleSocialSlideChange(index)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Test Mode Notice */}
+              <div className="mb-8 max-w-2xl mx-auto bg-blue-900/20 backdrop-blur-lg rounded-xl border border-blue-500/30 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mt-0.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-blue-400 font-medium text-lg mb-1">Platform in Test Mode</h4>
+                    <p className="text-white/80 text-sm leading-relaxed">
+                      Sacral Track is currently in test mode. If you notice any bugs or have suggestions for improvements, 
+                      please help our team enhance the service by contacting our manager on Telegram: 
+                      <a href="https://t.me/sashaplayra" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-1 font-medium underline">
+                        @sashaplayra
+                      </a>
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Features carousel - оптимизировано */}
-              <div className="max-w-2xl mx-auto mb-8 h-36">
+              <div className="max-w-2xl mx-auto mb-6 h-36">
                 <AnimatePresence mode="wait">
                   {features.map((feature, index) => (
                     <FeatureSlide key={index} feature={feature} isActive={index === currentSlide} />
@@ -312,7 +475,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
               </div>
 
               {/* Навигационные контролы - улучшение для мобильных */}
-              <div className="flex justify-center gap-2.5 mt-6 md:mt-10">
+              <div className="flex justify-center gap-2.5 mt-4 md:mt-6">
                 {features.map((_, index) => (
                   <CarouselDot
                     key={index}
@@ -323,19 +486,18 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                 ))}
               </div>
 
-              {/* Кнопка "Get Started" - более заметная */}
-              <motion.button
-                onClick={handleClose}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="mt-8 md:mt-10 mx-auto px-8 py-3 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-white font-medium shadow-glow text-base md:text-lg"
-              >
-                Get Started
-              </motion.button>
-
-              {/* Call to action buttons - оптимизировано */}
-              <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-xl mx-auto">
-                <Link href="/terms" className="px-8 py-3 bg-white/10 backdrop-blur-md rounded-xl font-medium hover:bg-white/20 transition-all will-change-transform">
+              {/* Кнопки */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 mt-6 md:mt-8">
+                <motion.button
+                  onClick={handleClose}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-white font-medium shadow-glow text-base md:text-lg"
+                >
+                  Get Started
+                </motion.button>
+                
+                <Link href="/terms" className="px-8 py-3 bg-[#1A2338]/80 text-white border border-white/20 rounded-full font-medium hover:bg-[#1A2338] transition-all will-change-transform">
                   Read Terms of Service
                 </Link>
               </div>
@@ -343,20 +505,6 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
               {/* Copyright - оптимизировано */}
               <Copyright />
             </div>
-
-            {/* Кнопка закрытия - более заметная на мобильных */}
-            <motion.button
-              onClick={handleClose}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="absolute top-4 right-4 z-20 p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white backdrop-blur-sm border border-white/10 transition-all duration-300"
-              aria-label="Close welcome modal"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </motion.button>
           </motion.div>
         </motion.div>
       )}

@@ -104,6 +104,11 @@ interface UserCardProps {
         username?: string;
         image: string;
         bio: string;
+        // Add direct field properties to match database schema
+        total_followers?: string | number;
+        total_likes?: string | number;
+        average_rating?: string | number;
+        total_ratings?: string | number;
         stats: {
             totalLikes: number;
             totalFollowers: number;
@@ -231,16 +236,30 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
         return 0;
     };
     
-    // Обеспечиваем наличие статистики
-    const stats = user.stats || {} as {
-        totalFollowers: number;
-        totalLikes: number;
-        averageRating: number;
-        totalRatings: number;
+    // Get numeric rating value
+    const getNumericRating = (rating: any): number => {
+        if (typeof rating === 'string') return parseFloat(rating) || 0;
+        if (typeof rating === 'number') return rating;
+        return 0;
     };
-    const totalFollowers = getNumericValue(stats.totalFollowers);
-    const totalLikes = getNumericValue(stats.totalLikes);
-    const totalRatings = getNumericValue(stats.totalRatings);
+    
+    // Get formatted rating for display
+    const getRatingDisplay = (rating: any): string => {
+        return getNumericRating(rating).toFixed(1);
+    };
+    
+    // Обеспечиваем наличие статистики и корректно получаем данные рейтинга
+    const totalFollowers = getNumericValue(user.total_followers || (user.stats?.totalFollowers || 0));
+    const totalLikes = getNumericValue(user.total_likes || (user.stats?.totalLikes || 0));
+    const totalRatings = getNumericValue(user.total_ratings || (user.stats?.totalRatings || 0));
+    const numericRating = getNumericRating(user.average_rating || (user.stats?.averageRating || 0));
+    
+    // Update local state when user props change
+    useEffect(() => {
+        // This ensures that when the user data changes (e.g., after a new rating is submitted),
+        // the displayed rating is updated accordingly
+        setRating(numericRating);
+    }, [user.average_rating, user.stats?.averageRating, numericRating]);
     
     // Improved function to get color based on rating - без красного фона
     const getRatingColor = (rating: number) => {
@@ -273,26 +292,17 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
         }
     };
     
-    // Get numeric rating value
-    const getNumericRating = (rating: any): number => {
-        if (typeof rating === 'string') return parseFloat(rating) || 0;
-        if (typeof rating === 'number') return rating;
-        return 0;
-    };
-    
-    // Get formatted rating for display
-    const getRatingDisplay = (rating: any): string => {
-        return getNumericRating(rating).toFixed(1);
-    };
-    
     // Получаем данные для отображения
-    const numericRating = getNumericRating(stats.averageRating);
     const userRank = getUserRank(numericRating, totalFollowers);
     const rankBadgeColor = getRankBadgeColor(userRank);
     
     // Обработчик для прямого рейтинга по звездам
     const handleStarClick = (value: number) => {
+        // Update local component state immediately for visual feedback
         setRating(value);
+        setHoverRating(value);
+        
+        // Then trigger the API call
         onRateUser(user.user_id, value);
     };
     
@@ -316,6 +326,11 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
     const handleRatingClick = (e: React.MouseEvent, value: number) => {
         e.stopPropagation();
         e.preventDefault();
+        
+        // Set local state immediately for visual feedback
+        setRating(value);
+        setHoverRating(value);
+        
         handleStarClick(value);
     };
     
@@ -370,7 +385,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                         >
                             <StarIcon 
                                 className={`w-4 h-4 ${
-                                    (hoverRating > 0 ? star <= hoverRating : star <= numericRating) 
+                                    (hoverRating > 0 ? star <= hoverRating : (star <= numericRating || star <= rating)) 
                                         ? 'text-yellow-400' 
                                         : 'text-gray-600'
                                 } transition-all duration-200`} 
@@ -571,11 +586,17 @@ export default function People() {
                 username: doc.username,
                 image: doc.image,
                 bio: doc.bio || '',
+                // Map fields directly from the database with correct names
+                total_likes: doc.total_likes || '0',
+                total_followers: doc.total_followers || '0',
+                average_rating: doc.average_rating || '0',
+                total_ratings: doc.total_ratings || '0',
+                // Keep stats for backward compatibility
                 stats: {
-                    totalLikes: typeof doc.stats?.totalLikes === 'string' ? parseInt(doc.stats.totalLikes, 10) : (doc.stats?.totalLikes || 0),
-                    totalFollowers: typeof doc.stats?.totalFollowers === 'string' ? parseInt(doc.stats.totalFollowers, 10) : (doc.stats?.totalFollowers || 0),
-                    averageRating: typeof doc.stats?.averageRating === 'string' ? parseFloat(doc.stats.averageRating) : (doc.stats?.averageRating || 0),
-                    totalRatings: typeof doc.stats?.totalRatings === 'string' ? parseInt(doc.stats.totalRatings, 10) : (doc.stats?.totalRatings || 0)
+                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : 0,
+                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : 0,
+                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : 0,
+                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : 0
                 }
             }));
             
@@ -596,25 +617,20 @@ export default function People() {
         }
     };
     
-    // Полностью переписанная функция поиска для надежной работы
+    // Improved search function for better filtering
     const handleSearchInput = (text: string) => {
         setSearchQuery(text);
-        setIsSearching(true);
         
-        console.log("[DEBUG] SEARCH INPUT:", text);
-        
-        // Простая фильтрация без лишней логики
+        // Even if empty, still need to show unfiltered results
         if (!text.trim()) {
             setFilteredProfiles(profiles);
-            setIsSearching(false);
             return;
         }
         
-        // Простой поиск подстроки без разбиения на термины
-        const searchTerm = text.trim().toLowerCase();
-        console.log("[DEBUG] Searching for term:", searchTerm);
+        // Normalize search term and split into words for better matching
+        const searchTerms = text.trim().toLowerCase().split(/\s+/);
         
-        // Используем напрямую filter вместо ручного построения массива
+        // Filter profiles based on search terms
         const results = profiles.filter(profile => {
             if (!profile) return false;
             
@@ -622,29 +638,20 @@ export default function People() {
             const username = (profile.username || '').toLowerCase();
             const bio = (profile.bio || '').toLowerCase();
             
-            // Находим совпадение по любому из полей
-            const isMatch = name.includes(searchTerm) || 
-                           username.includes(searchTerm) || 
-                           bio.includes(searchTerm);
-            
-            // Логируем совпадения для отладки
-            if (isMatch) {
-                console.log(`[DEBUG] Match found: ${profile.name}`);
-            }
-            
-            return isMatch;
+            // Check if any search term matches any field
+            return searchTerms.some(term => 
+                name.includes(term) || 
+                username.includes(term) || 
+                bio.includes(term)
+            );
         });
         
-        console.log(`[DEBUG] Found ${results.length} matches for "${searchTerm}" out of ${profiles.length} profiles`);
         setFilteredProfiles(results);
-        setIsSearching(false);
     };
     
-    // Обработчик для поиска по кнопке
+    // Handle form submission for search
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("[DEBUG] Search submitted with query:", searchQuery);
-        // Выполняем поиск заново - это может помочь, если что-то не сработало в handleSearchInput
         handleSearchInput(searchQuery);
     };
     
@@ -662,6 +669,80 @@ export default function People() {
         }
         
         try {
+            // Immediately update the UI for better user experience
+            // Update the profile in the local state to show the new rating immediately
+            setProfiles(prevProfiles => 
+                prevProfiles.map(profile => {
+                    if (profile.user_id === userId) {
+                        // Calculate new average rating
+                        const prevTotalRatings = parseInt(profile.total_ratings as string) || profile.stats.totalRatings || 0;
+                        const prevAverage = parseFloat(profile.average_rating as string) || profile.stats.averageRating || 0;
+                        
+                        let newAverage = prevAverage;
+                        let newTotalRatings = prevTotalRatings;
+                        
+                        // If this is a new rating, calculate new average
+                        if (prevTotalRatings === 0) {
+                            newAverage = rating;
+                            newTotalRatings = 1;
+                        } else {
+                            // Assume this is an update to an existing rating
+                            // (a simple approach that works for UI updates)
+                            newAverage = rating;
+                        }
+                        
+                        // Update both the direct fields and the stats object
+                        return {
+                            ...profile,
+                            average_rating: newAverage.toFixed(2),
+                            total_ratings: newTotalRatings.toString(),
+                            stats: {
+                                ...profile.stats,
+                                averageRating: newAverage,
+                                totalRatings: newTotalRatings
+                            }
+                        };
+                    }
+                    return profile;
+                })
+            );
+            
+            // Also update filtered profiles
+            setFilteredProfiles(prevProfiles => 
+                prevProfiles.map(profile => {
+                    if (profile.user_id === userId) {
+                        // Calculate new average rating
+                        const prevTotalRatings = parseInt(profile.total_ratings as string) || profile.stats.totalRatings || 0;
+                        const prevAverage = parseFloat(profile.average_rating as string) || profile.stats.averageRating || 0;
+                        
+                        let newAverage = prevAverage;
+                        let newTotalRatings = prevTotalRatings;
+                        
+                        // If this is a new rating, calculate new average
+                        if (prevTotalRatings === 0) {
+                            newAverage = rating;
+                            newTotalRatings = 1;
+                        } else {
+                            // Assume this is an update to an existing rating
+                            newAverage = rating;
+                        }
+                        
+                        // Update both the direct fields and the stats object
+                        return {
+                            ...profile,
+                            average_rating: newAverage.toFixed(2),
+                            total_ratings: newTotalRatings.toString(),
+                            stats: {
+                                ...profile.stats,
+                                averageRating: newAverage,
+                                totalRatings: newTotalRatings
+                            }
+                        };
+                    }
+                    return profile;
+                })
+            );
+            
             // Сначала проверяем, не оценивал ли уже пользователь
             const existingRating = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -704,9 +785,10 @@ export default function People() {
             // Обновляем статистику пользователя
             await updateUserStats(userId);
             
-            // Перезагружаем данные
-            await loadUsers();
-            await loadTopUsers();
+            // Reload users in the background without blocking UI
+            // We already updated the UI above for immediate feedback
+            loadUsers().catch(err => console.error('Error reloading users:', err));
+            loadTopUsers().catch(err => console.error('Error reloading top users:', err));
         } catch (error) {
             console.error('Error rating user:', error);
             toast.error('Failed to submit rating. Please try again.');
@@ -747,14 +829,14 @@ export default function People() {
             if (profiles.documents.length > 0) {
                 const profileId = profiles.documents[0].$id;
                 
-                // Обновляем статистику
+                // Обновляем статистику - используем правильные имена полей из схемы базы данных
                 await database.updateDocument(
                     process.env.NEXT_PUBLIC_DATABASE_ID!,
                     process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
                     profileId,
                     {
-                        'stats.averageRating': averageRating.toFixed(2),
-                        'stats.totalRatings': totalRatings
+                        'average_rating': averageRating.toFixed(2),
+                        'total_ratings': totalRatings.toString()
                     }
                 );
             }
@@ -785,11 +867,17 @@ export default function People() {
                 username: doc.username,
                 image: doc.image,
                 bio: doc.bio || '',
+                // Map fields directly from the database with correct names
+                total_likes: doc.total_likes || '0',
+                total_followers: doc.total_followers || '0',
+                average_rating: doc.average_rating || '0',
+                total_ratings: doc.total_ratings || '0',
+                // Keep stats for backward compatibility
                 stats: {
-                    totalLikes: typeof doc.stats?.totalLikes === 'string' ? parseInt(doc.stats.totalLikes, 10) : (doc.stats?.totalLikes || 0),
-                    totalFollowers: typeof doc.stats?.totalFollowers === 'string' ? parseInt(doc.stats.totalFollowers, 10) : (doc.stats?.totalFollowers || 0),
-                    averageRating: typeof doc.stats?.averageRating === 'string' ? parseFloat(doc.stats.averageRating) : (doc.stats?.averageRating || 0),
-                    totalRatings: typeof doc.stats?.totalRatings === 'string' ? parseInt(doc.stats.totalRatings, 10) : (doc.stats?.totalRatings || 0)
+                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : 0,
+                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : 0,
+                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : 0,
+                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : 0
                 }
             }));
             
@@ -834,16 +922,18 @@ export default function People() {
                 });
             } else if (sortBy === 'rating') {
                 result.sort((a, b) => {
-                    const ratingA = a.stats.averageRating;
-                    const ratingB = b.stats.averageRating;
+                    // Use either the direct field or fallback to stats.averageRating
+                    const ratingA = parseFloat(a.average_rating as string) || a.stats.averageRating || 0;
+                    const ratingB = parseFloat(b.average_rating as string) || b.stats.averageRating || 0;
                     return sortDirection === 'asc' 
                         ? ratingA - ratingB 
                         : ratingB - ratingA;
                 });
             } else if (sortBy === 'followers') {
                 result.sort((a, b) => {
-                    const followersA = a.stats.totalFollowers;
-                    const followersB = b.stats.totalFollowers;
+                    // Use either the direct field or fallback to stats.totalFollowers
+                    const followersA = parseInt(a.total_followers as string) || a.stats.totalFollowers || 0;
+                    const followersB = parseInt(b.total_followers as string) || b.stats.totalFollowers || 0;
                     return sortDirection === 'asc' 
                         ? followersA - followersB 
                         : followersB - followersA;
@@ -1038,12 +1128,7 @@ export default function People() {
                                             type="text"
                                             placeholder="Search people..."
                                             value={searchQuery}
-                                            onChange={(e) => {
-                                                const newValue = e.target.value;
-                                                setSearchQuery(newValue);
-                                                // Гарантируем вызов поиска при каждом изменении
-                                                handleSearchInput(newValue);
-                                            }}
+                                            onChange={(e) => handleSearchInput(e.target.value)}
                                             className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
                                         />
                                         {isSearching && (

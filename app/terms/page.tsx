@@ -1,12 +1,12 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from "next/navigation";
 import { useUser } from "@/app/context/user";
-import { BsChevronLeft } from "react-icons/bs";
+import { BsChevronLeft, BsChevronDown } from "react-icons/bs";
 import TopNav from "@/app/layouts/includes/TopNav";
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import TermsSection, { InfoCard, FeatureGrid, Notice, CheckList } from '../components/terms/TermsSection';
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowRight, FaListUl } from "react-icons/fa";
 
 const sections = [
   { id: 'introduction', title: 'Introduction', icon: '📝' },
@@ -17,14 +17,12 @@ const sections = [
   { id: 'technical', title: 'Technical Specifications', icon: '🔧' },
   { id: 'copyright', title: 'Copyright & Licensing', icon: '🎵' },
   { id: 'publication', title: 'Publication', icon: '📤' },
-  { id: 'content', title: 'Content Guidelines', icon: '📋' },
   { id: 'ranking', title: 'Ranking System', icon: '🏆' },
   { id: 'royalty', title: 'Royalties & Revenue', icon: '💰' },
   { id: 'payment', title: 'Payment', icon: '💳' },
   { id: 'marketing', title: 'Marketing Terms', icon: '📢' },
   { id: 'purchased-content', title: 'Purchased Content', icon: '🛒' },
   { id: 'third-party', title: 'Third-party Sites', icon: '🔗' },
-  { id: 'monetization', title: 'Monetization', icon: '💰' }
 ];
 
 export default function TermsOfUse() {
@@ -32,14 +30,32 @@ export default function TermsOfUse() {
   const userContext = useUser();
   const [activeSection, setActiveSection] = useState('introduction');
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      const yOffset = window.innerWidth < 768 ? -100 : -80; // Different offset for mobile
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
       setActiveSection(sectionId);
+      setIsMobileMenuOpen(false);
     }
   };
+
+  // Handle clicks outside mobile menu to close it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -58,20 +74,75 @@ export default function TermsOfUse() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Table of contents component for mobile
+  const MobileTableOfContents = () => (
+    <div className="relative z-20" ref={mobileMenuRef}>
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="flex items-center gap-2 w-full p-3 bg-[#1A2338]/90 backdrop-blur-lg border border-[#20DDBB]/10 rounded-lg text-white"
+      >
+        <FaListUl className="text-[#20DDBB]" />
+        <span className="flex-1 text-left">Table of Contents</span>
+        <BsChevronDown className={`transition-transform duration-200 ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-full left-0 right-0 mt-1 max-h-[60vh] overflow-y-auto bg-[#1A2338]/95 backdrop-blur-lg border border-[#20DDBB]/10 rounded-lg shadow-xl"
+          >
+            <div className="py-2">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => scrollToSection(section.id)}
+                  className={`w-full text-left px-4 py-3 transition-all duration-200
+                             ${activeSection === section.id 
+                              ? 'bg-[#20DDBB]/10 text-[#20DDBB]' 
+                              : 'text-white/80 hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{section.icon}</span>
+                    <span className="text-sm">{section.title}</span>
+                  </div>
+                </button>
+              ))}
+              <div className="p-4 m-3 rounded-xl bg-[#252742]/50 border border-[#3f2d63]/30">
+                <p className="text-sm text-[#818BAC] mb-3">
+                  Need help understanding our terms?
+                </p>
+                <a 
+                  href="mailto:sacraltrack@gmail.com"
+                  className="inline-flex items-center gap-2 text-sm text-[#20DDBB] hover:text-[#018CFD] transition-colors"
+                >
+                  <span>Contact Support</span>
+                  <FaArrowRight className="text-xs" />
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
   return (
     <>
       <TopNav params={{ id: userContext?.user?.id as string }} />
       
       <div className="min-h-screen bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white">
-        <div className="flex">
-          {/* Side Navigation */}
+        <div className="flex flex-col md:flex-row">
+          {/* Desktop Side Navigation */}
           <motion.div 
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="fixed top-[80px] left-0 w-[320px] h-[calc(100vh-80px)] bg-[#1A2338]/90 backdrop-blur-lg border-r border-[#20DDBB]/10 overflow-y-auto custom-scrollbar"
+            className="hidden md:block sticky top-[80px] w-[280px] lg:w-[320px] h-[calc(100vh-80px)] bg-[#1A2338]/90 backdrop-blur-lg border-r border-[#20DDBB]/10 overflow-y-auto custom-scrollbar"
           >
-            <div className="p-6">
+            <div className="p-4 lg:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#20DDBB] to-[#018CFD] flex items-center justify-center">
                   <span className="text-xl">📋</span>
@@ -89,7 +160,7 @@ export default function TermsOfUse() {
                   <motion.button
                     key={section.id}
                     onClick={() => scrollToSection(section.id)}
-                    className={`w-full text-left p-4 rounded-xl transition-all duration-200
+                    className={`w-full text-left p-3 lg:p-4 rounded-xl transition-all duration-200
                                ${activeSection === section.id 
                                  ? 'bg-[#20DDBB]/10 text-[#20DDBB] border border-[#20DDBB]/20' 
                                  : 'hover:bg-white/5'}`}
@@ -97,14 +168,14 @@ export default function TermsOfUse() {
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-xl">{section.icon}</span>
-                      <span className="text-sm">{section.title}</span>
+                      <span className="text-lg lg:text-xl">{section.icon}</span>
+                      <span className="text-xs lg:text-sm">{section.title}</span>
                     </div>
                   </motion.button>
                 ))}
               </nav>
 
-              <div className="mt-8 p-4 rounded-xl bg-[#252742]/50 border border-[#3f2d63]/30">
+              <div className="mt-6 p-4 rounded-xl bg-[#252742]/50 border border-[#3f2d63]/30">
                 <p className="text-sm text-[#818BAC] mb-3">
                   Need help understanding our terms?
                 </p>
@@ -120,68 +191,85 @@ export default function TermsOfUse() {
           </motion.div>
 
           {/* Main Content */}
-          <div className="flex-1 ml-[320px] p-8 pt-[100px]">
+          <div className="flex-1 px-4 md:px-6 lg:px-8 pt-[100px] md:pt-[100px] md:ml-0">
+            {/* Mobile dropdown menu */}
+            <div className="md:hidden mb-6 sticky top-[70px] z-50">
+              <MobileTableOfContents />
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="max-w-3xl mx-auto space-y-12"
+              className="max-w-3xl mx-auto space-y-10 md:space-y-12 pb-20"
             >
               {/* Introduction Section */}
               <TermsSection id="introduction" title="Introduction">
                 <div className="space-y-6">
-                  <div className="p-6 bg-[#1A2338]/60 backdrop-blur-md rounded-xl border border-[#3f2d63]/30">
-                    <p className="text-white/80 leading-relaxed">
-                      Welcome to sacraltrack.com (hereinafter referred to as the "Site").
-                      The Site, all services and APIs are the property of Sacral Projects (hereinafter referred to as the "Company"), 
-                      which is registered under Partnership No. OC436704 at the following address: Palliser House Second Floor - London, 
-                      United Kingdom - Sacral Projects LLP.
+                  <div className="p-5 bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white flex flex-col items-center">
+                    <img src="/logo.png" alt="Sacral Track Logo" className="w-24 h-24 my-4" />
+                    <h1 className="text-4xl md:text-5xl font-bold text-center mb-2">Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">Sacral Track</span></h1>
+                    <h2 className="text-xl md:text-2xl text-center text-white/80 mb-8">Music Platform / Social Network</h2>
+                    <p className="text-center text-white/80 max-w-2xl mb-8">
+                      The premier music platform for artists and listeners with high-quality
+                      audio and fair royalty distribution
                     </p>
-                    <p className="text-white/80 leading-relaxed mt-3">
-                      Sacral Projects LLP provides access to Sacral Track web application at www.sacraltrack.store, sacraltrack.com 
-                      and its associated URL addresses (hereinafter referred to as the "Web App").
-                    </p>
-                    <div className="mt-4 p-3 bg-[#20DDBB]/5 rounded-xl">
-                      <p className="text-[#20DDBB] text-sm font-medium">Sacral Projects LLP</p>
-                      <p className="text-white/70 text-sm">United Kingdom, London</p>
-                      <p className="text-white/70 text-sm">Palliser House Second Floor</p>
-                      <p className="text-white/70 text-sm">Partnership No. OC436704</p>
+                    
+                    {/* Remove BETA VERSION section */}
+                    {/* Previously beta version notice was here */}
+                    
+                    {/* Place buttons side by side */}
+                    <div className="flex flex-col md:flex-row gap-4 z-10">
+                      <a href="/get-started" className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white py-3 px-8 rounded-full font-medium hover:shadow-lg transition-all duration-300">
+                        Get Started
+                      </a>
+                      <a href="/terms" className="bg-[#1A2338]/80 text-white border border-white/20 py-3 px-8 rounded-full font-medium hover:bg-[#1A2338] transition-all duration-300">
+                        Read Terms of Service
+                      </a>
                     </div>
                   </div>
 
                   <InfoCard icon="🎵" title="Sacral Track Concept">
-                    <p className="text-sm text-white/80 mb-4">
+                    <p className="text-xs md:text-sm text-white/80 mb-4">
                       Sacral Track is a comprehensive music platform that seamlessly integrates a professional streaming service with a social network for music creators and enthusiasts. Unlike traditional platforms, Sacral Track offers a unified ecosystem where creativity, community, and commerce converge.
                     </p>
                     
-                    <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20 mb-6">
-                      <h3 className="text-purple-400 font-medium mb-3">Unified Account System</h3>
-                      <p className="text-white/80 mb-3">
+                    <div className="p-4 md:p-5 bg-purple-900/30 rounded-xl border border-purple-500/20 mb-6">
+                      <h3 className="text-purple-400 font-medium mb-3 text-sm md:text-base">Unified Account System</h3>
+                      <p className="text-white/80 mb-3 text-xs md:text-sm">
                         Sacral Track uses a dynamic, single-account system that evolves based on your activities:
                       </p>
                       <div className="space-y-3">
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">•</span>
-                          <p className="text-white/80">Every user begins with a standard account that can evolve in multiple directions</p>
+                          <p className="text-white/80 text-xs md:text-sm">Every user begins with a standard account that can evolve in multiple directions</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">•</span>
-                          <p className="text-white/80">Accounts transform into artist profiles when users upload music or select artist badges</p>
+                          <p className="text-white/80 text-xs md:text-sm">Accounts transform into artist profiles when users upload music or select artist badges</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">•</span>
-                          <p className="text-white/80">Accounts develop listener features when users focus on consuming content</p>
+                          <p className="text-white/80 text-xs md:text-sm">Accounts develop listener features when users focus on consuming content</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">•</span>
-                          <p className="text-white/80">All accounts have access to both creator and listener tools</p>
+                          <p className="text-white/80 text-xs md:text-sm">All accounts have access to both creator and listener tools</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80 text-xs md:text-sm"><strong>Free Listening:</strong> All music on the platform is available for free streaming</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80 text-xs md:text-sm"><strong>Free Publication:</strong> Artists can upload and publish their music at no cost</p>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="grid md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="space-y-3">
-                        <h4 className="text-[#20DDBB] font-medium text-sm">Platform Features:</h4>
+                        <h4 className="text-[#20DDBB] font-medium text-xs md:text-sm">Platform Features:</h4>
                         <CheckList items={[
                           'High-quality music streaming (320 kbps)',
                           'Music catalog with direct artist support',
@@ -199,7 +287,7 @@ export default function TermsOfUse() {
                       </div>
                       
                       <div className="space-y-3">
-                        <h4 className="text-[#20DDBB] font-medium text-sm">Engagement Options:</h4>
+                        <h4 className="text-[#20DDBB] font-medium text-xs md:text-sm">Engagement Options:</h4>
                         <CheckList items={[
                           'Upload and sell your original tracks',
                           'Purchase and collect music directly from creators',
@@ -216,29 +304,45 @@ export default function TermsOfUse() {
                       </div>
                     </div>
 
-                    <div className="p-5 bg-red-900/30 rounded-xl border border-red-500/20 mt-6">
-                      <h3 className="text-red-400 font-medium mb-3">Content Rights Transfer</h3>
-                      <p className="text-white/80 mb-3 font-medium">
+                    <div className="p-4 md:p-5 bg-indigo-950/30 rounded-xl border border-indigo-500/30 mt-8">
+                      <h3 className="text-lg md:text-xl font-semibold text-white mb-4">Content Rights Transfer</h3>
+                      <p className="text-white/80 mb-4 text-xs md:text-sm">
                         IMPORTANT: By registering an account and uploading any content to Sacral Track, you explicitly agree to the following:
                       </p>
-                      <div className="space-y-3">
-                        <div className="flex items-start gap-3">
-                          <span className="text-red-400 mt-1">!</span>
-                          <p className="text-white/80">All uploaded releases transfer usage rights to Sacral Track</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-red-400 mt-1">!</span>
-                          <p className="text-white/80">Sacral Track may use, promote, distribute, and monetize your content at its discretion</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-red-400 mt-1">!</span>
-                          <p className="text-white/80">Your content may appear in marketing materials, compilations, and partnerships</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-red-400 mt-1">!</span>
-                          <p className="text-white/80">Registration and content uploading constitutes legally binding acceptance of these terms</p>
-                        </div>
-                      </div>
+                      <ul className="space-y-3 mb-0 text-white/80">
+                        <li className="flex items-start">
+                          <span className="inline-flex items-center justify-center rounded-full bg-amber-600/20 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-5 md:h-5 text-amber-400">
+                              <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                          <span className="text-xs md:text-sm">All uploaded releases transfer usage rights to Sacral Track</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="inline-flex items-center justify-center rounded-full bg-amber-600/20 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-5 md:h-5 text-amber-400">
+                              <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                          <span className="text-xs md:text-sm">Sacral Track may use, promote, distribute, and monetize your content at its discretion</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="inline-flex items-center justify-center rounded-full bg-amber-600/20 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-5 md:h-5 text-amber-400">
+                              <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                          <span className="text-xs md:text-sm">Your content may appear in marketing materials, compilations, and partnerships</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="inline-flex items-center justify-center rounded-full bg-amber-600/20 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-5 md:h-5 text-amber-400">
+                              <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                          <span className="text-xs md:text-sm">Registration and content uploading constitutes legally binding acceptance of these terms</span>
+                        </li>
+                      </ul>
                     </div>
                   </InfoCard>
 
@@ -253,16 +357,20 @@ export default function TermsOfUse() {
               {/* Terms Acceptance Section */}
               <TermsSection id="acceptance" title="Terms Acceptance">
                 <div className="space-y-6">
-                  <p className="text-white/80 leading-relaxed">
+                  <p className="text-white/80 leading-relaxed text-sm md:text-base">
+                    Within these Terms of Use, the Sacral Track platform and all its associated services, functionalities, and systems are collectively referred to as "ST Systems" for the purposes of this agreement.
+                  </p>
+                  
+                  <p className="text-white/80 leading-relaxed text-sm md:text-base">
                     The right to use ST Systems is granted subject to acceptance, without modification, of all terms 
                     and conditions contained in this document (hereinafter referred to as the "Terms of Use"), which 
-                    also include the Privacy Policy available at http://sacraltrack.store/terms the Copyright Policy 
-                    available at http://sacraltrack.store/terms, as well as all other rules, policies and amendments 
+                    also include the Privacy Policy available at http://sacraltrack.space/terms the Copyright Policy 
+                    available at http://sacraltrack.space/terms, as well as all other rules, policies and amendments 
                     that may be published from time to time on the Site by the Company.
                   </p>
                   
-                  <div className="bg-white/5 rounded-xl p-5 border border-white/10">
-                    <p className="text-white/80 leading-relaxed mb-4">
+                  <div className="bg-white/5 rounded-xl p-4 md:p-5 border border-white/10">
+                    <p className="text-white/80 leading-relaxed mb-4 text-sm md:text-base">
                       By using ST Systems in whatever form and by whatever medium, you agree to be bound by these Terms of Use. 
                       These Terms of Use apply to all users of ST Systems, including users, who are the authors of the content 
                       (Artists), information and other materials or services incorporated in ST Systems.
@@ -309,6 +417,52 @@ export default function TermsOfUse() {
                       as to use all functional capabilities of ST Systems.
                     </p>
                     
+                    <div className="p-5 bg-amber-900/30 rounded-xl border border-amber-500/20">
+                      <h3 className="text-amber-400 font-medium mb-4">Track Publication Requirements</h3>
+                      <p className="text-white/80 mb-4">
+                        ST Systems enforces strict publication requirements to maintain platform integrity and ensure proper rights management:
+                      </p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Only original tracks whose rights can be fully transferred to ST Systems may be published on Sacral Track</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Releases previously published on other platforms can only be published on Sacral Track if the original label and distributor explicitly permit third-party publication</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Artists must have complete ownership or distribution rights for any content uploaded to the platform</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">Content with shared ownership requires written consent from all rights holders prior to publication</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-5 bg-blue-900/30 rounded-xl border border-blue-500/20">
+                      <h3 className="text-blue-400 font-medium mb-4">News Content and Sharing</h3>
+                      <p className="text-white/80 mb-4">
+                        ST Systems encourages the sharing of news, announcements, and informational content from Sacral Track:
+                      </p>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">News content from Sacral Track may be freely reposted and published on any resource provided that proper attribution is included</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">All shared news content must include a direct link back to the original Sacral Track source</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-[#20DDBB] mt-1">•</span>
+                          <p className="text-white/80">The integrity of the news content must be maintained without substantive alterations that might change its meaning</p>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <Notice type="warning" title="Important Restrictions">
                       It is prohibited to sell tracks purchased on Sacral Track through any third-party resources or 
                       to publish these tracks on other labels that do not have partnership agreements with Sacral Track.
@@ -345,14 +499,14 @@ export default function TermsOfUse() {
                         modification, loss, accidental or illegal destruction.
                       </p>
                       <p className="text-sm text-white/80">
-                        Full version of Privacy Policy is available at: https://sacratrack.store/terms
+                        Full version of Privacy Policy is available at: https://sacraltrack.space/terms
                       </p>
                     </InfoCard>
                   </div>
                   
                   <Notice type="info" title="Account Security">
                     Should you have any reason to believe that your account is no longer secure, immediately inform 
-                    Sacral Track of this at the following address: sacraltrack@gmail.cm.
+                    Sacral Track of this at the following address: sacraltrack@gmail.com.
                   </Notice>
                 </div>
               </TermsSection>
@@ -361,28 +515,94 @@ export default function TermsOfUse() {
               <TermsSection id="features" title="Platform Features">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
-                    Sacral Track is an interactive Web App (social media) and a music store for Artists and Music Lovers. 
-                    This Web App enables you to access various features based on your account type.
+                    Sacral Track is an interactive Web App (social media) and music store for creators and enthusiasts. 
+                    The platform features a dynamic account system that evolves based on your activity and preferences.
                   </p>
                   
-                  <InfoCard icon="🎵" title="Audio Features">
-                    <CheckList items={[
-                      'High-quality music streaming (320 kbps)',
-                      'Music purchases and ownership',
-                      'Create and share playlists (Beta version)',
-                      'Audio message uploads (Beta version)'
-                    ]} />
+                  <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20 mb-6">
+                    <h3 className="text-purple-400 font-medium mb-3">Dynamic Account System</h3>
+                    <p className="text-white/80 mb-3">
+                      Your Sacral Track account evolves organically based on how you use the platform:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80">All users begin with a standard account with access to core platform features</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80">When you upload music, your account automatically gains artist capabilities</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80">When you purchase music, your account develops listener-focused features</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80">All users can seamlessly transition between creator and consumer roles</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <InfoCard icon="🎵" title="Platform Features">
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-[#20DDBB] font-medium mb-2">Music Core</h4>
+                        <CheckList items={[
+                          'High-quality music streaming (320 kbps)',
+                          'Music catalog with direct artist support',
+                          'Lossless WAV downloads for purchases',
+                          'Visual waveform representations',
+                          'Background audio processing',
+                          'Music purchases and ownership',
+                          'Advanced playlist features'
+                        ]} />
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-[#20DDBB] font-medium mb-2">Creator Tools</h4>
+                        <CheckList items={[
+                          'Track uploads and monetization',
+                          'Customizable artist profiles',
+                          'Sales statistics and analytics',
+                          'Release management tools',
+                          'Copyright protection system',
+                          'Royalty tracking dashboard',
+                          'Price control for releases'
+                        ]} />
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-[#20DDBB] font-medium mb-2">Social Interaction</h4>
+                        <CheckList items={[
+                          'Vibration (vibe) creation and sharing',
+                          'Direct artist-fan connections',
+                          'Profile customization options',
+                          'User ranking and achievement system',
+                          'Private messaging system',
+                          'Comments and interactions',
+                          'Follow artists and other users'
+                        ]} />
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-[#20DDBB] font-medium mb-2">Discovery & Engagement</h4>
+                        <CheckList items={[
+                          'Genre-based browsing',
+                          'Personalized recommendations',
+                          'Trending tracks and artists',
+                          'Cart functionality for purchases',
+                          'Media sharing capabilities',
+                          'Event creation and discovery',
+                          'Audio message exchanges'
+                        ]} />
+                      </div>
+                    </div>
                   </InfoCard>
                   
-                  <InfoCard icon="🌟" title="Social Features">
-                    <CheckList items={[
-                      'Artist profiles and portfolios',
-                      'Private messaging system (Beta version)',
-                      'Comments and interactions (Beta version)',
-                      'Create and join events (Beta version)',
-                      'Follow artists and other users (Beta version)'
-                    ]} />
-                  </InfoCard>
+                  <Notice type="info" title="Feature Development">
+                    ST Systems is constantly evolving. All features are designed to enhance your experience as both a creator and a listener on our platform.
+                  </Notice>
                 </div>
               </TermsSection>
 
@@ -411,9 +631,9 @@ export default function TermsOfUse() {
                       <CheckList items={[
                         'Formats: JPEG, PNG, and WebP are accepted',
                         'Cover art: Required for all track uploads',
-                        'Size: 1200x1200px at 150dpi (recommended)',
-                        'Optimization: Images are automatically optimized',
-                        'Metadata: Cover art is embedded in audio files'
+                        'All images are automatically converted to WebP format',
+                        'Images are optimized for web delivery and performance',
+                        'Cover art is embedded in the final audio files'
                       ]} />
                     </InfoCard>
                   </div>
@@ -430,17 +650,7 @@ export default function TermsOfUse() {
                       </div>
                       <div className="flex items-start gap-3">
                         <span className="text-[#20DDBB] mt-1">✓</span>
-                        <p className="text-white/80"><span className="font-medium">Adaptive Segmentation:</span> Files are segmented based on duration:
-                          <ul className="ml-6 mt-2 space-y-1">
-                            <li>• Tracks up to 2 minutes: 10-second segments</li>
-                            <li>• Tracks 2-6 minutes: 15-second segments</li>
-                            <li>• Tracks over 6 minutes: 20-second segments</li>
-                          </ul>
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <span className="text-[#20DDBB] mt-1">✓</span>
-                        <p className="text-white/80"><span className="font-medium">Streaming:</span> Segments are delivered via M3U8 playlists for adaptive streaming</p>
+                        <p className="text-white/80"><span className="font-medium">Streaming:</span> Audio is delivered via optimized streaming protocols</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <span className="text-[#20DDBB] mt-1">✓</span>
@@ -502,10 +712,10 @@ export default function TermsOfUse() {
                   </div>
                   
                   <p className="text-white/80 leading-relaxed">
-                    Once the A&R Manager accepts the track you have uploaded to the Store, ST Systems automatically becomes 
-                    the copyright holder of the track. The Artist, in turn, receives a fee in the amount of 50% of the cost 
-                    of each download of this track. This does not apply to the circumstances where the Artist publishes a 
-                    third party track under his name.
+                    After uploading, your track will be automatically published on the platform in the main flow. 
+                    ST Systems receives the rights to use the track, and the Artist, in turn, receives a fee in the 
+                    amount of 50% of the cost of each download of this track. This does not apply to the circumstances 
+                    where the Artist publishes a third party track under their name.
                   </p>
                 </div>
               </TermsSection>
@@ -514,9 +724,9 @@ export default function TermsOfUse() {
               <TermsSection id="publication" title="Publication">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
-                    Publication Terms and Conditions: An A&R Manager is a person, who approves tracks uploaded to the 
-                    Store for publication on Sacral Track. Treat your creative output and our managers with respect. 
-                    Before uploading a track to the Store, make sure that it is fully completed and meets all the requirements.
+                    Publication Terms and Conditions: Before uploading a track to the Store, make sure that it is fully 
+                    completed and meets all the requirements. Your creative output will be automatically published on 
+                    the platform after upload, subject to meeting all requirements. <strong>Publication is completely free - there are no upload fees.</strong>
                   </p>
                   
                   <InfoCard icon="🎵" title="Track/Music Requirements">
@@ -538,73 +748,25 @@ export default function TermsOfUse() {
                       Allowed for publication are the Covers that meet the following requirements:
                     </p>
                     <CheckList items={[
-                      'Allowed sizes are 1200x1200px 150dpi',
                       'Artwork format: jpg, png, mp4 optimized for web',
                       'No copyright infringement of third parties'
                     ]} />
-                    <p className="text-sm text-white/60 mt-3">Should these dimensions be exceeded, the Cover will be automatically reduced.</p>
+                    <p className="text-sm text-white/60 mt-3">If your image exceeds recommended dimensions, the Cover will be automatically resized.</p>
                   </InfoCard>
                   
                   <div className="p-5 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
                     <h3 className="text-[#20DDBB] font-medium mb-4">Publication Period</h3>
                     <p className="text-white/80 leading-relaxed">
-                      Subject to the terms of this Agreement, the mandatory publication period of your track on the Site 
-                      amounts to 4 years. After 4 years have passed, a notification letter will be sent to your e-mail 
-                      about the expiration of this period, and you can either remove the track from publication or leave it in the Store.
+                      Subject to the terms of this Agreement, once your track is published on the Site, Sacral Track 
+                      receives indefinite rights to this content. The publication period is not limited in time.
                     </p>
                     <p className="text-white/80 leading-relaxed mt-3">
-                      Once the track has been uploaded and approved by the A&R Manager, the author will be unable to 
-                      remove the track from ST Systems. The artist has the opportunity to request the Sacral Track team 
-                      through the Team Support function and ask to remove the track from publication in the Store. 
-                      This is only possible in cases of copyright infringement.
+                      Once the track has been uploaded, the author will be unable to remove the track from ST Systems. 
+                      The artist has the opportunity to request the Sacral Track team through the Team Support function 
+                      and ask to remove the track from publication in the Store. This is only possible in cases of 
+                      copyright infringement.
                     </p>
                   </div>
-                </div>
-              </TermsSection>
-
-              {/* Content Guidelines Section */}
-              <TermsSection id="content" title="Content Guidelines">
-                <div className="space-y-6">
-                  <p className="text-white/80 leading-relaxed">
-                    To maintain a high-quality platform, Sacral Track enforces specific guidelines for all uploaded content. 
-                    These guidelines ensure that content meets technical requirements and respects intellectual property rights.
-                  </p>
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-5 bg-white/5 rounded-xl border border-white/10">
-                      <h3 className="text-white font-medium mb-4">Technical Requirements</h3>
-                      <ul className="space-y-3">
-                        <li className="text-white/80 text-sm">
-                          <span className="text-[#20DDBB] font-medium">Audio Quality:</span> WAV 44100hz (16/24 bit)
-                        </li>
-                        <li className="text-white/80 text-sm">
-                          <span className="text-[#20DDBB] font-medium">Track Duration:</span> 3-12 minutes
-                        </li>
-                        <li className="text-white/80 text-sm">
-                          <span className="text-[#20DDBB] font-medium">Artwork Size:</span> 1200x1200px at 150dpi
-                        </li>
-                        <li className="text-white/80 text-sm">
-                          <span className="text-[#20DDBB] font-medium">Artwork Format:</span> jpg, png, mp4 (web-optimized)
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    <div className="p-5 bg-white/5 rounded-xl border border-white/10">
-                      <h3 className="text-white font-medium mb-4">Content Restrictions</h3>
-                      <ul className="space-y-3">
-                        <li className="text-white/80 text-sm">No copyright infringement of third parties</li>
-                        <li className="text-white/80 text-sm">No previously signed or released tracks</li>
-                        <li className="text-white/80 text-sm">No unmastered or incomplete tracks</li>
-                        <li className="text-white/80 text-sm">No offensive or illegal content</li>
-                      </ul>
-                    </div>
-                  </div>
-                  
-                  <Notice type="warning" title="Content Violations">
-                    In the event that you violate any content guidelines, ST Systems reserves the right to remove 
-                    content without notice and may suspend or terminate your account. ST Systems renounces all 
-                    liability for consequences of copyright violations.
-                  </Notice>
                 </div>
               </TermsSection>
 
@@ -718,7 +880,7 @@ export default function TermsOfUse() {
                     <ul className="space-y-4">
                       <li className="flex items-start gap-3">
                         <span className="text-[#20DDBB] mt-1">✓</span>
-                        <p className="text-white/80">The royalty for a published track amounts to 50% of track price established by the Artist, which implies the cost of each download of such track.</p>
+                        <p className="text-white/80">Artists receive clean 50% royalties of the track price, with no hidden fees or deductions. This percentage is calculated from each download of the track.</p>
                       </li>
                       <li className="flex items-start gap-3">
                         <span className="text-[#20DDBB] mt-1">✓</span>
@@ -732,7 +894,32 @@ export default function TermsOfUse() {
                         <span className="text-[#20DDBB] mt-1">✓</span>
                         <p className="text-white/80">ST Systems is entitled to change the limits for the cost of tracks and to assign discounts on Content through promotional codes/offers.</p>
                       </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Royalty payments are processed only when your account balance exceeds $10. This threshold helps optimize processing costs and ensures efficient payment handling.</p>
+                      </li>
                     </ul>
+                  </div>
+                  
+                  <div className="p-5 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
+                    <h3 className="text-[#20DDBB] font-medium mb-4">Payment Methods</h3>
+                    <p className="text-white/80 leading-relaxed mb-4">
+                      Artists can receive their royalty payments through the following methods:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Visa card payments</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">PayPal transfers</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Direct bank account transfers</p>
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="p-5 bg-white/5 rounded-xl border border-white/10">
@@ -755,7 +942,7 @@ export default function TermsOfUse() {
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
                     ST Systems has partnerships with Stripe and other payment services and infrastructures. All money 
-                    transactions made on the Site (https://sacraltrack.store, https://sacraltrack.com) are performed 
+                    transactions made on the Site (https://sacraltrack.space, https://sacraltrack.space) are performed 
                     using the above services.
                   </p>
                   
@@ -784,7 +971,7 @@ export default function TermsOfUse() {
                     <p className="text-white/80 leading-relaxed mb-4">
                       ST Systems conducts large-scale advertising campaigns to further develop Sacral Track and to attract 
                       more users and artists. By accepting these terms, you agree that the personal information you publish 
-                      on www.sacraltrack.com (tracks, biography, comments, reviews and more) can be used in any of the 
+                      on www.sacraltrack.space (tracks, biography, comments, reviews and more) can be used in any of the 
                       following marketing components and companies:
                     </p>
                     <div className="grid grid-cols-2 gap-4">
@@ -870,11 +1057,35 @@ export default function TermsOfUse() {
                       goods or services available on or through any of such websites or resources.
                     </p>
                   </div>
+                  
+                  <div className="p-5 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
+                    <h3 className="text-[#20DDBB] font-medium mb-4">Multi-Platform Distribution</h3>
+                    <p className="text-white/80 leading-relaxed mb-4">
+                      Sacral Track supports artists' freedom to distribute their music across multiple platforms:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Artists are permitted to release their tracks on other marketplaces and labels simultaneously with Sacral Track</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">We encourage cross-platform promotion to maximize artist visibility and reach</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Label owners are invited to explore partnership opportunities with Sacral Track</p>
+                      </div>
+                    </div>
+                    <p className="text-white/80 leading-relaxed mt-4">
+                      Labels interested in collaboration or partnership opportunities can contact us directly at <a href="mailto:sacraltrack@gmail.com" className="text-[#20DDBB] hover:underline">sacraltrack@gmail.com</a>. We welcome discussions about joint releases, artist development, and innovative music distribution models.
+                    </p>
+                  </div>
                 </div>
               </TermsSection>
 
-              {/* Monetization Section */}
-              <TermsSection id="monetization" title="Monetization">
+              {/* Monetization Section - HIDDEN FOR NOW */}
+              {/* <TermsSection id="monetization" title="Monetization">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
                     Sacral Track provides multiple monetization avenues for artists. Our platform is designed to ensure
@@ -982,10 +1193,10 @@ export default function TermsOfUse() {
                     Questions regarding payments should be directed to our support team.
                   </Notice>
                 </div>
-              </TermsSection>
+              </TermsSection> */}
 
-              {/* Technical Requirements */}
-              <TermsSection id="technical-requirements" title="Technical Requirements and Limitations">
+              {/* Technical Requirements - HIDDEN FOR NOW */}
+              {/* <TermsSection id="technical-requirements" title="Technical Requirements and Limitations">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
                     To ensure optimal performance and compatibility with our platform, users and artists must adhere to the following technical requirements and limitations.
@@ -1119,21 +1330,21 @@ export default function TermsOfUse() {
                     vary based on file size, server load, and account tier.
                   </Notice>
                 </div>
-              </TermsSection>
+              </TermsSection> */}
             </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Back to top button */}
+      {/* Back to top button - Make larger on mobile for easier tapping and increase z-index */}
       {showBackToTop && (
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-8 right-8 w-12 h-12 rounded-full bg-[#20DDBB] flex items-center justify-center shadow-lg hover:bg-[#018CFD] transition-colors duration-300"
+          className="fixed bottom-6 md:bottom-8 right-6 md:right-8 w-14 h-14 md:w-12 md:h-12 rounded-full bg-[#20DDBB] flex items-center justify-center shadow-lg hover:bg-[#018CFD] transition-colors duration-300 z-50"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
-          <BsChevronLeft className="transform rotate-90 text-black" size={18} />
+          <BsChevronLeft className="transform rotate-90 text-black" size={20} />
         </motion.button>
       )}
     </>

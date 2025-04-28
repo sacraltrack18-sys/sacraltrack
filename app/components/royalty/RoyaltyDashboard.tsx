@@ -471,7 +471,7 @@ export default function RoyaltyDashboard({
             value={`$${(statsBalance.totalEarned || 0).toFixed(2)}`}
             description="Lifetime earnings from your tracks"
             tooltip="Total amount earned from all your track sales"
-            className="backdrop-blur-md"
+            className="backdrop-blur-xl bg-[#1A2338]/40"
           />
           
           <StatsCard
@@ -479,7 +479,7 @@ export default function RoyaltyDashboard({
             title="Available Balance"
             value={`$${(statsBalance.availableBalance || 0).toFixed(2)}`}
             description={isRefreshingBalance ? "Updating balance..." : `Ready to withdraw • Last updated: ${formatDistance(lastUpdateTime, new Date(), { addSuffix: true })}`} 
-            className="backdrop-blur-md"
+            className="backdrop-blur-xl bg-[#1A2338]/40"
             tooltip="Amount available for withdrawal"
             onClick={handleOpenWithdrawModal}
           />
@@ -487,7 +487,7 @@ export default function RoyaltyDashboard({
 
         {/* Sales & Withdrawals History Tabs - Improved with gradient border */}
         <div className="gradient-border p-0.5 rounded-xl">
-          <div className="bg-[#1A2338]/60 p-4 rounded-xl backdrop-blur-md">
+          <div className="bg-[#1A2338]/40 p-4 rounded-xl backdrop-blur-xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
               <div className="flex space-x-2 items-center">
                 <button
@@ -631,7 +631,7 @@ export default function RoyaltyDashboard({
                             key={transaction.purchase_id}
                             className="gradient-border rounded-lg"
                           >
-                            <div className="bg-[#1A2338]/50 backdrop-blur-md p-4 rounded-lg">
+                            <div className="bg-[#1A2338]/40 backdrop-blur-xl p-4 rounded-lg">
                               <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center space-x-3">
                                   <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden bg-[#3f2d63]/50 flex items-center justify-center">

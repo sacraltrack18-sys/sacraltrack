@@ -368,8 +368,8 @@ export default function UserVerificationCard({
       >
         <div className={`relative p-5 rounded-lg transition-all duration-300 ${
           isPhoneVerifiedLocal 
-            ? 'bg-[#1A2338]/60 backdrop-blur-md' 
-            : 'bg-[#1A2338]/50 hover:bg-[#1A2338]/60 backdrop-blur-md'
+            ? 'bg-[#1A2338]/50 backdrop-blur-xl' 
+            : 'bg-[#1A2338]/40 hover:bg-[#1A2338]/50 backdrop-blur-xl'
         }`}>
           <div className="flex justify-between">
             <div className="flex items-start gap-3">
@@ -484,7 +484,7 @@ export default function UserVerificationCard({
       className="w-full"
     >
       <div className="gradient-border">
-        <div className="bg-[#1A2338]/60 backdrop-blur-md p-6 rounded-lg">
+        <div className="bg-[#1A2338]/50 backdrop-blur-xl p-6 rounded-lg">
           <div className="flex items-center gap-2 mb-6">
             <FaUserShield className="text-violet-300 text-xl" />
             <h2 className="text-white text-lg font-medium">Account Verification</h2>
@@ -505,8 +505,8 @@ export default function UserVerificationCard({
               >
                 <div className={`relative p-5 rounded-lg transition-all duration-300 ${
                   isEmailVerifiedLocal 
-                    ? 'bg-gradient-to-br from-[#1A2338] to-[#1A2338]/95' 
-                    : 'bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 hover:from-[#1A2338] hover:to-[#1f2942]'
+                    ? 'bg-gradient-to-br from-[#1A2338]/80 to-[#1A2338]/75 backdrop-blur-xl' 
+                    : 'bg-gradient-to-br from-[#1A2338]/70 to-[#1A2338]/60 backdrop-blur-xl hover:from-[#1A2338]/75 hover:to-[#1f2942]/70'
                 }`}>
                   {isEmailVerifiedLocal && (
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent"></div>

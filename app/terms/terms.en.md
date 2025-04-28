@@ -4,15 +4,15 @@ Last updated: [Current Date]
 
 ## 1. Introduction
 
-Welcome to sacraltrack.com (hereinafter referred to as the "Site"). The Site, all services and APIs are the property of Sacral Projects (hereinafter referred to as the "Company"), which is registered under Partnership No. OC436704 at the following address: Palliser House Second Floor - London, United Kingdom - Sacral Projects LLP.
+Welcome to sacraltrack.space (hereinafter referred to as the "Site"). The Site, all services and APIs are the property of Sacral Projects (hereinafter referred to as the "Company"), which is registered under Partnership No. OC436704 at the following address: Palliser House Second Floor - London, United Kingdom - Sacral Projects LLP.
 
-Sacral Projects LLP provides access to Sacral Track web application at www.sacraltrack.store, sacraltrack.com and its associated URL addresses (hereinafter referred to as the "Web App").
+Sacral Projects LLP provides access to Sacral Track web application at www.sacraltrack.space, sacraltrack.space and its associated URL addresses (hereinafter referred to as the "Web App").
 
 ## 2. Acceptance of Terms
 
 By accessing or using the Sacral Track platform, you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access or use the service.
 
-The right to use Sacral Track is granted subject to acceptance of all terms and conditions contained in this document, which also include the Privacy Policy and Copyright Policy available at http://sacraltrack.store/terms.
+The right to use Sacral Track is granted subject to acceptance of all terms and conditions contained in this document, which also include the Privacy Policy and Copyright Policy available at http://sacraltrack.space/terms.
 
 The Company reserves the right to modify these Terms of Service at any time by posting a notice on the Site or by sending you an email. It is your responsibility to periodically check these Terms of Service for possible modifications.
 

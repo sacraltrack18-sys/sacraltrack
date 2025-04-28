@@ -313,7 +313,7 @@ const ProfileMenu = () => {
                     e.preventDefault();
                     setShowMenu(false);
                     console.log("[NAV] Navigating to terms");
-                    window.location.href = "/terms";
+                    window.open("/terms", "_blank", "noopener,noreferrer");
                   }}
                   className="flex items-center gap-2 mb-3 text-white/90
                           transition-all duration-200 group
