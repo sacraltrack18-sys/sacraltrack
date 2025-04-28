@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { database, ID, Query, account } from "@/libs/AppWriteClient";
 import { APPWRITE_CONFIG } from "@/libs/AppWriteClient";
 import { cookies } from "next/headers";
-// Импортируем node-appwrite для серверных операций
-import * as NodeAppwrite from 'node-appwrite';
 
 // Проверка наличия ID коллекции для лайков вайбов
 if (!APPWRITE_CONFIG.vibeLikesCollectionId) {
@@ -170,12 +168,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Обновляем счетчик лайков в документе вайба
-        try {
-          await updateVibeStats(vibe_id);
-        } catch (statsError) {
-          console.error("Error while updating vibe stats after unlike:", statsError);
-          // Продолжаем выполнение даже при ошибке обновления статистики
-        }
+        await updateVibeStats(vibe_id);
 
         // Возвращаем обновленный счетчик лайков
         const updatedLikesCount = await getLikesCount(vibe_id);
@@ -226,13 +219,7 @@ export async function POST(request: NextRequest) {
       console.log(`[VIBE-LIKE] Successfully created new like with ID: ${newLike.$id}`);
 
       // Обновляем счетчик лайков в документе вайба
-      try {
-        await updateVibeStats(vibe_id);
-      } catch (statsError) {
-        console.error("Error while updating vibe stats:", statsError);
-        // Продолжаем выполнение даже при ошибке обновления статистики,
-        // так как основная операция (создание лайка) уже успешно выполнена
-      }
+      await updateVibeStats(vibe_id);
 
       // Возвращаем обновленный счетчик лайков
       const updatedLikesCount = await getLikesCount(vibe_id);
@@ -316,16 +303,8 @@ async function getLikesCount(vibe_id: string): Promise<number> {
 // Функция для обновления статистики вайба
 async function updateVibeStats(vibe_id: string): Promise<void> {
   try {
-    // Создаем серверного клиента Appwrite с API-ключом для обхода проблем с авторизацией
-    const client = new NodeAppwrite.Client()
-      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_URL!)
-      .setProject(process.env.NEXT_PUBLIC_ENDPOINT!)
-      .setKey(process.env.APPWRITE_API_KEY!);
-
-    const databases = new NodeAppwrite.Databases(client);
-    
     // Получаем текущий вайб
-    const vibe = await databases.getDocument(
+    const vibe = await database.getDocument(
       APPWRITE_CONFIG.databaseId,
       process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
       vibe_id
@@ -337,20 +316,54 @@ async function updateVibeStats(vibe_id: string): Promise<void> {
       getCommentsCount(vibe_id)
     ]);
     
-    // Обновляем документ вайба через серверный клиент
-    await databases.updateDocument(
-      APPWRITE_CONFIG.databaseId,
-      process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-      vibe_id,
-      {
-        stats: [likesCount, commentsCount]
+    try {
+      // Обновляем документ вайба с явным указанием обновляемых данных
+      await database.updateDocument(
+        APPWRITE_CONFIG.databaseId,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+        vibe_id,
+        {
+          stats: [likesCount, commentsCount]
+        }
+      );
+      console.log(`[VIBE-STATS] Successfully updated stats for vibe ${vibe_id}: [${likesCount}, ${commentsCount}]`);
+    } catch (updateError) {
+      // Более подробная обработка ошибки обновления
+      console.error(`[VIBE-STATS] Update error details:`, updateError);
+      
+      // Создаем серверную функцию для обновления статистики
+      try {
+        // Создаем временное решение через непосредственное обновление полей
+        const currentStats = vibe.stats || ['0', '0'];
+        
+        // Обновляем только если есть изменения
+        if (currentStats[0] !== likesCount.toString() || currentStats[1] !== commentsCount.toString()) {
+          console.log(`[VIBE-STATS] Attempting alternative update for stats: ${currentStats} -> [${likesCount}, ${commentsCount}]`);
+          
+          // Обновляем документ с включением только необходимых полей
+          const updateData = {
+            total_likes: likesCount,
+            total_comments: commentsCount
+          };
+          
+          await database.updateDocument(
+            APPWRITE_CONFIG.databaseId,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
+            vibe_id,
+            updateData
+          );
+          
+          console.log(`[VIBE-STATS] Alternative update succeeded`);
+        } else {
+          console.log(`[VIBE-STATS] No changes needed, skipping update`);
+        }
+      } catch (secondUpdateError) {
+        console.error("Second attempt to update vibe stats failed:", secondUpdateError);
+        // Не пробрасываем ошибку дальше, чтобы не блокировать работу лайков
       }
-    );
-    
-    console.log(`[VIBE-LIKE] Successfully updated vibe stats: likes=${likesCount}, comments=${commentsCount}`);
+    }
   } catch (error) {
     console.error("Error updating vibe stats:", error);
-    throw error; // Re-throw the error to properly handle it in the calling function
   }
 }
 

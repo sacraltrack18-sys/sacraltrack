@@ -38,14 +38,14 @@ const nextConfig = {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
                     },
-                    // Более гибкие настройки для всех страниц, разрешающие внешние переходы
+                    // Изменяем для поддержки загрузки изображений
                     {
                         key: 'Cross-Origin-Opener-Policy',
-                        value: 'unsafe-none'
+                        value: 'same-origin'
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'unsafe-none'
+                        value: 'credentialless'
                     },
                     {
                         key: 'Cross-Origin-Resource-Policy',
@@ -63,7 +63,7 @@ const nextConfig = {
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'credentialless'
+                        value: 'require-corp'
                     },
                     {
                         key: 'Cache-Control',
@@ -93,7 +93,7 @@ const nextConfig = {
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'credentialless'
+                        value: 'require-corp'
                     },
                     {
                         key: 'Cache-Control',
@@ -110,6 +110,10 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
                     }
                 ]
             },
@@ -123,7 +127,7 @@ const nextConfig = {
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'credentialless'
+                        value: 'require-corp'
                     },
                     {
                         key: 'Cache-Control',
@@ -140,6 +144,10 @@ const nextConfig = {
                     {
                         key: 'Access-Control-Allow-Headers',
                         value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
                     }
                 ]
             },

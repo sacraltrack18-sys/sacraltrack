@@ -105,7 +105,7 @@ const BannerSlider = () => {
           setBanners([
             {
               $id: 'default',
-              image_url: '/images/default-banner.jpg',
+              image_url: '/images/placeholders/news-placeholder.svg',
               title: 'Welcome to Our News Section',
               subtitle: 'Stay updated with the latest trends and announcements',
               description: 'Discover exciting updates and news from our team',
@@ -124,7 +124,7 @@ const BannerSlider = () => {
       setBanners([
         {
           $id: 'default',
-          image_url: '/images/default-banner.jpg',
+          image_url: '/images/placeholders/news-placeholder.svg',
           title: 'Welcome to Our News Section',
           subtitle: 'Stay updated with the latest trends and announcements',
           description: 'Discover exciting updates and news from our team',

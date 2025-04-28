@@ -337,7 +337,7 @@ const ContentFilter = () => {
       
       {/* Mobile version - optimized for mobile display */}
       <div className="block md:hidden w-full">
-        <div className="w-full backdrop-blur-xl bg-gradient-to-r from-blue-500/10 to-pink-500/10 shadow-lg z-[99] rounded-t-2xl border-t border-white/10">
+        <div className="w-full backdrop-blur-xl bg-[#0F1225]/30 rounded-t-2xl border-t border-white/5">
           <div className="flex justify-between items-center px-2">
             <MobileTabButton 
               active={activeTab === 'all'} 

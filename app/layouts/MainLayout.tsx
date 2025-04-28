@@ -122,7 +122,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     damping: 20,
                     duration: 0.5 
                 }}
-                className="md:hidden fixed bottom-0 left-0 right-0 z-[99998] bg-[#0F1225]/90 backdrop-blur-lg px-4 py-3 pb-4 border-t border-white/10 shadow-lg fixed-bottom-panel"
+                className="md:hidden fixed bottom-0 left-0 right-0 z-[99998] bg-[#0F1225]/50 backdrop-blur-xl px-4 py-3 pb-4 border-t border-white/5 shadow-lg fixed-bottom-panel"
             >
                 <ContentFilter />
             </motion.div>

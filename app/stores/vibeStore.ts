@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { database, Query, ID, storage, Permission, Role } from '@/libs/AppWriteClient';
 import { toast } from 'react-hot-toast';
+import createBucketUrl from "../hooks/useCreateBucketUrl";
+import { getVibeLikeStatus } from "../lib/vibeActions";
 
 // Вспомогательная функция для преобразования ID файла в полный URL
 const getFullMediaUrl = (fileId: string): string => {
@@ -1055,16 +1057,9 @@ export const useVibeStore = create<VibeStore>()(
 
         checkIfUserLikedVibe: async (vibeId, userId) => {
           try {
-            const response = await database.listDocuments(
-              process.env.NEXT_PUBLIC_DATABASE_ID!,
-              process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES!,
-              [
-                Query.equal('user_id', userId),
-                Query.equal('vibe_id', vibeId)
-              ]
-            );
-
-            return response.documents.length > 0;
+            // Используем API с предотвращением кэширования вместо прямого запроса к базе
+            const hasLiked = await getVibeLikeStatus(vibeId, userId);
+            return hasLiked;
           } catch (error) {
             console.error('Error checking if user liked vibe:', error);
             return false;

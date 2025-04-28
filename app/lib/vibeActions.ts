@@ -69,6 +69,9 @@ export async function toggleVibeVote(vibeId: string, userId: string) {
         clearTimeout(timeoutId);
         
         console.log(`[VibeAction] Request ${requestUuid} received response with status ${response.status}`);
+        
+        // После успешного ответа, сбрасываем дебаунс ключ для разрешения нового клика
+        localStorage.removeItem(debounceKey);
 
       // Проверяем HTTP-статус
       if (!response.ok) {
@@ -180,7 +183,16 @@ export async function toggleVibeVote(vibeId: string, userId: string) {
 // Функция для получения статуса лайка
 export async function getVibeLikeStatus(vibeId: string, userId: string) {
   try {
-    const response = await fetch(`/api/vibes/like?vibe_id=${vibeId}&user_id=${userId}`);
+    // Добавляем timestamp для предотвращения кэширования
+    const timestamp = new Date().getTime();
+    const response = await fetch(`/api/vibes/like?vibe_id=${vibeId}&user_id=${userId}&_t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      // Важно: отключаем кэширование
+      cache: 'no-store'
+    });
 
     if (!response.ok) {
       const errorData = await response.json();

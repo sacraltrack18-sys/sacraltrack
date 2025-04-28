@@ -8,7 +8,7 @@
  * @param fallbackUrl Запасное изображение, если основное недоступно
  * @returns Полный URL для изображения
  */
-export function getAppwriteImageUrl(imageUrl: string, fallbackUrl: string = '/images/default-banner.jpg'): string {
+export function getAppwriteImageUrl(imageUrl: string, fallbackUrl: string = '/images/placeholders/news-placeholder.svg'): string {
   if (!imageUrl) return fallbackUrl;
   
   // Если это полный URL (начинается с http или https), возвращаем его как есть

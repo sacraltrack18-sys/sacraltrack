@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -25,6 +25,8 @@ import { useRouter } from 'next/navigation';
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { BiLoaderCircle } from 'react-icons/bi';
 import { useShareVibeContext } from './useShareVibe';
+import { usePathname } from "next/navigation";
+import { format } from 'date-fns';
 
 // Интерфейс для комментариев
 interface VibeComment {
@@ -229,6 +231,37 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     
     // Предзагружаем комментарии, чтобы счетчик был правильным сразу
     fetchComments();
+    
+    // Счетчик для отслеживания количества выполненных обновлений
+    let updateCount = 0;
+    const maxUpdates = 2; // Максимальное количество автоматических обновлений
+    
+    // Таймер для первого обновления через 5 секунд
+    const firstTimer = setTimeout(() => {
+      const element = document.getElementById(`vibe-card-${vibe.id}`);
+      if (element && isElementInViewport(element)) {
+        console.log(`[VIBE-CARD] First auto-refresh for vibe ${vibe.id}`);
+        refreshVibeStats();
+        updateCount++;
+      }
+      
+      // Если обновление еще не достигло максимума, устанавливаем таймер для второго обновления
+      if (updateCount < maxUpdates) {
+        const secondTimer = setTimeout(() => {
+          const element = document.getElementById(`vibe-card-${vibe.id}`);
+          if (element && isElementInViewport(element)) {
+            console.log(`[VIBE-CARD] Second auto-refresh for vibe ${vibe.id}`);
+            refreshVibeStats();
+          }
+        }, 5000); // Второе обновление через 5 секунд после первого
+        
+        // Очистка второго таймера при размонтировании
+        return () => clearTimeout(secondTimer);
+      }
+    }, 5000); // Первое обновление через 5 секунд после монтирования
+    
+    // Очистка первого таймера при размонтировании
+    return () => clearTimeout(firstTimer);
   }, []); // Пустой массив зависимостей гарантирует выполнение только при монтировании
   
   const [isLiked, setIsLiked] = useState(false);
@@ -441,6 +474,12 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             // Если обновление хранилища не удалось, логируем ошибку, но не показываем пользователю
             console.error(`[VIBE-CARD] Store update error in operation ${operationId}:`, storeError);
           }
+          
+          // Принудительно обновляем представление после ответа сервера
+          // с небольшой задержкой, чтобы дать время DOM обновиться
+          setTimeout(() => {
+            setLikesCount(response.count); // Повторно устанавливаем для надежности
+          }, 300);
         } else {
           // Обрабатываем неожиданный формат ответа
           console.error(`[VIBE-CARD] Invalid response format in operation ${operationId}:`, response);
@@ -471,10 +510,22 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         throw apiError; // Пробрасываем ошибку дальше для обработки
       }
     } catch (error) {
-      console.error(`[VIBE-CARD] General error handling like toggle:`, error);
+      // Revert to original state in case of error
+      setIsLiked(wasLiked);
+      setLikesCount(prevLikesCount);
+      
+      console.error('[VIBE-CARD] Error toggling like:', error);
+      
+      // Показываем сообщение об ошибке пользователю (опционально)
+      toast.error('Could not process your like. Please try again.');
     } finally {
-      // Всегда сбрасываем флаг, независимо от результата
-      setIsLikeInProgress(false);
+      // Ensure we always reset the flag, even in case of error
+      setTimeout(() => {
+        setIsLikeInProgress(false);
+        
+        // Проверим еще раз, правильно ли отображается счетчик лайков
+        refreshVibeStats();
+      }, 500); // Добавляем небольшую задержку для лучшего UX
     }
   };
 
@@ -514,6 +565,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           
           // Обновляем объект вайба тоже для согласованности
           vibe.stats = stats;
+          
+          // Принудительно обновляем UI после получения данных
+          setTimeout(() => {
+            setLikesCount(prev => {
+              // Проверяем, изменилось ли количество лайков
+              if (prev !== newLikesCount) {
+                console.log(`[VIBE-CARD] Updating UI likes count from ${prev} to ${newLikesCount}`);
+                return newLikesCount;
+              }
+              return prev;
+            });
+          }, 100);
         } else if (typeof stats === 'object') {
           const newLikesCount = stats.total_likes || 0;
           const newCommentsCount = stats.total_comments || 0;
@@ -525,6 +588,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           
           // Обновляем объект вайба тоже для согласованности
           vibe.stats = stats;
+          
+          // Принудительно обновляем UI после получения данных
+          setTimeout(() => {
+            setLikesCount(prev => {
+              // Проверяем, изменилось ли количество лайков
+              if (prev !== newLikesCount) {
+                console.log(`[VIBE-CARD] Updating UI likes count from ${prev} to ${newLikesCount}`);
+                return newLikesCount;
+              }
+              return prev;
+            });
+          }, 100);
         }
       } else {
         console.log(`[VIBE-CARD] No stats found in refreshed vibe document`);
@@ -714,9 +789,21 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
 
+  // Функция для проверки, находится ли элемент в поле зрения пользователя
+  const isElementInViewport = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  };
+
   return (
     <div className="mb-8 mx-auto w-full md:w-[450px]">
       <div 
+        id={`vibe-card-${vibe.id}`}
         className="bg-[#1A1A2E] bg-opacity-50 rounded-xl overflow-hidden border border-white/5 group cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(32,221,187,0.15)] hover:border-[#20DDBB]/20"
         onClick={handleCardClick}
       >
@@ -830,7 +917,9 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 ) : (
                   <HeartIcon className="w-5 h-5 text-white" />
                 )}
-                <span className="text-sm font-medium text-white">{likesCount}</span>
+                <span className="text-sm font-medium text-white">
+                  {isLikeInProgress ? '...' : likesCount}
+                </span>
               </motion.button>
 
               <motion.button 
