@@ -982,12 +982,6 @@ const PostMain = memo(({ post }: PostMainProps) => {
             setIsProcessingPayment(true);
             successToast("Processing your purchase...");
 
-            const stripe = await getStripe();
-            if (!stripe) {
-                errorToast("Couldn't load payment processor. Please try again later.");
-                return;
-            }
-
             const response = await fetch("/api/checkout_sessions", {
                 method: "POST",
                 headers: {
@@ -1009,14 +1003,15 @@ const PostMain = memo(({ post }: PostMainProps) => {
             }
 
             const data = await response.json();
-
-            const { error } = await stripe.redirectToCheckout({
-                sessionId: data.session.id
-            });
-
-            if (error) {
-                throw error;
+            
+            if (!data.success || !data.session || !data.session.url) {
+                throw new Error('Invalid checkout session response');
             }
+            
+            console.log("Redirecting to checkout URL:", data.session.url);
+            
+            // Use direct URL redirection instead of stripe.redirectToCheckout
+            window.location.href = data.session.url;
 
         } catch (error: any) {
             console.error('Purchase error:', error);

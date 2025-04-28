@@ -379,7 +379,7 @@ export default function Upload() {
         if (fileAudio && !clientMp3File) {
             console.log('Attempting to continue with direct upload despite processing error');
             // Показываем уведомление о загрузке без обработки
-            toast.success('Готово. Продолжаем загрузку трека', {
+            toast.success('Done. Continuing with track upload', {
                 style: {
                     border: '1px solid #20DDBB',
                     padding: '16px',

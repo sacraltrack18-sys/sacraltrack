@@ -151,6 +151,108 @@ const nextConfig = {
                     }
                 ]
             },
+            // Настройки для API платежных маршрутов - Stripe
+            {
+                source: '/api/checkout_sessions',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    },
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, PUT, DELETE, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization, stripe-signature'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    }
+                ]
+            },
+            // Настройки для API проверки платежей
+            {
+                source: '/api/verify_payment',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    },
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    }
+                ]
+            },
+            // Настройки для Stripe webhook и связанных API
+            {
+                source: '/api/stripe/:path*',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin'
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'credentialless'
+                    },
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, max-age=0'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET, POST, OPTIONS'
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'X-Requested-With, Content-Type, Authorization, stripe-signature'
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    }
+                ]
+            },
             // Cache static assets
             {
                 source: '/images/(.*)',

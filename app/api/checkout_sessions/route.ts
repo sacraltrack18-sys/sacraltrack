@@ -8,13 +8,33 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2023-10-16",
 });
 
+export async function OPTIONS(req: Request) {
+    // Handle CORS preflight request
+    return new NextResponse(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '86400',
+        },
+    });
+}
+
 export async function POST(req: Request) {
+    // Add CORS headers
+    const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+
     // Проверяем инициализацию Stripe
     if (!stripe) {
         console.error('Stripe is not initialized');
         return NextResponse.json(
             { success: false, error: "Stripe configuration error" },
-            { status: 500 }
+            { status: 500, headers }
         );
     }
 
@@ -36,7 +56,7 @@ export async function POST(req: Request) {
             console.error('Missing required parameters');
             return NextResponse.json(
                 { success: false, error: "Missing required parameters" },
-                { status: 400 }
+                { status: 400, headers }
             );
         }
 
@@ -66,12 +86,25 @@ export async function POST(req: Request) {
         });
 
         console.log('Checkout session created:', session);
-        return NextResponse.json({ success: true, session });
+        console.log('Session URL:', session.url); // Выводим URL для отладки
+        
+        // Ensure session URL is included in the response
+        if (!session.url) {
+            throw new Error('Session URL is missing from Stripe response');
+        }
+        
+        return NextResponse.json({ 
+            success: true, 
+            session: {
+                id: session.id,
+                url: session.url
+            } 
+        }, { headers });
     } catch (error: any) {
         console.error('Checkout session error:', error);
         return NextResponse.json(
             { success: false, error: error.message },
-            { status: 500 }
+            { status: 500, headers }
         );
     }
 }

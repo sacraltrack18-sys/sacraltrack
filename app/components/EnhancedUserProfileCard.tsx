@@ -6,7 +6,7 @@ import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { motion, AnimatePresence } from "framer-motion";
 import { BsPersonPlus, BsPersonCheck, BsPersonX } from "react-icons/bs";
 import { IoMdMusicalNotes } from "react-icons/io";
-import { FaUserFriends } from "react-icons/fa";
+import { FaUserFriends, FaInstagram } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { useFriendsStore } from "@/app/stores/friends";
 import { usePostStore } from "@/app/stores/post";
@@ -253,12 +253,10 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
         
         <div className="flex items-center justify-between text-[#818BAC] text-sm mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-[#20DDBB]">Released:</span>
-            <span>{profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Recently'}</span>
+            <span className="text-[#20DDBB]">Label</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[#20DDBB]">Genre:</span>
-            <span>{profile.genre || 'Various'}</span>
+            <span className="text-[#20DDBB]">Ambient</span>
           </div>
         </div>
 
@@ -274,6 +272,14 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
             <FaUserFriends className="text-xl" />
             <span>{friendCount} friends</span>
           </div>
+        </div>
+
+        {/* Социальные иконки без заголовка */}
+        <div className="flex mt-3 gap-2 justify-center">
+          <Link href="#" className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-all duration-300">
+            <FaInstagram className="text-[#20DDBB]" />
+          </Link>
+          {/* Здесь можно добавить другие социальные иконки при необходимости */}
         </div>
 
         {profile.bio && (
