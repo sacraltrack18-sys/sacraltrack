@@ -13,6 +13,8 @@ import { OnboardingProvider } from './context/OnboardingContext';
 import { ShareVibeProvider } from './components/vibe/useShareVibe';
 import { useUser } from './context/user';
 import AuthErrorHandler from './components/AuthErrorHandler';
+import { clsx } from 'clsx';
+import { inter } from '@/app/fonts/inter';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
@@ -68,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     #TopNav { background: linear-gradient(60deg,#2E2469,#351E43); }
                 ` }} />
             </head>
-            <body className="bg-[linear-gradient(60deg,#2E2469,#351E43)] text-white">
+            <body className={clsx(inter.variable, 'bg-[#0F1122]')}>
                 <GlobalLoader />
                 <Suspense fallback={<></>}>
                 {/*    <YandexMetrika /> */}
@@ -97,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <OnboardingProvider>
                             <ShareVibeProvider appName="Sacral Track">
                                 <AuthErrorHandler>
-                                    <Toaster 
+                                    <Toaster
                                         position="top-center"
                                         containerStyle={{
                                             zIndex: 10000000
@@ -109,6 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                                 color: '#fff',
                                                 zIndex: 10000000
                                             },
+                                            // Custom success/error styles
                                             success: {
                                                 iconTheme: {
                                                     primary: '#8B5CF6',

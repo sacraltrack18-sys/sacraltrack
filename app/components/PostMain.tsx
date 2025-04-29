@@ -791,7 +791,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
     // Memoized values to prevent unnecessary recalculations
     const userContext = useUser();
     const { setIsLoginOpen } = useGeneralStore();
-    const { currentAudioId, setCurrentAudioId, isPlaying: globalIsPlaying, togglePlayPause } = usePlayerContext();
+    const { currentAudioId, setCurrentAudioId, isPlaying: globalIsPlaying, togglePlayPause, stopAllPlayback } = usePlayerContext();
     const { checkIfTrackPurchased } = useCheckPurchasedTrack();
     const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
     const cardRef = useRef<HTMLDivElement>(null);
@@ -854,11 +854,10 @@ const PostMain = memo(({ post }: PostMainProps) => {
         return () => clearTimeout(timer);
     }, [post?.id]);
 
-    // Control playback using the global player context
+    // Sync play state from global context
     useEffect(() => {
-        // Update local playing state based on global state
-        setIsPlaying(currentAudioId === post?.id && globalIsPlaying);
-    }, [currentAudioId, globalIsPlaying, post?.id]);
+        setIsPlaying(currentAudioId === post.id && globalIsPlaying);
+    }, [currentAudioId, globalIsPlaying, post.id]);
 
     // Проверяем наличие документа статистики при загрузке компонента
     useEffect(() => {
@@ -867,52 +866,29 @@ const PostMain = memo(({ post }: PostMainProps) => {
         }
     }, [post?.id]);
 
-    // Обновленный обработчик для запуска/остановки воспроизведения
-    const handleTogglePlay = useCallback(async () => {
-        if (!post) return;
-        
-        if (currentAudioId !== post.id) {
-            // Если воспроизводится другой трек, переключаемся на этот
-            setCurrentAudioId(post.id);
-            if (!globalIsPlaying) {
+    // Toggle play/pause function
+    const handleTogglePlay = useCallback(() => {
+        if (currentAudioId === post.id) {
+            // Если этот трек уже активный
+            if (globalIsPlaying) {
+                // Если играет, останавливаем
+                stopAllPlayback();
+            } else {
+                // Если на паузе, запускаем
                 togglePlayPause();
             }
-            successToast(`Now playing: ${post.trackname}`);
-            
-            // Убеждаемся, что документ статистики существует
-            await ensureTrackStatisticsExist(post.id);
-            
-            // Записываем прослушивание только один раз за сессию для этого трека
-            if (!playCountRecordedRef.current) {
-                playCountRecordedRef.current = true;
-                
-                // Увеличиваем счетчик прослушиваний
-                incrementPlayCount();
-                
-                // Записываем информацию о прослушивании
-                try {
-                    const deviceInfo = getUserDeviceInfo();
-                    const geoInfo = await getGeographicInfo();
-                    
-                    await recordInteraction({
-                        track_id: post.id,
-                        user_id: userContext?.user?.id || 'anonymous',
-                        interaction_type: 'play',
-                        device_info: deviceInfo,
-                        geographic_info: geoInfo
-                    });
-                } catch (error) {
-                    console.error('Failed to record play interaction:', error);
-                    // Не останавливаем воспроизведение при ошибке записи
-                }
-            }
         } else {
-            // Если этот трек уже выбран, просто переключаем воспроизведение/паузу
-            togglePlayPause();
+            // Если выбран другой трек или нет активного трека
+            // Останавливаем предыдущее воспроизведение и активируем текущий трек
+            if (globalIsPlaying) {
+                stopAllPlayback();
+            }
+            setCurrentAudioId(post.id);
+            setTimeout(() => {
+                togglePlayPause();
+            }, 50);
         }
-    }, [currentAudioId, post?.id, globalIsPlaying, togglePlayPause, setCurrentAudioId, 
-        userContext?.user?.id, recordInteraction, getUserDeviceInfo, getGeographicInfo,
-        incrementPlayCount]);
+    }, [post.id, currentAudioId, globalIsPlaying, togglePlayPause, stopAllPlayback, setCurrentAudioId]);
 
     // Handle intersection observer for lazy loading
     useEffect(() => {
@@ -982,10 +958,15 @@ const PostMain = memo(({ post }: PostMainProps) => {
             setIsProcessingPayment(true);
             successToast("Processing your purchase...");
 
+            // Добавляем заголовок Origin, чтобы сервер мог корректно обработать CORS
+            const origin = window.location.origin;
+            console.log('Current origin:', origin);
+            
             const response = await fetch("/api/checkout_sessions", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Origin": origin,
                 },
                 body: JSON.stringify({
                     trackId: post.id,
@@ -996,22 +977,44 @@ const PostMain = memo(({ post }: PostMainProps) => {
                     audio: post.audio_url,
                     amount: 200 // Fixed price in cents ($2.00)
                 }),
+                credentials: 'include', // Добавляем для корректной работы с куками
+                mode: 'cors' // Явно указываем режим CORS
             });
 
+            // Логируем статус ответа для диагностики
+            console.log('Payment response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Payment initialization failed');
+                const errorData = await response.json().catch(() => ({ error: 'Could not parse error response' }));
+                console.error('Payment initialization failed with response:', errorData);
+                throw new Error(errorData.error || 'Payment initialization failed');
             }
 
             const data = await response.json();
             
             if (!data.success || !data.session || !data.session.url) {
+                console.error('Invalid checkout session response:', data);
                 throw new Error('Invalid checkout session response');
             }
             
             console.log("Redirecting to checkout URL:", data.session.url);
             
-            // Use direct URL redirection instead of stripe.redirectToCheckout
-            window.location.href = data.session.url;
+            // Используем window.open вместо location.assign для большей надежности
+            const checkoutWindow = window.open(data.session.url, '_self');
+            
+            // Если window.open не сработал, используем запасные методы
+            if (!checkoutWindow) {
+                console.log("Using fallback redirection...");
+                window.location.assign(data.session.url);
+                
+                // Последний резервный вариант
+                setTimeout(() => {
+                    if (document.location.href !== data.session.url) {
+                        console.log("Using last-resort redirection...");
+                        document.location.href = data.session.url;
+                    }
+                }, 1000);
+            }
 
         } catch (error: any) {
             console.error('Purchase error:', error);
@@ -1060,8 +1063,8 @@ const PostMain = memo(({ post }: PostMainProps) => {
             <PostImage 
                 imageUrl={imageUrlRef.current} 
                 imageError={imageError} 
-                comments={post?.id ? getCommentsByPostId(post.id) : []}
-                isPlaying={isPlaying}
+                comments={post.id ? getCommentsByPostId(post.id) : []}
+                isPlaying={isPlaying} 
                 onTogglePlay={handleTogglePlay}
                 post={post}
                 onReact={handleReaction}
@@ -1075,12 +1078,19 @@ const PostMain = memo(({ post }: PostMainProps) => {
                     isPlaying={isPlaying} 
                     onPlay={() => {
                         if (currentAudioId !== post.id) {
+                            // Если другой трек активен, сначала остановить его
+                            if (globalIsPlaying) {
+                                stopAllPlayback();
+                            }
                             setCurrentAudioId(post.id);
+                            togglePlayPause();
+                        } else if (!globalIsPlaying) {
+                            // Если этот трек на паузе, возобновить
+                            togglePlayPause();
                         }
-                        togglePlayPause();
                     }} 
                     onPause={() => {
-                        if (currentAudioId === post.id) {
+                        if (currentAudioId === post.id && globalIsPlaying) {
                             togglePlayPause();
                         }
                     }} 

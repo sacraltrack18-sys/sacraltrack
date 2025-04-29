@@ -157,11 +157,11 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
+                        value: 'unsafe-none'
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
-                        value: 'credentialless'
+                        value: 'unsafe-none'
                     },
                     {
                         key: 'Cache-Control',
@@ -177,11 +177,15 @@ const nextConfig = {
                     },
                     {
                         key: 'Access-Control-Allow-Headers',
-                        value: 'X-Requested-With, Content-Type, Authorization, stripe-signature'
+                        value: 'X-Requested-With, Content-Type, Authorization, stripe-signature, Origin'
                     },
                     {
                         key: 'Cross-Origin-Resource-Policy',
                         value: 'cross-origin'
+                    },
+                    {
+                        key: 'Referrer-Policy',
+                        value: 'no-referrer-when-downgrade'
                     }
                 ]
             },

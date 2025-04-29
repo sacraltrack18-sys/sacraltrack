@@ -65,8 +65,16 @@ export default function Register() {
     }
 
     const handleGoogleRegister = async () => {
+        // Prevent multiple click attempts
+        if (loading) return;
+        
         try {
             setLoading(true);
+            
+            // Set a flag in sessionStorage to prevent showing errors during redirect
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('googleAuthInProgress', 'true');
+            }
             
             // Проверяем наличие необходимых переменных окружения
             if (!process.env.NEXT_PUBLIC_APP_URL) {
@@ -85,37 +93,45 @@ export default function Register() {
             const successUrl = `${baseUrl}/auth/google/success`;
             const failureUrl = `${baseUrl}/fail`;
 
-            // Проверяем текущую сессию
+            // Проверяем текущую сессию с обработкой ошибок
             try {
                 const session = await account.getSession('current');
                 if (session) {
                     await account.deleteSession('current');
                 }
             } catch (error) {
-                // Если сессии нет, это нормально
+                // Если сессии нет, это нормально, продолжаем
                 console.log('No existing session found');
             }
 
-            // Создаем OAuth сессию
+            // Создаем OAuth сессию - после этого произойдет редирект, так что код ниже не выполнится
             await account.createOAuth2Session(
                 'google',
                 successUrl,
                 failureUrl
             );
-        } catch (error: any) {
+        } catch (error) {
             console.error('Google registration error:', error);
             
-            if (error.code === 400) {
-                toast.error('Ошибка конфигурации. Пожалуйста, проверьте настройки приложения.');
-            } else if (error.code === 401) {
-                toast.error('Ошибка аутентификации. Попробуйте еще раз.');
-            } else if (error.code === 429) {
-                toast.error('Слишком много попыток. Подождите несколько минут.');
-            } else {
-                toast.error('Не удалось выполнить вход через Google. Попробуйте позже.');
+            // Проверяем, не был ли пользователь уже перенаправлен или не находится в процессе
+            if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
+                if (error.code === 400) {
+                    toast.error('Ошибка конфигурации. Пожалуйста, проверьте настройки приложения.');
+                } else if (error.code === 401) {
+                    toast.error('Ошибка аутентификации. Попробуйте еще раз.');
+                } else if (error.code === 429) {
+                    toast.error('Слишком много попыток. Подождите несколько минут.');
+                } else {
+                    toast.error('Не удалось выполнить вход через Google. Попробуйте позже.');
+                }
             }
             
             setLoading(false);
+            
+            // Очищаем флаг, если произошла ошибка
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('googleAuthInProgress');
+            }
         }
     }
 

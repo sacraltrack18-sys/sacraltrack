@@ -39,6 +39,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Stop all playback
   const stopAllPlayback = () => {
     setIsPlaying(false);
+    // Не сбрасываем currentAudioId, так как это приведет к потере выбранного трека
+    // currentAudioId должен быть сброшен только когда активно выбирается другой трек
   };
 
   // When changing tracks, automatically start playing

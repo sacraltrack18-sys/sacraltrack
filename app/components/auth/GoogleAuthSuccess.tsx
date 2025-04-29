@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
 import { BsMusicNoteBeamed } from "react-icons/bs";
@@ -16,10 +16,29 @@ export default function GoogleAuthSuccess() {
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
     const maxRetries = 3;
+    const errorShownRef = useRef(false);
+    const successShownRef = useRef(false);
+    const toastIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        toast.dismiss();
+        
+        return () => {
+            toast.dismiss();
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('googleAuthInProgress');
+            }
+        };
+    }, []);
 
     useEffect(() => {
         // Очистка кэша данных предыдущего пользователя
         clearUserCache();
+        
+        // Очищаем флаг процесса аутентификации
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('googleAuthInProgress');
+        }
         
         // Get the current user authentication state
         const updateUserState = async () => {
@@ -42,30 +61,46 @@ export default function GoogleAuthSuccess() {
                             localStorage.setItem('userId', user.id);
                         }
                         
-                        // Success notification
-                        toast.success('Successfully logged in!', {
-                            icon: '✅',
-                            duration: 3000,
-                        });
+                        if (!successShownRef.current) {
+                            successShownRef.current = true;
+                            
+                            toast.dismiss();
+                            
+                            toastIdRef.current = toast.success('Successfully logged in!', {
+                                id: 'auth-success',
+                                icon: '✅',
+                                duration: 3000,
+                            });
+                        }
                         
                         setCheckingAuth(false);
+                        errorShownRef.current = false;
                         
                         // Redirect to homepage after successful auth
                         setTimeout(() => {
                             router.push('/');
                         }, 2000);
                     } else {
-                        console.log('No user data returned, retrying...');
+                        console.log('No user data returned, retrying...', retryCount + 1, 'of', maxRetries);
                         // If no userData returned but no error thrown, retry auth check
                         if (retryCount < maxRetries) {
                             setRetryCount(prev => prev + 1);
+                            // Тихая повторная попытка аутентификации без показа ошибок
                             setTimeout(updateUserState, 1000); // Retry after 1 second
                         } else {
                             setCheckingAuth(false);
                             console.error('Failed to authenticate after multiple retries');
-                            toast.error('Authentication issue, please try again', {
-                                duration: 5000,
-                            });
+                            
+                            if (!errorShownRef.current) {
+                                errorShownRef.current = true;
+                                
+                                toast.dismiss();
+                                
+                                toastIdRef.current = toast.error('Authentication issue, please try again', {
+                                    id: 'auth-error',
+                                    duration: 5000,
+                                });
+                            }
                             
                             // Still redirect to homepage after delay
                             setTimeout(() => {
@@ -77,6 +112,17 @@ export default function GoogleAuthSuccess() {
                     console.error('User context or checkUser function is unavailable');
                     setCheckingAuth(false);
                     
+                    if (!errorShownRef.current) {
+                        errorShownRef.current = true;
+                        
+                        toast.dismiss();
+                        
+                        toastIdRef.current = toast.error('Authentication service unavailable', {
+                            id: 'auth-context-error',
+                            duration: 5000,
+                        });
+                    }
+                    
                     // Redirect to homepage even if context is unavailable
                     setTimeout(() => {
                         router.push('/');
@@ -84,12 +130,27 @@ export default function GoogleAuthSuccess() {
                 }
             } catch (error) {
                 console.error('Error updating user state after Google OAuth:', error);
+                
+                // If we still have retries left, try again silently without showing error
+                if (retryCount < maxRetries) {
+                    setRetryCount(prev => prev + 1);
+                    console.log('Retrying authentication after error...', retryCount + 1, 'of', maxRetries);
+                    setTimeout(updateUserState, 1000);
+                    return;
+                }
+                
                 setCheckingAuth(false);
                 
-                // Notify user of the error
-                toast.error('Authentication error, please try again', {
-                    duration: 5000,
-                });
+                if (!errorShownRef.current) {
+                    errorShownRef.current = true;
+                    
+                    toast.dismiss();
+                    
+                    toastIdRef.current = toast.error('Authentication error, please try again', {
+                        id: 'auth-error-catch',
+                        duration: 5000,
+                    });
+                }
                 
                 // Still redirect even if there's an error
                 setTimeout(() => {
@@ -100,6 +161,7 @@ export default function GoogleAuthSuccess() {
         
         // Start authentication process
         updateUserState();
+        
     }, [router, userContext, retryCount]);
 
     return (

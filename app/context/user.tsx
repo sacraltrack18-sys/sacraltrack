@@ -47,6 +47,12 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       // Проверяем наличие существующей сессии без вызова getSession('current'),
       // который может вызвать ошибку 401 для гостей
       try {
+        // Добавляем проверку флага googleAuthInProgress - если процесс аутентификации через Google еще идет,
+        // не выбрасываем ошибку при ее возникновении
+        const isGoogleAuthInProgress = typeof window !== 'undefined' && 
+          window.sessionStorage && 
+          window.sessionStorage.getItem('googleAuthInProgress') === 'true';
+        
         // Используем account.get() напрямую, что выбросит ошибку если нет сессии
         const currentUser = await account.get();
         
@@ -101,11 +107,26 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         return userData;
         
       } catch (error: any) {
+        // Проверяем, идет ли процесс аутентификации через Google
+        const isGoogleAuthInProgress = typeof window !== 'undefined' && 
+          window.sessionStorage && 
+          window.sessionStorage.getItem('googleAuthInProgress') === 'true';
+          
         // Если ошибка 401, пользователь не авторизован - это нормальная ситуация
         if (error?.code === 401 || (error?.message && error?.message.includes('missing scope'))) {
-          console.log('User not authenticated:', error?.message);
+          // Показываем ошибку в консоли только если НЕ идет процесс авторизации через Google
+          if (!isGoogleAuthInProgress) {
+            console.log('User not authenticated:', error?.message);
+          }
           setUser(null);
           dispatchAuthStateChange(null);
+          return null;
+        }
+        
+        // Если идет процесс аутентификации через Google, не логируем другие ошибки
+        // чтобы избежать лишних сообщений в консоли
+        if (isGoogleAuthInProgress) {
+          console.log('Authentication in progress, suppressing error logs');
           return null;
         }
         

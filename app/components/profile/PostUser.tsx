@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, memo } from "react";
 import Link from "next/link";
 import { useUser } from "@/app/context/user";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,7 @@ import { PostUserCompTypes } from "@/app/types";
 import toast from "react-hot-toast";
 import useDeletePostById from "@/app/hooks/useDeletePostById";
 import { BsThreeDotsVertical, BsDownload, BsPlayFill, BsPauseFill, BsChat, BsTrash, BsXCircle, BsCheck2Circle, BsGraphUp, BsPersonCheck, BsGlobe, BsLaptop } from 'react-icons/bs';
-import { FaChartLine, FaFileDownload, FaExclamationTriangle, FaCheckCircle, FaHeadphones, FaUsers, FaGlobeAmericas, FaMobileAlt } from 'react-icons/fa';
+import { FaChartLine, FaFileDownload, FaExclamationTriangle, FaCheckCircle, FaHeadphones, FaUsers, FaMobileAlt, FaPlay, FaPause, FaGlobeAmericas } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import EditTrackPopup from "@/app/components/trackedit/EditTrackPopup";
 import useAudioPlayer from '@/app/hooks/useAudioPlayer';
@@ -24,6 +24,10 @@ import { useGeneralStore } from "@/app/stores/general";
 import PostMainLikes from "@/app/components/PostMainLikes";
 import Image from 'next/image';
 import FloatingComments from '@/app/components/FloatingComments';
+import { HiMusicNote } from 'react-icons/hi';
+import { database, ID } from '@/libs/AppWriteClient';
+import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
+import { usePlayerContext } from '@/app/context/playerContext';
 
 const PostUserSkeleton = () => (
   <div className="relative bg-[#24183D] rounded-xl w-[450px] mb-4 overflow-hidden">
@@ -354,6 +358,39 @@ const StatsToast = ({ message }: { message: string }) => (
   </div>
 );
 
+// Sound wave animation component
+const SoundWave = memo(() => {
+  // Store random values in refs to ensure consistent renders
+  const randomValues = useRef([...Array(5)].map(() => ({
+    height: 8 + Math.floor(Math.random() * 8),
+    duration: (0.8 + Math.random() * 0.5).toFixed(2)
+  })));
+
+  return (
+    <div className="flex items-center justify-center space-x-1 h-12 absolute bottom-4 left-0 right-0 pointer-events-none">
+      {[...Array(5)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="w-1 bg-white/70 rounded-full"
+          initial={{ height: 4 }}
+          animate={{ 
+            height: [4, randomValues.current[i].height, 4],
+            opacity: [0.4, 0.8, 0.4]
+          }}
+          transition={{
+            duration: Number(randomValues.current[i].duration),
+            repeat: Infinity,
+            repeatType: "reverse",
+            delay: i * 0.1
+          }}
+        />
+      ))}
+    </div>
+  );
+});
+
+SoundWave.displayName = 'SoundWave';
+
 export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
   const router = useRouter();
   const contextUser = useUser();
@@ -365,13 +402,17 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const { statistics, isLoading: statsLoading } = useTrackStatistics(post?.id);
+  const { statistics, isLoading: statsLoading, fetchStatistics } = useTrackStatistics(post?.id);
   const { recordInteraction, getUserDeviceInfo, getGeographicInfo } = useTrackInteraction();
   const isOwner = contextUser?.user?.id === post?.user_id;
 
   const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
   const { setIsLoginOpen } = useGeneralStore();
+
+  const { currentAudioId, setCurrentAudioId, isPlaying: isGlobalPlaying, stopAllPlayback } = usePlayerContext();
+  const isActiveInPlayer = currentAudioId === post?.id;
 
   useEffect(() => {
     const loadComments = async () => {
@@ -382,7 +423,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
     loadComments();
   }, [post?.id]);
   
-useEffect(() => {
+  useEffect(() => {
     // Simulate loading time and data fetching
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -390,6 +431,37 @@ useEffect(() => {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Check for mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+  // Обновляем статистику при открытии панели статистики (более частое обновление)
+  useEffect(() => {
+    if (showStats && post?.id) {
+      // Принудительно обновляем статистику при открытии панели
+      // Используем fetchStatistics как ручное обновление, оно не влияет на лимит
+      fetchStatistics();
+      
+      // Обновляем статистику каждые 3 секунды, пока панель открыта
+      // Эти обновления тоже считаются ручными, так как пользователь явно открыл панель
+      const interval = setInterval(() => {
+        fetchStatistics();
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [showStats, post?.id, fetchStatistics]);
 
   const handlePlay = async () => {
     if (!post?.m3u8_url) {
@@ -400,16 +472,46 @@ useEffect(() => {
     const deviceInfo = getUserDeviceInfo();
     const geoInfo = await getGeographicInfo();
     
-    await recordInteraction({
-      track_id: post.id,
-      user_id: contextUser?.user?.id || 'anonymous',
-      interaction_type: 'play',
-      device_info: deviceInfo,
-      geographic_info: geoInfo
-    });
+    // Запись взаимодействия пользователя с треком
+    try {
+      await recordInteraction({
+        track_id: post.id,
+        user_id: contextUser?.user?.id || 'anonymous',
+        interaction_type: 'play',
+        device_info: deviceInfo,
+        geographic_info: geoInfo
+      });
+      
+      // Обновляем статистику после записи взаимодействия
+      // Это ручное обновление, так как вызвано действием пользователя
+      if (post?.id) {
+        // Принудительно запрашиваем свежие данные статистики
+        setTimeout(() => {
+          fetchStatistics();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Error recording interaction:', error);
+    }
 
-    setIsPlaying(!isPlaying);
+    // Управление глобальным состоянием воспроизведения через PlayerContext
+    if (isActiveInPlayer && isGlobalPlaying) {
+      // Если этот трек уже воспроизводится, останавливаем его
+      stopAllPlayback();
+      setCurrentAudioId(null);
+      setIsPlaying(false);
+    } else {
+      // Если другой трек воспроизводится или ничего не играет,
+      // устанавливаем текущий трек как активный
+      setCurrentAudioId(post.id);
+      setIsPlaying(true);
+    }
   };
+
+  // Синхронизируем локальное состояние isPlaying с глобальным состоянием PlayerContext
+  useEffect(() => {
+    setIsPlaying(isActiveInPlayer && isGlobalPlaying);
+  }, [isActiveInPlayer, isGlobalPlaying]);
 
   const handleDownload = async () => {
     try {
@@ -601,7 +703,7 @@ useEffect(() => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="relative w-full"
+            className="relative w-full group"
           >
             <img 
               className="w-full aspect-square object-cover"
@@ -616,20 +718,55 @@ useEffect(() => {
             
             {!showStats && (
               <>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handlePlay}
-                  className="absolute inset-0 flex items-center justify-center"
-                >
-                  <div className={`rounded-full p-6 shadow-xl transition-all duration-200 ${
-                    isPlaying 
-                      ? 'bg-white text-black scale-90' 
-                      : 'bg-[#20DDBB] text-black opacity-0 hover:opacity-100'
-                  }`}>
-                    {isPlaying ? <BsPauseFill size={32} /> : <BsPlayFill size={32} />}
+                {/* Desktop play/pause overlay - показываем при наведении */}
+                {!isMobile && (
+                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div 
+                      onClick={handlePlay}
+                      className={`
+                        w-14 h-14 rounded-full border border-white/40 backdrop-blur-[2px] flex items-center justify-center
+                        transform transition-all duration-300 cursor-pointer
+                        ${isPlaying ? 'scale-90 bg-[#20DDBB]/10 border-[#20DDBB]/40' : 'scale-100 bg-black/10'}
+                        group-hover:bg-black/20
+                      `}
+                    >
+                      {isPlaying ? (
+                        <FaPause className="text-white/90 text-lg" aria-hidden="true" />
+                      ) : (
+                        <FaPlay className="text-white/90 text-lg ml-1" aria-hidden="true" />
+                      )}
+                    </div>
                   </div>
-                </motion.button>
+                )}
+                
+                {/* Mobile play button - более прозрачный дизайн */}
+                {isMobile && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handlePlay();
+                    }}
+                    className="absolute inset-0 flex items-center justify-center"
+                    aria-label={isPlaying ? 'Pause track' : 'Play track'}
+                    type="button"
+                  >
+                    <div className={`
+                      w-14 h-14 rounded-full border border-white/40 backdrop-blur-[2px] flex items-center justify-center
+                      transform transition-all duration-300 
+                      ${isPlaying ? 'scale-90 bg-[#20DDBB]/10 border-[#20DDBB]/40' : 'scale-100 bg-black/10'}
+                    `}>
+                      {isPlaying ? (
+                        <FaPause className="text-white/90 text-lg" aria-hidden="true" />
+                      ) : (
+                        <FaPlay className="text-white/90 text-lg ml-1" aria-hidden="true" />
+                      )}
+                    </div>
+                  </button>
+                )}
+
+                {/* Sound wave animation when playing */}
+                {isPlaying && <SoundWave />}
 
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
@@ -785,8 +922,14 @@ useEffect(() => {
             <AudioPlayer 
               m3u8Url={useCreateBucketUrl(post?.m3u8_url)}
               isPlaying={isPlaying}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
+              onPlay={() => {
+                setCurrentAudioId(post.id);
+                setIsPlaying(true);
+              }}
+              onPause={() => {
+                stopAllPlayback();
+                setIsPlaying(false);
+              }}
             />
 
             <motion.div 

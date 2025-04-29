@@ -9,24 +9,35 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function OPTIONS(req: Request) {
-    // Handle CORS preflight request
+    // Получаем origin из запроса или используем допустимый URL
+    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || '*';
+    
+    // Обрабатываем CORS preflight запрос с динамическим origin
     return new NextResponse(null, {
         status: 204,
         headers: {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': origin,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin',
+            'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
         },
     });
 }
 
 export async function POST(req: Request) {
-    // Add CORS headers
+    console.log('Received POST request to checkout_sessions');
+    
+    // Получаем origin из запроса или используем допустимый URL
+    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || '*';
+    console.log('Request origin:', origin);
+    
+    // Все необходимые CORS заголовки
     const headers = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin',
+        'Access-Control-Allow-Credentials': 'true',
     };
 
     // Проверяем инициализацию Stripe
@@ -43,7 +54,7 @@ export async function POST(req: Request) {
         console.log('Method not allowed:', req.method);
         return NextResponse.json(
             { success: false, error: 'Method not allowed' },
-            { status: 405 }
+            { status: 405, headers }
         );
     }
 
@@ -60,12 +71,17 @@ export async function POST(req: Request) {
             );
         }
 
+        // Получаем базовый URL для успешного перенаправления
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin || 'https://your-app-domain.com';
+        console.log('Using base URL for redirects:', baseUrl);
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             metadata: {
                 trackId,
+                userId,
                 authorId,
-                amount: amount.toString() // Сохраняем сумму в метаданных
+                amount: amount.toString()
             },
             line_items: [
                 {
@@ -75,21 +91,24 @@ export async function POST(req: Request) {
                             name: trackName,
                             images: image ? [image] : [],
                         },
-                        unit_amount: amount, // Используем переданную сумму
+                        unit_amount: amount,
                     },
                     quantity: 1,
                 },
             ],
             mode: 'payment',
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
+            success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/cancel`,
+            // Выставляем ограничение по времени (30 минут)
+            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
         });
 
-        console.log('Checkout session created:', session);
-        console.log('Session URL:', session.url); // Выводим URL для отладки
+        console.log('Checkout session created:', session.id);
+        console.log('Session URL:', session.url);
         
-        // Ensure session URL is included in the response
+        // Проверка URL сессии
         if (!session.url) {
+            console.error('Session URL is missing from Stripe response');
             throw new Error('Session URL is missing from Stripe response');
         }
         

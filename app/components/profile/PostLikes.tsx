@@ -32,7 +32,7 @@ const PostLikes = ({ post }: PostLikesProps) => {
     console.log('PostLikes received post:', post);
     
     const router = useRouter();
-    const { currentTrack, isPlaying, setCurrentTrack, togglePlayPause } = usePlayerContext();
+    const { currentTrack, isPlaying, setCurrentTrack, togglePlayPause, currentAudioId, setCurrentAudioId, stopAllPlayback } = usePlayerContext();
     const [imageError, setImageError] = useState(false);
     const [avatarError, setAvatarError] = useState(false);
     const [comments, setComments] = useState<any[]>([]);
@@ -42,6 +42,7 @@ const PostLikes = ({ post }: PostLikesProps) => {
     const m3u8Url = useCreateBucketUrl(post?.m3u8_url);
 
     const isCurrentTrack = currentTrack?.id === post.$id;
+    const isActiveInPlayer = currentAudioId === post.$id;
 
     console.log('PostLikes - Raw post data:', post);
     
@@ -80,9 +81,12 @@ const PostLikes = ({ post }: PostLikesProps) => {
     const handlePlay = useCallback(() => {
         if (!post.m3u8_url) return;
 
-        if (isCurrentTrack) {
-            togglePlayPause();
+        if (isCurrentTrack && isPlaying) {
+            // Если трек уже воспроизводится, останавливаем его
+            stopAllPlayback();
+            setCurrentAudioId(null);
         } else {
+            // Устанавливаем текущий трек
             setCurrentTrack({
                 id: post.$id,
                 audio_url: m3u8Url,
@@ -91,11 +95,15 @@ const PostLikes = ({ post }: PostLikesProps) => {
                 artist: post.profile.name,
             });
             
+            // Активируем его в PlayerContext
+            setCurrentAudioId(post.$id);
+            
+            // Если воспроизведение остановлено, запускаем
             if (!isPlaying) {
                 togglePlayPause();
             }
         }
-    }, [isCurrentTrack, isPlaying, post, m3u8Url, imageUrl, setCurrentTrack, togglePlayPause]);
+    }, [isCurrentTrack, isPlaying, post, m3u8Url, imageUrl, setCurrentTrack, togglePlayPause, setCurrentAudioId, stopAllPlayback]);
 
     // Переход на страницу комментариев
     const navigateToComments = (e: React.MouseEvent) => {
@@ -194,8 +202,20 @@ const PostLikes = ({ post }: PostLikesProps) => {
                 <AudioPlayer 
                     m3u8Url={m3u8Url}
                     isPlaying={isCurrentTrack && isPlaying}
-                    onPlay={handlePlay}
-                    onPause={togglePlayPause}
+                    onPlay={() => {
+                        setCurrentAudioId(post.$id);
+                        setCurrentTrack({
+                            id: post.$id,
+                            audio_url: m3u8Url,
+                            image_url: imageUrl,
+                            name: post.trackname,
+                            artist: post.profile.name,
+                        });
+                        if (!isPlaying) togglePlayPause();
+                    }}
+                    onPause={() => {
+                        stopAllPlayback();
+                    }}
                 />
             </div>
 

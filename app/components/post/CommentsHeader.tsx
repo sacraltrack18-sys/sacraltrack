@@ -81,15 +81,37 @@ export default function CommentsHeader({ post, params }: CommentsHeaderCompTypes
                 body: JSON.stringify({
                     trackId: post.id,
                     trackName: post.text,
+                    userId: contextUser.user.id,
+                    authorId: post.profile.user_id,
+                    amount: 200 // Fixed price in cents ($2.00)
                 }),
+                credentials: 'include'
             })
 
-            const { session } = await response.json()
-            if (session?.url) {
-                window.location.href = session.url
-            } else {
+            if (!response.ok) {
+                const errorData = await response.json()
+                console.error('Payment initialization failed with response:', errorData)
                 throw new Error('Failed to create checkout session')
             }
+
+            const data = await response.json()
+            if (!data.success || !data.session || !data.session.url) {
+                console.error('Invalid checkout session response:', data)
+                throw new Error('Failed to create checkout session')
+            }
+            
+            console.log("Redirecting to checkout URL:", data.session.url)
+            
+            // Используем window.location.assign для более надежного перенаправления
+            window.location.assign(data.session.url)
+            
+            // Резервный вариант перенаправления
+            setTimeout(() => {
+                if (document.location.href !== data.session.url) {
+                    console.log("Trying fallback redirection method...")
+                    document.location.href = data.session.url
+                }
+            }, 1000)
         } catch (error) {
             console.error('Error:', error)
             toast.error('Payment initialization failed')

@@ -47,8 +47,17 @@ export default function Login() {
     }
 
     const handleGoogleLogin = async () => {
+        // Prevent multiple click attempts
+        if (loading) return;
+        
         try {
             setLoading(true);
+            
+            // Set a flag in sessionStorage to prevent showing errors during redirect
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('googleAuthInProgress', 'true');
+            }
+            
             const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/google/success` : 'http://localhost:3000/auth/google/success';
             const failureUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/fail` : 'http://localhost:3000/fail';
 
@@ -77,20 +86,28 @@ export default function Login() {
                 successUrl,
                 failureUrl
             );
-        } catch (error: any) {
+        } catch (error) {
             console.error('Google login error:', error);
             
-            if (error.code === 400) {
-                toast.error('Configuration error. Please check application settings.');
-            } else if (error.code === 401) {
-                toast.error('Authentication error. Please try again.');
-            } else if (error.code === 429) {
-                toast.error('Too many attempts. Please wait a few minutes.');
-            } else {
-                toast.error('Failed to login with Google. Please try again later.');
+            // Проверяем, не был ли пользователь уже перенаправлен или не находится в процессе
+            if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
+                if (error.code === 400) {
+                    toast.error('Configuration error. Please check application settings.');
+                } else if (error.code === 401) {
+                    toast.error('Authentication error. Please try again.');
+                } else if (error.code === 429) {
+                    toast.error('Too many attempts. Please wait a few minutes.');
+                } else {
+                    toast.error('Failed to login with Google. Please try again later.');
+                }
             }
             
             setLoading(false);
+            
+            // Очищаем флаг, если произошла ошибка
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('googleAuthInProgress');
+            }
         }
     }
 

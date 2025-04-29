@@ -14,6 +14,8 @@ import AudioPlayer from '../upload/AudioPlayer';
 import UnifiedProgressIndicator from '../upload/UnifiedProgressIndicator';
 import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { useUpdateTrack } from '@/app/hooks/useUpdateTrack';
+import { useClientUpdateTrack } from '@/app/hooks/useClientUpdateTrack';
+import EditAudioProcessor from './EditAudioProcessor';
 
 // Utility function to ensure document ID is valid
 const getValidDocumentId = (data: any): string => {
@@ -88,6 +90,7 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
   const router = useRouter();
   const createPostHook = useCreatePost();
   const { updateTrack } = useUpdateTrack();
+  const { updateTrack: clientUpdateTrack, isProcessing: isClientProcessing, processingStage: clientProcessingStage, processingProgress: clientProcessingProgress } = useClientUpdateTrack();
   
   // Get document ID using the utility function
   const documentId = getValidDocumentId(postData);
@@ -113,6 +116,13 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
   const [processingProgress, setProcessingProgress] = useState(0);
   const [isCancelling, setIsCancelling] = useState(false);
   const [uploadController, setUploadController] = useState<AbortController | null>(null);
+  
+  // Client-side processing states
+  const [showAudioProcessor, setShowAudioProcessor] = useState<boolean>(false);
+  const [clientMp3File, setClientMp3File] = useState<File | null>(null);
+  const [clientSegments, setClientSegments] = useState<Array<{name: string, data: Uint8Array, file: File}>>([]);
+  const [clientM3u8Content, setClientM3u8Content] = useState<string>('');
+  const [clientMp3Duration, setClientMp3Duration] = useState<number>(0);
   
   // Add success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -232,6 +242,12 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
     if (!file) return;
 
     try {
+      // Reset client processed files
+      setClientMp3File(null);
+      setClientSegments([]);
+      setClientM3u8Content('');
+      setClientMp3Duration(0);
+      
       // Create audio element for preview
       const audio = new Audio();
       audio.src = URL.createObjectURL(file);
@@ -249,6 +265,9 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
           setAudioProgress(0);
           audio.currentTime = 0;
         };
+        
+        // Start client-side processing
+        setShowAudioProcessor(true);
       };
 
       setFileAudio(file);
@@ -291,6 +310,65 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
   const clearImage = () => {
     setFileImage(null);
     setImagePreview(null);
+  };
+
+  // Handle audio processing completion
+  const handleAudioProcessed = (
+    mp3File: File, 
+    segments: Array<{name: string, data: Uint8Array, file: File}>, 
+    m3u8Content: string, 
+    duration: number
+  ) => {
+    console.log('Audio processing completed:', {
+      mp3Size: mp3File.size,
+      segmentsCount: segments.length,
+      duration
+    });
+    
+    // Store the processed audio data
+    setClientMp3File(mp3File);
+    setClientSegments(segments);
+    setClientM3u8Content(m3u8Content);
+    setClientMp3Duration(duration);
+    
+    // Hide the processor
+    setShowAudioProcessor(false);
+    
+    // Show success toast
+    toast.success('Audio successfully processed', {
+      style: {
+        border: '1px solid #20DDBB',
+        padding: '16px',
+        color: '#ffffff',
+        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+        fontSize: '16px',
+        borderRadius: '12px'
+      },
+      icon: '✓'
+    });
+  };
+  
+  // Handle audio processing error
+  const handleAudioProcessingError = (error: string) => {
+    console.error('Audio processing error:', error);
+    setShowAudioProcessor(false);
+    
+    if (error) {
+      toast.error(`Audio processing error: ${error}`, {
+        style: {
+          border: '1px solid #ff4b4b',
+          padding: '16px',
+          color: '#ffffff',
+          background: 'linear-gradient(to right, #2A184B, #1f1239)',
+          fontSize: '16px',
+          borderRadius: '12px'
+        },
+        icon: '⚠️'
+      });
+    }
+    
+    // Clear audio since processing failed
+    clearAudio();
   };
 
   // Handle cancel upload function
@@ -383,330 +461,100 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
       const controller = new AbortController();
       setUploadController(controller);
 
-      // If audio file is provided, we need to process it with server API
-      if (fileAudio) {
-        setProcessingStage('Processing updated audio');
-        toast.loading('Processing updated audio...', { id: toastId });
-        
-        // Create FormData for audio processing
-        const formData = new FormData();
-        formData.append('audio', fileAudio);
-        formData.append('trackId', documentId);
-        formData.append('action', 'update');
-        
-        // Define timeoutId in this scope so it's accessible in the catch block
-        let timeoutId: NodeJS.Timeout | undefined;
-        
+      // If we have client-processed audio files, use client-side update
+      if (fileAudio && clientMp3File && clientSegments.length > 0 && clientM3u8Content) {
         try {
-          // Send audio for server-side processing
-          console.log('Sending audio upload to server for processing...');
-          const response = await fetch('/api/audio/process', {
-            method: 'POST',
-            body: formData,
-          });
+          console.log('Using client-side update with processed audio files');
           
-          console.log('Server response status:', response.status);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server error response:', errorText);
-            
-            // Формируем понятное сообщение об ошибке в зависимости от кода статуса
-            let errorMessage = `Server error: ${response.status}`;
-            
-            if (response.status === 500) {
-              // Для 500 ошибок даем более подробное пояснение
-              errorMessage = 'The server encountered an error while processing your audio. Please try a different audio file or contact support.';
-              console.error('Server 500 error. Full response:', errorText);
-              
-              // Логируем в консоль всю доступную информацию
-              console.error('Upload 500 error details:', {
-                status: response.status,
-                statusText: response.statusText,
-                responseText: errorText.substring(0, 500) + (errorText.length > 500 ? '...' : ''),
-                trackId: documentId,
-                audioFileName: fileAudio.name,
-                audioFileSize: fileAudio.size,
-                audioFileType: fileAudio.type
-              });
-            } else if (response.status === 413) {
-              // Для ошибки слишком большого файла
-              errorMessage = 'The audio file is too large. Please try a smaller file.';
-            } else if (response.status === 422) {
-              // Для ошибок валидации
-              errorMessage = 'There was a problem with the audio file format. Please ensure it is a valid WAV file.';
-            } else {
-              // Для других ошибок пытаемся извлечь сообщение из JSON, если возможно
-              try {
-                const errorResponse = JSON.parse(errorText);
-                errorMessage = errorResponse.error || errorResponse.message || errorMessage;
-              } catch (parseError) {
-                // Если не удалось распарсить JSON, используем текст ответа
-                errorMessage = `Server error (${response.status}): ${errorText.substring(0, 100)}`;
-              }
-            }
-                  
-            toast.error(errorMessage, { id: toastId });
-            throw new Error(`Server error: ${response.status} - ${errorText}`);
+          // Type assertion to make TypeScript happy
+          if (!fileAudio) {
+            throw new Error('Audio file is null');
           }
           
-          if (!response.body) {
-            console.error('Server response has no body');
-            toast.error('Server response has no body', { id: toastId });
-            throw new Error('Server response has no body');
+          // Create update params with proper null handling
+          const updateParams = {
+            trackId: documentId,
+            audio: fileAudio,
+            mp3: clientMp3File,
+            segments: clientSegments,
+            m3u8: clientM3u8Content,
+            trackname,
+            genre,
+            onProgress: (stage: string, progress: number, estimatedTime?: string) => {
+              setProcessingStage(stage + (estimatedTime ? ` (${estimatedTime})` : ''));
+              setProcessingProgress(progress);
+              
+              // Update toast message
+              toast.loading(`${stage}${estimatedTime ? ` (${estimatedTime})` : ''} - ${progress}%`, { id: toastId });
+            }
+          };
+          
+          // Add image only if it's not null
+          if (fileImage) {
+            Object.assign(updateParams, { image: fileImage });
           }
           
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          let receivedAnyData = false;
+          const result = await clientUpdateTrack(updateParams);
           
-          // Start processing stage
-          setProcessingStage('Checking updated audio duration');
-          setProcessingProgress(5);
-          
-          console.log('Starting to read response stream...');
-          
-          // Initialize timeout to handle stalled uploads
-          timeoutId = setTimeout(() => {
-            console.error('Audio processing timeout after 60 seconds of inactivity');
-            toast.error('Audio processing timed out. Please try again or use a different audio file.', { id: toastId });
-            reader.cancel('Timeout after 60 seconds of inactivity');
-          }, 60000); // 60 second timeout
-          
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              
-              // Clear and reset timeout on any data received
-              if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                  console.error('Audio processing timeout after 60 seconds of inactivity');
-                  toast.error('Audio processing timed out. Please try again.', { id: toastId });
-                  reader.cancel('Timeout after 60 seconds of inactivity');
-                }, 60000);
-              }
-              
-              if (done) {
-                console.log('Reader done');
-                break;
-              }
-              
-              receivedAnyData = true;
-              const chunk = decoder.decode(value, { stream: true });
-              buffer += chunk;
-              
-              // Process complete events in buffer
-              const messages: any[] = [];
-              let startIdx = 0;
-              
-              while (true) {
-                const dataPrefix = 'data: ';
-                const dataIdx = buffer.indexOf(dataPrefix, startIdx);
-                if (dataIdx === -1) break;
-                
-                const dataStart = dataIdx + dataPrefix.length;
-                const dataEnd = buffer.indexOf('\n\n', dataStart);
-                
-                if (dataEnd === -1) break; // Incomplete message
-                
-                const jsonStr = buffer.substring(dataStart, dataEnd);
-                try {
-                  const jsonData = JSON.parse(jsonStr);
-                  messages.push(jsonData);
-                  startIdx = dataEnd + 2;
-                } catch (e) {
-                  console.error('Error parsing JSON in SSE:', e);
-                  console.log('Problematic JSON string:', jsonStr);
-                  startIdx = dataEnd + 2; // Skip this message
-                }
-              }
-              
-              // Remove processed messages from buffer
-              if (startIdx > 0) {
-                buffer = buffer.substring(startIdx);
-              }
-              
-              // Process all extracted messages
-              for (const update of messages) {
-                console.log('Received SSE update type:', update.type);
-                
-                // Обработка ошибок сервера
-                if (update.type === 'error') {
-                  const errorMessage = update.message || 'Server error during audio processing';
-                  console.error('Server processing error:', errorMessage);
-                  
-                  // Вывод подробностей ошибки, если они есть
-                  if (update.details) {
-                    console.error('Error details:', update.details);
-                  }
-                  if (update.timestamp) {
-                    console.error('Error timestamp:', update.timestamp);
-                  }
-                  
-                  toast.error(`Error: ${errorMessage}`, { id: toastId });
-                  
-                  // Сбрасываем состояния обработки
-                  setIsProcessing(false);
-                  
-                  // Внимание! Здесь мы хотим выйти из функции, но не можем просто использовать return,
-                  // так как мы внутри цикла. Лучший способ - это выбросить ошибку и поймать ее выше.
-                  throw new Error(errorMessage);
-                }
-                
-                // Обработка событий прогресса
-                if (update.type === 'progress') {
-                  // Map server stages to our UI stages
-                  let displayStage = update.stage;
-                  let displayProgress = update.progress;
-                  let detailedMessage = '';
-                  
-                  // Extract details from details, if they exist
-                  const details = update.details as any;
-                  
-                  // Handle different types of progress
-                  if (update.stage.includes('convert')) {
-                    displayStage = 'Converting to MP3';
-                    // If there are conversion details
-                    if (details?.conversionProgress) {
-                      detailedMessage = `Conversion: ${typeof details.conversionProgress === 'string' ? details.conversionProgress : Math.round(details.conversionProgress) + '%'}`;
-                    }
-                  } else if (update.stage.includes('segment')) {
-                    displayStage = 'Segmenting audio';
-                    // If there are segment details
-                    if (details?.segmentProgress) {
-                      detailedMessage = `Segmenting: ${Math.round(details.segmentProgress)}% (${Math.floor(details.segmentProgress / 100 * 42)}/${42} segments)`;
-                    }
-                  } else if (update.stage.includes('Preparing segment') || update.stage.includes('Prepared segment')) {
-                    displayStage = 'Preparing segments';
-                    // If there are preparation details
-                    if (details?.preparationProgress) {
-                      detailedMessage = `Preparation: ${Math.round(details.preparationProgress)}%`;
-                    }
-                  } else if (update.stage.includes('Smooth segment progress')) {
-                    displayStage = 'Segmenting audio';
-                    // Extract information about segment progress from string
-                    const match = update.stage.match(/Smooth segment progress: ([0-9.]+)\/([0-9.]+) \(([0-9.]+)%\)/);
-                    if (match) {
-                      const current = parseFloat(match[1]);
-                      const total = parseFloat(match[2]);
-                      const percent = parseFloat(match[3]);
-                      detailedMessage = `Processing segment ${Math.floor(current)} of ${Math.floor(total)} (${percent.toFixed(1)}%)`;
-                    }
-                  } else if (update.stage.includes('id') || update.stage.includes('ID')) {
-                    displayStage = 'Generating IDs';
-                  } else if (update.stage.includes('playlist') || update.stage.includes('m3u8')) {
-                    displayStage = 'Creating playlist';
-                  } else if (update.stage.includes('Created segment')) {
-                    displayStage = 'Segmenting audio';
-                    // Extract created segment number
-                    const match = update.stage.match(/Created segment segment_(\d+)\.mp3/);
-                    if (match) {
-                      const segmentNum = parseInt(match[1]);
-                      const totalSegments = 42; // Based on logs
-                      detailedMessage = `Created segment ${segmentNum+1} of ${totalSegments}`;
-                      // Update progress based on created segment
-                      displayProgress = ((segmentNum+1) / totalSegments) * 100;
-                    }
-                  }
-                  
-                  // Use message from details, if exists and no own detailed message
-                  if (!detailedMessage && details?.message) {
-                    detailedMessage = details.message;
-                  }
-
-                  // Update UI with progress information
-                  setProcessingStage(displayStage);
-                  setProcessingProgress(displayProgress);
-                  
-                  // If this is segmenting stage, add details to stage name
-                  // and update progress value based on actual segment progress
-                  if (update.stage.includes('segment') && details?.segmentProgress) {
-                    const segmentCount = details?.totalSegments || 42; // Use total segments from details or default to 42
-                    const currentSegment = Math.floor((details.segmentProgress / 100) * segmentCount);
-                    
-                    // Update stage name with segment information
-                    setProcessingStage(`${displayStage} ${currentSegment}/${segmentCount}`);
-                    
-                    // Important: update progress value, so progress bar doesn't "hang" in one place
-                    setProcessingProgress(details.segmentProgress);
-                  }
-                }
-                
-                // Обработка результата обработки
-                if (update.type === 'result') {
-                  console.log('Processing completed successfully:', update);
-                  
-                  // If we have the result data, use it to update state
-                  if (update.data) {
-                    // Extract any important data from the result
-                    const resultData = update.data;
-                    
-                    // If we received a document ID, store it
-                    if (resultData.documentId) {
-                      console.log('Received document ID:', resultData.documentId);
-                      // Store document ID to state if needed
-                    }
-                    
-                    // If we received URLs, handle them
-                    if (resultData.m3u8Url) {
-                      console.log('Received m3u8 URL:', resultData.m3u8Url);
-                    }
-                  }
-                  
-                  // Final stage
-                  setProcessingStage('Complete');
-                  setProcessingProgress(100);
-                }
-              }
-            }
+          if (result.success) {
+            console.log('Client-side track update successful');
+            toast.success('Track updated successfully!', { id: toastId });
             
-            // ... существующий код ...
+            // Show success modal
+            setUpdatedTrackDetails({
+              id: documentId,
+              trackname,
+              genre,
+            });
+            setShowSuccessModal(true);
             
-          } catch (error) {
-            // Убираем таймаут, если есть
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = undefined;
-            }
-            
-            // Если не получили никаких данных, это может быть серверная ошибка
-            if (!receivedAnyData) {
-              console.error('No data received from server during audio processing');
-              toast.error('No data received from server. Please try again with a different audio file.', { id: toastId });
-            } else {
-              console.error('Error processing server events:', error);
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              toast.error(`Error processing audio: ${errorMessage}`, { id: toastId });
-            }
-            
-            // Отменяем чтение, если ошибка не связана с отменой
-            if (!(error instanceof DOMException && error.name === 'AbortError')) {
-              reader.cancel('Error during processing');
-            }
-            
-            throw error; // Пробрасываем ошибку дальше
+            // Call onUpdate with updated data
+            onUpdate({
+              trackname,
+              genre,
+              image_url: fileImage ? 'updated' : postData.image_url,
+              audio_url: fileAudio ? 'updated' : postData.audio_url,
+            });
+          } else {
+            console.error('Client-side track update failed:', result.error);
+            toast.error(`Update failed: ${result.error}`, { id: toastId });
           }
           
-          // ... existing code after successful processing ...
-          
-        } catch (error) {
-          // Убираем таймаут, если он был установлен
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          
-          console.error('Error during track update:', error);
-          
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : 'Unknown error during track update';
-            
-          toast.error(errorMessage, { id: toastId });
           setIsProcessing(false);
-          return false; // Return unsuccessful update
+          return;
+        } catch (error) {
+          console.error('Error during client-side track update:', error);
+          toast.error(`Update error: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+          setIsProcessing(false);
+          return;
         }
+      }
+      // If audio file is provided but not processed, notify user
+      else if (fileAudio) {
+        // Show guidance message
+        console.error('Audio file not processed before upload attempt');
+        
+        toast.error('Audio processing is required before updating', { id: toastId });
+        toast.success('Start audio processing now', {
+          id: 'process-toast',
+          duration: 5000,
+          style: {
+            border: '1px solid #20DDBB',
+            padding: '16px',
+            color: '#ffffff',
+            background: 'linear-gradient(to right, #2A184B, #1f1239)',
+            fontSize: '16px',
+            borderRadius: '12px'
+          },
+        });
+        
+        // Reset processing states
+        setIsProcessing(false);
+        
+        // Start audio processing
+        setShowAudioProcessor(true);
+        
+        return;
       } else {
         // Simple update without audio
         const updateData: Record<string, any> = {
@@ -949,11 +797,13 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                                onClick={onClose}
-                    className="px-6 py-3 rounded-xl text-white hover:bg-white/10 transition-colors"
-                    disabled={isProcessing}
-                            >
-                                Cancel
+                onClick={onClose}
+                className="px-6 py-3 rounded-xl text-white hover:bg-white/10 transition-colors"
+                disabled={isProcessing}
+              >
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </motion.button>
               <motion.button
                     onClick={isProcessing ? handleCancelUpload : handleSubmit}
@@ -990,6 +840,16 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
       )}
       </AnimatePresence>
       
+      {/* Audio processor component */}
+      {showAudioProcessor && fileAudio && (
+        <EditAudioProcessor 
+          audioFile={fileAudio}
+          trackId={documentId}
+          onProcessed={handleAudioProcessed}
+          onError={handleAudioProcessingError}
+        />
+      )}
+      
       {/* Success modal */}
       <AnimatePresence>
         {showSuccessModal && updatedTrackDetails && (
@@ -1009,29 +869,21 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
                 <div className="w-20 h-20 bg-[#20DDBB]/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-10 h-10 text-[#20DDBB]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
+                  </svg>
+                </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Track Updated!</h3>
                 <p className="text-white/70">Your track has been successfully updated.</p>
-                      </div>
+              </div>
               
-              <div className="flex space-x-3 justify-center">
+              <div className="flex justify-center">
                 <button
-                  onClick={() => setShowSuccessModal(false)}
-                  className="px-6 py-3 bg-transparent border border-white/20 hover:border-white/40 text-white rounded-xl transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                    onClick={() => {
-                      setShowSuccessModal(false);
-                    if (updatedTrackDetails?.id) {
-                      router.push(`/post/${updatedTrackDetails.id}`);
-                    }
-                    }}
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    router.refresh(); // Refresh the page to see the updated track
+                  }}
                   className="px-6 py-3 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow"
-                  >
-                  View Track
+                >
+                  Refresh to update release
                 </button>
               </div>
             </motion.div>

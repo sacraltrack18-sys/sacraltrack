@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { database } from '@/libs/AppWriteClient';
 import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 
@@ -24,17 +24,86 @@ const useTrackStatistics = (trackId?: string) => {
   const [statistics, setStatistics] = useState<TrackStatisticsData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<any>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Счетчик обновлений статистики за одну загрузку компонента
+  const updateCountRef = useRef(0);
+  // Флаг первой загрузки
+  const initialLoadRef = useRef(true);
+  // Максимальное количество автоматических обновлений за одну загрузку
+  const MAX_AUTO_UPDATES = 2;
+
+  // Проверка и создание документа статистики при необходимости
+  const ensureTrackStatisticsExist = useCallback(async () => {
+    if (!trackId) return;
+    
+    try {
+      // Пытаемся получить существующий документ статистики
+      await database.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.statisticsCollectionId,
+        trackId
+      );
+      
+      console.log(`Statistics document exists for track ID: ${trackId}`);
+      return true;
+    } catch (error) {
+      console.log(`Statistics document does not exist for track ID: ${trackId}, creating new one`);
+      
+      // Если документ не существует, создаем новый
+      try {
+        await database.createDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.statisticsCollectionId,
+          trackId,
+          {
+            track_id: trackId,
+            plays_count: "0",
+            downloads_count: "0",
+            likes: "0",
+            shares: "0",
+            unique_listeners: "0",
+            last_played: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            geographic_data: {},
+            device_types: {}
+          }
+        );
+        
+        console.log(`Created new statistics document for track ID: ${trackId}`);
+        return true;
+      } catch (createError) {
+        console.error('Error creating statistics document:', createError);
+        return false;
+      }
+    }
+  }, [trackId]);
+
+  // Функция для проверки, можно ли выполнить автоматическое обновление
+  const canAutoUpdate = useCallback(() => {
+    return updateCountRef.current < MAX_AUTO_UPDATES;
+  }, []);
 
   // Функция для получения статистики
-  const fetchStatistics = useCallback(async () => {
+  const fetchStatistics = useCallback(async (isManualUpdate = false) => {
     if (!trackId) {
       setIsLoading(false);
+      return;
+    }
+
+    // Проверяем, можно ли выполнить автоматическое обновление
+    if (!isManualUpdate && !canAutoUpdate() && !initialLoadRef.current) {
+      console.log(`Auto-update limit reached (${MAX_AUTO_UPDATES}). Skipping update.`);
       return;
     }
 
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Сначала убедимся, что документ статистики существует
+      await ensureTrackStatisticsExist();
       
       const response = await fetch(`/api/track-stats/${trackId}`);
       
@@ -46,25 +115,54 @@ const useTrackStatistics = (trackId?: string) => {
       
       if (data.success && data.statistics) {
         setStatistics(data.statistics);
+        setRetryCount(0); // Сбрасываем счетчик повторных попыток при успехе
+        
+        // Увеличиваем счетчик обновлений только для автоматических обновлений
+        if (!isManualUpdate) {
+          updateCountRef.current += 1;
+          console.log(`Statistics update count: ${updateCountRef.current}/${MAX_AUTO_UPDATES}`);
+        }
+        
+        // Сбрасываем флаг первой загрузки
+        initialLoadRef.current = false;
       } else {
         console.warn('Statistics data not found:', data);
+        // Если нет статистики, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
+        if (retryCount < 1 && (isManualUpdate || canAutoUpdate())) {
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => fetchStatistics(isManualUpdate), 1000);
+        }
       }
     } catch (error) {
       console.error('Error fetching track statistics:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch track statistics'));
+      
+      // Если произошла ошибка, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
+      if (retryCount < 1 && (isManualUpdate || canAutoUpdate())) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => fetchStatistics(isManualUpdate), 1000);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [trackId]);
+  }, [trackId, ensureTrackStatisticsExist, retryCount, canAutoUpdate]);
+  
+  // Функция для ручного обновления статистики (не учитывается в лимите)
+  const manualFetchStatistics = useCallback(() => {
+    return fetchStatistics(true);
+  }, [fetchStatistics]);
   
   // Функция для обновления определенного поля статистики
   const updateStatistic = useCallback(async (field: string, value: number = 1, operation: 'increment' | 'set' = 'increment') => {
     if (!trackId) return;
     
     try {
+      // Убедимся, что документ статистики существует
+      await ensureTrackStatisticsExist();
+      
       // Получаем текущую статистику, если она не была загружена
       if (!statistics) {
-        await fetchStatistics();
+        await fetchStatistics(true); // Используем ручное обновление, чтобы не влиять на лимит
       }
       
       // Обновляем статистику в локальном состоянии для мгновенной реакции UI
@@ -95,12 +193,15 @@ const useTrackStatistics = (trackId?: string) => {
         }),
       });
       
+      // После обновления принудительно обновляем данные (как ручное обновление)
+      setTimeout(() => fetchStatistics(true), 500);
+      
     } catch (error) {
       console.error(`Error updating ${field} statistic:`, error);
       // Откатываем локальное состояние в случае ошибки
-      fetchStatistics();
+      fetchStatistics(true);
     }
-  }, [trackId, statistics, fetchStatistics]);
+  }, [trackId, statistics, fetchStatistics, ensureTrackStatisticsExist]);
   
   // Специализированные функции для различных типов статистики
   const incrementPlayCount = useCallback(() => updateStatistic('plays_count'), [updateStatistic]);
@@ -111,23 +212,38 @@ const useTrackStatistics = (trackId?: string) => {
 
   // Загружаем статистику при монтировании и при изменении trackId
   useEffect(() => {
-    fetchStatistics();
+    // Сбрасываем счетчик обновлений при изменении trackId
+    updateCountRef.current = 0;
+    initialLoadRef.current = true;
     
-    // Настраиваем интервал обновления каждые 30 секунд для получения актуальных данных
-    const intervalId = setInterval(() => {
-      fetchStatistics();
-    }, 30000); // 30 секунд
+    // Сначала убедимся, что документ статистики существует
+    if (trackId) {
+      // Первое обновление происходит при монтировании компонента
+      ensureTrackStatisticsExist()
+        .then(() => {
+          return fetchStatistics(); // Это первое обновление
+        })
+        .catch(console.error);
     
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [fetchStatistics]);
+      // Настраиваем интервал для периодического обновления, но только если лимит не достигнут
+      // Второе обновление произойдет по интервалу, если лимит еще не достигнут
+      const intervalId = setInterval(() => {
+        if (canAutoUpdate()) {
+          fetchStatistics();
+        }
+      }, 30000); // Увеличиваем интервал до 30 секунд
+      
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [trackId, fetchStatistics, ensureTrackStatisticsExist, canAutoUpdate]);
 
   return {
     statistics,
     isLoading,
     error,
-    fetchStatistics,
+    fetchStatistics: manualFetchStatistics, // Возвращаем функцию для ручного обновления
     updateStatistic,
     incrementPlayCount,
     incrementLikesCount,
