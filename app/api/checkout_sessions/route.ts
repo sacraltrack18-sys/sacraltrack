@@ -71,8 +71,30 @@ export async function POST(req: Request) {
             );
         }
 
-        // Получаем базовый URL для успешного перенаправления
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin || 'https://your-app-domain.com';
+        // Определяем базовый URL для перенаправления более надежным способом
+        let baseUrl = '';
+        
+        // Проверяем, работает ли приложение на localhost
+        const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
+        
+        if (isLocalhost) {
+            // Для локальной разработки используем origin
+            baseUrl = origin;
+        } else {
+            // Для production используем домен из переменной окружения или сам origin, если он не localhost
+            baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+        }
+        
+        // Убеждаемся, что baseUrl содержит схему (http/https)
+        if (baseUrl && !baseUrl.startsWith('http')) {
+            baseUrl = `https://${baseUrl}`;
+        }
+        
+        // Если baseUrl всё еще не валидный, используем fallback
+        if (!baseUrl) {
+            baseUrl = 'https://sacraltrack.space';
+        }
+        
         console.log('Using base URL for redirects:', baseUrl);
 
         const session = await stripe.checkout.sessions.create({

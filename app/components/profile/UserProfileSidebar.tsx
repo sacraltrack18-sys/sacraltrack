@@ -159,21 +159,6 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <div 
-          className="flex items-center gap-2 mb-2 justify-between"
-          onClick={isOwner ? handleOpenProfileEditor : undefined}
-        >
-          <span className="text-[#A6B1D0] text-sm font-medium">Social Profiles</span>
-          {isOwner && (
-            <motion.span
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              className="text-[#20DDBB] cursor-pointer"
-            >
-              <FaEdit size={12} />
-            </motion.span>
-          )}
-        </div>
         <div className="flex flex-wrap gap-3">
           {socialIcons.map(({ key, Icon, link, color }) => (
             <motion.a
@@ -302,7 +287,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             >
               {rank.score}
             </motion.div>
-            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rank.color} text-xs font-bold`}>
+            <span className="text-white text-xs font-bold">
               {rank.name}
             </span>
           </motion.div>
@@ -498,7 +483,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           <div className="space-y-3">
             {/* Location - always displayed for owner */}
             <div 
-              className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''} ${!getProfileProperty('location', null) && !isOwner ? 'hidden' : ''}`}
+              className="hidden"
               onClick={isOwner ? handleOpenProfileEditor : undefined}
               onMouseEnter={() => setHoveredElement('location')}
               onMouseLeave={() => setHoveredElement(null)}

@@ -165,6 +165,11 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
   // Оптимизированный и мемоизированный массив социальных функций
   const socialFeatures = useMemo(() => [
     {
+      title: "Social Network",
+      description: "Connect with music artists and fans, share vibes, follow creators, and participate in a vibrant music community",
+      icon: "👥"
+    },
+    {
       title: "Photo Vibes",
       description: "Share visual moments with your audience through high-quality photo vibes",
       icon: "📸"
@@ -412,8 +417,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                   <h3 className="text-xl font-semibold text-white">Social Network</h3>
                 </div>
                 <p className="text-white/80 mb-6">
-                  Connect with music artists and fans, share vibes, follow creators, and participate
-                  in a vibrant music community
+                  Connect with music artists and fans, share vibes (photos, videos, stickers), follow creators, and participate in a vibrant music community
                 </p>
 
                 {/* Social features carousel */}

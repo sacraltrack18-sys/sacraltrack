@@ -268,7 +268,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                             src="/images/T-logo.svg"
                             alt="Sacral Track Logo"
                         />
-                        <span className="px-1 py-1 pb-[2px] font-medium text-[16px] hidden md:inline">ST</span>   
+                        <span className="px-1 py-1 pb-[2px] font-medium text-[16px] text-white hidden md:inline">ST</span>   
                         
                         {/* Main Flow Badge - показывается только когда не на главной странице */}
                         {!isHomePage && (
