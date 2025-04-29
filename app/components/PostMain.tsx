@@ -957,77 +957,46 @@ const PostMain = memo(({ post }: PostMainProps) => {
         try {
             setIsProcessingPayment(true);
             successToast("Processing your purchase...");
-
-            // Добавляем заголовок Origin, чтобы сервер мог корректно обработать CORS
-            const origin = window.location.origin;
-            console.log('Current origin:', origin);
             
-            const response = await fetch("/api/checkout_sessions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Origin": origin,
-                },
-                body: JSON.stringify({
-                    trackId: post.id,
-                    trackName: post.trackname,
-                    userId: userContext.user.id,
-                    authorId: post.profile.user_id,
-                    image: post.image_url,
-                    audio: post.audio_url,
-                    amount: 200 // Fixed price in cents ($2.00)
-                }),
-                credentials: 'include', // Добавляем для корректной работы с куками
-                mode: 'cors' // Явно указываем режим CORS
-            });
-
-            // Логируем статус ответа для диагностики
-            console.log('Payment response status:', response.status);
-            
-            let data;
+            // Простой и надежный способ отправки запроса
             try {
-                data = await response.json();
-                console.log('Payment response data:', data);
-            } catch (parseError) {
-                console.error('Failed to parse response:', parseError);
-                throw new Error('Failed to parse server response');
-            }
-            
-            if (!response.ok) {
-                console.error('Payment initialization failed with response:', data);
-                throw new Error(data.error || 'Payment initialization failed');
-            }
-
-            if (!data.success || !data.session || !data.session.url) {
-                console.error('Invalid checkout session response:', data);
-                throw new Error('Invalid checkout session response');
-            }
-            
-            console.log("Redirecting to checkout URL:", data.session.url);
-            
-            // Validate URL before redirecting
-            try {
-                new URL(data.session.url);
-            } catch (urlError) {
-                console.error('Invalid session URL:', data.session.url, urlError);
-                throw new Error('Invalid session URL returned from server');
-            }
-            
-            // Используем более надежный метод перенаправления
-            try {
-                window.location.href = data.session.url;
-            } catch (redirectError) {
-                console.error('Failed primary redirect method:', redirectError);
+                const response = await fetch("/api/checkout_sessions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        trackId: post.id,
+                        trackName: post.trackname,
+                        userId: userContext.user.id,
+                        authorId: post.profile.user_id,
+                        image: post.image_url,
+                        amount: 200 // Fixed price in cents ($2.00)
+                    })
+                });
                 
-                // Fallback methods
-                try {
-                    window.open(data.session.url, '_self');
-                } catch (fallbackError) {
-                    console.error('Failed secondary redirect method:', fallbackError);
-                    
-                    // Final fallback
-                    document.location.href = data.session.url;
+                console.log('Payment response status:', response.status);
+                
+                // Обработка ответа
+                const data = await response.json();
+                console.log('Payment response data:', data);
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Payment initialization failed');
                 }
+                
+                if (!data.success || !data.session || !data.session.url) {
+                    throw new Error('Invalid checkout session response');
+                }
+                
+                console.log("Redirecting to checkout URL:", data.session.url);
+                
+                // Простое и надежное перенаправление
+                window.location.assign(data.session.url);
+                
+            } catch (error) {
+                console.error('Payment process error:', error);
+                errorToast("We couldn't process your payment. Please try again.");
             }
 
         } catch (error: any) {

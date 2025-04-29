@@ -77,46 +77,6 @@ const Copyright = memo(() => (
 
 Copyright.displayName = 'Copyright';
 
-// Компонент для карточек с типами вайбов
-const VibeTypeCard = memo(({ title, description, className }: { title: string, description: string, className?: string }) => (
-  <div className={`bg-[#251B42]/50 p-4 rounded-lg border border-purple-500/20 ${className}`}>
-    <h4 className="text-purple-400 font-medium mb-2">{title}</h4>
-    <p className="text-white/70 text-sm">{description}</p>
-  </div>
-));
-
-VibeTypeCard.displayName = 'VibeTypeCard';
-
-// Компонент для слайдов с социальными функциями
-const SocialFeatureSlide = memo(({ title, description, icon, isActive }: { 
-  title: string, 
-  description: string, 
-  icon: string,
-  isActive: boolean 
-}) => {
-  if (!isActive) return null;
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-[#251B42]/50 p-6 rounded-lg border border-purple-500/20 h-full will-change-transform"
-    >
-      <div className="flex flex-col items-center text-center">
-        <div className="w-16 h-16 rounded-full bg-[#20DDBB]/20 flex items-center justify-center mb-4">
-          <span className="text-2xl">{icon}</span>
-        </div>
-        <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
-        <p className="text-white/70">{description}</p>
-      </div>
-    </motion.div>
-  );
-});
-
-SocialFeatureSlide.displayName = 'SocialFeatureSlide';
-
 interface WelcomeModalProps {
   isVisible?: boolean;
   onClose?: () => void;
@@ -126,9 +86,7 @@ interface WelcomeModalProps {
 const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck = false }: WelcomeModalProps) => {
   const [isVisible, setIsVisible] = useState(propIsVisible || false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [currentSocialSlide, setCurrentSocialSlide] = useState(0);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
-  const [socialIntervalId, setSocialIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Синхронизируем внутреннее состояние с пропсами
@@ -152,37 +110,13 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     },
     {
       title: "Social Network",
-      description: "Connect with music artists and fans, share vibes (photos, videos, stickers), follow creators, and participate in a vibrant music community",
+      description: "Connect with music artists and fans, share vibes (photos, videos, stickers) to express your creativity and musical journey, follow creators, and participate in a vibrant music community. Vibes are your visual way to share moments and emotions related to music.",
       icon: "👥"
     },
     {
       title: "Artist Recognition",
       description: "Discover and gain visibility with Top 100 charts, user ratings, and trending content features",
-      icon: "��"
-    }
-  ], []);
-
-  // Оптимизированный и мемоизированный массив социальных функций
-  const socialFeatures = useMemo(() => [
-    {
-      title: "Social Network",
-      description: "Connect with music artists and fans, share vibes, follow creators, and participate in a vibrant music community",
-      icon: "👥"
-    },
-    {
-      title: "Photo Vibes",
-      description: "Share visual moments with your audience through high-quality photo vibes",
-      icon: "📸"
-    },
-    {
-      title: "Video Vibes",
-      description: "Create immersive experiences with short video content and visual stories",
-      icon: "🎬"
-    },
-    {
-      title: "Sticker Vibes",
-      description: "Express your creativity with custom stickers and animated reactions",
-      icon: "🎭"
+      icon: "🏆"
     }
   ], []);
 
@@ -231,17 +165,6 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     };
   }, [isInitialized, isVisible]);
 
-  // Запуск соц. карусели после инициализации
-  useEffect(() => {
-    if (isInitialized && isVisible) {
-      startSocialCarousel();
-    }
-    
-    return () => {
-      if (socialIntervalId) clearInterval(socialIntervalId);
-    };
-  }, [isInitialized, isVisible]);
-
   // Управление каруселью
   const startCarousel = useCallback(() => {
     if (intervalId) clearInterval(intervalId);
@@ -260,24 +183,6 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     };
   }, [features.length, intervalId]);
 
-  // Управление соц. каруселью
-  const startSocialCarousel = useCallback(() => {
-    if (socialIntervalId) clearInterval(socialIntervalId);
-    
-    const timer = setTimeout(() => {
-      const id = setInterval(() => {
-        setCurrentSocialSlide(prev => (prev < socialFeatures.length - 1 ? prev + 1 : 0));
-      }, 4000);
-      
-      setSocialIntervalId(id);
-    }, 1000);
-    
-    return () => {
-      clearTimeout(timer);
-      if (socialIntervalId) clearInterval(socialIntervalId);
-    };
-  }, [socialFeatures.length, socialIntervalId]);
-
   // Мемоизированный обработчик для переключения слайдов
   const handleSlideChange = useCallback((index: number) => {
     setCurrentSlide(index);
@@ -286,15 +191,6 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     if (intervalId) clearInterval(intervalId);
     startCarousel();
   }, [intervalId, startCarousel]);
-
-  // Мемоизированный обработчик для переключения соц. слайдов
-  const handleSocialSlideChange = useCallback((index: number) => {
-    setCurrentSocialSlide(index);
-    
-    // Рестарт таймера при ручном переключении
-    if (socialIntervalId) clearInterval(socialIntervalId);
-    startSocialCarousel();
-  }, [socialIntervalId, startSocialCarousel]);
 
   // Оптимизированное закрытие
   const handleClose = useCallback(() => {
@@ -317,8 +213,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     
     // Очистка интервалов
     if (intervalId) clearInterval(intervalId);
-    if (socialIntervalId) clearInterval(socialIntervalId);
-  }, [intervalId, socialIntervalId, onClose]);
+  }, [intervalId, onClose]);
 
   // Прерываем рендеринг, если модальное окно не видимо
   if (!isVisible) return <ImagePreloader />;
@@ -406,46 +301,6 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                 <p className="mt-2 text-white/60 text-xs md:text-sm text-center max-w-xl mx-auto">
                   The premier music platform for artists and listeners with high-quality audio and fair royalty distribution
                 </p>
-              </div>
-
-              {/* Social Network section with slides */}
-              <div className="mb-8 max-w-2xl mx-auto bg-[#1A2338]/70 backdrop-blur-lg rounded-xl border border-[#20DDBB]/20 p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-[#20DDBB]/20 flex items-center justify-center">
-                    <span className="text-2xl">✨</span>
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">Social Network</h3>
-                </div>
-                <p className="text-white/80 mb-6">
-                  Connect with music artists and fans, share vibes (photos, videos, stickers), follow creators, and participate in a vibrant music community
-                </p>
-
-                {/* Social features carousel */}
-                <div className="h-[200px] mb-4">
-                  <AnimatePresence mode="wait">
-                    {socialFeatures.map((feature, index) => (
-                      <SocialFeatureSlide 
-                        key={index} 
-                        title={feature.title} 
-                        description={feature.description} 
-                        icon={feature.icon}
-                        isActive={index === currentSocialSlide} 
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
-
-                {/* Social slide navigation */}
-                <div className="flex justify-center gap-2.5 mt-4">
-                  {socialFeatures.map((_, index) => (
-                    <CarouselDot
-                      key={index}
-                      isActive={currentSocialSlide === index}
-                      index={index}
-                      onClick={() => handleSocialSlideChange(index)}
-                    />
-                  ))}
-                </div>
               </div>
 
               {/* Test Mode Notice */}

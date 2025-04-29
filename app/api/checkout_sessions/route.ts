@@ -8,149 +8,116 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2023-10-16",
 });
 
+// Функция для создания CORS заголовков - принимаем все источники в разработке
+function createCorsHeaders(origin: string = '*') {
+    // Всегда принимаем все заголовки для максимальной совместимости
+    return {
+        'Access-Control-Allow-Origin': '*',  // Allow all origins
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*', // Allow all headers
+        'Access-Control-Allow-Credentials': 'true'
+    };
+}
+
 export async function OPTIONS(req: Request) {
-    // Получаем origin из запроса или используем допустимый URL
-    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || '*';
+    // Разрешаем все preflight запросы
+    const headers = {
+        ...createCorsHeaders(),
+        'Access-Control-Max-Age': '86400'
+    };
     
-    // Обрабатываем CORS preflight запрос с динамическим origin
     return new NextResponse(null, {
         status: 204,
-        headers: {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-        },
+        headers
     });
 }
 
 export async function POST(req: Request) {
     console.log('Received POST request to checkout_sessions');
     
-    // Получаем origin из запроса или используем допустимый URL
-    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || '*';
-    console.log('Request origin:', origin);
+    // Устанавливаем CORS заголовки для любых источников
+    const corsHeaders = createCorsHeaders();
     
-    // Все необходимые CORS заголовки
-    const headers = {
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin',
-        'Access-Control-Allow-Credentials': 'true',
-    };
-
-    // Проверяем инициализацию Stripe
-    if (!stripe) {
-        console.error('Stripe is not initialized');
-        return NextResponse.json(
-            { success: false, error: "Stripe configuration error" },
-            { status: 500, headers }
-        );
-    }
-
-    // Проверка метода запроса
-    if (req.method !== 'POST') {
-        console.log('Method not allowed:', req.method);
-        return NextResponse.json(
-            { success: false, error: 'Method not allowed' },
-            { status: 405, headers }
-        );
-    }
-
     try {
         const body = await req.json();
         console.log('Request body:', body);
-        const { trackId, trackName, userId, authorId, image, amount } = body;
+        const { trackId, trackName, userId, authorId, image, amount, redirect_mode } = body;
 
         if (!trackId || !trackName || !userId || !authorId) {
             console.error('Missing required parameters');
             return NextResponse.json(
                 { success: false, error: "Missing required parameters" },
-                { status: 400, headers }
+                { status: 400, headers: corsHeaders }
             );
         }
 
-        // Более надежный способ определения базового URL для перенаправления
-        let baseUrl = 'https://sacraltrack.space'; // Fallback default
-        
-        // Пытаемся использовать NEXT_PUBLIC_BASE_URL из env
-        if (process.env.NEXT_PUBLIC_BASE_URL) {
-            baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-            // Добавляем протокол, если его нет
-            if (!baseUrl.startsWith('http')) {
-                baseUrl = `https://${baseUrl}`;
-            }
-        } 
-        // Или используем origin из заголовков, если он валиден
-        else if (origin && origin !== '*' && (origin.startsWith('http://') || origin.startsWith('https://'))) {
-            // Проверяем чтобы не было localhost в продакшене
-            const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-            if (isLocalhost) {
-                // Используем origin для локальной разработки
-                baseUrl = origin;
-            }
-        }
-        
-        // Проверяем валидность URL
+        // Всегда используем полный домен для production
+        // Это самый надежный способ избежать проблем с URL
+        const baseUrl = 'https://sacraltrack.space';
+        console.log('Using fixed base URL for redirects:', baseUrl);
+
         try {
-            new URL(baseUrl); // Throws if invalid
-        } catch (e) {
-            console.error('Invalid baseUrl, using fallback:', e);
-            baseUrl = 'https://sacraltrack.space'; // Fallback to known valid URL
-        }
-        
-        console.log('Using base URL for redirects:', baseUrl);
-
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            metadata: {
-                trackId,
-                userId,
-                authorId,
-                amount: amount.toString()
-            },
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: trackName,
-                            images: image ? [image] : [],
-                        },
-                        unit_amount: amount,
-                    },
-                    quantity: 1,
+            // Определяем URLs для успеха и отмены
+            const successUrl = `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
+            const cancelUrl = `${baseUrl}/cancel`;
+            
+            console.log('Success URL:', successUrl);
+            console.log('Cancel URL:', cancelUrl);
+            
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                metadata: {
+                    trackId,
+                    userId,
+                    authorId,
+                    amount: amount.toString()
                 },
-            ],
-            mode: 'payment',
-            success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${baseUrl}/cancel`,
-            // Выставляем ограничение по времени (30 минут)
-            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-        });
+                line_items: [
+                    {
+                        price_data: {
+                            currency: 'usd',
+                            product_data: {
+                                name: trackName,
+                                images: image ? [image] : [],
+                            },
+                            unit_amount: amount,
+                        },
+                        quantity: 1,
+                    },
+                ],
+                mode: 'payment',
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+                expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+            });
 
-        console.log('Checkout session created:', session.id);
-        console.log('Session URL:', session.url);
-        
-        // Проверка URL сессии
-        if (!session.url) {
-            console.error('Session URL is missing from Stripe response');
-            throw new Error('Session URL is missing from Stripe response');
+            console.log('Checkout session created:', session.id);
+            console.log('Session URL:', session.url);
+            
+            if (!session.url) {
+                throw new Error('Session URL is missing from Stripe response');
+            }
+            
+            return NextResponse.json({ 
+                success: true, 
+                session: {
+                    id: session.id,
+                    url: session.url
+                } 
+            }, { headers: corsHeaders });
+            
+        } catch (stripeError: any) {
+            console.error('Stripe error:', stripeError);
+            return NextResponse.json(
+                { success: false, error: stripeError.message },
+                { status: 500, headers: corsHeaders }
+            );
         }
-        
-        return NextResponse.json({ 
-            success: true, 
-            session: {
-                id: session.id,
-                url: session.url
-            } 
-        }, { headers });
     } catch (error: any) {
         console.error('Checkout session error:', error);
         return NextResponse.json(
             { success: false, error: error.message },
-            { status: 500, headers }
+            { status: 500, headers: corsHeaders }
         );
     }
 }
