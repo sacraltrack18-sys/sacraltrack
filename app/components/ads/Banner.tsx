@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface AdBannerProps {
   adKey: string;
@@ -9,12 +9,16 @@ interface AdBannerProps {
 
 const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [adError, setAdError] = useState(false);
 
   useEffect(() => {
     // Проверяем, что код выполняется на клиенте (в браузере)
     if (typeof window === 'undefined' || !adKey || !containerRef.current) return;
 
     try {
+      // Reset error state when attempting to load a new ad
+      setAdError(false);
+      
       // Очищаем контейнер перед добавлением новых скриптов
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
@@ -45,12 +49,14 @@ const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
       // Добавляем обработку ошибок
       scriptSrc.onerror = () => {
         console.error('Failed to load ad script');
+        setAdError(true);
         if (containerRef.current) {
-          containerRef.current.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-900/20 to-indigo-900/20 text-white/40 text-sm">Ad content unavailable</div>';
+          containerRef.current.innerHTML = '';
         }
       };
     } catch (error) {
       console.error('Error setting up banner:', error);
+      setAdError(true);
     }
 
     // Cleanup function to remove scripts on unmount
@@ -60,6 +66,11 @@ const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
       }
     };
   }, [adKey, adHeight, adWidth]);
+
+  // Don't render anything if there's an ad error
+  if (adError) {
+    return null;
+  }
 
   return (
     <div 

@@ -12,6 +12,7 @@ const NotificationBell = () => {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const { getUserNotifications, unreadCount } = useNotifications();
   const userContext = useUser();
+  const isLoggedIn = !!userContext?.user;
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
@@ -38,14 +39,19 @@ const NotificationBell = () => {
     }
   }, [unreadCount]);
 
+  const handleBellClick = () => {
+    if (!isLoggedIn) return; // Do nothing if not logged in
+    setIsOpen(!isOpen);
+  };
+
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-[#818BAC] hover:text-white transition-colors"
+        onClick={handleBellClick}
+        className={`relative p-2 ${isLoggedIn ? 'text-[#818BAC] hover:text-white' : 'text-gray-400 cursor-default'} transition-colors`}
       >
         <motion.div
-          animate={hasNewNotification ? {
+          animate={isLoggedIn && hasNewNotification ? {
             scale: [1, 1.2, 1],
             rotate: [0, 15, -15, 0]
           } : {}}
@@ -54,11 +60,11 @@ const NotificationBell = () => {
             repeat: 2
           }}
         >
-          <BellIcon className="w-[24px] h-[24px] text-amber-400" />
+          <BellIcon className={`w-[24px] h-[24px] ${isLoggedIn ? 'text-amber-400' : 'text-gray-500'}`} />
         </motion.div>
         
         <AnimatePresence>
-          {unreadCount > 0 && (
+          {isLoggedIn && unreadCount > 0 && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ 
@@ -92,7 +98,7 @@ const NotificationBell = () => {
 
         {/* Ripple effect for new notifications */}
         <AnimatePresence>
-          {hasNewNotification && (
+          {isLoggedIn && hasNewNotification && (
             <motion.div
               initial={{ scale: 0.5, opacity: 1 }}
               animate={{ scale: 2, opacity: 0 }}
@@ -106,7 +112,7 @@ const NotificationBell = () => {
       </button>
 
       <AnimatePresence>
-        {isOpen && (
+        {isLoggedIn && isOpen && (
           <NotificationCenter
             isOpen={isOpen}
             onClose={() => setIsOpen(false)}

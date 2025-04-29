@@ -630,7 +630,7 @@ export default function People() {
         // Normalize search term and split into words for better matching
         const searchTerms = text.trim().toLowerCase().split(/\s+/);
         
-        // Filter profiles based on search terms
+        // Filter profiles based on search terms - using more exact matching
         const results = profiles.filter(profile => {
             if (!profile) return false;
             
@@ -638,8 +638,8 @@ export default function People() {
             const username = (profile.username || '').toLowerCase();
             const bio = (profile.bio || '').toLowerCase();
             
-            // Check if any search term matches any field
-            return searchTerms.some(term => 
+            // Check if ALL search terms match any field for stricter filtering
+            return searchTerms.every(term => 
                 name.includes(term) || 
                 username.includes(term) || 
                 bio.includes(term)
