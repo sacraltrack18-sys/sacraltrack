@@ -71,28 +71,33 @@ export async function POST(req: Request) {
             );
         }
 
-        // Определяем базовый URL для перенаправления более надежным способом
-        let baseUrl = '';
+        // Более надежный способ определения базового URL для перенаправления
+        let baseUrl = 'https://sacraltrack.space'; // Fallback default
         
-        // Проверяем, работает ли приложение на localhost
-        const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
-        
-        if (isLocalhost) {
-            // Для локальной разработки используем origin
-            baseUrl = origin;
-        } else {
-            // Для production используем домен из переменной окружения или сам origin, если он не localhost
-            baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+        // Пытаемся использовать NEXT_PUBLIC_BASE_URL из env
+        if (process.env.NEXT_PUBLIC_BASE_URL) {
+            baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+            // Добавляем протокол, если его нет
+            if (!baseUrl.startsWith('http')) {
+                baseUrl = `https://${baseUrl}`;
+            }
+        } 
+        // Или используем origin из заголовков, если он валиден
+        else if (origin && origin !== '*' && (origin.startsWith('http://') || origin.startsWith('https://'))) {
+            // Проверяем чтобы не было localhost в продакшене
+            const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+            if (isLocalhost) {
+                // Используем origin для локальной разработки
+                baseUrl = origin;
+            }
         }
         
-        // Убеждаемся, что baseUrl содержит схему (http/https)
-        if (baseUrl && !baseUrl.startsWith('http')) {
-            baseUrl = `https://${baseUrl}`;
-        }
-        
-        // Если baseUrl всё еще не валидный, используем fallback
-        if (!baseUrl) {
-            baseUrl = 'https://sacraltrack.space';
+        // Проверяем валидность URL
+        try {
+            new URL(baseUrl); // Throws if invalid
+        } catch (e) {
+            console.error('Invalid baseUrl, using fallback:', e);
+            baseUrl = 'https://sacraltrack.space'; // Fallback to known valid URL
         }
         
         console.log('Using base URL for redirects:', baseUrl);

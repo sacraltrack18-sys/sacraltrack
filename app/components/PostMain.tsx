@@ -984,14 +984,20 @@ const PostMain = memo(({ post }: PostMainProps) => {
             // Логируем статус ответа для диагностики
             console.log('Payment response status:', response.status);
             
+            let data;
+            try {
+                data = await response.json();
+                console.log('Payment response data:', data);
+            } catch (parseError) {
+                console.error('Failed to parse response:', parseError);
+                throw new Error('Failed to parse server response');
+            }
+            
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Could not parse error response' }));
-                console.error('Payment initialization failed with response:', errorData);
-                throw new Error(errorData.error || 'Payment initialization failed');
+                console.error('Payment initialization failed with response:', data);
+                throw new Error(data.error || 'Payment initialization failed');
             }
 
-            const data = await response.json();
-            
             if (!data.success || !data.session || !data.session.url) {
                 console.error('Invalid checkout session response:', data);
                 throw new Error('Invalid checkout session response');
@@ -999,21 +1005,29 @@ const PostMain = memo(({ post }: PostMainProps) => {
             
             console.log("Redirecting to checkout URL:", data.session.url);
             
-            // Используем window.open вместо location.assign для большей надежности
-            const checkoutWindow = window.open(data.session.url, '_self');
+            // Validate URL before redirecting
+            try {
+                new URL(data.session.url);
+            } catch (urlError) {
+                console.error('Invalid session URL:', data.session.url, urlError);
+                throw new Error('Invalid session URL returned from server');
+            }
             
-            // Если window.open не сработал, используем запасные методы
-            if (!checkoutWindow) {
-                console.log("Using fallback redirection...");
-                window.location.assign(data.session.url);
+            // Используем более надежный метод перенаправления
+            try {
+                window.location.href = data.session.url;
+            } catch (redirectError) {
+                console.error('Failed primary redirect method:', redirectError);
                 
-                // Последний резервный вариант
-                setTimeout(() => {
-                    if (document.location.href !== data.session.url) {
-                        console.log("Using last-resort redirection...");
-                        document.location.href = data.session.url;
-                    }
-                }, 1000);
+                // Fallback methods
+                try {
+                    window.open(data.session.url, '_self');
+                } catch (fallbackError) {
+                    console.error('Failed secondary redirect method:', fallbackError);
+                    
+                    // Final fallback
+                    document.location.href = data.session.url;
+                }
             }
 
         } catch (error: any) {
