@@ -1223,39 +1223,28 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   }
   
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-[99999] flex items-center justify-center p-4"
-      onClick={onClose}
+    <div 
+      className="modal-overlay flex items-center justify-center overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-        className="bg-gradient-to-br from-[#2A2151]/95 to-[#1E1A36]/95 backdrop-blur-xl rounded-2xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-white/10 shadow-xl relative"
-        onClick={e => e.stopPropagation()}
+      <motion.div 
+        initial={{ y: 100, opacity: 0 }} 
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 100, opacity: 0 }}
+        className="relative bg-[#1F1A36] rounded-2xl w-[95%] max-w-[500px] mx-auto max-h-[90vh] overflow-y-auto border border-white/10 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <MusicalNoteIcon className="w-5 h-5 text-[#20DDBB]" />
-            <h3 className="text-lg font-semibold text-white">Create New Vibe</h3>
-          </div>
-          <motion.button 
-            onClick={onClose}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
-          >
-            <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white" />
-          </motion.button>
-        </div>
+        {/* Close button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-1 transition duration-200 z-[10]"
+        >
+          <XMarkIcon className="w-5 h-5" />
+        </button>
         
-        {/* Content Type Selection */}
+        {/* Form content */}
         <div className="p-4 border-b border-white/5">
           <div className="flex justify-center space-x-4">
             <TabButton
@@ -1286,7 +1275,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           {renderTabContent()}
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
 

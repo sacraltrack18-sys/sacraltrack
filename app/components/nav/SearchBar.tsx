@@ -258,7 +258,7 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
         {showSearch && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "min(350px, 80vw)", opacity: 1 }}
+            animate={{ width: "min(280px, 80vw)", opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="absolute left-12 md:right-12 top-1/2 -translate-y-1/2 z-50 origin-left md:origin-right w-[calc(100vw-80px)] md:w-auto"

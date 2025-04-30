@@ -268,8 +268,8 @@ export default function ManagerDashboard() {
         );
         
         return {
-          name: userDoc.name || userDoc.full_name || `User ${userId.substring(0, 6)}`,
-          email: userDoc.email || 'No Email'
+          name: userDoc.name || userDoc.full_name || `User ${userId.substring(0, 8)}`,
+          email: userDoc.email || userDoc.emailAddresses?.[0]?.emailAddress || 'No Email'
         };
       } catch (directFetchError) {
         console.warn(`Direct fetch failed for user ID ${userId}, trying listDocuments`, directFetchError);
@@ -284,21 +284,21 @@ export default function ManagerDashboard() {
         if (response.documents.length > 0) {
           const user = response.documents[0];
           return {
-            name: user.name || user.full_name || `User ${userId.substring(0, 6)}`,
-            email: user.email || 'No Email'
+            name: user.name || user.full_name || `User ${userId.substring(0, 8)}`,
+            email: user.email || user.emailAddresses?.[0]?.emailAddress || 'No Email'
           };
         }
       }
       
       // If we get here, no user was found
       return {
-        name: `User ${userId.substring(0, 6)}`,
+        name: `User ${userId.substring(0, 8)}`,
         email: 'No Email'
       };
     } catch (error) {
       console.error(`Failed to fetch user data for ID ${userId}:`, error);
       return {
-        name: `User ${userId.substring(0, 6)}`,
+        name: `User ${userId.substring(0, 8)}`,
         email: 'No Email'
       };
     }
@@ -338,7 +338,7 @@ export default function ManagerDashboard() {
           } catch (error) {
             console.error(`Error fetching user ${userId}:`, error);
             userData[userId] = {
-              name: `User ${userId.substring(0, 6)}`,
+              name: `User ${userId.substring(0, 8)}`,
               email: 'No Email'
             };
           }
@@ -462,27 +462,6 @@ export default function ManagerDashboard() {
                 </span>
               </div>
             </div>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => loadWithdrawals(true)}
-              disabled={isRefreshing}
-              className={`flex items-center justify-center p-3 rounded-xl border transition-colors
-                ${isRefreshing 
-                  ? 'bg-[#3f2d63]/40 border-[#3f2d63]/70 cursor-not-allowed' 
-                  : 'bg-[#3f2d63]/20 border-[#3f2d63] hover:bg-[#3f2d63]/30'}`}
-            >
-              <svg 
-                className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-[#20DDBB]' : 'text-[#818BAC]'}`} 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24"
-              >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </motion.button>
           </div>
         </div>
 
@@ -549,15 +528,15 @@ export default function ManagerDashboard() {
                       <div className="mb-2 py-1 px-2 -ml-2 rounded-lg bg-[#3f2d63]/15 inline-block">
                         <p className="text-[#20DDBB] text-sm font-medium flex items-center">
                           <span>{usersData[withdrawal.userId]?.name || 
-                            (withdrawal.userId ? `User ${withdrawal.userId.substring(0,6)}...` : 'Unknown')}</span>
+                            (withdrawal.userId ? `User ${withdrawal.userId}` : 'Unknown')}</span>
                           {withdrawal.userId && (
                             <span className="ml-1 text-xs text-gray-400 bg-gray-800/40 px-1.5 py-0.5 rounded">
-                              ID: {withdrawal.userId.substring(0,8)}...
+                              ID: {withdrawal.userId}
                             </span>
                           )}
                         </p>
                         <p className="text-[#818BAC] text-xs">
-                          {usersData[withdrawal.userId]?.email || 
+                          Email: {usersData[withdrawal.userId]?.email !== 'No Email' ? usersData[withdrawal.userId]?.email : 
                             (withdrawal.paypalEmail ? withdrawal.paypalEmail : 
                               (getBankDetails(withdrawal)?.holderName ? `Holder: ${getBankDetails(withdrawal)?.holderName}` : 'No Email'))}
                         </p>

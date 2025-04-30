@@ -36,7 +36,7 @@ const FeatureSlide = memo(({ feature, isActive }: { feature: any, isActive: bool
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-[#252742]/50 backdrop-blur-md rounded-xl p-6 border border-white/10 h-full will-change-transform"
+      className="bg-[#252742]/50 backdrop-blur-md rounded-xl p-6 border border-white/10 h-full will-change-transform z-1000"
     >
       <div className="flex items-center h-full">
         <div className="w-12 h-12 bg-gradient-to-br from-[#20DDBB]/20 to-[#8B5CF6]/20 backdrop-blur-xl rounded-full flex items-center justify-center mr-4 text-2xl">
@@ -105,7 +105,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     },
     {
       title: "Music Marketplace",
-      description: "Buy and sell music directly with transparent pricing and fair artist royalties, supporting creators directly. Publication is completely free for artists.",
+      description: "Buy and sell music directly with transparent pricing and artist royalties, supporting creators directly. Publication is completely free for artists.",
       icon: "💽"
     },
     {
@@ -296,10 +296,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                   Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-transparent bg-clip-text">Sacral Track</span>
                 </h2>
                 <p className="mt-3 text-white/70 text-sm md:text-base text-center max-w-xl mx-auto">
-                  Music Platform / Social Network
-                </p>
-                <p className="mt-2 text-white/60 text-xs md:text-sm text-center max-w-xl mx-auto">
-                  The premier music platform for artists and listeners with high-quality audio and fair royalty distribution
+                  Music Platform / Social Network for artists and music listeners with high-quality audio and royalty distribution.
                 </p>
               </div>
 
@@ -312,7 +309,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-blue-400 font-medium text-lg mb-1">Platform in Test Mode</h4>
+                    <h4 className="text-blue-400 font-medium text-lg mb-1">Now platform in Test Mode</h4>
                     <p className="text-white/80 text-sm leading-relaxed">
                       Sacral Track is currently in test mode. If you notice any bugs or have suggestions for improvements, 
                       please help our team enhance the service by contacting our manager on Telegram: 

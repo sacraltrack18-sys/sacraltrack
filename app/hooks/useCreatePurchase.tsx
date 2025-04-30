@@ -44,6 +44,26 @@ const useCreatePurchase = (): CreatePurchaseHook => {
         throw error;
       }
 
+      // Also check if there's already a purchase for this track by this user
+      const existingUserTrackPurchases = await database.listDocuments(
+        String(process.env.NEXT_PUBLIC_DATABASE_ID),
+        String(process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES),
+        [
+          Query.equal('user_id', data.user_id),
+          Query.equal('track_id', data.track_id)
+        ]
+      );
+
+      // If this user already purchased this track, treat it as a duplicate
+      if (existingUserTrackPurchases.documents.length > 0) {
+        console.log("User already purchased this track");
+        const error = new Error('User already purchased this track');
+        error.name = 'DuplicatePurchaseError';
+        // @ts-ignore - adding non-standard property to Error
+        error.isDuplicatePurchase = true;
+        throw error;
+      }
+
       const purchase_date = new Date().toISOString();
 
       // Create new purchase document

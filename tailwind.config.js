@@ -12,10 +12,22 @@ module.exports = {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        floatY: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' },
         }
       },
       animation: {
         shimmer: 'shimmer 2.5s infinite linear',
+        floatY: 'floatY 3s ease-in-out infinite',
+      },
+      backgroundSize: {
+        'size-200': '200% 100%',
+      },
+      backgroundPosition: {
+        'pos-0': '0% 0%',
+        'pos-100': '100% 0%',
       },
     },
   },

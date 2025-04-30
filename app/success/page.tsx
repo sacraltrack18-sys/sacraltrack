@@ -139,6 +139,9 @@ function SuccessPageContent() {
           return;
         }
 
+        // Add a delay to give the webhook time to process first
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
         // Проверяем ID пользователя из контекста или из localStorage
         let currentUserId = userContext?.user?.id;
         
@@ -186,6 +189,17 @@ function SuccessPageContent() {
             setError("User information is missing");
             setIsLoading(false);
             console.error("User information is missing");
+            return;
+          }
+
+          // First check if a purchase already exists before attempting to create one
+          const checkExistingPurchaseResponse = await fetch(`/api/check_purchase?session_id=${sessionId}`);
+          const existingPurchaseData = await checkExistingPurchaseResponse.json();
+          
+          if (existingPurchaseData.exists) {
+            console.log("Purchase already exists in database:", existingPurchaseData);
+            setIsProcessed(true);
+            setError(null);
             return;
           }
           

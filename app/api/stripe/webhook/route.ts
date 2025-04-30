@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { database, ID } from "@/libs/AppWriteClient";
+import { database, ID, Query } from "@/libs/AppWriteClient";
 import { NOTIFICATION_MESSAGES } from '@/app/hooks/useNotifications';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -29,45 +29,59 @@ export async function POST(req: Request) {
       const amount = session.amount_total / 100;
 
       try {
+        // Check if a purchase with this session ID already exists
+        const existingPurchases = await database.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
+          [
+            Query.equal('session_id', session.id)
+          ]
+        );
+
+        if (existingPurchases.documents.length > 0) {
+          console.log('Purchase already exists for this session ID, skipping creation');
+          return NextResponse.json({ received: true, message: 'Purchase already processed' });
+        }
+
         // 1. Создаем запись о покупке
-      const purchase = await database.createDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
-        ID.unique(),
-        {
-          user_id: userId,
-          track_id: trackId,
-          author_id: authorId,
-          purchase_date: new Date().toISOString(),
+        const purchase = await database.createDocument(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
+          ID.unique(),
+          {
+            user_id: userId,
+            track_id: trackId,
+            author_id: authorId,
+            purchase_date: new Date().toISOString(),
             amount: amount.toString(),
             session_id: session.id,
             status: 'completed'
-        }
-      );
+          }
+        );
 
         // 2. Создаем запись роялти (50% от суммы покупки)
         const royaltyAmount = (amount / 2).toString();
-      await database.createDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
-        ID.unique(),
-        {
-          author_id: authorId,
-          track_id: trackId,
-          amount: royaltyAmount,
-          transaction_date: new Date().toISOString(),
-          purchase_id: purchase.$id,
-          status: 'pending',
-          user_id: userId,
-          purchase_amount: amount.toString(),
-          royalty_percentage: "50",
-          currency: "USD",
-          payment_method: "stripe",
-          stripe_session_id: session.id,
-          related_purchase_id: purchase.$id,
-          metadata_json: "{}"
-        }
-      );
+        await database.createDocument(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
+          ID.unique(),
+          {
+            author_id: authorId,
+            track_id: trackId,
+            amount: royaltyAmount,
+            transaction_date: new Date().toISOString(),
+            purchase_id: purchase.$id,
+            status: 'pending',
+            user_id: userId,
+            purchase_amount: amount.toString(),
+            royalty_percentage: "50",
+            currency: "USD",
+            payment_method: "stripe",
+            stripe_session_id: session.id,
+            related_purchase_id: purchase.$id,
+            metadata_json: "{}"
+          }
+        );
 
         // 3. Обновляем общий баланс роялти автора
         try {

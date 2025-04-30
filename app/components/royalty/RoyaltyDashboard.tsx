@@ -422,18 +422,22 @@ export default function RoyaltyDashboard({
             <motion.button
               whileHover={{ 
                 scale: 1.05, 
-                boxShadow: '0 0 25px 5px rgba(124, 58, 237, 0.4)',
+                boxShadow: '0 0 25px 5px rgba(32, 221, 187, 0.4)',
                 transition: { duration: 0.3 }
               }}
               whileTap={{ scale: 0.95 }}
               onClick={handleOpenWithdrawModal}
-              className="inline-flex items-center px-6 py-3.5 rounded-full shadow-xl transition-all duration-300 bg-gradient-to-r from-[#3f2d63] via-[#583d8c] to-[#4e377a] text-white border border-[#583d8c]/50 backdrop-blur-sm hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] relative overflow-hidden group"
+              className="inline-flex items-center px-6 py-3.5 rounded-full shadow-xl transition-all duration-300 
+                bg-gradient-to-r from-[#20DDBB] via-[#f06ef2] to-[#20DDBB] 
+                text-white border border-[#20DDBB]/50 backdrop-blur-sm 
+                hover:shadow-[0_0_30px_rgba(32,221,187,0.5)] relative overflow-hidden group
+                bg-size-200 bg-pos-0 hover:bg-pos-100"
               data-tooltip-id="withdraw-tooltip"
               data-tooltip-content="Withdraw your available funds"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-500"></span>
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-500"></span>
               <div className="flex items-center relative z-10">
-                <FaMoneyBillWave className="text-lg mr-3 text-violet-300" />
+                <FaMoneyBillWave className="text-lg mr-3 text-white" />
                 <span className="font-medium text-base">Withdraw Funds</span>
               </div>
             </motion.button>

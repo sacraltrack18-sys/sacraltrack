@@ -184,9 +184,9 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999 !important;
-  background-color: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(15px) !important;
+  z-index: 100;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
 }
 
 /* Специальные стили для WelcomeModal с максимальным z-index */
@@ -605,8 +605,8 @@ body {
 
 /* Fix background elements to position properly under the top nav */
 #TopNav {
-  z-index: 999995;
   position: fixed;
+  z-index: 50;
   top: 0;
   left: 0;
   right: 0;

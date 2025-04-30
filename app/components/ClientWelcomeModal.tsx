@@ -40,9 +40,9 @@ export default function ClientWelcomeModal({ isVisible, onClose, hideFirstVisitC
   }
   
   // После монтирования рендерим WelcomeModal внутри Suspense
-  // с высоким z-index для показа поверх всего контента, но не TopNav
+  // с z-index ниже TopNav, чтобы навбар отображался поверх модального окна
   return (
-    <div className="welcome-modal-wrapper" style={{ position: 'relative', zIndex: 999990 }}>
+    <div className="welcome-modal-wrapper" style={{ position: 'relative', zIndex: 49 }}>
       <Suspense fallback={null}>
         <WelcomeModal 
           isVisible={isVisible} 

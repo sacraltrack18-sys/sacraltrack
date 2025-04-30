@@ -247,7 +247,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
     return (
         <>  
-            <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[5] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
+            <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[50] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
                 <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo - улучшенная версия с более надежной навигацией */}
                     <Link 
@@ -310,7 +310,9 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                     </div>
 
                     {/* Search Bar - Only visible on home page */}
-                    <SearchBar isHomePage={isHomePage} />
+                    <div className="md:-ml-[140px]">
+                        <SearchBar isHomePage={isHomePage} />
+                    </div>
 
                     {/* Right Side Actions */}
                     <div className="flex items-center gap-2 md:gap-3">
