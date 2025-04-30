@@ -46,6 +46,7 @@ interface ProfileStore {
     setupAuthListener: () => void;
     clearCurrentProfile: () => void;
     profileCache: Record<string, { profile: any, timestamp: number }>;
+    pendingProfileRequests: Record<string, Promise<any>>;
 }
 
 export const useProfileStore = create<ProfileStore>()(
@@ -58,6 +59,7 @@ export const useProfileStore = create<ProfileStore>()(
                 error: null,
                 hasUserReleases: false,
                 profileCache: {} as Record<string, { profile: any, timestamp: number }>,
+                pendingProfileRequests: {} as Record<string, Promise<any>>,
 
                 setHasUserReleases: (value: boolean) => {
                     set({ hasUserReleases: value });
@@ -261,6 +263,20 @@ export const useProfileStore = create<ProfileStore>()(
                             return cache.profile;
                         }
                         
+                        // Check for pending requests for this userId
+                        const pendingRequests = get().pendingProfileRequests;
+                        if (userId in pendingRequests) {
+                            try {
+                                // Wait for the existing request to complete
+                                const profile = await pendingRequests[userId];
+                                set({ loading: false });
+                                return profile;
+                            } catch (error) {
+                                // If pending request fails, continue with a new request
+                                console.error('Error in pending profile request:', error);
+                            }
+                        }
+                        
                         if (!userId) {
                             console.warn('No userId provided to getProfileById');
                             set({ loading: false });
@@ -280,112 +296,126 @@ export const useProfileStore = create<ProfileStore>()(
                             };
                         }
                         
-                        if (!process.env.NEXT_PUBLIC_DATABASE_ID || !process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE) {
-                            throw new Error('Отсутствуют необходимые переменные окружения');
-                        }
-                        
-                        const response = await database.listDocuments(
-                            process.env.NEXT_PUBLIC_DATABASE_ID,
-                            process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
-                            [Query.equal('user_id', userId)]
-                        );
-                        
-                        // Уменьшаем количество логов
-                        if (process.env.NODE_ENV === 'development') {
-                            console.log(`Найдено ${response.documents.length} профилей по ID ${userId}`);
-                        }
-
-                        if (response.documents.length === 0) {
-                            console.log(`Профиль с ID ${userId} не найден, создаем новый профиль`);
-                            
+                        // Create a request promise
+                        const requestPromise = (async () => {
                             try {
-                                // Создаем новый профиль в базе данных
-                                const newProfile = await database.createDocument(
+                                if (!process.env.NEXT_PUBLIC_DATABASE_ID || !process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE) {
+                                    throw new Error('Отсутствуют необходимые переменные окружения');
+                                }
+                                
+                                const response = await database.listDocuments(
                                     process.env.NEXT_PUBLIC_DATABASE_ID,
                                     process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
-                                    ID.unique(),
-                                    {
-                                        user_id: userId,
-                                        name: 'Unknown User',
-                                        image: '/images/placeholders/user-placeholder.svg',
-                                        bio: '',
-                                        total_likes: 0,
-                                        total_followers: 0,
-                                        average_rating: 0,
-                                        total_ratings: 0,
-                                        created_at: new Date().toISOString(),
-                                        updated_at: new Date().toISOString()
-                                    }
+                                    [Query.equal('user_id', userId)]
                                 );
                                 
-                                console.log('Новый профиль создан:', newProfile.$id);
-                                console.log('Данные нового профиля:', JSON.stringify(newProfile, null, 2));
-                                
-                                set({ loading: false });
+                                // Уменьшаем количество логов
+                                if (process.env.NODE_ENV === 'development') {
+                                    console.log(`Найдено ${response.documents.length} профилей по ID ${userId}`);
+                                }
+
+                                if (response.documents.length === 0) {
+                                    console.log(`Профиль с ID ${userId} не найден, создаем новый профиль`);
+                                    
+                                    try {
+                                        // Создаем новый профиль в базе данных
+                                        const newProfile = await database.createDocument(
+                                            process.env.NEXT_PUBLIC_DATABASE_ID,
+                                            process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE,
+                                            ID.unique(),
+                                            {
+                                                user_id: userId,
+                                                name: 'Unknown User',
+                                                image: '/images/placeholders/user-placeholder.svg',
+                                                bio: '',
+                                                total_likes: 0,
+                                                total_followers: 0,
+                                                average_rating: 0,
+                                                total_ratings: 0,
+                                                created_at: new Date().toISOString(),
+                                                updated_at: new Date().toISOString()
+                                            }
+                                        );
+                                        
+                                        return {
+                                            $id: newProfile.$id,
+                                            user_id: userId,
+                                            name: 'Unknown User',
+                                            image: '/images/placeholders/user-placeholder.svg',
+                                            bio: '',
+                                            stats: {
+                                                totalLikes: 0,
+                                                totalFollowers: 0,
+                                                averageRating: 0,
+                                                totalRatings: 0
+                                            }
+                                        };
+                                    } catch (createError) {
+                                        console.error('Ошибка при создании профиля:', createError);
+                                        
+                                        // Если не удалось создать профиль, возвращаем временный плейсхолдер
+                                        return {
+                                            $id: 'default-' + Date.now(),
+                                            user_id: userId || 'unknown',
+                                            name: 'Unknown User',
+                                            image: '/images/placeholders/user-placeholder.svg',
+                                            bio: '',
+                                            stats: {
+                                                totalLikes: 0,
+                                                totalFollowers: 0,
+                                                averageRating: 0,
+                                                totalRatings: 0
+                                            }
+                                        };
+                                    }
+                                }
+
+                                const doc = response.documents[0];
                                 return {
-                                    $id: newProfile.$id,
-                                    user_id: userId,
-                                    name: 'Unknown User',
-                                    image: '/images/placeholders/user-placeholder.svg',
-                                    bio: '',
+                                    $id: doc.$id,
+                                    user_id: doc.user_id,
+                                    name: doc.name || 'User',
+                                    image: doc.image || '/images/placeholders/user-placeholder.svg',
+                                    bio: doc.bio || '',
+                                    genre: doc.genre,
+                                    location: doc.location,
+                                    website: doc.website,
+                                    role: doc.role,
+                                    display_name: doc.display_name,
+                                    banner_image: doc.banner_image,
+                                    is_public: doc.is_public,
+                                    account_type: doc.account_type,
+                                    featured_track_id: doc.featured_track_id,
+                                    preferred_languages: doc.preferred_languages,
+                                    settings: doc.settings,
+                                    social_links: doc.social_links,
                                     stats: {
-                                        totalLikes: 0,
-                                        totalFollowers: 0,
-                                        averageRating: 0,
-                                        totalRatings: 0
+                                        totalLikes: parseInt(doc.total_likes || '0'),
+                                        totalFollowers: parseInt(doc.total_followers || '0'),
+                                        averageRating: parseFloat(doc.average_rating || '0'),
+                                        totalRatings: parseInt(doc.total_ratings || '0')
                                     }
                                 };
-                            } catch (createError) {
-                                console.error('Ошибка при создании профиля:', createError);
-                                
-                                // Если не удалось создать профиль, возвращаем временный плейсхолдер
-                                set({ loading: false });
-                                return {
-                                    $id: 'default-' + Date.now(),
-                                    user_id: userId,
-                                    name: 'Unknown User',
-                                    image: '/images/placeholders/user-placeholder.svg',
-                                    bio: '',
-                                    stats: {
-                                        totalLikes: 0,
-                                        totalFollowers: 0,
-                                        averageRating: 0,
-                                        totalRatings: 0
-                                    }
-                                };
+                            } finally {
+                                // Remove this request from pending requests
+                                const updatedPendingRequests = { ...get().pendingProfileRequests };
+                                delete updatedPendingRequests[userId];
+                                set({ pendingProfileRequests: updatedPendingRequests });
                             }
-                        }
-
-                        const doc = response.documents[0];
-                        const profile: Profile = {
-                            $id: doc.$id,
-                            user_id: doc.user_id,
-                            name: doc.name || 'User',
-                            image: doc.image || '/images/placeholders/user-placeholder.svg',
-                            bio: doc.bio || '',
-                            genre: doc.genre,
-                            location: doc.location,
-                            website: doc.website,
-                            role: doc.role,
-                            display_name: doc.display_name,
-                            banner_image: doc.banner_image,
-                            is_public: doc.is_public,
-                            account_type: doc.account_type,
-                            featured_track_id: doc.featured_track_id,
-                            preferred_languages: doc.preferred_languages,
-                            settings: doc.settings,
-                            social_links: doc.social_links,
-                            stats: {
-                                totalLikes: parseInt(doc.total_likes || '0'),
-                                totalFollowers: parseInt(doc.total_followers || '0'),
-                                averageRating: parseFloat(doc.average_rating || '0'),
-                                totalRatings: parseInt(doc.total_ratings || '0')
-                            }
-                        };
-
-                        console.log('Профиль успешно загружен и преобразован:', JSON.stringify(profile, null, 2));
-
-                        // После получения профиля, сохраняем его в кеш
+                        })();
+                        
+                        // Add this request to pending requests
+                        set({ 
+                            pendingProfileRequests: { 
+                                ...get().pendingProfileRequests, 
+                                [userId]: requestPromise 
+                            } 
+                        });
+                        
+                        // Wait for the request to complete
+                        const profile = await requestPromise;
+                        
+                        // Update cache with the result
                         const profileCacheUpdate = { ...get().profileCache };
                         profileCacheUpdate[userId] = { profile, timestamp: now };
                         set({ profileCache: profileCacheUpdate, loading: false });
@@ -395,6 +425,14 @@ export const useProfileStore = create<ProfileStore>()(
                         console.error('Ошибка при получении профиля:', error);
                         const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
                         set({ error: `Failed to get profile: ${errorMessage}`, loading: false });
+                        
+                        // Try to use cached profile even if expired in case of network errors
+                        const cache = get().profileCache[userId];
+                        if (cache) {
+                            console.log('Using expired cache due to network error');
+                            return cache.profile;
+                        }
+                        
                         // Return a default placeholder profile instead of null
                         return {
                             $id: 'error-' + Date.now(),
@@ -508,4 +546,4 @@ export const useProfileStore = create<ProfileStore>()(
             }
         )
     )
-); 
+);

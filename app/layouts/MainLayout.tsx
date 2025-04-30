@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TopNav from "./includes/TopNav"
 import { usePathname } from "next/navigation"
 import { motion } from 'framer-motion';
@@ -42,7 +42,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     // Load profile if user is authenticated
     useEffect(() => {
         if (userContext && userContext.user && userContext.user.id && !currentProfile) {
-            const loadProfile = async () => {
+            // Add debounce to prevent multiple rapid calls
+            const loadProfileWithDebounce = async () => {
                 try {
                     const userId = (userContext.user as NonNullable<typeof userContext.user>).id;
                     await setCurrentProfile(userId);
@@ -50,7 +51,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     console.error('Error loading profile:', error);
                 }
             };
-            loadProfile();
+            
+            // Use a short timeout to debounce multiple calls
+            const timeoutId = setTimeout(() => {
+                loadProfileWithDebounce();
+            }, 200); // 200ms debounce
+            
+            // Clean up timeout on unmount or when dependencies change
+            return () => clearTimeout(timeoutId);
         }
     }, [userContext?.user?.id, currentProfile, setCurrentProfile]);
 

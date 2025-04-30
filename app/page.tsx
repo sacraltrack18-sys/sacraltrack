@@ -197,7 +197,7 @@ function HomePageContent() {
       }
       
       refreshCountRef.current += 1;
-      console.log(`[DEBUG-PAGE] Auto-refreshing content (${refreshCountRef.current}/${MAX_AUTO_REFRESHES})`);
+      // CONSOLE_REMOVED: console.log(`[DEBUG-PAGE] Auto-refreshing content (${refreshCountRef.current}/${MAX_AUTO_REFRESHES})`);
       
       try {
         if (typeof setAllPosts === 'function') {
@@ -228,7 +228,7 @@ function HomePageContent() {
     
     // Set a new timeout for debouncing
     loadTimeoutRef.current = setTimeout(async () => {
-      console.log("[DEBUG-PAGE] Loading more content...");
+      // CONSOLE_REMOVED: console.log("[DEBUG-PAGE] Loading more content...");
       setIsLoading(true);
       
       try {
@@ -310,7 +310,7 @@ function HomePageContent() {
                 {filteredFeed.map((item, index) => {
                   // Логируем данные только в режиме разработки и только для первого элемента
                   if (process.env.NODE_ENV === 'development' && index === 0 && item.type === 'post') {
-                    console.log("[DEBUG-POSTMAIN]", index, item.data);
+                    // CONSOLE_REMOVED: console.log("[DEBUG-POSTMAIN]", index, item.data);
                   }
                   
                   return (
