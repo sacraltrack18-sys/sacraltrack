@@ -1,180 +1,92 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { client, database, account, APPWRITE_CONFIG } from '@/libs/AppWriteClient';
-import { useUser } from '@/app/context/user';
-import { logAppwriteError } from '@/app/utils/errorHandling';
-import { testProfileCreation } from '@/app/utils/testUtils';
+import { useState, useEffect } from 'react';
+import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 
 /**
- * AppwriteStatus component - Used for diagnosing connection issues
- * 
- * Add this component temporarily to any page to check connection status:
- * import AppwriteStatus from '@/app/components/AppwriteStatus';
- * 
- * Then add it to your component:
- * <AppwriteStatus />
+ * A utility component to display Appwrite connection status.
+ * Only use this in development environments.
  */
-const AppwriteStatus = () => {
-  const [status, setStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [details, setDetails] = useState<any>({});
-  const [authStatus, setAuthStatus] = useState<'none' | 'authenticated' | 'error'>('none');
-  const userContext = useUser();
-  
-  const renderStatus = () => {
-    switch (status) {
-      case 'checking':
-        return <div className="text-yellow-500">Checking Appwrite connection...</div>;
-      case 'connected':
-        return (
-          <div className="text-green-500">
-            Connected to Appwrite
-            {authStatus === 'authenticated' && (
-              <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Authenticated</span>
-            )}
-            {authStatus === 'none' && (
-              <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">Not Authenticated</span>
-            )}
-          </div>
-        );
-      case 'error':
-        return (
-          <div className="text-red-500 flex flex-col gap-2">
-            <div>Error connecting to Appwrite</div>
-            <button 
-              onClick={() => {
-                setStatus('checking');
-                setDetails({});
-                checkConnection();
-              }}
-              className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded w-fit hover:bg-red-200"
-            >
-              Retry Connection
-            </button>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-  
-  // Extract checkConnection function so we can reuse it
-  const checkConnection = async () => {
-    try {
-      setStatus('checking');
-      
-      // Basic config check
-      const config = {
-        endpoint: APPWRITE_CONFIG.endpoint,
-        projectId: APPWRITE_CONFIG.projectId,
-        databaseId: APPWRITE_CONFIG.databaseId,
-        profileCollection: APPWRITE_CONFIG.userCollectionId,
-      };
-      
-      // Try to check health by getting profile documents
-      // (Appwrite v1 SDK doesn't have listCollections, so we check a collection directly)
-      const response = await database.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.userCollectionId,
-        []
-      );
-      
-      // Check if user collection exists by verifying the response
-      const userCollectionExists = response && response.documents;
-      
-      setStatus('connected');
-      setDetails({
-        config,
-        documentsCount: response.total,
-        userCollectionExists,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Check auth status if connected
-      try {
-        if (userContext?.user) {
-          setAuthStatus('authenticated');
-        } else {
-          const session = await account.getSession('current');
-          if (session) {
-            setAuthStatus('authenticated');
-          }
-        }
-      } catch (authError) {
-        setAuthStatus('none');
-        console.log('Not authenticated:', authError);
-      }
-    } catch (error) {
-      logAppwriteError('AppwriteStatus', error);
-      setStatus('error');
-      setDetails({
-        error: error.message || 'Unknown error',
-        code: error.code,
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-  
-  // Check connection status on mount
+export default function AppwriteStatus() {
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [details, setDetails] = useState<any>(null);
+  const [isVisible, setIsVisible] = useState(true);
+
   useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/check-appwrite-connection');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStatus('success');
+        } else {
+          setStatus('error');
+        }
+        
+        setDetails(data);
+        console.log('Appwrite connection details:', data);
+      } catch (error) {
+        setStatus('error');
+        setDetails({ error: error instanceof Error ? error.message : String(error) });
+        console.error('Error checking Appwrite connection:', error);
+      }
+    };
+
     checkConnection();
-  }, [userContext]);
-  
+  }, []);
+
+  if (!isVisible) return null;
+
   return (
-    <div className="p-4 border rounded-lg bg-gray-50 my-4 text-sm">
-      <h3 className="font-semibold mb-2">Appwrite Connection Status</h3>
-      {renderStatus()}
-      
-      <div className="mt-2 overflow-auto max-h-40 border p-2 bg-gray-100 rounded text-xs font-mono">
-        <pre>{JSON.stringify(details, null, 2)}</pre>
+    <div className="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md" 
+      style={{ backgroundColor: status === 'success' ? 'rgba(0, 128, 0, 0.9)' : 
+        status === 'error' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(0, 0, 0, 0.7)' }}
+    >
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-white font-bold">Appwrite Connection Status</h3>
+        <button 
+          onClick={() => setIsVisible(false)}
+          className="text-white hover:text-gray-300"
+        >
+          ✕
+        </button>
       </div>
       
-      {status === 'connected' && (
-        <div className="mt-4 flex flex-col gap-2">
-          <h4 className="font-semibold text-xs">Test Utilities</h4>
-          <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                if (!userContext?.user) {
-                  alert('You must be logged in to test profile creation');
-                  return;
-                }
-                try {
-                  const result = await testProfileCreation();
-                  alert(result.success 
-                    ? `Profile test successful: ${result.message}` 
-                    : `Profile test failed at stage: ${result.stage}`);
-                  
-                  // Update details to show result
-                  setDetails({
-                    ...details,
-                    profileTest: result
-                  });
-                } catch (error) {
-                  alert('Error testing profile: ' + (error.message || 'Unknown error'));
-                  logAppwriteError('AppwriteStatus', error);
-                }
-              }}
-              className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200"
-            >
-              Test Profile Creation
-            </button>
-            
-            <button
-              onClick={checkConnection}
-              className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200"
-            >
-              Refresh Status
-            </button>
-          </div>
+      <div className="text-white mb-2">
+        {status === 'loading' && 'Checking connection...'}
+        {status === 'success' && 'Connected to Appwrite successfully!'}
+        {status === 'error' && 'Failed to connect to Appwrite.'}
+      </div>
+      
+      <div className="text-xs text-white opacity-80">
+        <div>Endpoint: {APPWRITE_CONFIG.endpoint}</div>
+        <div>Project ID: {APPWRITE_CONFIG.projectId}</div>
+        <div>Database ID: {APPWRITE_CONFIG.databaseId}</div>
+        <div>Stats Collection: {APPWRITE_CONFIG.statisticsCollectionId}</div>
+        {process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_STATISTICS && (
+          <div>Env Track Stats ID: {process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_STATISTICS}</div>
+        )}
+      </div>
+      
+      {details && status === 'error' && (
+        <div className="mt-2 bg-red-900 p-2 rounded text-white text-xs overflow-auto max-h-40">
+          <p className="font-bold">Error Details:</p>
+          <pre>{JSON.stringify(details, null, 2)}</pre>
         </div>
       )}
-      
-      <div className="mt-2 text-xs text-gray-500">
-        This component is for diagnostic purposes only. Remove in production.
-      </div>
+
+      {status === 'success' && details && (
+        <div className="mt-2 text-xs text-white">
+          <p>All connected! Stats collection exists: {details.statisticsCollection?.exists ? 'Yes' : 'No'}</p>
+        </div>
+      )}
+
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-2 text-xs text-white">
+          <p>In development mode only. Remove this component in production.</p>
+        </div>
+      )}
     </div>
   );
-};
-
-export default AppwriteStatus; 
+} 

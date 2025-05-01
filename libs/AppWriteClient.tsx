@@ -62,7 +62,16 @@ try {
     if (!process.env.NEXT_PUBLIC_ENDPOINT) {
         throw new Error('NEXT_PUBLIC_ENDPOINT is not set');
     }
-    
+    if (!process.env.NEXT_PUBLIC_BUCKET_ID) {
+        // console.error('[APPWRITE-CONFIG] ERROR: NEXT_PUBLIC_BUCKET_ID is not set');
+    }
+
+    // console.log('[APPWRITE-CONFIG] Initializing with parameters:', {
+    //     endpoint: APPWRITE_CONFIG.endpoint,
+    //     projectId: APPWRITE_CONFIG.projectId,
+    //     bucketId: APPWRITE_CONFIG.storageId,
+    // });
+
     // Set up client with improved options for WebSocket stability
     client
         .setEndpoint(APPWRITE_CONFIG.endpoint)
@@ -70,63 +79,21 @@ try {
         
     // Configure client for better realtime performance
     if (typeof window !== 'undefined') {
-        // Connection status tracker to help with reconnection logic
-        let connectionStatus = {
-            connected: false,
-            lastConnected: 0,
-            reconnectAttempts: 0
-        };
-        
         // Set up event listeners for connection status
         client.subscribe('realtime', (data: any) => {
             if (data.event === 'disconnected') {
-                connectionStatus.connected = false;
-                console.log('[REALTIME] Disconnected. Attempting to reconnect...');
-                
-                // If too many reconnect attempts in a short time, back off
-                if (connectionStatus.reconnectAttempts > 5) {
-                    const waitTime = Math.min(connectionStatus.reconnectAttempts * 1000, 10000);
-                    console.log(`[REALTIME] Too many reconnect attempts, backing off for ${waitTime}ms`);
-                    setTimeout(() => {
-                        // Force client reconnection
-                        try {
-                            client.subscribe('realtime', () => {});
-                            connectionStatus.reconnectAttempts = 0;
-                        } catch (e) {
-                            console.error('[REALTIME] Reconnection failed:', e);
-                        }
-                    }, waitTime);
-                }
-                
-                connectionStatus.reconnectAttempts++;
+                // console.log('[REALTIME] Disconnected. Attempting to reconnect...');
+                // Reconnection is handled automatically by the client
             }
-            
             if (data.event === 'connected') {
-                connectionStatus.connected = true;
-                connectionStatus.lastConnected = Date.now();
-                connectionStatus.reconnectAttempts = 0;
-                console.log('[REALTIME] Connected successfully');
+                // console.log('[REALTIME] Connected successfully');
             }
         });
-        
-        // Check connection health periodically
-        setInterval(() => {
-            if (!connectionStatus.connected && 
-                Date.now() - connectionStatus.lastConnected > 30000) {
-                console.log('[REALTIME] No connection for 30s, forcing reconnect');
-                try {
-                    // Force client reconnection by subscribing to a dummy channel
-                    client.subscribe('realtime', () => {});
-                } catch (e) {
-                    console.error('[REALTIME] Forced reconnection failed:', e);
-                }
-            }
-        }, 30000);
     }
+    
+    // console.log("[APPWRITE-CONFIG] Appwrite client successfully initialized");
 } catch (error) {
-    console.error("[APPWRITE-CONFIG] Error initializing Appwrite client:", error);
-    // Don't throw here to allow the app to continue loading
-    // Individual components will handle connection errors as needed
+    // console.error("[APPWRITE-CONFIG] Error initializing Appwrite client:", error);
 }
 
 // Initialize services
