@@ -48,7 +48,7 @@ const NotificationBell = () => {
     <div className="relative">
       <button
         onClick={handleBellClick}
-        className={`relative p-2 ${isLoggedIn ? 'text-[#818BAC] hover:text-white' : 'text-gray-400 cursor-default'} transition-colors`}
+        className={`relative p-1 md:p-2 ${isLoggedIn ? 'text-[#818BAC] hover:text-white' : 'text-gray-400 cursor-default'} transition-colors`}
       >
         <motion.div
           animate={isLoggedIn && hasNewNotification ? {
@@ -60,7 +60,7 @@ const NotificationBell = () => {
             repeat: 2
           }}
         >
-          <BellIcon className={`w-[24px] h-[24px] ${isLoggedIn ? 'text-amber-400' : 'text-gray-500'}`} />
+          <BellIcon className={`w-[20px] h-[20px] md:w-[24px] md:h-[24px] ${isLoggedIn ? 'text-amber-400' : 'text-gray-500'}`} />
         </motion.div>
         
         <AnimatePresence>
@@ -82,13 +82,13 @@ const NotificationBell = () => {
                   repeat: Infinity
                 }
               }}
-              className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-[#20DDBB] rounded-full flex items-center justify-center px-1"
+              className="absolute -top-1 -right-1 min-w-[16px] md:min-w-[20px] h-4 md:h-5 bg-[#20DDBB] rounded-full flex items-center justify-center px-1"
             >
               <motion.span 
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="text-black text-xs font-bold"
+                className="text-black text-[10px] md:text-xs font-bold"
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </motion.span>

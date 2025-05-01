@@ -300,70 +300,100 @@ async function getLikesCount(vibe_id: string): Promise<number> {
   }
 }
 
-// Функция для обновления статистики вайба
+// Улучшенная функция обновления статистики вайба
 async function updateVibeStats(vibe_id: string): Promise<void> {
+  console.log(`[VIBE-STATS] Updating stats for vibe ${vibe_id}`);
+  
   try {
-    // Получаем текущий вайб
-    const vibe = await database.getDocument(
+    // Получаем текущий документ вайба
+    const vibeDoc = await database.getDocument(
       APPWRITE_CONFIG.databaseId,
       process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
       vibe_id
     );
     
-    // Получаем количество лайков и комментариев
+    // Параллельно получаем количество лайков и комментариев
     const [likesCount, commentsCount] = await Promise.all([
       getLikesCount(vibe_id),
       getCommentsCount(vibe_id)
     ]);
     
+    // Текущие stats могут быть в разных форматах, обрабатываем все случаи
+    const currentStats = vibeDoc.stats;
+    let newStats: string[] | { total_likes: number, total_comments: number, total_views: number };
+    
+    // Извлекаем текущее количество просмотров (если есть)
+    let viewsCount = 0;
+    
+    if (Array.isArray(currentStats)) {
+      viewsCount = parseInt(currentStats[2] || '0', 10);
+      newStats = [likesCount.toString(), commentsCount.toString(), viewsCount.toString()];
+      console.log(`[VIBE-STATS] Updating array stats: ${currentStats.join(',')} -> ${newStats.join(',')}`);
+    } else if (typeof currentStats === 'object' && currentStats !== null) {
+      viewsCount = currentStats.total_views || 0;
+      newStats = {
+        total_likes: likesCount,
+        total_comments: commentsCount,
+        total_views: viewsCount
+      };
+      console.log(`[VIBE-STATS] Updating object stats: ${JSON.stringify(currentStats)} -> ${JSON.stringify(newStats)}`);
+    } else {
+      // Если stats не существует или имеет неверный формат, создаем новый массив
+      newStats = [likesCount.toString(), commentsCount.toString(), '0'];
+      console.log(`[VIBE-STATS] Creating new array stats: ${newStats.join(',')}`);
+    }
+    
     try {
-      // Обновляем документ вайба с явным указанием обновляемых данных
+      // Обновляем документ с новой статистикой
       await database.updateDocument(
         APPWRITE_CONFIG.databaseId,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
         vibe_id,
-        {
-          stats: [likesCount, commentsCount]
-        }
+        { stats: newStats }
       );
-      console.log(`[VIBE-STATS] Successfully updated stats for vibe ${vibe_id}: [${likesCount}, ${commentsCount}]`);
+      console.log(`[VIBE-STATS] Successfully updated stats for vibe ${vibe_id}`);
     } catch (updateError) {
-      // Более подробная обработка ошибки обновления
-      console.error(`[VIBE-STATS] Update error details:`, updateError);
+      // Обработка ошибки обновления документа
+      console.error(`[VIBE-STATS] Error updating stats document:`, updateError);
       
-      // Создаем серверную функцию для обновления статистики
-      try {
-        // Создаем временное решение через непосредственное обновление полей
-        const currentStats = vibe.stats || ['0', '0'];
+      // Если ошибка связана с авторизацией, попробуем альтернативный подход
+      if (updateError.code === 401 || updateError.code === 403) {
+        console.log('[VIBE-STATS] Authentication error, trying alternative update approach');
         
-        // Обновляем только если есть изменения
-        if (currentStats[0] !== likesCount.toString() || currentStats[1] !== commentsCount.toString()) {
-          console.log(`[VIBE-STATS] Attempting alternative update for stats: ${currentStats} -> [${likesCount}, ${commentsCount}]`);
+        // Попробуем использовать функцию для обновления документа без требования полных прав
+        try {
+          // Преобразуем stats в строку JSON для передачи в запрос
+          const statsJson = JSON.stringify(newStats);
           
-          // Обновляем документ с включением только необходимых полей
-          const updateData = {
-            total_likes: likesCount,
-            total_comments: commentsCount
-          };
+          // Создаем простую функцию для обновления через API
+          const response = await fetch(`/api/vibes/update-stats`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              vibe_id, 
+              stats: statsJson,
+              likes_count: likesCount,
+              comments_count: commentsCount
+            })
+          });
           
-          await database.updateDocument(
-            APPWRITE_CONFIG.databaseId,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-            vibe_id,
-            updateData
-          );
+          if (!response.ok) {
+            throw new Error(`Failed to update stats via API: ${response.status}`);
+          }
           
-          console.log(`[VIBE-STATS] Alternative update succeeded`);
-        } else {
-          console.log(`[VIBE-STATS] No changes needed, skipping update`);
+          console.log('[VIBE-STATS] Successfully updated stats via alternative method');
+        } catch (alternativeError) {
+          console.error('[VIBE-STATS] Second attempt to update vibe stats failed:', alternativeError);
+          // Если альтернативный подход тоже не удался, ничего не делаем
+          // Фронтенд отобразит статистику из локального состояния
         }
-      } catch (secondUpdateError) {
-        console.error("Second attempt to update vibe stats failed:", secondUpdateError);
-        // Не пробрасываем ошибку дальше, чтобы не блокировать работу лайков
       }
     }
   } catch (error) {
-    console.error("Error updating vibe stats:", error);
+    console.error(`[VIBE-STATS] Error in updateVibeStats for vibe ${vibe_id}:`, error);
+    // Не выбрасываем ошибку дальше, чтобы не нарушить основной поток операции лайка
   }
 }
 

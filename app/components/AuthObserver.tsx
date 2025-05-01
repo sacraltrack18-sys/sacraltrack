@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, AUTH_STATE_CHANGE_EVENT } from '@/app/context/user';
 import { useProfileStore } from '@/app/stores/profile';
+import { useVibeStore } from '@/app/stores/vibeStore';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { clearUserCache } from '@/app/utils/cacheUtils';
@@ -20,10 +21,12 @@ const AuthObserver = () => {
   const router = useRouter();
   const { user, checkUser } = useUser() || {};
   const { setCurrentProfile, currentProfile } = useProfileStore();
+  const { fetchUserLikedVibes } = useVibeStore();
   const lastAuthChangeRef = useRef<string | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
   const refreshingRef = useRef<boolean>(false);
   const hasInitCheckedRef = useRef<boolean>(false);
+  const userLikesLoadedRef = useRef<boolean>(false);
 
   // Function to update cache timestamp
   const updateCacheTimestamp = () => {
@@ -52,6 +55,60 @@ const AuthObserver = () => {
       }
     }
   };
+
+  // Load user likes - обернуто в useCallback
+  const loadUserLikes = useCallback(async () => {
+    if (user && user.id && typeof fetchUserLikedVibes === 'function') {
+      console.log('[AUTH-OBSERVER] Loading user liked vibes');
+      
+      const loadId = Math.random().toString(36).substring(7);
+      console.log(`[AUTH-OBSERVER] Load operation ${loadId} started for user ${user.id}`);
+      
+      // Максимальное количество попыток
+      const maxRetries = 3;
+      let currentRetry = 0;
+      let success = false;
+      
+      // Добавляем небольшую задержку, чтобы другие компоненты успели инициализироваться
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      while (currentRetry < maxRetries && !success) {
+        try {
+          // Если это повторная попытка, добавляем экспоненциальную задержку
+          if (currentRetry > 0) {
+            const delay = Math.pow(2, currentRetry) * 500; // 1000, 2000, 4000 ms и т.д.
+            console.log(`[AUTH-OBSERVER] Retry ${currentRetry}/${maxRetries} after ${delay}ms delay`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          await fetchUserLikedVibes(user.id);
+          userLikesLoadedRef.current = true;
+          console.log(`[AUTH-OBSERVER] User liked vibes loaded successfully in operation ${loadId}`);
+          
+          success = true;
+        } catch (error) {
+          currentRetry++;
+          console.error(`[AUTH-OBSERVER] Error loading user liked vibes (attempt ${currentRetry}/${maxRetries}):`, error);
+          
+          // Если исчерпаны все попытки, устанавливаем специальный флаг для повторной попытки при следующей активности пользователя
+          if (currentRetry >= maxRetries) {
+            console.error(`[AUTH-OBSERVER] All ${maxRetries} attempts to load user likes failed`);
+            
+            // Сбрасываем флаг, чтобы при следующем изменении user можно было попробовать снова
+            userLikesLoadedRef.current = false;
+            
+            // Сохраняем информацию о необходимости повторной загрузки
+            try {
+              localStorage.setItem('likes_load_failed', 'true');
+              localStorage.setItem('likes_load_timestamp', Date.now().toString());
+            } catch (storageError) {
+              console.error('[AUTH-OBSERVER] Error saving likes load state:', storageError);
+            }
+          }
+        }
+      }
+    }
+  }, [user, fetchUserLikedVibes]);
 
   const throttledRefresh = () => {
     // Проверяем, не обновлялся ли роутер недавно
@@ -105,6 +162,16 @@ const AuthObserver = () => {
         // Only update profile if user data changed
         if (userData && (!currentProfile || currentProfile.user_id !== userData.id)) {
           setCurrentProfile(userData.id);
+          
+          // Load user likes after profile is set
+          if (userData.id) {
+            // Reset userLikesLoaded flag when user changes
+            userLikesLoadedRef.current = false;
+            // Load user likes with a small delay to ensure everything is initialized
+            setTimeout(() => {
+              loadUserLikes();
+            }, 500);
+          }
         }
         
         // Throttled router refresh
@@ -152,7 +219,7 @@ const AuthObserver = () => {
         window.removeEventListener('check_auth_state', handleAuthCheck);
       };
     }
-  }, [router, currentProfile, setCurrentProfile, checkUser]);
+  }, [router, currentProfile, setCurrentProfile, checkUser, fetchUserLikedVibes]);
 
   // Automatically check for user session on initial render
   useEffect(() => {
@@ -161,27 +228,25 @@ const AuthObserver = () => {
       hasInitCheckedRef.current = true;
       console.log('Initial auth check on component mount');
       
-      // Run immediate check
-      checkUser().catch(console.error);
+      // Run immediate check - no promise chaining, just call the function
+      checkUser();
       
       // Additional check after a short delay to catch OAuth redirects
       setTimeout(() => {
         console.log('Running delayed auth check to catch OAuth redirects');
         if (checkUser && !refreshingRef.current) {
           refreshingRef.current = true;
-          checkUser()
-            .then((userData) => {
-              if (userData !== null && userData !== undefined) {
-                const user = userData as User;
-                console.log('User detected in delayed check:', user);
-                // Force router refresh to update all components
-                throttledRefresh();
-              }
-            })
-            .catch(console.error)
-            .finally(() => {
-              refreshingRef.current = false;
-            });
+          
+          // Call checkUser without promise chaining
+          checkUser();
+          
+          // Force router refresh to update all components
+          throttledRefresh();
+          
+          // Reset refreshing flag
+          setTimeout(() => {
+            refreshingRef.current = false;
+          }, 500);
         }
       }, 1000);
     }
@@ -190,13 +255,22 @@ const AuthObserver = () => {
     const interval = setInterval(() => {
       // Only check if we're not currently refreshing
       if (checkUser && !refreshingRef.current) {
-        checkUser().catch(console.error);
+        // Call checkUser directly, no promise chaining
+        checkUser();
       }
-    }, 120000); // Check every 2 minutes instead of every minute
+    }, 120000); // Check every 2 minutes
     
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to ensure this only runs once
+  
+  // Separate effect to respond to user changes
+  useEffect(() => {
+    if (user && user.id && !userLikesLoadedRef.current && typeof fetchUserLikedVibes === 'function') {
+      console.log('User detected in effect, loading likes');
+      loadUserLikes();
+    }
+  }, [user, fetchUserLikedVibes]); // Убираем loadUserLikes из зависимостей
 
   // No UI to render
   return null;

@@ -248,7 +248,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
     return (
         <>  
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[50] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
-                <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
+                <div className={`flex items-center justify-between w-full px-2 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo - улучшенная версия с более надежной навигацией */}
                     <Link 
                         href="/" 
@@ -310,17 +310,25 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                     </div>
 
                     {/* Search Bar - Only visible on home page */}
-                    <div className="md:-ml-[140px]">
+                    <div className="md:-ml-[140px] max-w-[40%] md:max-w-none">
                         <SearchBar isHomePage={isHomePage} />
                     </div>
 
                     {/* Right Side Actions */}
-                    <div className="flex items-center gap-2 md:gap-3">
+                    <div className="flex items-center gap-1 md:gap-3 ml-auto">
                         {/* Release Button - скрыта на странице people */}
-                        {pathname !== '/people' && <ReleaseButton />}
+                        {pathname !== '/people' && (
+                            <div className="hidden sm:block">
+                                <ReleaseButton />
+                            </div>
+                        )}
 
                         {/* VIBE Button - скрыта на странице people */}
-                        {pathname !== '/people' && <VibeButton onOpenVibeUploader={openVibeUploader} />}
+                        {pathname !== '/people' && (
+                            <div className="hidden sm:block">
+                                <VibeButton onOpenVibeUploader={openVibeUploader} />
+                            </div>
+                        )}
 
                         {/* Notification Bell */}
                         <NotificationBell />

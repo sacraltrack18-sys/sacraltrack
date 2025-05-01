@@ -676,409 +676,621 @@ export const useVibeStore = create<VibeStore>()(
         },
 
         likeVibe: async (vibeId, userId) => {
-          try {
-            // Проверяем наличие userId - необходим для авторизации
-            if (!userId) {
-              toast.error("Необходимо войти в аккаунт для этого действия");
+          // Защита от неверных входных данных
+          if (!vibeId || !userId) {
+            console.error('[VIBE-STORE] likeVibe called with missing parameters:', { vibeId, userId });
               return false;
             }
 
-            console.log(`[VibeStore] Attempting to like vibe: ${vibeId}`);
-
-            // Сохраняем текущее состояние для возможного отката
-            const currentState = get();
-            const isAlreadyLiked = (currentState.userLikedVibes || []).includes(vibeId);
-            
-            // Если вайб уже лайкнут, не нужно повторять операцию
-            if (isAlreadyLiked) {
-              console.log(`[VibeStore] Vibe ${vibeId} is already liked, skipping`);
+          console.log(`[VIBE-STORE] Adding like for vibe ${vibeId} by user ${userId}`);
+          
+          // Получаем текущее состояние
+          const { userLikedVibes, allVibePosts, vibePostById } = get();
+          
+          // Оптимистично обновляем состояние - предполагаем успех операции
+          const updatedLikedVibes = [...userLikedVibes];
+          
+          // Проверяем, не лайкнул ли пользователь уже этот вайб
+          if (!updatedLikedVibes.includes(vibeId)) {
+            updatedLikedVibes.push(vibeId);
+          } else {
+            console.log(`[VIBE-STORE] Vibe ${vibeId} already liked by user ${userId}`);
+            // Уже лайкнут, просто обновляем кэш
+            set({ userLikedVibes: updatedLikedVibes });
+            // Обновляем локальный кэш
+            try {
+              const cacheKey = `user_likes_${userId}`;
+              localStorage.setItem(cacheKey, JSON.stringify(updatedLikedVibes));
+              localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+            } catch (cacheError) {
+              console.error('[VIBE-STORE] Error updating cache:', cacheError);
+            }
               return true;
             }
 
-            // Оптимистичное обновление UI перед сетевым запросом
-            set(state => ({
-              allVibePosts: state.allVibePosts.map(vibe => {
-                if (vibe.id === vibeId) {
-                  const currentStats = normalizeVibeStats(vibe.stats);
-                  const updatedStats = statsToArray({
-                    ...currentStats,
-                    total_likes: currentStats.total_likes + 1
-                  });
-                  
-                  return { ...vibe, stats: updatedStats };
-                }
-                return vibe;
-              }),
-              vibePostsByUser: state.vibePostsByUser.map(vibe => {
-                if (vibe.id === vibeId) {
-                  const currentStats = normalizeVibeStats(vibe.stats);
-                  const updatedStats = statsToArray({
-                    ...currentStats,
-                    total_likes: currentStats.total_likes + 1
-                  });
-                  
-                  return { ...vibe, stats: updatedStats };
-                }
-                return vibe;
-              }),
-              vibePostById: state.vibePostById?.id === vibeId 
-                ? { 
-                    ...state.vibePostById, 
-                    stats: statsToArray({
-                      ...normalizeVibeStats(state.vibePostById.stats),
-                      total_likes: normalizeVibeStats(state.vibePostById.stats).total_likes + 1
-                    }) 
-                  } 
-                : state.vibePostById,
-              userLikedVibes: [...(state.userLikedVibes || []), vibeId]
-            }));
-
-            // Добавляем идентификатор запроса для отладки
-            const requestId = Math.random().toString(36).substring(7);
-            console.log(`[VibeStore] Starting like request ${requestId} for vibe ${vibeId}`);
-
-            // Используем API для добавления лайка вместо прямого доступа к базе данных
-            const response = await fetch('/api/vibes/like', {
+          // Оптимистично обновляем UI
+          set({ userLikedVibes: updatedLikedVibes });
+          
+          // Обновляем локальный кэш сразу
+          try {
+            const cacheKey = `user_likes_${userId}`;
+            localStorage.setItem(cacheKey, JSON.stringify(updatedLikedVibes));
+            localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+          } catch (cacheError) {
+            console.error('[VIBE-STORE] Error updating cache:', cacheError);
+          }
+          
+          // Оптимистично обновляем счетчик лайков в списке всех вайбов
+          const updatedAllPosts = allVibePosts.map(post => {
+            if (post.id === vibeId) {
+              // Обновляем счетчик лайков
+              let updatedStats;
+              
+              if (Array.isArray(post.stats)) {
+                const likesCount = parseInt(post.stats[0] || '0') + 1;
+                updatedStats = [likesCount.toString(), ...post.stats.slice(1)];
+              } else if (typeof post.stats === 'object' && post.stats !== null) {
+                updatedStats = {
+                  ...post.stats,
+                  total_likes: (post.stats.total_likes || 0) + 1
+                };
+              } else {
+                updatedStats = ['1', '0', '0'];
+              }
+              
+              return {
+                ...post,
+                stats: updatedStats
+              };
+            }
+            return post;
+          });
+          
+          // Оптимистично обновляем счетчик в детальном представлении вайба, если он открыт
+          let updatedPostById = vibePostById;
+          if (vibePostById && vibePostById.id === vibeId) {
+            // Обновляем счетчик лайков
+            let updatedStats;
+            
+            if (Array.isArray(vibePostById.stats)) {
+              const likesCount = parseInt(vibePostById.stats[0] || '0') + 1;
+              updatedStats = [likesCount.toString(), ...vibePostById.stats.slice(1)];
+            } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
+              updatedStats = {
+                ...vibePostById.stats,
+                total_likes: (vibePostById.stats.total_likes || 0) + 1
+              };
+            } else {
+              updatedStats = ['1', '0', '0'];
+            }
+            
+            updatedPostById = {
+              ...vibePostById,
+              stats: updatedStats
+            };
+          }
+          
+          // Применяем оптимистичные обновления к состоянию
+          set({ 
+            allVibePosts: updatedAllPosts,
+            vibePostById: updatedPostById
+          });
+          
+          // Отправляем запрос на сервер в фоне
+          try {
+            // Используем toggleVibeVote из vibeActions.ts для обработки лайка
+            // Но не зависим от результата - у нас уже есть оптимистичное обновление
+            const toggleResponse = await fetch('/api/vibes/like', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Request-ID': requestId
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
               },
-              body: JSON.stringify({
-                user_id: userId,
-                vibe_id: vibeId,
-                timestamp: new Date().toISOString() // Уникальность запроса
-              })
+              body: JSON.stringify({ user_id: userId, vibe_id: vibeId }),
+              // Важно: отключаем кэширование
+              cache: 'no-store'
             });
-
-            console.log(`[VibeStore] Like request ${requestId} status: ${response.status}`);
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error(`[VibeStore] Like API error:`, errorData);
+            
+            // Проверяем успешность запроса и обрабатываем ответ
+            if (!toggleResponse.ok) {
+              throw new Error(`Server returned ${toggleResponse.status}: ${toggleResponse.statusText}`);
+            }
+            
+            const responseData = await toggleResponse.json();
+            
+            // Если сервер сообщает о другом состоянии (может быть, вайб был уже лайкнут)
+            // синхронизируем наше состояние с сервером
+            if (responseData.action === 'unliked') {
+              console.log(`[VIBE-STORE] Server reported vibe ${vibeId} was unliked instead of liked, syncing state`);
               
-              // Проверка на ошибки авторизации
-              if (response.status === 401) {
-                // Если пользователь не авторизован, показываем уведомление
-                toast.error("Требуется авторизация. Пожалуйста, войдите в аккаунт.");
+              // Удаляем ID из списка лайкнутых вайбов
+              const syncedLikedVibes = userLikedVibes.filter(id => id !== vibeId);
+              set({ userLikedVibes: syncedLikedVibes });
+              
+              // Обновляем локальный кэш
+              try {
+                const cacheKey = `user_likes_${userId}`;
+                localStorage.setItem(cacheKey, JSON.stringify(syncedLikedVibes));
+                localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+              } catch (cacheError) {
+                console.error('[VIBE-STORE] Error updating cache:', cacheError);
+              }
+            }
+            
+            // Синхронизируем счетчики лайков с сервером
+            if (typeof responseData.count === 'number') {
+              const exactLikesCount = responseData.count;
+              
+              // Обновляем счетчики в списке и в детальном представлении
+              const syncedAllPosts = allVibePosts.map(post => {
+                if (post.id === vibeId) {
+                  let syncedStats;
+                  
+                  if (Array.isArray(post.stats)) {
+                    syncedStats = [exactLikesCount.toString(), ...post.stats.slice(1)];
+                  } else if (typeof post.stats === 'object' && post.stats !== null) {
+                    syncedStats = {
+                      ...post.stats,
+                      total_likes: exactLikesCount
+                    };
+                  } else {
+                    syncedStats = [exactLikesCount.toString(), '0', '0'];
+                  }
+                    
+                    return { 
+                    ...post,
+                    stats: syncedStats
+                  };
+                }
+                return post;
+              });
+              
+              // Обновляем детальное представление, если оно открыто
+              let syncedPostById = vibePostById;
+              if (vibePostById && vibePostById.id === vibeId) {
+                let syncedStats;
                 
-                // Отправляем событие для обновления авторизации
-                if (typeof window !== 'undefined') {
-                  const authCheckEvent = new CustomEvent('check_auth_state', {});
-                  window.dispatchEvent(authCheckEvent);
+                if (Array.isArray(vibePostById.stats)) {
+                  syncedStats = [exactLikesCount.toString(), ...vibePostById.stats.slice(1)];
+                } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
+                  syncedStats = {
+                    ...vibePostById.stats,
+                    total_likes: exactLikesCount
+                  };
+                } else {
+                  syncedStats = [exactLikesCount.toString(), '0', '0'];
                 }
                 
-                // Откатываем состояние к исходному
-                set(state => ({
-                  allVibePosts: currentState.allVibePosts,
-                  vibePostsByUser: currentState.vibePostsByUser,
-                  vibePostById: currentState.vibePostById,
-                  userLikedVibes: currentState.userLikedVibes
-                }));
-                
-                throw new Error(errorData.error || 'Ошибка авторизации');
+                syncedPostById = {
+                  ...vibePostById,
+                  stats: syncedStats
+                };
               }
               
-              // Для других ошибок откатываем состояние и выдаем ошибку
-              set(state => ({
-                allVibePosts: currentState.allVibePosts,
-                vibePostsByUser: currentState.vibePostsByUser,
-                vibePostById: currentState.vibePostById,
-                userLikedVibes: currentState.userLikedVibes
-              }));
-              
-              throw new Error(errorData.error || 'Ошибка при добавлении лайка');
+              // Обновляем состояние с точными данными с сервера
+              set({ 
+                allVibePosts: syncedAllPosts,
+                vibePostById: syncedPostById
+              });
             }
-
-            const data = await response.json();
-            console.log('[VibeStore] Like response:', data);
-
-            // Используем значение count из ответа API для обновления статистики
-            if (data.count !== undefined) {
-              set(state => ({
-                allVibePosts: state.allVibePosts.map(vibe => {
-                  if (vibe.id === vibeId) {
-                    const currentStats = normalizeVibeStats(vibe.stats);
-                    // Преобразуем обратно в массив строк для поддержки
-                    // формата данных базы данных
-                    const updatedStats = statsToArray({
-                      ...currentStats,
-                      total_likes: data.count
-                    });
-                    
-                    return { 
-                      ...vibe, 
-                      stats: updatedStats
-                    };
-                  }
-                  return vibe;
-                }),
-                vibePostsByUser: state.vibePostsByUser.map(vibe => {
-                  if (vibe.id === vibeId) {
-                    const currentStats = normalizeVibeStats(vibe.stats);
-                    const updatedStats = statsToArray({
-                      ...currentStats,
-                      total_likes: data.count
-                    });
-                    
-                    return { 
-                      ...vibe, 
-                      stats: updatedStats
-                    };
-                  }
-                  return vibe;
-                }),
-                vibePostById: state.vibePostById?.id === vibeId 
-                  ? { 
-                      ...state.vibePostById, 
-                      stats: statsToArray({
-                        ...normalizeVibeStats(state.vibePostById.stats),
-                        total_likes: data.count
-                      }) 
-                    } 
-                  : state.vibePostById
-              }));
-            }
-
-            // Успешно выполненный запрос, обновим список лайкнутых вайбов
-            console.log(`[VibeStore] Like operation completed successfully for vibe ${vibeId}`);
-            get().fetchUserLikedVibes(userId);
             
             return true;
           } catch (error) {
-            console.error('[VibeStore] Error liking vibe:', error);
+            console.error('[VIBE-STORE] Error sending like to server:', error);
             
-            // Отменяем оптимистичное обновление в случае ошибки
-            get().fetchUserLikedVibes(userId);
+            // В случае ошибки, можно оставить оптимистичное обновление
+            // и попробовать повторить запрос позже
+            // Но помечаем ошибку, чтобы UI мог показать уведомление
+            set({ error: 'Your like has been saved locally, but may not be synced with the server.' });
             
-            // Делаем задержку перед обновлением вайбов, чтобы избежать состояния гонки
-            setTimeout(() => {
-              get().fetchAllVibes();
-            }, 300);
-            
-            // Не показываем пользователю техническую ошибку, если это не ошибка авторизации
-            if (error instanceof Error && !error.message.includes('авторизац')) {
-              toast.error("Не удалось добавить лайк. Попробуйте позже.");
+            // Сохраняем действие в очередь для повторной попытки
+            try {
+              const pendingActions = JSON.parse(localStorage.getItem('vibe_pending_actions') || '[]');
+              pendingActions.push({
+                type: 'like',
+                vibeId,
+                userId,
+                timestamp: Date.now()
+              });
+              localStorage.setItem('vibe_pending_actions', JSON.stringify(pendingActions));
+            } catch (storageError) {
+              console.error('[VIBE-STORE] Error saving pending action:', storageError);
             }
             
-            return false;
+            // Все равно возвращаем true, так как UI уже обновлен оптимистично
+            return true;
           }
         },
 
         unlikeVibe: async (vibeId, userId) => {
-          try {
-            // Проверяем наличие userId - необходим для авторизации
-            if (!userId) {
-              toast.error("Необходимо войти в аккаунт для этого действия");
+          // Защита от неверных входных данных
+          if (!vibeId || !userId) {
+            console.error('[VIBE-STORE] unlikeVibe called with missing parameters:', { vibeId, userId });
               return false;
             }
             
-            console.log(`[VibeStore] Attempting to unlike vibe: ${vibeId}`);
-
-            // Сохраняем текущее состояние для возможного отката
-            const currentState = get();
-            const isLiked = (currentState.userLikedVibes || []).includes(vibeId);
+          console.log(`[VIBE-STORE] Removing like for vibe ${vibeId} by user ${userId}`);
+          
+          // Получаем текущее состояние
+          const { userLikedVibes, allVibePosts, vibePostById } = get();
+          
+          // Оптимистично обновляем состояние - предполагаем успех операции
+          const updatedLikedVibes = userLikedVibes.filter(id => id !== vibeId);
+          
+          // Проверяем, был ли вайб лайкнут
+          if (userLikedVibes.includes(vibeId)) {
+            // Оптимистично обновляем UI
+            set({ userLikedVibes: updatedLikedVibes });
             
-            // Если вайб не был лайкнут, нет смысла выполнять операцию
-            if (!isLiked) {
-              console.log(`[VibeStore] Vibe ${vibeId} is not liked, skipping unlike operation`);
-              return true;
+            // Обновляем локальный кэш сразу
+            try {
+              const cacheKey = `user_likes_${userId}`;
+              localStorage.setItem(cacheKey, JSON.stringify(updatedLikedVibes));
+              localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+            } catch (cacheError) {
+              console.error('[VIBE-STORE] Error updating cache:', cacheError);
+            }
+          } else {
+            console.log(`[VIBE-STORE] Vibe ${vibeId} was not liked by user ${userId}`);
+            return true; // Уже анлайкнут
+          }
+          
+          // Оптимистично обновляем счетчик лайков в списке всех вайбов
+          const updatedAllPosts = allVibePosts.map(post => {
+            if (post.id === vibeId) {
+              // Обновляем счетчик лайков
+              let updatedStats;
+              
+              if (Array.isArray(post.stats)) {
+                const likesCount = Math.max(0, parseInt(post.stats[0] || '0') - 1);
+                updatedStats = [likesCount.toString(), ...post.stats.slice(1)];
+              } else if (typeof post.stats === 'object' && post.stats !== null) {
+                updatedStats = {
+                  ...post.stats,
+                  total_likes: Math.max(0, (post.stats.total_likes || 0) - 1)
+                };
+              } else {
+                updatedStats = ['0', '0', '0'];
+              }
+              
+              return {
+                ...post,
+                stats: updatedStats
+              };
+            }
+            return post;
+          });
+          
+          // Оптимистично обновляем счетчик в детальном представлении вайба, если он открыт
+          let updatedPostById = vibePostById;
+          if (vibePostById && vibePostById.id === vibeId) {
+            // Обновляем счетчик лайков
+            let updatedStats;
+            
+            if (Array.isArray(vibePostById.stats)) {
+              const likesCount = Math.max(0, parseInt(vibePostById.stats[0] || '0') - 1);
+              updatedStats = [likesCount.toString(), ...vibePostById.stats.slice(1)];
+            } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
+              updatedStats = {
+                ...vibePostById.stats,
+                total_likes: Math.max(0, (vibePostById.stats.total_likes || 0) - 1)
+              };
+            } else {
+              updatedStats = ['0', '0', '0'];
             }
             
-            // Оптимистичное обновление UI перед сетевым запросом
-            set(state => ({
-              allVibePosts: state.allVibePosts.map(vibe => {
-                if (vibe.id === vibeId) {
-                  const currentStats = normalizeVibeStats(vibe.stats);
-                  const updatedStats = statsToArray({
-                    ...currentStats,
-                    total_likes: Math.max(0, currentStats.total_likes - 1)
-                  });
-                  
-                  return { ...vibe, stats: updatedStats };
-                }
-                return vibe;
-              }),
-              vibePostsByUser: state.vibePostsByUser.map(vibe => {
-                if (vibe.id === vibeId) {
-                  const currentStats = normalizeVibeStats(vibe.stats);
-                  const updatedStats = statsToArray({
-                    ...currentStats,
-                    total_likes: Math.max(0, currentStats.total_likes - 1)
-                  });
-                  
-                  return { ...vibe, stats: updatedStats };
-                }
-                return vibe;
-              }),
-              vibePostById: state.vibePostById?.id === vibeId 
-                ? { 
-                    ...state.vibePostById, 
-                    stats: statsToArray({
-                      ...normalizeVibeStats(state.vibePostById.stats),
-                      total_likes: Math.max(0, normalizeVibeStats(state.vibePostById.stats).total_likes - 1)
-                    }) 
-                  } 
-                : state.vibePostById,
-              userLikedVibes: (state.userLikedVibes || []).filter(id => id !== vibeId)
-            }));
-
-            // Добавляем идентификатор запроса для отладки
-            const requestId = Math.random().toString(36).substring(7);
-            console.log(`[VibeStore] Starting unlike request ${requestId} for vibe ${vibeId}`);
-
-            // Используем API для удаления лайка вместо прямого доступа к базе данных
-            const response = await fetch('/api/vibes/like', {
+            updatedPostById = {
+              ...vibePostById,
+              stats: updatedStats
+            };
+          }
+          
+          // Применяем оптимистичные обновления к состоянию
+          set({ 
+            allVibePosts: updatedAllPosts,
+            vibePostById: updatedPostById
+          });
+          
+          // Отправляем запрос на сервер в фоне
+          try {
+            // Используем toggleVibeVote из vibeActions.ts для обработки лайка
+            // Но не зависим от результата - у нас уже есть оптимистичное обновление
+            const toggleResponse = await fetch('/api/vibes/like', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Request-ID': requestId
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
               },
-              body: JSON.stringify({
-                user_id: userId,
-                vibe_id: vibeId,
-                timestamp: new Date().toISOString() // Уникальность запроса
-              })
+              body: JSON.stringify({ user_id: userId, vibe_id: vibeId }),
+              // Важно: отключаем кэширование
+              cache: 'no-store'
             });
             
-            console.log(`[VibeStore] Unlike request ${requestId} status: ${response.status}`);
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error(`[VibeStore] Unlike API error:`, errorData);
+            // Проверяем успешность запроса и обрабатываем ответ
+            if (!toggleResponse.ok) {
+              throw new Error(`Server returned ${toggleResponse.status}: ${toggleResponse.statusText}`);
+            }
+            
+            const responseData = await toggleResponse.json();
+            
+            // Если сервер сообщает о другом состоянии (может быть, вайб не был лайкнут)
+            // синхронизируем наше состояние с сервером
+            if (responseData.action === 'liked') {
+              console.log(`[VIBE-STORE] Server reported vibe ${vibeId} was liked instead of unliked, syncing state`);
               
-              // Проверка на ошибки авторизации
-              if (response.status === 401) {
-                // Если пользователь не авторизован, показываем уведомление
-                toast.error("Требуется авторизация. Пожалуйста, войдите в аккаунт.");
+              // Добавляем ID в список лайкнутых вайбов
+              const syncedLikedVibes = [...userLikedVibes, vibeId];
+              set({ userLikedVibes: syncedLikedVibes });
+              
+              // Обновляем локальный кэш
+              try {
+                const cacheKey = `user_likes_${userId}`;
+                localStorage.setItem(cacheKey, JSON.stringify(syncedLikedVibes));
+                localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+              } catch (cacheError) {
+                console.error('[VIBE-STORE] Error updating cache:', cacheError);
+              }
+            }
+            
+            // Синхронизируем счетчики лайков с сервером
+            if (typeof responseData.count === 'number') {
+              const exactLikesCount = responseData.count;
+              
+              // Обновляем счетчики в списке и в детальном представлении
+              const syncedAllPosts = allVibePosts.map(post => {
+                if (post.id === vibeId) {
+                  let syncedStats;
+                  
+                  if (Array.isArray(post.stats)) {
+                    syncedStats = [exactLikesCount.toString(), ...post.stats.slice(1)];
+                  } else if (typeof post.stats === 'object' && post.stats !== null) {
+                    syncedStats = {
+                      ...post.stats,
+                      total_likes: exactLikesCount
+                    };
+                  } else {
+                    syncedStats = [exactLikesCount.toString(), '0', '0'];
+                  }
+                    
+                    return { 
+                    ...post,
+                    stats: syncedStats
+                  };
+                }
+                return post;
+              });
+              
+              // Обновляем детальное представление, если оно открыто
+              let syncedPostById = vibePostById;
+              if (vibePostById && vibePostById.id === vibeId) {
+                let syncedStats;
                 
-                // Отправляем событие для обновления авторизации
-                if (typeof window !== 'undefined') {
-                  const authCheckEvent = new CustomEvent('check_auth_state', {});
-                  window.dispatchEvent(authCheckEvent);
+                if (Array.isArray(vibePostById.stats)) {
+                  syncedStats = [exactLikesCount.toString(), ...vibePostById.stats.slice(1)];
+                } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
+                  syncedStats = {
+                    ...vibePostById.stats,
+                    total_likes: exactLikesCount
+                  };
+                } else {
+                  syncedStats = [exactLikesCount.toString(), '0', '0'];
                 }
                 
-                // Откатываем состояние к исходному
-                set(state => ({
-                  allVibePosts: currentState.allVibePosts,
-                  vibePostsByUser: currentState.vibePostsByUser,
-                  vibePostById: currentState.vibePostById,
-                  userLikedVibes: currentState.userLikedVibes
-                }));
-                
-                throw new Error(errorData.error || 'Ошибка авторизации');
+                syncedPostById = {
+                  ...vibePostById,
+                  stats: syncedStats
+                };
               }
               
-              // Для других ошибок откатываем состояние и выдаем ошибку
-              set(state => ({
-                allVibePosts: currentState.allVibePosts,
-                vibePostsByUser: currentState.vibePostsByUser,
-                vibePostById: currentState.vibePostById,
-                userLikedVibes: currentState.userLikedVibes
-              }));
-              
-              throw new Error(errorData.error || 'Ошибка при удалении лайка');
+              // Обновляем состояние с точными данными с сервера
+              set({ 
+                allVibePosts: syncedAllPosts,
+                vibePostById: syncedPostById
+              });
             }
-
-            const data = await response.json();
-            console.log('[VibeStore] Unlike response:', data);
-
-            // Используем значение count из ответа API для обновления статистики
-            if (data.count !== undefined) {
-              set(state => ({
-                allVibePosts: state.allVibePosts.map(vibe => {
-                  if (vibe.id === vibeId) {
-                    const currentStats = normalizeVibeStats(vibe.stats);
-                    // Преобразуем обратно в массив строк для поддержки
-                    // формата данных базы данных
-                    const updatedStats = statsToArray({
-                      ...currentStats,
-                      total_likes: data.count
-                    });
-                    
-                    return { 
-                      ...vibe, 
-                      stats: updatedStats
-                    };
-                  }
-                  return vibe;
-                }),
-                vibePostsByUser: state.vibePostsByUser.map(vibe => {
-                  if (vibe.id === vibeId) {
-                    const currentStats = normalizeVibeStats(vibe.stats);
-                    const updatedStats = statsToArray({
-                      ...currentStats,
-                      total_likes: data.count
-                    });
-                    
-                    return { 
-                      ...vibe, 
-                      stats: updatedStats
-                    };
-                  }
-                  return vibe;
-                }),
-                vibePostById: state.vibePostById?.id === vibeId 
-                  ? { 
-                      ...state.vibePostById, 
-                      stats: statsToArray({
-                        ...normalizeVibeStats(state.vibePostById.stats),
-                        total_likes: data.count
-                      }) 
-                    } 
-                  : state.vibePostById
-              }));
-            }
-
-            // Успешно выполненный запрос, обновим список лайкнутых вайбов
-            console.log(`[VibeStore] Unlike operation completed successfully for vibe ${vibeId}`);
-            get().fetchUserLikedVibes(userId);
             
             return true;
           } catch (error) {
-            console.error('[VibeStore] Error unliking vibe:', error);
+            console.error('[VIBE-STORE] Error sending unlike to server:', error);
             
-            // Отменяем оптимистичное обновление в случае ошибки
-            get().fetchUserLikedVibes(userId);
+            // В случае ошибки, можно оставить оптимистичное обновление
+            // и попробовать повторить запрос позже
+            // Но помечаем ошибку, чтобы UI мог показать уведомление
+            set({ error: 'Your unlike has been saved locally, but may not be synced with the server.' });
             
-            // Делаем задержку перед обновлением вайбов, чтобы избежать состояния гонки
-            setTimeout(() => {
-              get().fetchAllVibes();
-            }, 300);
-            
-            // Не показываем пользователю техническую ошибку, если это не ошибка авторизации
-            if (error instanceof Error && !error.message.includes('авторизац')) {
-              toast.error("Не удалось удалить лайк. Попробуйте позже.");
+            // Сохраняем действие в очередь для повторной попытки
+            try {
+              const pendingActions = JSON.parse(localStorage.getItem('vibe_pending_actions') || '[]');
+              pendingActions.push({
+                type: 'unlike',
+                vibeId,
+                userId,
+                timestamp: Date.now()
+              });
+              localStorage.setItem('vibe_pending_actions', JSON.stringify(pendingActions));
+            } catch (storageError) {
+              console.error('[VIBE-STORE] Error saving pending action:', storageError);
             }
             
-            return false;
+            // Все равно возвращаем true, так как UI уже обновлен оптимистично
+            return true;
           }
         },
 
         checkIfUserLikedVibe: async (vibeId, userId) => {
+          if (!vibeId || !userId) {
+            console.error('[VIBE-STORE] checkIfUserLikedVibe called with missing parameters:', { vibeId, userId });
+            return false;
+          }
+          
+          console.log(`[VIBE-STORE] Checking if user ${userId} liked vibe ${vibeId}`);
+          
+          // Сначала проверяем в локальном состоянии
+          const { userLikedVibes } = get();
+          
+          // Если есть в локальном состоянии, возвращаем результат сразу
+          if (userLikedVibes.includes(vibeId)) {
+            console.log(`[VIBE-STORE] User liked vibe found in local state: true`);
+            return true;
+          }
+          
+          // Проверяем в кэше
           try {
-            // Используем API с предотвращением кэширования вместо прямого запроса к базе
+            const cacheKey = `user_likes_${userId}`;
+            const cachedData = localStorage.getItem(cacheKey);
+            
+            if (cachedData) {
+              const cachedLikes = JSON.parse(cachedData);
+              
+              if (Array.isArray(cachedLikes) && cachedLikes.includes(vibeId)) {
+                console.log(`[VIBE-STORE] User liked vibe found in cache: true`);
+                
+                // Обновляем локальное состояние, если лайк найден в кэше, но не в состоянии
+                if (!userLikedVibes.includes(vibeId)) {
+                  const updatedLikedVibes = [...userLikedVibes, vibeId];
+                  set({ userLikedVibes: updatedLikedVibes });
+                }
+                
+                return true;
+              }
+            }
+          } catch (cacheError) {
+            console.error('[VIBE-STORE] Error reading from cache:', cacheError);
+          }
+          
+          console.log(`[VIBE-STORE] Like not found in local state or cache, checking API`);
+          
+          // Если нет в локальном состоянии и кэше, делаем запрос к API
+          try {
+            // Попытка получить данные с сервера
             const hasLiked = await getVibeLikeStatus(vibeId, userId);
+            
+            // Если лайк найден на сервере, но не в локальном состоянии, обновляем состояние
+            if (hasLiked && !userLikedVibes.includes(vibeId)) {
+              const updatedLikedVibes = [...userLikedVibes, vibeId];
+              set({ userLikedVibes: updatedLikedVibes });
+              
+              // Обновляем кэш
+              try {
+                const cacheKey = `user_likes_${userId}`;
+                localStorage.setItem(cacheKey, JSON.stringify(updatedLikedVibes));
+                localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+              } catch (cacheError) {
+                console.error('[VIBE-STORE] Error updating cache:', cacheError);
+              }
+            }
+            
+            console.log(`[VIBE-STORE] Like status from API: ${hasLiked}`);
             return hasLiked;
           } catch (error) {
-            console.error('Error checking if user liked vibe:', error);
-            return false;
+            console.error('[VIBE-STORE] Error checking like status from API:', error);
+            // В случае ошибки возвращаем локальное состояние
+            return userLikedVibes.includes(vibeId);
           }
         },
 
         fetchUserLikedVibes: async (userId) => {
+          // Предотвращаем бесконечную рекурсию и дублирование запросов
+          if (!userId) {
+            console.error('[VIBE-STORE] fetchUserLikedVibes called without userId');
+            return;
+          }
+          
+          console.log(`[VIBE-STORE] Fetching liked vibes for user ${userId}`);
+          
           try {
+            // Проверяем наличие кэша лайков и его свежесть
+            const cacheKey = `user_likes_${userId}`;
+            const cachedData = localStorage.getItem(cacheKey);
+            const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+            
+            const now = Date.now();
+            const cacheAge = cacheTimestamp ? now - parseInt(cacheTimestamp) : Infinity;
+            const maxCacheAge = 5 * 60 * 1000; // 5 минут
+            
+            // Используем кэш, если он есть и не устарел
+            if (cachedData && cacheAge < maxCacheAge) {
+              try {
+                console.log(`[VIBE-STORE] Using cached likes data, age: ${cacheAge/1000} seconds`);
+                const cachedLikes = JSON.parse(cachedData);
+                
+                if (Array.isArray(cachedLikes)) {
+                  set({ userLikedVibes: cachedLikes });
+                  // Возвращаемся, но продолжаем загрузку для обновления кэша в фоне
+                }
+              } catch (cacheError) {
+                console.error('[VIBE-STORE] Error parsing cached likes:', cacheError);
+                // Продолжаем загрузку с сервера
+              }
+            }
+            
+            // Максимальное количество попыток
+            const maxRetries = 3;
+            let retries = 0;
+            let success = false;
+            
+            while (retries < maxRetries && !success) {
+              try {
+                // Если это повторная попытка, добавляем задержку
+                if (retries > 0) {
+                  console.log(`[VIBE-STORE] Retry ${retries}/${maxRetries} for fetching liked vibes`);
+                  await new Promise(resolve => setTimeout(resolve, 500 * retries));
+                }
+                
+                // Получаем список ID вайбов, которые лайкнул пользователь
             const response = await database.listDocuments(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
               process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES!,
-              [Query.equal('user_id', userId)]
-            );
-
-            const likedVibeIds = response.documents.map(doc => doc.vibe_id);
-            set({ userLikedVibes: likedVibeIds });
+                  [Query.equal("user_id", userId)]
+                );
+                
+                // Извлекаем ID вайбов из документов
+                const userLikedVibeIds = response.documents.map(doc => doc.vibe_id);
+                console.log(`[VIBE-STORE] Loaded ${userLikedVibeIds.length} liked vibes for user ${userId}`);
+                
+                // Обновляем состояние и кэш
+                set({ userLikedVibes: userLikedVibeIds });
+                
+                // Обновляем кэш
+                localStorage.setItem(cacheKey, JSON.stringify(userLikedVibeIds));
+                localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+                
+                success = true;
           } catch (error) {
-            console.error('Error fetching user liked vibes:', error);
-            set({ error: 'Failed to fetch liked vibes' });
+                retries++;
+                console.error(`[VIBE-STORE] Error fetching user liked vibes (attempt ${retries}/${maxRetries}):`, error);
+                
+                // Если это последняя попытка и все еще неудача
+                if (retries >= maxRetries) {
+                  console.error('[VIBE-STORE] All attempts to fetch user liked vibes failed.');
+                  
+                  // Загружаем из кэша как запасной вариант, даже если он устарел
+                  if (cachedData) {
+                    try {
+                      console.log('[VIBE-STORE] Using expired cache as fallback');
+                      const cachedLikes = JSON.parse(cachedData);
+                      if (Array.isArray(cachedLikes)) {
+                        set({ userLikedVibes: cachedLikes });
+                      }
+                    } catch (fallbackError) {
+                      console.error('[VIBE-STORE] Error using fallback cache:', fallbackError);
+                      set({ userLikedVibes: [] });
+                    }
+                  } else {
+                    // Если нет кэша, устанавливаем пустой массив
+                    set({ userLikedVibes: [] });
+                  }
+                  
+                  // Установим ошибку для уведомления пользователя
+                  set({ error: 'Failed to load your liked vibes. Some features may not work correctly.' });
+                }
+              }
+            }
+          } catch (error) {
+            console.error("[VIBE-STORE] Unexpected error in fetchUserLikedVibes:", error);
+            set({ error: "Failed to load liked vibes" });
           }
         },
 

@@ -47,15 +47,74 @@ export default function VibePage() {
     hasMore,
     setSelectedVibeType, 
     fetchAllVibes, 
-    loadMoreVibes 
+    loadMoreVibes,
+    fetchUserLikedVibes
   } = useVibeStore();
   
   const [showUploader, setShowUploader] = useState(false);
   const [ref, inView] = useInView();
   
+  // Load vibes and user likes when component mounts
   useEffect(() => {
-    fetchAllVibes();
-  }, [fetchAllVibes]);
+    const initializeData = async () => {
+      // Индикатор операции
+      const initId = Math.random().toString(36).substring(7);
+      console.log(`[VIBE-FEED ${initId}] Initializing data`);
+      
+      // Fetch vibes
+      await fetchAllVibes();
+      
+      // Проверяем кэш лайков перед загрузкой
+      const likesLoadFailed = localStorage.getItem('likes_load_failed');
+      const likesLoadTimestamp = localStorage.getItem('likes_load_timestamp');
+      const needsForceRefresh = likesLoadFailed === 'true' && 
+        likesLoadTimestamp && 
+        Date.now() - parseInt(likesLoadTimestamp) < 5 * 60 * 1000; // 5 минут
+      
+      // Load user likes if user is logged in
+      if (user && user.id && typeof fetchUserLikedVibes === 'function') {
+        console.log(`[VIBE-FEED ${initId}] Loading user liked vibes${needsForceRefresh ? ' (forced)' : ''}`);
+        
+        // Максимальное количество попыток
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
+        
+        while (retryCount < maxRetries && !success) {
+          try {
+            // Если это повторная попытка, добавляем задержку
+            if (retryCount > 0) {
+              const delay = 500 * Math.pow(2, retryCount - 1);
+              console.log(`[VIBE-FEED ${initId}] Retry ${retryCount}/${maxRetries} after ${delay}ms`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            
+            await fetchUserLikedVibes(user.id);
+            console.log(`[VIBE-FEED ${initId}] User likes loaded successfully`);
+            
+            // Очищаем флаг ошибки загрузки
+            if (needsForceRefresh) {
+              localStorage.removeItem('likes_load_failed');
+              localStorage.removeItem('likes_load_timestamp');
+            }
+            
+            success = true;
+          } catch (error) {
+            retryCount++;
+            console.error(`[VIBE-FEED ${initId}] Error loading user liked vibes (attempt ${retryCount}/${maxRetries}):`, error);
+            
+            if (retryCount >= maxRetries) {
+              console.error(`[VIBE-FEED ${initId}] All attempts to load likes failed`);
+            }
+          }
+        }
+      } else {
+        console.log(`[VIBE-FEED ${initId}] No user or fetchUserLikedVibes not available, skipping likes loading`);
+      }
+    };
+    
+    initializeData();
+  }, [fetchAllVibes, user, fetchUserLikedVibes]);
   
   // Load more posts when scrolling to the bottom
   useEffect(() => {
