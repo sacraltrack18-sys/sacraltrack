@@ -112,7 +112,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           window.sessionStorage && 
           window.sessionStorage.getItem('googleAuthInProgress') === 'true';
           
-        // Если ошибка 401, пользователь не авторизован - это нормальная ситуация
+        // Enhanced error handling with specific error codes
         if (error?.code === 401 || (error?.message && error?.message.includes('missing scope'))) {
           // Показываем ошибку в консоли только если НЕ идет процесс авторизации через Google
           if (!isGoogleAuthInProgress) {
@@ -123,12 +123,40 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           return null;
         }
         
+        // Handle specific Appwrite errors
+        if (error?.code === 429) {
+          console.warn('Rate limit exceeded for authentication requests. Please try again later.');
+          // Don't clear user here, might be temporary issue
+          return user; // Return current user state
+        }
+        
+        if (error?.message && error?.message.includes('network')) {
+          console.warn('Network error when authenticating. Check your connection and try again.');
+          // For network errors, keep previous state if available
+          return user;
+        }
+        
+        // Handle specific Appwrite database connection errors
+        if (error?.code === 503 || (error?.message && error?.message.includes('database'))) {
+          console.error('Database service unavailable:', error?.message);
+          // Return current user without clearing if we had one
+          return user || null;
+        }
+        
         // Если идет процесс аутентификации через Google, не логируем другие ошибки
         // чтобы избежать лишних сообщений в консоли
         if (isGoogleAuthInProgress) {
           console.log('Authentication in progress, suppressing error logs');
           return null;
         }
+        
+        // Track authentication errors for debugging
+        console.error('Authentication error details:', {
+          code: error?.code || 'unknown',
+          type: error?.type || 'unknown',
+          message: error?.message || 'Unknown error',
+          time: new Date().toISOString()
+        });
         
         // Другие ошибки логируем
         console.error('Error checking user authentication:', error);

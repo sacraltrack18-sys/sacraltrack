@@ -124,6 +124,67 @@ Sacral Track employs a modern, sleek design focusing on:
 - **Community Playlists**: Collaborative playlist creation
 - **Events & Virtual Concerts**: Live music event integration
 
+## Appwrite Connection Troubleshooting
+
+### Testing Profile Creation
+
+To validate that the profile creation and stats handling is working correctly, you can use the built-in testing utility:
+
+1. Log in to your application
+2. Open your browser's developer console (F12 or Cmd+Option+I)
+3. Run the following commands:
+
+```javascript
+import { testProfileCreation } from '@/app/utils/testUtils';
+testProfileCreation().then(console.log);
+```
+
+This will:
+- Check your authentication status
+- Look for an existing profile or create a new one
+- Update the profile with test stats
+- Report success or failure with details
+
+### Diagnosing Connection Issues
+
+You can temporarily add the AppwriteStatus component to any page to diagnose connection issues:
+
+```jsx
+import AppwriteStatus from '@/app/components/AppwriteStatus';
+
+// Then in your component:
+<AppwriteStatus />
+```
+
+This will display:
+- Connection status to Appwrite
+- Authentication status
+- Collection existence checks
+- Configuration details
+
+### Common Issues & Solutions
+
+#### Invalid document structure errors
+
+If you see errors like `Invalid document structure: Attribute "total_likes" has invalid type`, make sure:
+- All stats fields are stored as strings in Appwrite
+- Your code converts numbers to strings before storing
+- The type in Appwrite schema matches your data type
+
+#### Failed to authenticate after multiple retries
+
+This usually indicates:
+- Network connectivity issues
+- Expired sessions
+- Invalid API keys
+- Rate limiting
+
+Try:
+- Clearing your browser cache
+- Logging out and back in
+- Checking your internet connection
+- Waiting a few minutes if you've made many requests
+
 ---
 
 # Sacral Track - Музыкальная Платформа

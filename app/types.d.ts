@@ -16,7 +16,17 @@ declare module '@/app/context/user' {
         isLoading: boolean;
     }
     
-    export function useUser(): UserContextType;
+    export interface UserContextTypes {
+        user: User | null;
+        register: (name: string, email: string, password: string) => Promise<any>;
+        login: (email: string, password: string) => Promise<any>;
+        logout: () => Promise<any>;
+        checkUser: () => Promise<User | null>;
+    }
+    
+    export function useUser(): UserContextTypes | null;
+    export const AUTH_STATE_CHANGE_EVENT: string;
+    export function dispatchAuthStateChange(userData: User | null): void;
 }
 
 declare module '@/app/hooks/useCreatePost' {
@@ -96,4 +106,32 @@ declare module 'next' {
       [key: string]: string | string[];
     };
   }
+}
+
+// Appwrite specific document types that match exactly the schema in Appwrite
+export interface AppwriteProfileDocument {
+  $id: string;
+  user_id: string;
+  name: string;
+  image: string;
+  bio: string;
+  genre?: string;
+  location?: string;
+  website?: string;
+  role?: string;
+  display_name?: string;
+  banner_image?: string;
+  is_public?: string;
+  account_type?: string;
+  featured_track_id?: string;
+  preferred_languages?: string;
+  settings?: string[];
+  social_links?: any;
+  created_at: string;
+  updated_at?: string;
+  // Stats fields are stored as strings in Appwrite
+  total_likes: string;
+  total_followers: string;
+  average_rating: string;
+  total_ratings: string;
 } 
