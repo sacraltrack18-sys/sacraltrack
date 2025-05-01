@@ -315,7 +315,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                     </div>
 
                     {/* Right Side Actions */}
-                    <div className="flex items-center gap-2 md:gap-3">
+                    <div className="flex items-center gap-1 md:gap-3">
                         {/* Release Button - скрыта на странице people */}
                         {pathname !== '/people' && <ReleaseButton />}
 
@@ -323,7 +323,9 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                         {pathname !== '/people' && <VibeButton onOpenVibeUploader={openVibeUploader} />}
 
                         {/* Notification Bell */}
-                        <NotificationBell />
+                        <div className="mr-1 md:mr-0">
+                            <NotificationBell />
+                        </div>
                         
                         {/* Profile Section */}
                         <ProfileMenu />

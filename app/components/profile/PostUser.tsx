@@ -17,7 +17,6 @@ import useTrackStatistics from '@/app/hooks/useTrackStatistics';
 import useTrackInteraction from '@/app/hooks/useTrackInteraction';
 import { AudioPlayer } from '@/app/components/AudioPlayer';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import { AiFillStar } from 'react-icons/ai';
 import { useCommentStore } from "@/app/stores/comment";
 import { useGeneralStore } from "@/app/stores/general";
@@ -562,7 +561,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
 
   const formatReleaseDate = (dateString: string) => {
     const date = new Date(dateString);
-    return format(date, "d MMMM yyyy", { locale: ru });
+    return format(date, "MMMM d, yyyy");
   };
 
   const handleComments = (e: React.MouseEvent) => {

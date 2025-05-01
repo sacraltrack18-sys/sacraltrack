@@ -41,16 +41,16 @@ export const clientConfig = {
 };
 
 // Добавляем логи для проверки переменных окружения
-console.log("[APPWRITE-CONFIG] Checking environment variables...");
-console.log("[APPWRITE-CONFIG] URL:", APPWRITE_CONFIG.endpoint);
-console.log("[APPWRITE-CONFIG] Project ID:", APPWRITE_CONFIG.projectId);
-console.log("[APPWRITE-CONFIG] Database ID:", APPWRITE_CONFIG.databaseId);
-console.log("[APPWRITE-CONFIG] Collection ID (Post):", APPWRITE_CONFIG.trackCollectionId);
-console.log("[APPWRITE-CONFIG] Collection ID (Vibes):", APPWRITE_CONFIG.vibesCollectionId);
-console.log("[APPWRITE-CONFIG] Collection ID (Statistics):", APPWRITE_CONFIG.statisticsCollectionId);
-console.log("[APPWRITE-CONFIG] Collection ID (Analytics):", APPWRITE_CONFIG.analyticsCollectionId);
-console.log("[APPWRITE-CONFIG] Collection ID (Interactions):", APPWRITE_CONFIG.interactionsCollectionId);
-console.log("[APPWRITE-CONFIG] Bucket ID:", APPWRITE_CONFIG.storageId);
+// console.log("[APPWRITE-CONFIG] Checking environment variables...");
+// console.log("[APPWRITE-CONFIG] URL:", APPWRITE_CONFIG.endpoint);
+// console.log("[APPWRITE-CONFIG] Project ID:", APPWRITE_CONFIG.projectId);
+// console.log("[APPWRITE-CONFIG] Database ID:", APPWRITE_CONFIG.databaseId);
+// console.log("[APPWRITE-CONFIG] Collection ID (Post):", APPWRITE_CONFIG.trackCollectionId);
+// console.log("[APPWRITE-CONFIG] Collection ID (Vibes):", APPWRITE_CONFIG.vibesCollectionId);
+// console.log("[APPWRITE-CONFIG] Collection ID (Statistics):", APPWRITE_CONFIG.statisticsCollectionId);
+// console.log("[APPWRITE-CONFIG] Collection ID (Analytics):", APPWRITE_CONFIG.analyticsCollectionId);
+// console.log("[APPWRITE-CONFIG] Collection ID (Interactions):", APPWRITE_CONFIG.interactionsCollectionId);
+// console.log("[APPWRITE-CONFIG] Bucket ID:", APPWRITE_CONFIG.storageId);
 
 // Initialize Appwrite client
 const client = new Client();
@@ -63,14 +63,14 @@ try {
         throw new Error('NEXT_PUBLIC_ENDPOINT is not set');
     }
     if (!process.env.NEXT_PUBLIC_BUCKET_ID) {
-        console.error('[APPWRITE-CONFIG] ERROR: NEXT_PUBLIC_BUCKET_ID is not set');
+        // console.error('[APPWRITE-CONFIG] ERROR: NEXT_PUBLIC_BUCKET_ID is not set');
     }
 
-    console.log('[APPWRITE-CONFIG] Initializing with parameters:', {
-        endpoint: APPWRITE_CONFIG.endpoint,
-        projectId: APPWRITE_CONFIG.projectId,
-        bucketId: APPWRITE_CONFIG.storageId,
-    });
+    // console.log('[APPWRITE-CONFIG] Initializing with parameters:', {
+    //     endpoint: APPWRITE_CONFIG.endpoint,
+    //     projectId: APPWRITE_CONFIG.projectId,
+    //     bucketId: APPWRITE_CONFIG.storageId,
+    // });
 
     // Set up client with improved options for WebSocket stability
     client
@@ -82,18 +82,18 @@ try {
         // Set up event listeners for connection status
         client.subscribe('realtime', (data: any) => {
             if (data.event === 'disconnected') {
-                console.log('[REALTIME] Disconnected. Attempting to reconnect...');
+                // console.log('[REALTIME] Disconnected. Attempting to reconnect...');
                 // Reconnection is handled automatically by the client
             }
             if (data.event === 'connected') {
-                console.log('[REALTIME] Connected successfully');
+                // console.log('[REALTIME] Connected successfully');
             }
         });
     }
     
-    console.log("[APPWRITE-CONFIG] Appwrite client successfully initialized");
+    // console.log("[APPWRITE-CONFIG] Appwrite client successfully initialized");
 } catch (error) {
-    console.error("[APPWRITE-CONFIG] Error initializing Appwrite client:", error);
+    // console.error("[APPWRITE-CONFIG] Error initializing Appwrite client:", error);
 }
 
 // Initialize services
@@ -147,11 +147,11 @@ export const uploadFileFromServer = async (
   mimeType: string = 'application/octet-stream'
 ) => {
   try {
-    console.log(`[SERVER-UPLOAD] Attempting to upload file from path: ${filePath}`);
+    // console.log(`[SERVER-UPLOAD] Attempting to upload file from path: ${filePath}`);
     
     // Проверяем наличие API ключа
     if (!process.env.APPWRITE_API_KEY) {
-      console.error('[SERVER-UPLOAD] Missing APPWRITE_API_KEY in environment variables');
+      // console.error('[SERVER-UPLOAD] Missing APPWRITE_API_KEY in environment variables');
       return { success: false, error: 'Missing API key for server upload' };
     }
     
@@ -166,7 +166,7 @@ export const uploadFileFromServer = async (
     
     // Проверяем существование файла
     if (!fs.existsSync(filePath)) {
-      console.error(`[SERVER-UPLOAD] File does not exist at path: ${filePath}`);
+      // console.error(`[SERVER-UPLOAD] File does not exist at path: ${filePath}`);
       return { success: false, error: 'File does not exist' };
     }
     
@@ -181,11 +181,11 @@ export const uploadFileFromServer = async (
       type: mimeType,
     } as any); // Обходим проверку типов
     
-    console.log(`[SERVER-UPLOAD] Successfully uploaded file with ID: ${result.$id}`);
+    // console.log(`[SERVER-UPLOAD] Successfully uploaded file with ID: ${result.$id}`);
     return { success: true, fileId: result.$id, result };
     
   } catch (error) {
-    console.error('[SERVER-UPLOAD] Error uploading file:', error);
+    // console.error('[SERVER-UPLOAD] Error uploading file:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : String(error)
@@ -199,7 +199,7 @@ export { client, account, avatars, database, databases, storage, functions, Quer
 // Безопасная обертка для загрузки файлов в Appwrite
 export const safeCreateFile = async (bucketId: string, fileId: string, file: File) => {
   try {
-    console.log(`[APPWRITE-STORAGE] Trying to upload file to bucket ${bucketId} with ID ${fileId}`);
+    // console.log(`[APPWRITE-STORAGE] Trying to upload file to bucket ${bucketId} with ID ${fileId}`);
     
     // Используем try-catch для безопасной загрузки
     const result = await storage.createFile(
@@ -208,14 +208,14 @@ export const safeCreateFile = async (bucketId: string, fileId: string, file: Fil
       file
     );
     
-    console.log(`[APPWRITE-STORAGE] File uploaded successfully with ID: ${result.$id}`);
+    // console.log(`[APPWRITE-STORAGE] File uploaded successfully with ID: ${result.$id}`);
     return { success: true, fileId: result.$id, result };
   } catch (error) {
-    console.error(`[APPWRITE-STORAGE] Error uploading file:`, error);
+    // console.error(`[APPWRITE-STORAGE] Error uploading file:`, error);
     
     // Попробуем альтернативный метод загрузки
     try {
-      console.log(`[APPWRITE-STORAGE] Trying alternative upload method...`);
+      // console.log(`[APPWRITE-STORAGE] Trying alternative upload method...`);
       
       // Если ошибка связана с методом .on, используем прямую загрузку через Node SDK
       const nodeStorage = createServerSideStorage();
@@ -242,10 +242,10 @@ export const safeCreateFile = async (bucketId: string, fileId: string, file: Fil
       // Удаляем временный файл
       require('fs').unlinkSync(tempFilePath);
       
-      console.log(`[APPWRITE-STORAGE] File uploaded successfully using alternative method with ID: ${result.$id}`);
+      // console.log(`[APPWRITE-STORAGE] File uploaded successfully using alternative method with ID: ${result.$id}`);
       return { success: true, fileId: result.$id, result };
     } catch (alternativeError) {
-      console.error(`[APPWRITE-STORAGE] Alternative upload method also failed:`, alternativeError);
+      // console.error(`[APPWRITE-STORAGE] Alternative upload method also failed:`, alternativeError);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : String(error),
@@ -274,11 +274,11 @@ export const checkAppwriteConfig = () => {
     .filter(([_, value]) => !value || value === '')
     .map(([key]) => key);
   
-  console.log("[APPWRITE-CONFIG] Результаты проверки конфигурации:", {
-    config,
-    isValid: missingVars.length === 0,
-    missingVars
-  });
+  // console.log("[APPWRITE-CONFIG] Результаты проверки конфигурации:", {
+  //   config,
+  //   isValid: missingVars.length === 0,
+  //   missingVars
+  // });
   
   return {
     config,
@@ -290,17 +290,17 @@ export const checkAppwriteConfig = () => {
 // Функция для проверки соединения с Appwrite и валидности текущей сессии
 export const checkAppwriteConnection = async () => {
   try {
-    console.log("[APPWRITE-CONNECTION] Checking Appwrite connection...");
+    // console.log("[APPWRITE-CONNECTION] Checking Appwrite connection...");
     
     // Проверяем активную сессию пользователя
     let sessionValid = false;
     try {
       const session = await account.get();
       sessionValid = !!session;
-      console.log("[APPWRITE-CONNECTION] User session:", sessionValid ? "Valid" : "Not found");
-      console.log("[APPWRITE-CONNECTION] User data:", session);
+      // console.log("[APPWRITE-CONNECTION] User session:", sessionValid ? "Valid" : "Not found");
+      // console.log("[APPWRITE-CONNECTION] User data:", session);
     } catch (sessionError) {
-      console.warn("[APPWRITE-CONNECTION] Session check failed:", sessionError);
+      // console.warn("[APPWRITE-CONNECTION] Session check failed:", sessionError);
     }
     
     // Проверяем доступность хранилища
@@ -309,9 +309,9 @@ export const checkAppwriteConnection = async () => {
       // Проверяем существование бакета через список файлов
       await storage.listFiles(APPWRITE_CONFIG.storageId);
       storageValid = true;
-      console.log("[APPWRITE-CONNECTION] Storage bucket check: Valid");
+      // console.log("[APPWRITE-CONNECTION] Storage bucket check: Valid");
     } catch (storageError) {
-      console.error("[APPWRITE-CONNECTION] Storage bucket check failed:", storageError);
+      // console.error("[APPWRITE-CONNECTION] Storage bucket check failed:", storageError);
     }
     
     // Проверяем доступность базы данных
@@ -324,9 +324,9 @@ export const checkAppwriteConnection = async () => {
         []
       );
       databaseValid = true;
-      console.log("[APPWRITE-CONNECTION] Database check: Valid");
+      // console.log("[APPWRITE-CONNECTION] Database check: Valid");
     } catch (dbError) {
-      console.error("[APPWRITE-CONNECTION] Database check failed:", dbError);
+      // console.error("[APPWRITE-CONNECTION] Database check failed:", dbError);
     }
     
     return {
@@ -337,7 +337,7 @@ export const checkAppwriteConnection = async () => {
       config: APPWRITE_CONFIG
     };
   } catch (error) {
-    console.error("[APPWRITE-CONNECTION] Connection check failed:", error);
+    // console.error("[APPWRITE-CONNECTION] Connection check failed:", error);
     return {
       connected: false,
       sessionValid: false,
