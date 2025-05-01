@@ -247,115 +247,107 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
       <button
         id="search-button"
         onClick={() => setShowSearch(!showSearch)}
-        className="p-1 md:p-2 hover:bg-[#2E2469] rounded-full transition-all duration-200"
+        className="p-2 hover:bg-[#2E2469] rounded-full transition-all duration-200"
       >
-        <MagnifyingGlassIcon className="w-5 h-5 md:w-6 md:h-6 text-[#20DDBB]" />
+        <MagnifyingGlassIcon 
+          className="w-[24px] h-[24px] text-cyan-400 transition-transform duration-200 hover:scale-110" 
+        />
       </button>
-      
+
       <AnimatePresence>
         {showSearch && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-              onClick={() => setShowSearch(false)}
-            />
-            
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-12 right-0 w-[90vw] sm:w-[320px] md:w-[380px] bg-[#1D1630] rounded-xl 
-                       shadow-lg border border-white/10 z-50 overflow-hidden"
-            >
-              <div className="relative">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    handleSearch(e.target.value);
-                  }}
-                  placeholder="Search artists, tracks, and vibes..."
-                  className="w-full px-4 py-3 bg-[#2E2469] text-white rounded-full 
-                          focus:outline-none focus:ring-2 focus:ring-[#20DDBB] 
-                          placeholder-gray-400 text-sm"
-                />
-                
-                {/* Loading indicator */}
-                {isLoading && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <div className="animate-spin w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full"></div>
-                  </div>
-                )}
-              </div>
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: "min(280px, 80vw)", opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute left-12 md:right-12 top-1/2 -translate-y-1/2 z-50 origin-left md:origin-right w-[calc(100vw-80px)] md:w-auto"
+          >
+            <div className="relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  handleSearch(e.target.value);
+                }}
+                placeholder="Search artists, tracks, and vibes..."
+                className="w-full px-4 py-3 bg-[#2E2469] text-white rounded-full 
+                        focus:outline-none focus:ring-2 focus:ring-[#20DDBB] 
+                        placeholder-gray-400 text-sm"
+              />
+              
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full"></div>
+                </div>
+              )}
+            </div>
 
-              {/* Search Results Dropdown */}
-              <AnimatePresence>
-                {searchQuery.trim() !== "" && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute top-full mt-2 w-full bg-gradient-to-b from-[#24183D] to-[#1D1131] rounded-xl 
-                             shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto border border-indigo-900/50 
-                             left-0 md:right-0"
-                  >
-                    {searchProfiles.length === 0 && !isLoading ? (
-                      <div className="py-6 px-4 text-center">
-                        <p className="text-gray-400 text-sm">
-                          {searchQuery.length > 0 && searchQuery.length < 2 
-                            ? "Please enter at least 2 characters" 
-                            : "No results found"}
-                        </p>
-                        <p className="text-gray-500 text-xs mt-2">
-                          {searchQuery.length >= 2 && (
-                            <>
-                              Try:<br />
-                              • Different spelling or keywords<br />
-                              • Including artist or track name<br />
-                              • Searching without special characters
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="py-2">
-                        {/* Group results by type */}
-                        {['profile', 'track', 'vibe'].map(type => {
-                          const typeResults = searchProfiles.filter(result => result.type === type);
-                          if (typeResults.length === 0) return null;
-                          
-                          return (
-                            <div key={type} className="mb-2">
-                              <div className="px-4 py-1">
-                                <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">
-                                  {type === 'profile' ? 'Artists' : type === 'track' ? 'Tracks' : 'Vibes'}
-                                </span>
-                              </div>
-                              
-                              {typeResults.map(result => (
-                                <SearchResultItem 
-                                  key={`${result.type}-${result.id}`}
-                                  result={result}
-                                  getImageUrl={getSearchResultImageUrl}
-                                  onClick={handleSearchResultClick}
-                                />
-                              ))}
+            {/* Search Results Dropdown */}
+            <AnimatePresence>
+              {searchQuery.trim() !== "" && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-full mt-2 w-full bg-gradient-to-b from-[#24183D] to-[#1D1131] rounded-xl 
+                           shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto border border-indigo-900/50 
+                           left-0 md:right-0"
+                >
+                  {searchProfiles.length === 0 && !isLoading ? (
+                    <div className="py-6 px-4 text-center">
+                      <p className="text-gray-400 text-sm">
+                        {searchQuery.length > 0 && searchQuery.length < 2 
+                          ? "Please enter at least 2 characters" 
+                          : "No results found"}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-2">
+                        {searchQuery.length >= 2 && (
+                          <>
+                            Try:<br />
+                            • Different spelling or keywords<br />
+                            • Including artist or track name<br />
+                            • Searching without special characters
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      {/* Group results by type */}
+                      {['profile', 'track', 'vibe'].map(type => {
+                        const typeResults = searchProfiles.filter(result => result.type === type);
+                        if (typeResults.length === 0) return null;
+                        
+                        return (
+                          <div key={type} className="mb-2">
+                            <div className="px-4 py-1">
+                              <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">
+                                {type === 'profile' ? 'Artists' : type === 'track' ? 'Tracks' : 'Vibes'}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </>
+                            
+                            {typeResults.map(result => (
+                              <SearchResultItem 
+                                key={`${result.type}-${result.id}`}
+                                result={result}
+                                getImageUrl={getSearchResultImageUrl}
+                                onClick={handleSearchResultClick}
+                              />
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

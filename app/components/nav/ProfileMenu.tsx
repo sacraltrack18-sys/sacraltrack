@@ -51,8 +51,8 @@ const ProfileMenu = () => {
       <motion.button
         onClick={() => setIsLoginOpen(true)}
         className="relative flex items-center justify-center overflow-hidden bg-gradient-to-r 
-                 from-blue-500 to-indigo-600 text-white rounded-2xl px-1.5 md:px-4 py-[8px] md:py-[10px] 
-                 shadow-lg shadow-blue-500/25 group min-w-[30px]"
+                 from-blue-500 to-indigo-600 text-white rounded-2xl px-2 md:px-4 py-[10px] 
+                 shadow-lg shadow-blue-500/25 group"
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
       >
@@ -70,8 +70,8 @@ const ProfileMenu = () => {
                         transition-transform duration-1000 ease-in-out"></div>
         </div>
         
-        <div className="flex items-center gap-1 md:gap-2 relative z-10">
-          <UserCircleIcon className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] text-white group-hover:text-blue-200 
+        <div className="flex items-center gap-2 relative z-10">
+          <UserCircleIcon className="w-[20px] h-[20px] md:w-[22px] md:h-[22px] text-white group-hover:text-blue-200 
                                  transition-colors duration-300" />
           <span className="whitespace-nowrap font-medium text-[14px] hidden md:inline group-hover:text-blue-100
                         transition-colors duration-300">Log in</span>
@@ -89,7 +89,7 @@ const ProfileMenu = () => {
       >
         <motion.div
           whileHover={{ scale: 1.05 }}
-          className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30 
+          className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30 
                    transition-all duration-300 group-hover:ring-[#20DDBB]/50"
         >
           <img 
