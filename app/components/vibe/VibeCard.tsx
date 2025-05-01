@@ -753,32 +753,51 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
 
   // On initial load, check if user liked this vibe
   useEffect(() => {
-    const checkInitialLikeStatus = async () => {
-      if (!user || !vibe.id) return;
-      
+    // Don't run if user or vibe.id is not available
+    if (!user || !vibe.id) return;
+    
+    const checkInitialLikeStatus = async () => {    
       try {
-        // Method 1: Check from store
+        // Method 1: Check from store first (most efficient)
         let hasLiked = false;
         if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
           hasLiked = true;
+          setIsLiked(true);
+          return; // Exit early, no need for API call or stats refresh
         }
         
-        // Method 2: Double-check with API if needed
+        // Method 2: Only check with API if needed and not checked previously in this session
         if (!hasLiked) {
-          hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+          // Use session storage to track which vibe IDs we've already checked
+          let checkedIds: string[] = [];
+          try {
+            const sessionCheckedIds = sessionStorage.getItem('checked_vibe_ids');
+            if (sessionCheckedIds) {
+              checkedIds = JSON.parse(sessionCheckedIds);
+            }
+          } catch (e) {
+            // Ignore errors
+          }
           
-          // If API says it's liked but store doesn't, update store
-          if (hasLiked && Array.isArray(userLikedVibes) && !userLikedVibes.includes(vibe.id)) {
-            console.log(`[VIBE-CARD] API check found like not in store, updating store`);
-            fetchUserLikedVibes(user.id);
+          // Only make API call if we haven't checked this vibe previously
+          if (!checkedIds.includes(vibe.id)) {
+            hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+            
+            // If API says it's liked but store doesn't, update store
+            if (hasLiked && Array.isArray(userLikedVibes) && !userLikedVibes.includes(vibe.id)) {
+              fetchUserLikedVibes(user.id);
+            }
+            
+            setIsLiked(hasLiked);
           }
         }
         
-        console.log(`[VIBE-CARD] Initial like status for vibe ${vibe.id}: ${hasLiked ? 'Liked' : 'Not liked'}`);
-        setIsLiked(hasLiked);
-        
-        // Also make sure we have the correct count
-        await refreshVibeStats();
+        // Only refresh stats if we don't have them or they're in an unexpected format
+        if (!vibe.stats || 
+           (Array.isArray(vibe.stats) && vibe.stats.length === 0) || 
+           (typeof vibe.stats === 'object' && Object.keys(vibe.stats).length === 0)) {
+          await refreshVibeStats();
+        }
       } catch (error) {
         console.error('[VIBE-CARD] Error checking initial like status:', error);
       }

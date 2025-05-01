@@ -105,43 +105,52 @@ const useTrackStatistics = (trackId?: string) => {
       // Сначала убедимся, что документ статистики существует
       await ensureTrackStatisticsExist();
       
-      const response = await fetch(`/api/track-stats/${trackId}`);
+      console.log(`[useTrackStatistics] Fetching statistics for track ID: ${trackId}`);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch statistics');
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.statistics) {
-        setStatistics(data.statistics);
-        setRetryCount(0); // Сбрасываем счетчик повторных попыток при успехе
+      try {
+        const response = await fetch(`/api/track-stats/${trackId}`);
         
-        // Увеличиваем счетчик обновлений только для автоматических обновлений
-        if (!isManualUpdate) {
-          updateCountRef.current += 1;
-          console.log(`Statistics update count: ${updateCountRef.current}/${MAX_AUTO_UPDATES}`);
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          throw new Error(`Failed to fetch statistics (${response.status}): ${errorText}`);
         }
         
-        // Сбрасываем флаг первой загрузки
-        initialLoadRef.current = false;
-      } else {
-        console.warn('Statistics data not found:', data);
-        // Если нет статистики, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
+        const data = await response.json();
+        
+        if (data.success && data.statistics) {
+          console.log(`[useTrackStatistics] Successfully fetched statistics for track ID: ${trackId}`);
+          setStatistics(data.statistics);
+          setRetryCount(0); // Сбрасываем счетчик повторных попыток при успехе
+          
+          // Увеличиваем счетчик обновлений только для автоматических обновлений
+          if (!isManualUpdate) {
+            updateCountRef.current += 1;
+            console.log(`Statistics update count: ${updateCountRef.current}/${MAX_AUTO_UPDATES}`);
+          }
+          
+          // Сбрасываем флаг первой загрузки
+          initialLoadRef.current = false;
+        } else {
+          console.warn('[useTrackStatistics] Statistics data not found:', data);
+          // Если нет статистики, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
+          if (retryCount < 1 && (isManualUpdate || canAutoUpdate())) {
+            setRetryCount(prev => prev + 1);
+            setTimeout(() => fetchStatistics(isManualUpdate), 1000);
+          }
+        }
+      } catch (fetchError) {
+        console.error('[useTrackStatistics] Error fetching track statistics:', fetchError);
+        setError(fetchError instanceof Error ? fetchError : new Error('Failed to fetch track statistics'));
+        
+        // Если произошла ошибка, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
         if (retryCount < 1 && (isManualUpdate || canAutoUpdate())) {
           setRetryCount(prev => prev + 1);
           setTimeout(() => fetchStatistics(isManualUpdate), 1000);
         }
       }
     } catch (error) {
-      console.error('Error fetching track statistics:', error);
+      console.error('[useTrackStatistics] General error:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch track statistics'));
-      
-      // Если произошла ошибка, попробуем запросить ещё раз через небольшое время - но только если это не превысит лимит
-      if (retryCount < 1 && (isManualUpdate || canAutoUpdate())) {
-        setRetryCount(prev => prev + 1);
-        setTimeout(() => fetchStatistics(isManualUpdate), 1000);
-      }
     } finally {
       setIsLoading(false);
     }

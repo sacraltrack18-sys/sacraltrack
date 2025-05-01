@@ -703,24 +703,48 @@ const ensureTrackStatisticsExist = async (trackId: string) => {
 const StatsCounter = memo(({ post }: { post: any }) => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 2;
 
   // Функция для получения актуальной статистики
   const fetchStatistics = useCallback(async () => {
     if (!post?.id) return;
     
     try {
+      console.log(`[StatsCounter] Fetching statistics for track ID: ${post.id}`);
       // Запрос к API для получения статистики
       const response = await fetch(`/api/track-stats/${post.id}`);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch stats');
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`Failed to fetch stats (${response.status}): ${errorText}`);
       }
       
       const data = await response.json();
-      setStats(data.statistics);
-      setLoading(false);
+      
+      if (data.success && data.statistics) {
+        console.log(`[StatsCounter] Successfully fetched statistics for track ID: ${post.id}`);
+        setStats(data.statistics);
+        setError(null);
+        retryCount.current = 0; // Reset retry count on success
+      } else {
+        console.warn(`[StatsCounter] No statistics found for track ID: ${post.id}`, data);
+        throw new Error('No statistics data found');
+      }
     } catch (error) {
-      console.error('Error fetching track statistics:', error);
+      console.error(`[StatsCounter] Error fetching track statistics:`, error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch stats'));
+      
+      // Attempt to retry failed requests, but not too many times
+      if (retryCount.current < MAX_RETRIES) {
+        retryCount.current += 1;
+        console.log(`[StatsCounter] Retrying fetch (${retryCount.current}/${MAX_RETRIES})...`);
+        // Use exponential backoff for retries
+        setTimeout(() => fetchStatistics(), 1000 * retryCount.current);
+      }
+    } finally {
       setLoading(false);
     }
   }, [post?.id]);
@@ -730,10 +754,10 @@ const StatsCounter = memo(({ post }: { post: any }) => {
     // Сразу загружаем данные
     fetchStatistics();
     
-    // Настраиваем интервал обновления каждые 10 секунд
+    // Настраиваем интервал обновления каждые 15 секунд (увеличили для снижения нагрузки)
     intervalRef.current = setInterval(() => {
       fetchStatistics();
-    }, 10000);
+    }, 15000);
     
     // Очистка интервала при размонтировании
     return () => {
@@ -743,8 +767,8 @@ const StatsCounter = memo(({ post }: { post: any }) => {
     };
   }, [fetchStatistics]);
 
-  // Если загрузка или нет данных, показываем скелетон
-  if (loading || !stats) {
+  // Показываем скелетон при загрузке
+  if (loading) {
     return (
       <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
         <div className="flex items-center gap-1.5">
@@ -754,6 +778,19 @@ const StatsCounter = memo(({ post }: { post: any }) => {
     );
   }
 
+  // Показываем ошибку, если не удалось загрузить данные после всех попыток
+  if (error && retryCount.current >= MAX_RETRIES) {
+    return (
+      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
+        <div className="flex items-center gap-1.5">
+          <FaHeadphones className="text-gray-400 text-xs" />
+          <span className="text-white text-xs font-medium">-</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Показываем статистику, если есть данные
   return (
     <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
       {/* Счетчик прослушиваний */}

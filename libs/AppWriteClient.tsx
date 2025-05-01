@@ -12,9 +12,9 @@ export const APPWRITE_CONFIG = {
   storageId: process.env.NEXT_PUBLIC_BUCKET_ID || '67f2239600384003fd78',
   userCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE || '67f225fc0022b2dc0881',
   trackCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_POST || '67f22813001f125cc1e5',
-  statisticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_STATISTICS || 'track_statistics',
-  analyticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_ANALYTICS || 'track_analytics',
-  interactionsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_INTERACTIONS || 'track_interactions',
+  statisticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_STATISTICS || '67fa8893001cb797a064',
+  analyticsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_ANALYTICS || '67fa89b40009e6b07992',
+  interactionsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_TRACK_INTERACTIONS || '67fa8aa1001ba183beb4',
   
   // Добавление коллекций для вайбов
   vibesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS || '67f22eb700352cd35cd8',

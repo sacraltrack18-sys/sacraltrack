@@ -363,37 +363,60 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
 
   // Fetch initial like state on component mount
   useEffect(() => {
+    if (!user || !vibe.id) return;
+    
     const checkInitialLikeStatus = async () => {
-      if (!user || !vibe.id) return;
-      
       try {
-        // Use both methods to check if vibe is liked
+        // Check if we have the stats already to avoid unnecessary refreshes
+        const hasValidStats = vibe.stats && (
+          (Array.isArray(vibe.stats) && vibe.stats.length > 0) ||
+          (typeof vibe.stats === 'object' && Object.keys(vibe.stats).length > 0)
+        );
         
-        // Method 1: Check from the store
+        // Method 1: Check from the store (fastest)
         let hasLiked = false;
         if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
           hasLiked = true;
+          setIsLiked(true);
+          
+          // No need to refresh stats if we already have them
+          if (hasValidStats) {
+            return;
+          }
         }
         
-        // Method 2: Double-check with API if needed
+        // Method 2: Only check API if not found in store and not already checked this session
         if (!hasLiked) {
-          hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+          // Use session storage to track which vibe IDs we've already checked
+          let checkedIds: string[] = [];
+          try {
+            const sessionCheckedIds = sessionStorage.getItem('checked_vibe_ids');
+            if (sessionCheckedIds) {
+              checkedIds = JSON.parse(sessionCheckedIds);
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+          
+          // Only make API call if we haven't checked this vibe previously in this session
+          if (!checkedIds.includes(vibe.id)) {
+            hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
+            setIsLiked(hasLiked);
+          }
         }
         
-        // Update UI state
-        console.log(`[VIBE-DETAIL] Initial like status for vibe ${vibe.id}: ${hasLiked ? 'Liked' : 'Not liked'}`);
-        setIsLiked(hasLiked);
-        
-        // Force refresh stats to ensure count is correct
-        refreshVibeStats();
-        } catch (error) {
+        // Only refresh stats if we don't have valid stats
+        if (!hasValidStats) {
+          refreshVibeStats();
+        }
+      } catch (error) {
         console.error('[VIBE-DETAIL] Error checking initial like status:', error);
       }
     };
     
     checkInitialLikeStatus();
   }, [vibe.id, user, userLikedVibes, checkIfUserLikedVibe]);
-  
+
   // Add this effect to watch for changes in userLikedVibes
   useEffect(() => {
     if (!vibe.id) return;
@@ -404,10 +427,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       
       // Only update if there's a discrepancy to avoid render loops
       if (isLikedInStore !== isLiked) {
-        console.log(`[VIBE-DETAIL] Syncing like state from store for vibe ${vibe.id}: ${isLikedInStore ? 'Liked' : 'Not liked'}`);
         setIsLiked(isLikedInStore);
-        // Also refresh stats to make sure count is correct
-    refreshVibeStats();
       }
     }
   }, [userLikedVibes, vibe.id, isLiked]);
@@ -536,8 +556,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         } else {
           // Если операция не удалась, откатываем состояние
           console.error(`[VIBE-DETAIL ${operationId}] Failed to remove like`);
-        setIsLiked(wasLiked);
-        setLikesCount(prevLikesCount);
+    setIsLiked(wasLiked);
+    setLikesCount(prevLikesCount);
           toast.error('Failed to unlike. Please try again.');
         }
       }

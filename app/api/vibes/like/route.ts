@@ -366,7 +366,7 @@ async function updateVibeStats(vibe_id: string): Promise<void> {
           const statsJson = JSON.stringify(newStats);
           
           // Создаем простую функцию для обновления через API
-          const response = await fetch(`/api/vibes/update-stats`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/vibes/update-stats`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

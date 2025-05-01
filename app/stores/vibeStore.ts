@@ -1125,14 +1125,11 @@ export const useVibeStore = create<VibeStore>()(
             return false;
           }
           
-          console.log(`[VIBE-STORE] Checking if user ${userId} liked vibe ${vibeId}`);
-          
           // Сначала проверяем в локальном состоянии
           const { userLikedVibes } = get();
           
           // Если есть в локальном состоянии, возвращаем результат сразу
           if (userLikedVibes.includes(vibeId)) {
-            console.log(`[VIBE-STORE] User liked vibe found in local state: true`);
             return true;
           }
           
@@ -1145,8 +1142,6 @@ export const useVibeStore = create<VibeStore>()(
               const cachedLikes = JSON.parse(cachedData);
               
               if (Array.isArray(cachedLikes) && cachedLikes.includes(vibeId)) {
-                console.log(`[VIBE-STORE] User liked vibe found in cache: true`);
-                
                 // Обновляем локальное состояние, если лайк найден в кэше, но не в состоянии
                 if (!userLikedVibes.includes(vibeId)) {
                   const updatedLikedVibes = [...userLikedVibes, vibeId];
@@ -1160,12 +1155,38 @@ export const useVibeStore = create<VibeStore>()(
             console.error('[VIBE-STORE] Error reading from cache:', cacheError);
           }
           
-          console.log(`[VIBE-STORE] Like not found in local state or cache, checking API`);
+          // Используем дебаунсинг для API-запросов с помощью локального хранилища
+          // Храним список ID для которых уже проверяли статус через API в течение сессии
+          let checkedVibeIds: string[] = [];
+          try {
+            const sessionCheckedIds = sessionStorage.getItem('checked_vibe_ids');
+            if (sessionCheckedIds) {
+              checkedVibeIds = JSON.parse(sessionCheckedIds);
+            }
+          } catch (e) {
+            checkedVibeIds = [];
+          }
+          
+          // Если уже проверяли этот вайб в текущей сессии и его нет в локальном состоянии,
+          // возвращаем false без дополнительного запроса к API
+          if (checkedVibeIds.includes(vibeId)) {
+            return false;
+          }
           
           // Если нет в локальном состоянии и кэше, делаем запрос к API
           try {
             // Попытка получить данные с сервера
             const hasLiked = await getVibeLikeStatus(vibeId, userId);
+            
+            // Добавляем ID в список проверенных
+            if (!checkedVibeIds.includes(vibeId)) {
+              checkedVibeIds.push(vibeId);
+              try {
+                sessionStorage.setItem('checked_vibe_ids', JSON.stringify(checkedVibeIds));
+              } catch (e) {
+                console.error('[VIBE-STORE] Error updating session storage:', e);
+              }
+            }
             
             // Если лайк найден на сервере, но не в локальном состоянии, обновляем состояние
             if (hasLiked && !userLikedVibes.includes(vibeId)) {
@@ -1182,7 +1203,6 @@ export const useVibeStore = create<VibeStore>()(
               }
             }
             
-            console.log(`[VIBE-STORE] Like status from API: ${hasLiked}`);
             return hasLiked;
           } catch (error) {
             console.error('[VIBE-STORE] Error checking like status from API:', error);

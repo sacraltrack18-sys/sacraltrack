@@ -7,17 +7,6 @@ import { useUser } from "@/app/context/user";
 import { database, ID, Query } from '@/libs/AppWriteClient';
 import { useNotifications } from "@/app/hooks/useNotifications";
 
-// Добавляем логирование для отладки
-console.log('Appwrite Configuration:', {
-  endpoint: process.env.NEXT_PUBLIC_APPWRITE_URL,
-  project: process.env.NEXT_PUBLIC_ENDPOINT,
-  databaseId: process.env.NEXT_PUBLIC_DATABASE_ID,
-  royaltyCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY,
-  royaltyBalanceCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE,
-  purchasesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES,
-  withdrawalsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS
-});
-
 interface RoyaltyTransaction {
   userId: string;
   track_id: string;
@@ -182,15 +171,11 @@ export const useRoyaltyManagement = () => {
     const checkSession = async () => {
       try {
         const currentUserId = contextUser?.user?.id;
-        console.log('🔄 Checking session with context user:', contextUser?.user);
         
         if (currentUserId && !isInitialized) {
           setUserId(currentUserId);
-          console.log('👤 Setting userId:', currentUserId);
           await initializeCollections();
           setIsInitialized(true);
-        } else {
-          console.log('❌ No user in context or already initialized');
         }
       } catch (error) {
         console.error('❌ Session check failed:', error);
@@ -203,20 +188,17 @@ export const useRoyaltyManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       if (userId && isInitialized) {
-        console.log('🔄 Loading data for initialized user:', userId);
         await fetchRoyaltyData();
       }
     };
 
     loadData();
 
-    // Настраиваем автоматическое обновление данных о роялти каждые 2 минуты
     const dataUpdateInterval = setInterval(() => {
       if (userId && isInitialized) {
-        console.log('🔄 Auto-refreshing royalty data...');
-        fetchRoyaltyData(false); // Обновляем без показа индикатора загрузки
+        fetchRoyaltyData(false);
       }
-    }, 120000); // 2 минуты
+    }, 120000);
 
     return () => {
       clearInterval(dataUpdateInterval);
@@ -225,609 +207,304 @@ export const useRoyaltyManagement = () => {
 
   const syncPurchasesWithRoyalty = async () => {
     if (!userId) {
-      console.log('syncPurchasesWithRoyalty: No userId available');
       return;
     }
 
     try {
-      console.log('Начинаем синхронизацию покупок с роялти для автора:', userId);
-      
-      // 1. Получаем все покупки со статусом pending, где автором является наш пользователь
       const purchasesResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
         [
           Query.equal('author_id', userId),
-          Query.equal('status', 'pending') // Ищем только pending покупки
+          Query.equal('status', 'pending')
         ]
       );
 
-      console.log('Найдено pending покупок для автора:', purchasesResponse.documents.length);
-
-      // 2. Получаем существующие роялти для автора
       const royaltyResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
-        [Query.equal('author_id', userId)]
+        [
+          Query.equal('userId', userId)
+        ]
       );
 
-      console.log('Найдено записей роялти для автора:', royaltyResponse.documents.length);
-
-      // Создаем Set из ID покупок, для которых уже есть роялти
-      const existingRoyalties = new Set(
-        royaltyResponse.documents.map((doc) => doc.purchase_id)
-      );
-
-      // 3. Находим покупки без роялти
+      const existingPurchaseIds = royaltyResponse.documents.map(doc => doc.purchase_id);
       const newPurchases = purchasesResponse.documents.filter(
-        (purchase) => !existingRoyalties.has(purchase.$id)
+        purchase => !existingPurchaseIds.includes(purchase.$id)
       );
 
-      console.log('Найдено новых покупок для создания роялти:', newPurchases.length);
+      const royaltyCreationPromises = newPurchases.map(async (purchase) => {
+        const purchaseAmount = parseFloat(purchase.amount);
+        const royaltyAmount = (purchaseAmount * 0.8).toFixed(2);
 
-      // 4. Создаем новые записи роялти и обновляем статус покупок
-      for (const purchase of newPurchases) {
-          const royaltyAmount = (parseFloat(purchase.amount) * 0.5).toString();
-        console.log('Создаем запись роялти для покупки:', {
-          purchaseId: purchase.$id,
-          amount: purchase.amount,
-          royaltyAmount,
-          authorId: userId,
-          buyerId: purchase.user_id
-        });
-
-        // Создаем запись роялти
-        await database.createDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
-            ID.unique(),
-            {
-            user_id: purchase.user_id,
-            author_id: userId,
-              track_id: purchase.track_id,
-              amount: royaltyAmount,
-              transaction_date: purchase.purchase_date,
-              purchase_id: purchase.$id,
-              status: 'completed',
-              purchase_amount: purchase.amount,
-              royalty_percentage: '50',
-              currency: 'USD',
-            payment_method: 'stripe'
+        return database.createDocument(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
+          ID.unique(),
+          {
+            userId: userId,
+            track_id: purchase.track_id,
+            amount: royaltyAmount,
+            transaction_date: purchase.purchase_date,
+            purchase_id: purchase.$id,
+            status: 'available',
+            purchase_amount: purchase.amount,
+            royalty_percentage: '80',
+            currency: 'USD',
+            buyer_id: purchase.buyer_id,
+            buyer_name: purchase.buyer_name || 'Unknown',
+            buyer_image: purchase.buyer_image || ''
           }
         );
+      });
 
-        // Обновляем статус покупки на 'completed'
-        await database.updateDocument(
+      if (royaltyCreationPromises.length > 0) {
+        await Promise.all(royaltyCreationPromises);
+      }
+
+      const purchaseUpdatePromises = newPurchases.map(purchase => 
+        database.updateDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
           process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
           purchase.$id,
           {
-            status: 'completed'
+            status: 'processed'
           }
-        );
+        )
+      );
 
-        console.log('✅ Обновлен статус покупки на completed:', purchase.$id);
+      if (purchaseUpdatePromises.length > 0) {
+        await Promise.all(purchaseUpdatePromises);
       }
 
-      // 5. Обновляем баланс автора
-      if (newPurchases.length > 0) {
-        const balanceResponse = await database.listDocuments(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-          [Query.equal('author_id', userId)]
-        );
-
-        const newRoyaltyTotal = newPurchases.reduce((sum, purchase) => {
-          return sum + (parseFloat(purchase.amount) * 0.5);
-        }, 0);
-
-        if (balanceResponse.documents.length > 0) {
-          const balanceDoc = balanceResponse.documents[0];
-          const currentBalance = parseFloat(balanceDoc.balance || '0');
-          const currentTotalEarned = parseFloat(balanceDoc.total_earned || '0');
-
-          await database.updateDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-            balanceDoc.$id,
-            {
-              balance: (currentBalance + newRoyaltyTotal).toString(),
-              total_earned: (currentTotalEarned + newRoyaltyTotal).toString(),
-              last_updated: new Date().toISOString()
-            }
-          );
-        }
-      }
-
-      console.log('Синхронизация завершена успешно');
-
+      return royaltyResponse.documents.length + newPurchases.length;
     } catch (error) {
-      console.error('Ошибка при синхронизации покупок с роялти:', error);
-      throw error;
+      console.error('Error synchronizing purchases with royalty:', error);
+      return 0;
     }
   };
 
   const fetchRoyaltyData = async (showLoading = true) => {
-    if (!userId) {
-      console.log('❌ No userId provided, skipping fetchRoyaltyData');
-      return;
-    }
-    
-    console.log('🔄 Starting fetchRoyaltyData for userId:', userId);
-    console.log('----------------------------------------');
+    if (!userId) return;
     
     if (showLoading) {
-    setLoading(true);
+      setLoading(true);
     }
-    setError(null);
     
     try {
-      // 0. Очищаем дублирующие записи баланса
-      console.log('0️⃣ Cleaning up duplicate balance records...');
-      const allBalanceRecords = await database.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-        [
-          Query.equal('author_id', userId),
-          Query.orderDesc('total_earned')
-        ]
-      );
-
-      console.log('📊 Found balance records:', allBalanceRecords.documents.length);
-
-      if (allBalanceRecords.documents.length > 1) {
-        console.log('⚠️ Found duplicate records, cleaning up...');
-        const mainRecord = allBalanceRecords.documents[0];
-        console.log('✅ Keeping main record:', {
-          id: mainRecord.$id,
-          totalEarned: mainRecord.total_earned,
-          balance: mainRecord.balance
-        });
-
-        // Удаляем все дубликаты
-        for (let i = 1; i < allBalanceRecords.documents.length; i++) {
-          const duplicateRecord = allBalanceRecords.documents[i];
-          console.log('🗑️ Deleting duplicate record:', {
-            id: duplicateRecord.$id,
-            totalEarned: duplicateRecord.total_earned,
-            balance: duplicateRecord.balance
-          });
-
-          try {
-            await database.deleteDocument(
-              process.env.NEXT_PUBLIC_DATABASE_ID!,
-              process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-              duplicateRecord.$id
-            );
-          } catch (error) {
-            console.error('❌ Error deleting duplicate record:', error);
-          }
-        }
-      }
-
-      // 1. Получаем все завершенные покупки
-      console.log('1️⃣ Fetching completed and pending purchases...');
-      const purchasesResponse = await database.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_PURCHASES!,
-        [
-          Query.equal('author_id', userId),
-          Query.equal('status', ['completed', 'pending'])
-        ]
-      );
-
-      console.log('📦 Found completed and pending purchases:', {
-        count: purchasesResponse.documents.length,
-        purchases: purchasesResponse.documents.map(p => ({
-          id: p.$id,
-          amount: p.amount,
-          buyer_id: p.user_id,
-          track_id: p.track_id,
-          date: p.purchase_date
-        }))
-      });
-
-      // 2. Получаем все записи роялти
-      console.log('2️⃣ Fetching royalty records where author_id =', userId);
+      const royaltyCount = await syncPurchasesWithRoyalty();
+      
       const royaltyResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
-        [Query.equal('author_id', userId)]
-      );
-
-      console.log('💰 Found royalty records:', {
-        count: royaltyResponse.documents.length,
-        royalties: royaltyResponse.documents.map(r => ({
-          id: r.$id,
-          amount: r.amount,
-          purchase_id: r.purchase_id,
-          date: r.transaction_date
-        }))
-      });
-
-      // 3. Синхронизируем покупки с роялти
-      console.log('3️⃣ Starting purchase-royalty synchronization');
-      await syncPurchasesWithRoyalty();
-
-      // 4. Получаем актуальные записи роялти после синхронизации
-      console.log('4️⃣ Fetching updated royalty records after sync');
-      const updatedRoyaltyResponse = await database.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
         [
-          Query.equal('author_id', userId),
+          Query.equal('userId', userId),
           Query.orderDesc('transaction_date')
         ]
       );
-
-      console.log('📊 Updated royalty records after sync:', {
-        count: updatedRoyaltyResponse.documents.length,
-        difference: updatedRoyaltyResponse.documents.length - royaltyResponse.documents.length
+      
+      let totalEarned = 0;
+      let availableBalance = 0;
+      let pendingAmount = 0;
+      
+      royaltyResponse.documents.forEach(doc => {
+        const amount = parseFloat(doc.amount);
+        totalEarned += amount;
+        
+        if (doc.status === 'available') {
+          availableBalance += amount;
+        } else if (doc.status === 'pending') {
+          pendingAmount += amount;
+        }
       });
-
-      // 5. Подсчитываем общую сумму роялти
-      const totalEarned = updatedRoyaltyResponse.documents.reduce((sum, doc) => {
-        return sum + parseFloat(doc.amount || '0');
-      }, 0);
-
-      console.log('5️⃣ Calculated total earnings:', {
-        totalEarned,
-        averagePerTransaction: totalEarned / updatedRoyaltyResponse.documents.length
-      });
-
-      // 6. Получаем выводы средств
-      console.log('6️⃣ Fetching withdrawals where user_id =', userId);
+      
       const withdrawalsResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS!,
-        [Query.equal('userId', userId)]
+        [
+          Query.equal('userId', userId),
+          Query.orderDesc('withdrawal_date')
+        ]
       );
       
-      console.log('📊 All withdrawals:', withdrawalsResponse.documents.map(doc => ({
+      let withdrawnAmount = 0;
+      let pendingWithdrawals = 0;
+      
+      withdrawalsResponse.documents.forEach(doc => {
+        const amount = parseFloat(doc.amount);
+        if (doc.status === 'approved') {
+          withdrawnAmount += amount;
+        } else if (doc.status === 'pending') {
+          pendingWithdrawals += amount;
+        }
+      });
+      
+      const withdrawalHistory = withdrawalsResponse.documents.map(doc => ({
         id: doc.$id,
         amount: doc.amount,
         status: doc.status,
-        method: doc.method || doc.withdrawal_method
-      })));
-
-      const totalWithdrawn = withdrawalsResponse.documents.reduce((sum, doc) => {
-        if (doc.status === 'completed' || doc.status === 'approved') {
-          console.log(`📊 Counting completed withdrawal: ${doc.$id}, amount: ${doc.amount}, status: ${doc.status}`);
-          return sum + parseFloat(doc.amount || '0');
-        }
-        return sum;
-      }, 0);
-
-      const pendingWithdrawals = withdrawalsResponse.documents.reduce((sum, doc) => {
-        if (doc.status === 'pending') {
-          console.log(`📊 Counting pending withdrawal: ${doc.$id}, amount: ${doc.amount}, status: ${doc.status}`);
-          return sum + parseFloat(doc.amount || '0');
-        }
-        return sum;
-      }, 0);
-
-      console.log('💳 Withdrawal summary:', {
-        total: withdrawalsResponse.documents.length,
-        completed: withdrawalsResponse.documents.filter(w => w.status === 'completed').length,
-        approved: withdrawalsResponse.documents.filter(w => w.status === 'approved').length,
-        pending: withdrawalsResponse.documents.filter(w => w.status === 'pending').length,
-        totalWithdrawn,
-        pendingWithdrawals
-      });
-
-      // 7. Получаем или создаем документ баланса
-      console.log('7️⃣ Checking balance document where author_id =', userId);
-      const balanceResponse = await database.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-        [Query.equal('author_id', userId)]
-      );
-
-      let balanceDoc;
-      const availableBalance = totalEarned - totalWithdrawn - pendingWithdrawals;
-
-      console.log('💰 Balance calculation:', {
-        totalEarned,
-        totalWithdrawn,
-        pendingWithdrawals,
-        availableBalance
-      });
-
-      // Protect balance from incorrect recalculation when there are approved withdrawals
-      // This ensures the withdrawals are properly accounted for
-      const hasApprovedWithdrawals = withdrawalsResponse.documents.some(w => w.status === 'approved');
+        date: doc.withdrawal_date,
+        method: doc.withdrawal_method,
+        processing_fee: doc.processing_fee || '0',
+        currency: doc.currency || 'USD',
+        withdrawal_details: doc.withdrawal_details || {}
+      }));
       
-      if (balanceResponse.documents.length > 0) {
-        balanceDoc = balanceResponse.documents[0];
-        console.log('📝 Existing balance document:', {
-          id: balanceDoc.$id,
-          currentBalance: balanceDoc.balance,
-          calculatedBalance: availableBalance.toString(),
-          currentTotalWithdrawn: balanceDoc.total_withdrawn,
-          currentPendingWithdrawals: balanceDoc.pending_withdrawals
-        });
-        
-        if (hasApprovedWithdrawals) {
-          console.log('⚠️ Found approved withdrawals, updating document carefully');
-          
-          // Update document with accurate withdrawal and pending information
-          await database.updateDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-            balanceDoc.$id,
-            {
-              total_earned: totalEarned.toString(),
-              total_withdrawn: totalWithdrawn.toString(),
-              pending_withdrawals: pendingWithdrawals.toString(),
-              balance: availableBalance.toString(),
-              last_updated: new Date().toISOString()
-            }
-          );
-          
-          console.log('🛡️ Balance updated with proper accounting for approved withdrawals');
-          
-          // Verify update was correct
-          const verifyBalanceResponse = await database.getDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-            balanceDoc.$id
-          );
-          
-          console.log('✅ Verification of balance after update:', {
-            id: verifyBalanceResponse.$id,
-            balance: verifyBalanceResponse.balance,
-            totalWithdrawn: verifyBalanceResponse.total_withdrawn,
-            pendingWithdrawals: verifyBalanceResponse.pending_withdrawals
-          });
-        } else {
-          console.log('📝 No approved withdrawals, updating document normally');
-          
-          await database.updateDocument(
-            process.env.NEXT_PUBLIC_DATABASE_ID!,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-            balanceDoc.$id,
-            {
-              total_earned: totalEarned.toString(),
-              balance: availableBalance.toString(),
-              total_withdrawn: totalWithdrawn.toString(),
-              pending_withdrawals: pendingWithdrawals.toString(),
-              last_updated: new Date().toISOString()
-            }
-          );
-        }
-      } else {
-        console.log('📝 Creating new balance document');
-        balanceDoc = await database.createDocument(
+      const balanceAfterWithdrawals = availableBalance - pendingWithdrawals;
+      
+      let balanceDocument;
+      try {
+        const balanceResponse = await database.listDocuments(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
           process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-          ID.unique(),
-          {
-            author_id: userId,
-            total_earned: totalEarned.toString(),
-            balance: availableBalance.toString(),
-            total_withdrawn: totalWithdrawn.toString(),
-            pending_withdrawals: pendingWithdrawals.toString(),
-            last_updated: new Date().toISOString(),
-            currency: 'USD'
-          }
+          [Query.equal('userId', userId)]
         );
-        console.log('✅ New balance document created:', balanceDoc.$id);
-      }
-
-      // 8. Обрабатываем информацию о покупателях
-      console.log('8️⃣ Processing buyer information');
-      const transactions = await Promise.all(
-        updatedRoyaltyResponse.documents.map(async (doc) => {
-          let buyerInfo = { name: '', image: '/images/placeholder-user.jpg' };
+        
+        if (balanceResponse.documents.length > 0) {
+          balanceDocument = balanceResponse.documents[0];
           
-          try {
-            if (doc.user_id) {
-              console.log('🔍 Looking up buyer profile for user_id:', doc.user_id);
-              const buyerId = doc.user_id.toString();
-              
-              try {
-                const buyerProfile = await database.listDocuments(
-                  process.env.NEXT_PUBLIC_DATABASE_ID!,
-                  process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                  [Query.equal('user_id', buyerId)]
-                );
-                
-                if (buyerProfile.documents.length > 0) {
-                  const profile = buyerProfile.documents[0];
-                  buyerInfo = {
-                    name: profile.name || profile.username || profile.displayName || 'User',
-                    image: profile.image || '/images/placeholder-user.jpg'
-                  };
-                  console.log('👤 Found buyer profile by user_id:', buyerInfo);
-              } else {
-                  const alternativeProfile = await database.listDocuments(
-                    process.env.NEXT_PUBLIC_DATABASE_ID!,
-                    process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                    [Query.equal('$id', buyerId)]
-                  );
-                  
-                  if (alternativeProfile.documents.length > 0) {
-                    const profile = alternativeProfile.documents[0];
-                    buyerInfo = {
-                      name: profile.name || profile.username || profile.displayName || 'User',
-                      image: profile.image || '/images/placeholder-user.jpg'
-                    };
-                    console.log('👤 Found buyer profile by $id:', buyerInfo);
-                  } else {
-                    console.log('⚠️ No profile found for user_id:', doc.user_id);
-                    
-                    try {
-                      const userDoc = await database.getDocument(
-                        process.env.NEXT_PUBLIC_DATABASE_ID!,
-                        process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                        buyerId
-                      );
-                      
-                      if (userDoc) {
-                        buyerInfo = {
-                          name: userDoc.name || userDoc.username || userDoc.displayName || 'User',
-                          image: userDoc.image || '/images/placeholder-user.jpg'
-                        };
-                        console.log('👤 Found user document directly:', buyerInfo);
-                      }
-                    } catch (userError) {
-                      console.error('❌ Error fetching user document:', userError);
-                    }
+          const approvedWithdrawals = withdrawalsResponse.documents.filter(
+            doc => doc.status === 'approved' && doc.withdrawal_date > balanceDocument.last_updated
+          );
+          
+          if (approvedWithdrawals.length > 0) {
+            await database.updateDocument(
+              process.env.NEXT_PUBLIC_DATABASE_ID!,
+              process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
+              balanceDocument.$id,
+              {
+                available_balance: balanceAfterWithdrawals.toFixed(2),
+                total_earned: totalEarned.toFixed(2),
+                pending_withdrawals: pendingWithdrawals.toFixed(2),
+                total_withdrawn: withdrawnAmount.toFixed(2),
+                last_updated: new Date().toISOString()
               }
-            }
-          } catch (error) {
-            console.error('❌ Error fetching buyer profile:', error);
+            );
+          } else {
+            await database.updateDocument(
+              process.env.NEXT_PUBLIC_DATABASE_ID!,
+              process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
+              balanceDocument.$id,
+              {
+                available_balance: balanceAfterWithdrawals.toFixed(2),
+                total_earned: totalEarned.toFixed(2),
+                pending_withdrawals: pendingWithdrawals.toFixed(2),
+                total_withdrawn: withdrawnAmount.toFixed(2),
+                last_updated: new Date().toISOString()
               }
-            } else {
-              console.log('⚠️ No user_id found in the royalty record:', doc.$id);
-            }
-          } catch (error) {
-            console.error('❌ Error processing buyer information:', error);
+            );
           }
-
-          return {
-            userId: doc.userId,
-            track_id: doc.track_id,
-            amount: doc.amount,
-            transaction_date: doc.transaction_date,
-            purchase_id: doc.purchase_id,
-            status: doc.status || 'completed',
-            purchase_amount: doc.purchase_amount || doc.amount,
-            royalty_percentage: doc.royalty_percentage || '50',
-            currency: doc.currency || 'USD',
-            buyer_id: doc.user_id || 'unknown_user',
-            buyer_name: buyerInfo.name || 'User',
-            buyer_image: buyerInfo.image
-          } as RoyaltyTransaction;
-        })
-      );
-
-      console.log('9️⃣ Final transaction summary:', {
-        totalTransactions: transactions.length,
-        uniqueTracks: new Set(transactions.map(t => t.track_id)).size,
-        uniqueBuyers: new Set(transactions.map(t => t.buyer_id)).size,
-        totalAmount: transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)
-      });
-
-      // 9. Обновляем состояние компонента
-      setRoyaltyData({
-        balance: availableBalance,
-        totalEarned: totalEarned,
-        pendingAmount: pendingWithdrawals,
-        withdrawnAmount: totalWithdrawn,
-        transactions,
-        tracksSold: new Set(transactions.map(t => t.track_id)).size,
-        pendingWithdrawals: pendingWithdrawals,
-        withdrawalHistory: withdrawalsResponse.documents.map(doc => ({
-          id: doc.$id,
-          amount: doc.amount,
-          status: doc.status,
-          date: doc.date || doc.createdAt,
-          method: doc.method || doc.withdrawal_method,
-          processing_fee: doc.processing_fee || '0',
-          currency: doc.currency || 'USD',
-          withdrawal_details: doc.withdrawal_details || {}
-        }))
-      });
-
-      console.log('🎉 Final royalty data state:', {
-        balance: availableBalance,
-        totalEarned,
-        pendingWithdrawals,
-        totalWithdrawn,
-        transactionsCount: transactions.length,
-        uniqueTracksCount: new Set(transactions.map(t => t.track_id)).size
-      });
-      console.log('----------------------------------------');
-
-      // Обновляем timestamp последнего обновления
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('❌ Error in fetchRoyaltyData:', error);
-      setError('Failed to fetch royalty data. Please try again later.');
-    } finally {
-      if (showLoading) {
-      setLoading(false);
+        } else {
+          balanceDocument = await database.createDocument(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
+            ID.unique(),
+            {
+              userId: userId,
+              available_balance: balanceAfterWithdrawals.toFixed(2),
+              total_earned: totalEarned.toFixed(2),
+              pending_withdrawals: pendingWithdrawals.toFixed(2),
+              total_withdrawn: withdrawnAmount.toFixed(2),
+              currency: 'USD',
+              last_updated: new Date().toISOString()
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Error updating royalty balance:', error);
       }
+      
+      const transactionSummary = {
+        balance: balanceAfterWithdrawals,
+        totalEarned: totalEarned,
+        pendingAmount: pendingAmount,
+        withdrawnAmount: withdrawnAmount,
+        transactions: royaltyResponse.documents.map(doc => ({
+          userId: doc.userId,
+          track_id: doc.track_id,
+          amount: doc.amount,
+          transaction_date: doc.transaction_date,
+          purchase_id: doc.purchase_id,
+          status: doc.status || 'available',
+          purchase_amount: doc.purchase_amount || doc.amount,
+          royalty_percentage: doc.royalty_percentage || '80',
+          currency: doc.currency || 'USD',
+          buyer_id: doc.buyer_id || 'unknown_user',
+          buyer_name: doc.buyer_name || 'User',
+          buyer_image: doc.buyer_image || '/images/placeholder-user.jpg'
+        })) as RoyaltyTransaction[],
+        tracksSold: royaltyResponse.documents.length,
+        pendingWithdrawals: pendingWithdrawals,
+        withdrawalHistory: withdrawalHistory
+      };
+      
+      setRoyaltyData(transactionSummary);
+      setLastUpdated(new Date());
+      
+    } catch (error) {
+      console.error('Error fetching royalty data:', error);
+      setError('Failed to fetch royalty data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Валидация запроса на вывод средств
   const validateWithdrawal = (amount: number, withdrawalMethod: string, details: WithdrawalDetails) => {
-    console.log('🔍 Validating withdrawal request:', { amount, withdrawalMethod });
-    
     if (amount <= 0) {
-      console.error('❌ Invalid amount:', amount);
       throw new Error('Withdrawal amount must be greater than 0');
     }
     
     if (amount < 1) {
-      console.error('❌ Amount below minimum:', amount);
       throw new Error('Minimum withdrawal amount is $1.00');
     }
     
     if (!withdrawalMethod) {
-      console.error('❌ No withdrawal method specified');
       throw new Error('Please select a withdrawal method');
     }
     
-    // Method-specific validations with improved error messages
     switch (withdrawalMethod) {
       case 'bank_transfer':
         if (!details.bank_transfer) {
-          console.error('❌ Missing bank_transfer details object');
           throw new Error('Bank transfer details are required');
         }
         if (!details.bank_transfer.bank_name) {
-          console.error('❌ Missing bank name in bank_transfer details');
           throw new Error('Bank name is required for bank transfers');
         }
         if (!details.bank_transfer.account_number) {
-          console.error('❌ Missing account number in bank_transfer details');
           throw new Error('Account number is required for bank transfers');
         }
         if (!details.bank_transfer.account_holder) {
-          console.error('❌ Missing account holder in bank_transfer details');
           throw new Error('Account holder name is required for bank transfers');
         }
-        console.log('✅ Bank transfer details validation passed');
         break;
         
       case 'paypal':
         if (!details.paypal || !details.paypal.email) {
-          console.error('❌ Missing PayPal email in details');
           throw new Error('PayPal email is required');
         }
         if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(details.paypal.email)) {
-          console.error('❌ Invalid PayPal email format:', details.paypal.email);
           throw new Error('Please enter a valid PayPal email address');
         }
-        console.log('✅ PayPal details validation passed');
         break;
         
       case 'card':
       case 'visa_card':
         if (!details.visa_card) {
-          console.error('❌ Missing visa_card details object');
           throw new Error('Card details are required');
         }
         
         const cardNumber = details.visa_card.card_number?.replace(/\s/g, '');
         if (!cardNumber) {
-          console.error('❌ Missing card number in visa_card details');
           throw new Error('Card number is required');
         }
         if (!/^\d{16}$/.test(cardNumber)) {
-          console.error('❌ Invalid card number format:', cardNumber);
           throw new Error('Card number must contain 16 digits');
         }
         
         if (!details.visa_card.expiry_date) {
-          console.error('❌ Missing expiry date in visa_card details');
           throw new Error('Expiry date is required');
         }
         if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(details.visa_card.expiry_date)) {
-          console.error('❌ Invalid expiry date format:', details.visa_card.expiry_date);
           throw new Error('Expiry date must be in MM/YY format');
         }
         
@@ -835,56 +512,42 @@ export const useRoyaltyManagement = () => {
         const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
         const currentDate = new Date();
         if (expiryDate < currentDate) {
-          console.error('❌ Card expired:', {expiryDate, currentDate});
           throw new Error('The card has expired');
         }
         
         if (!details.visa_card.cvv) {
-          console.error('❌ Missing CVV in visa_card details');
           throw new Error('CVV is required');
         }
         if (!/^\d{3,4}$/.test(details.visa_card.cvv)) {
-          console.error('❌ Invalid CVV format:', details.visa_card.cvv);
           throw new Error('CVV must be 3 or 4 digits');
         }
         
         if (!details.visa_card.card_holder) {
-          console.error('❌ Missing card holder name in visa_card details');
           throw new Error('Cardholder name is required');
         }
         if (details.visa_card.card_holder.length < 3) {
-          console.error('❌ Card holder name too short:', details.visa_card.card_holder);
           throw new Error('Please enter the full name as shown on the card');
         }
         
-        console.log('✅ Visa card details validation passed');
         break;
         
       case 'crypto':
         if (!details.crypto) {
-          console.error('❌ Missing crypto details object');
           throw new Error('Cryptocurrency details are required');
         }
         if (!details.crypto.wallet_address) {
-          console.error('❌ Missing wallet address in crypto details');
           throw new Error('Wallet address is required');
         }
         if (!details.crypto.network) {
-          console.error('❌ Missing network in crypto details');
           throw new Error('Cryptocurrency network is required');
         }
-        console.log('✅ Crypto details validation passed');
         break;
         
       default:
-        console.error('❌ Invalid withdrawal method:', withdrawalMethod);
         throw new Error(`Invalid withdrawal method: ${withdrawalMethod}`);
     }
-    
-    console.log('✅ All validation checks passed');
   };
 
-  // Обновляем функцию createWithdrawalNotification
   const createWithdrawalNotification = async (
     status: 'pending' | 'completed' | 'failed',
     amount: string,
@@ -900,7 +563,6 @@ export const useRoyaltyManagement = () => {
         amount: amount
       });
 
-      // Update local state for immediate UI feedback
       const notification: WithdrawalNotification = {
         type: 'withdrawal',
         status,
@@ -919,7 +581,6 @@ export const useRoyaltyManagement = () => {
     createWithdrawalNotification('pending', amount, method, `Вы запросили вывод на сумму ${amount} с использованием метода ${method}`);
   };
 
-  // Обновляем функцию requestWithdrawal для более точного обновления баланса
   const requestWithdrawal = async (
     amount: number,
     withdrawalMethod: string,
@@ -928,17 +589,8 @@ export const useRoyaltyManagement = () => {
     if (!userId) throw new Error('User not authenticated');
     
     try {
-      console.log('🔄 Processing withdrawal request:', {
-        amount,
-        method: withdrawalMethod,
-        userId,
-        details: JSON.stringify(details)
-      });
-
-      // 1. Валидация
       validateWithdrawal(amount, withdrawalMethod, details);
 
-      // 2. Проверяем баланс
       console.log('1️⃣ Checking balance...');
       const balanceDoc = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -959,12 +611,10 @@ export const useRoyaltyManagement = () => {
         throw new Error('Insufficient balance');
       }
 
-      // 3. Создаем запись о выводе средств
       console.log('2️⃣ Creating withdrawal record...');
       const withdrawalId = ID.unique();
       const withdrawalDate = new Date().toISOString();
       
-      // Подготовка деталей для сохранения в правильном формате в зависимости от метода
       let formattedDetails = {};
       
       switch (withdrawalMethod) {
@@ -996,7 +646,6 @@ export const useRoyaltyManagement = () => {
         details: JSON.stringify(formattedDetails)
       });
       
-      // Создаем документ вывода средств с детальными данными
       const withdrawalDoc = await database.createDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS!,
@@ -1016,7 +665,6 @@ export const useRoyaltyManagement = () => {
 
       console.log('✅ Withdrawal document created:', withdrawalDoc.$id);
 
-      // 4. Обновляем баланс пользователя
       console.log('3️⃣ Updating user balance...');
       const pendingWithdrawals = parseFloat(balanceDoc.documents[0].pending_withdrawals || '0');
       const newAvailableBalance = currentBalance - amount;
@@ -1030,7 +678,6 @@ export const useRoyaltyManagement = () => {
         newPendingWithdrawals
       });
       
-      // Обновляем баланс пользователя
       await database.updateDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
@@ -1047,7 +694,6 @@ export const useRoyaltyManagement = () => {
         pending_withdrawals: newPendingWithdrawals
       });
 
-      // 5. Создаем уведомление
       console.log('4️⃣ Creating notification...');
       await createWithdrawalNotification(
         'pending',
@@ -1056,17 +702,15 @@ export const useRoyaltyManagement = () => {
         `Your withdrawal request of $${amount.toFixed(2)} is being processed.`
       );
 
-      // 6. Запускаем процесс проверки статуса
       console.log('5️⃣ Starting status check...');
       startWithdrawalStatusCheck(withdrawalId);
 
-      // 7. Немедленно обновляем интерфейс, добавляя запись в историю выводов и обновляя баланс
       console.log('6️⃣ Updating UI...');
       setRoyaltyData(prev => ({
         ...prev,
-        balance: newAvailableBalance, // Обновляем доступный баланс
-        pendingWithdrawals: newPendingWithdrawals, // Обновляем сумму ожидающих выводов
-        pendingAmount: newPendingWithdrawals, // Обновляем pendingAmount для совместимости
+        balance: newAvailableBalance,
+        pendingWithdrawals: newPendingWithdrawals,
+        pendingAmount: newPendingWithdrawals,
         withdrawalHistory: [
           {
             id: withdrawalId,
@@ -1082,10 +726,8 @@ export const useRoyaltyManagement = () => {
         ]
       }));
 
-      // 8. Обновляем данные после короткой задержки, чтобы дать базе данных время на обновление
       console.log('7️⃣ Scheduling data refresh...');
       setTimeout(() => {
-        // Выполняем полное обновление данных, включая новый вывод
         fetchRoyaltyData(true);
         console.log('✅ Delayed data refresh completed');
       }, 1500);
@@ -1094,7 +736,6 @@ export const useRoyaltyManagement = () => {
 
       notifyWithdrawalRequest(amount.toString(), withdrawalMethod, details);
 
-      // Обновляем timestamp последнего обновления
       setLastUpdated(new Date());
       
       return {
@@ -1115,33 +756,28 @@ export const useRoyaltyManagement = () => {
     }
   };
 
-  // Обновляем функцию startWithdrawalStatusCheck
   const startWithdrawalStatusCheck = async (withdrawalId: string) => {
     const checkStatus = async () => {
       try {
         const withdrawal = await database.getDocument(
           process.env.NEXT_PUBLIC_DATABASE_ID!,
-          '67d3f02300165c008416', // WITHDRAWALS collection
+          '67d3f02300165c008416',
           withdrawalId
         );
 
         if (withdrawal.status === 'completed' || withdrawal.status === 'approved') {
           console.log(`✅ Withdrawal ${withdrawalId} status is ${withdrawal.status}`);
           
-          // Находим существующую запись в истории выводов
           const historyResponse = await database.listDocuments(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
-            '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+            '67d3ed53003db77d14cf',
             [Query.equal('withdrawals', withdrawalId)]
           );
           
-          // Обновляем или создаем запись в истории выводов
           if (historyResponse.documents.length > 0) {
-            // Обновляем существующую запись
-            console.log(`🔄 Updating existing history record for withdrawal ${withdrawalId}`);
             await database.updateDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
-              '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+              '67d3ed53003db77d14cf',
               historyResponse.documents[0].$id,
               {
                 status: 'completed',
@@ -1149,11 +785,9 @@ export const useRoyaltyManagement = () => {
               }
             );
           } else {
-            // Создаем новую запись
-            console.log(`📝 Creating new history record for completed withdrawal ${withdrawalId}`);
             await database.createDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
-              '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+              '67d3ed53003db77d14cf',
               ID.unique(),
               {
                 userId: userId,
@@ -1175,11 +809,8 @@ export const useRoyaltyManagement = () => {
             `Your withdrawal of $${parseFloat(withdrawal.amount).toFixed(2)} has been completed!`
           );
           
-          // CRITICAL: Don't call fetchRoyaltyData for completed/approved withdrawals
-          // as it will recalculate the balance incorrectly
           console.log('🛡️ Skipping fetchRoyaltyData to protect balance for approved withdrawal');
           
-          // Just update the UI state
           setRoyaltyData(prev => ({
             ...prev,
             withdrawalHistory: prev.withdrawalHistory.map(item => 
@@ -1189,7 +820,6 @@ export const useRoyaltyManagement = () => {
             )
           }));
           
-          // Обновляем timestamp последнего обновления
           setLastUpdated(new Date());
           
           return;
@@ -1198,20 +828,16 @@ export const useRoyaltyManagement = () => {
         if (withdrawal.status === 'failed' || withdrawal.status === 'rejected') {
           console.log(`❌ Withdrawal ${withdrawalId} status is ${withdrawal.status}`);
           
-          // Находим существующую запись в истории выводов
           const historyResponse = await database.listDocuments(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
-            '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+            '67d3ed53003db77d14cf',
             [Query.equal('withdrawals', withdrawalId)]
           );
           
-          // Обновляем или создаем запись в истории выводов
           if (historyResponse.documents.length > 0) {
-            // Обновляем существующую запись
-            console.log(`🔄 Updating existing history record for failed withdrawal ${withdrawalId}`);
             await database.updateDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
-              '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+              '67d3ed53003db77d14cf',
               historyResponse.documents[0].$id,
               {
                 status: 'failed',
@@ -1219,11 +845,9 @@ export const useRoyaltyManagement = () => {
               }
             );
           } else {
-            // Создаем новую запись
-            console.log(`📝 Creating new history record for failed withdrawal ${withdrawalId}`);
             await database.createDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
-              '67d3ed53003db77d14cf', // WITHDRAWAL_HISTORY collection
+              '67d3ed53003db77d14cf',
               ID.unique(),
               {
                 userId: userId,
@@ -1238,7 +862,6 @@ export const useRoyaltyManagement = () => {
             );
           }
           
-          // For failed withdrawals, we do need to update the balance
           if (userId) {
           const balanceDoc = await database.listDocuments(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -1273,25 +896,20 @@ export const useRoyaltyManagement = () => {
             `Your withdrawal request of $${parseFloat(withdrawal.amount).toFixed(2)} has failed. The funds have been returned to your balance.`
           );
 
-          // Here fetchRoyaltyData is fine because we want to refresh
-          // after returning funds to balance for rejected withdrawals
           console.log('🔄 Refreshing royalty data after failed withdrawal');
           await fetchRoyaltyData();
           
-          // Обновляем timestamp последнего обновления
           setLastUpdated(new Date());
           
           return;
         }
 
-        // If it's still pending, we'll check again after a delay
-        setTimeout(checkStatus, 30000); // Check every 30 seconds
+        setTimeout(checkStatus, 30000);
       } catch (error) {
         console.error('❌ Error checking withdrawal status:', error);
       }
     };
     
-    // Start checking immediately
     checkStatus();
   };
 
@@ -1301,58 +919,30 @@ export const useRoyaltyManagement = () => {
 
   const initializeCollections = async () => {
     if (!userId) {
-      console.log('initializeCollections: Нет userId');
       return;
     }
 
     try {
-      console.log('🔄 Инициализация коллекций для пользователя:', userId);
-      
-      // 1. Проверяем существование коллекций
-      try {
-        await database.listDocuments(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-          []
-        );
-        console.log('✅ Коллекция баланса роялти существует');
-      } catch (error) {
-        console.error('❌ Ошибка при проверке коллекции баланса:', error);
-        throw new Error('Коллекция баланса роялти не найдена');
-      }
+      await database.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
+        []
+      );
 
-      // 2. Получаем все записи баланса для пользователя
-      console.log('🔍 Проверяем записи баланса для пользователя:', userId);
       const balanceResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
         [
           Query.equal('author_id', userId),
-          Query.orderDesc('total_earned') // Сортируем по убыванию total_earned
+          Query.orderDesc('total_earned')
         ]
       );
 
-      console.log('📊 Найдено записей баланса:', balanceResponse.documents.length);
-
       if (balanceResponse.documents.length > 1) {
-        console.log('⚠️ Обнаружены дублирующие записи. Выполняем очистку...');
-        
-        // Оставляем запись с наибольшим total_earned
         const mainRecord = balanceResponse.documents[0];
-        console.log('✅ Основная запись:', {
-          id: mainRecord.$id,
-          totalEarned: mainRecord.total_earned,
-          balance: mainRecord.balance
-        });
-
-        // Удаляем все остальные записи
+        
         for (let i = 1; i < balanceResponse.documents.length; i++) {
           const duplicateRecord = balanceResponse.documents[i];
-          console.log('🗑️ Удаляем дублирующую запись:', {
-            id: duplicateRecord.$id,
-            totalEarned: duplicateRecord.total_earned,
-            balance: duplicateRecord.balance
-          });
           
           try {
             await database.deleteDocument(
@@ -1361,12 +951,11 @@ export const useRoyaltyManagement = () => {
               duplicateRecord.$id
             );
           } catch (error) {
-            console.error('❌ Ошибка при удалении дублирующей записи:', error);
+            console.error('❌ Error deleting duplicate record:', error);
           }
         }
       }
 
-      // 3. Создаем новую запись, если нет ни одной
       if (balanceResponse.documents.length === 0) {
         console.log('📝 Создаем новую запись баланса');
         try {
@@ -1384,65 +973,39 @@ export const useRoyaltyManagement = () => {
             total_withdrawn: '0'
             }
           );
-          console.log('✅ Создана новая запись баланса:', newBalanceDoc.$id);
         } catch (error) {
           console.error('❌ Ошибка при создании записи баланса:', error);
           throw new Error('Не удалось создать запись баланса');
         }
       }
 
-      // 4. Синхронизируем существующие покупки с роялти
-      console.log('🔄 Синхронизация покупок с роялти...');
       await syncPurchasesWithRoyalty();
-
-      // 5. Обновляем данные
-      console.log('🔄 Обновление данных...');
       await fetchRoyaltyData();
 
-      console.log('✅ Инициализация завершена успешно');
-
-      } catch (error) {
+    } catch (error) {
       console.error('❌ Ошибка при инициализации коллекций:', error);
       setError('Не удалось инициализировать коллекции. Пожалуйста, попробуйте позже.');
       throw error;
-      }
-    };
+    }
+  };
 
   const getRoyaltyBalance = async (authorId: string): Promise<RoyaltyBalance> => {
     try {
-      console.log('🔄 Getting royalty balance for authorId:', authorId);
-      
       if (!authorId) {
-        console.log('❌ No authorId provided');
         throw new Error('Author ID is required');
       }
 
-      // Сначала пробуем получить баланс из записи в базе данных
-      console.log('1️⃣ Trying to fetch balance document directly...');
       const balanceResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
         [Query.equal('author_id', authorId)]
       );
 
-      // Если нашли запись баланса, используем её значения
       if (balanceResponse.documents.length > 0) {
         const balanceDoc = balanceResponse.documents[0];
-        console.log('✅ Found balance document:', {
-          id: balanceDoc.$id,
-          balance: balanceDoc.balance,
-          totalEarned: balanceDoc.total_earned
-        });
-
         const totalEarned = parseFloat(balanceDoc.total_earned || '0');
         const availableBalance = parseFloat(balanceDoc.balance || '0');
 
-        console.log('💰 Directly using balance from document:', {
-          totalEarned,
-          availableBalance
-        });
-
-        // Обновляем состояние компонента с новыми данными о балансе
         setRoyaltyData(prev => ({
           ...prev,
           balance: availableBalance,
@@ -1455,11 +1018,6 @@ export const useRoyaltyManagement = () => {
         };
       }
 
-      // Если запись баланса не найдена, рассчитываем баланс на основе транзакций
-      console.log('⚠️ No balance document found, calculating from transactions...');
-
-      // 1. Получаем все завершенные записи роялти для автора
-      console.log('2️⃣ Fetching completed royalty records...');
       const royaltyResponse = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY!,
@@ -1469,98 +1027,38 @@ export const useRoyaltyManagement = () => {
         ]
       );
 
-      // Подсчитываем общую сумму роялти только из завершенных транзакций
       const totalEarned = royaltyResponse.documents.reduce((sum, royalty) => {
         return sum + parseFloat(royalty.amount || '0');
       }, 0);
 
-      console.log('💵 Calculated total earned from completed royalties:', totalEarned);
-
-      // 2. Получаем завершенные и ожидающие выводы средств автора
-      console.log('3️⃣ Fetching withdrawals...');
-      const withdrawals = await database.listDocuments(
+      const completedWithdrawals = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS!,
         [Query.equal('userId', authorId)]
-      );
-
-      const completedWithdrawals = withdrawals.documents.reduce(
-        (sum, withdrawal) => {
+      ).then(withdrawals => {
+        return withdrawals.documents.reduce((sum, withdrawal) => {
           if (withdrawal.status === 'completed' || withdrawal.status === 'approved') {
-            console.log(`Including completed withdrawal: ${withdrawal.$id}, amount: ${withdrawal.amount}`);
             return sum + parseFloat(withdrawal.amount || '0');
           }
           return sum;
-        },
-        0
-      );
+        }, 0);
+      });
 
-      const pendingWithdrawals = withdrawals.documents.reduce(
-        (sum, withdrawal) => {
+      const pendingWithdrawals = await database.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_COLLECTION_ID_WITHDRAWALS!,
+        [Query.equal('userId', authorId)]
+      ).then(withdrawals => {
+        return withdrawals.documents.reduce((sum, withdrawal) => {
           if (withdrawal.status === 'pending') {
-            console.log(`Including pending withdrawal: ${withdrawal.$id}, amount: ${withdrawal.amount}`);
             return sum + parseFloat(withdrawal.amount || '0');
-        }
-        return sum;
-        },
-        0
-      );
+          }
+          return sum;
+        }, 0);
+      });
 
-      // 3. Вычисляем доступный баланс
       const availableBalance = Math.max(0, totalEarned - completedWithdrawals - pendingWithdrawals);
 
-      console.log('💰 Balance calculation:', {
-        totalEarned,
-        completedWithdrawals,
-        pendingWithdrawals,
-        availableBalance
-      });
-
-      // 4. Создаем или обновляем запись баланса
-      if (balanceResponse.documents.length === 0) {
-        console.log('📝 Creating new balance document');
-        await database.createDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-          ID.unique(),
-          {
-            author_id: authorId,
-            total_earned: totalEarned.toString(),
-            balance: availableBalance.toString(),
-            total_withdrawn: completedWithdrawals.toString(),
-            pending_withdrawals: pendingWithdrawals.toString(),
-            last_updated: new Date().toISOString(),
-            currency: 'USD'
-          }
-        );
-      } else {
-        const balanceDoc = balanceResponse.documents[0];
-        console.log('📝 Updating balance document:', {
-          id: balanceDoc.$id,
-          oldBalance: balanceDoc.balance,
-          newBalance: availableBalance.toString()
-        });
-
-        await database.updateDocument(
-          process.env.NEXT_PUBLIC_DATABASE_ID!,
-          process.env.NEXT_PUBLIC_COLLECTION_ID_ROYALTY_BALANCE!,
-          balanceDoc.$id,
-          {
-            total_earned: totalEarned.toString(),
-            balance: availableBalance.toString(),
-            total_withdrawn: completedWithdrawals.toString(),
-            pending_withdrawals: pendingWithdrawals.toString(),
-            last_updated: new Date().toISOString()
-          }
-        );
-      }
-
-      console.log('✅ Balance calculation completed:', {
-        totalEarned,
-        availableBalance
-      });
-
-      // Обновляем состояние компонента с новыми данными о балансе
       setRoyaltyData(prev => ({
         ...prev,
         balance: availableBalance,
@@ -1579,17 +1077,14 @@ export const useRoyaltyManagement = () => {
 
   const forceRefresh = async () => {
     if (!userId) {
-      console.log('No userId available for force refresh');
       return;
     }
     
-    console.log('Force refreshing royalty data...');
     setLoading(true);
     
     try {
       await syncPurchasesWithRoyalty();
       await fetchRoyaltyData();
-      console.log('Force refresh completed');
     } catch (error) {
       console.error('Force refresh failed:', error);
       setError('Failed to refresh data. Please try again.');

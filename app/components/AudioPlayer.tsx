@@ -74,32 +74,74 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
 
     // Оптимизированная функция для получения M3U8 контента с повторными попытками
     const fetchM3U8Content = useCallback(async (url: string) => {
+        // Check if we have the content cached in sessionStorage
+        const cacheKey = `m3u8_cache_${url}`;
+        try {
+            const cachedContent = sessionStorage.getItem(cacheKey);
+            if (cachedContent) {
+                console.log('Using cached M3U8 content');
+                retryCountRef.current = 0;
+                return cachedContent;
+            }
+        } catch (cacheError) {
+            // Ignore cache errors and proceed with fetch
+        }
+        
+        // If no cache, fetch the content
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
+                // Cancel any previous requests to prevent race conditions
+                const abortController = new AbortController();
+                const signal = abortController.signal;
+                
+                // Set a timeout to avoid hanging requests
+                const timeoutId = setTimeout(() => abortController.abort(), 10000);
+                
                 const response = await fetch(url, { 
                     headers: { 'Cache-Control': 'no-cache' },
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal
                 });
+                
+                // Clear the timeout as request completed
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const content = await response.text();
+                
+                // Validate the content is proper M3U8 format
                 if (content.trim().startsWith('#EXTM3U')) {
-                    retryCountRef.current = 0; // Сбрасываем счетчик попыток при успехе
+                    retryCountRef.current = 0; // Reset retry counter on success
+                    
+                    // Cache the valid content
+                    try {
+                        sessionStorage.setItem(cacheKey, content);
+                    } catch (storageError) {
+                        // Ignore storage errors
+                    }
+                    
                     return content;
                 } else {
                     throw new Error('Invalid M3U8 format');
                 }
             } catch (err) {
-                console.warn(`Attempt ${attempt + 1}/${maxRetries} failed:`, err);
+                // Don't retry on AbortError as it was intentional
+                if (err instanceof DOMException && err.name === 'AbortError') {
+                    console.warn('M3U8 fetch aborted');
+                    return null;
+                }
+                
                 if (attempt === maxRetries - 1) {
                     setError('Could not load audio. Please try again.');
                     return null;
                 }
-                // Экспоненциальный backoff
-                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+                
+                // Use a shorter and fixed retry delay
+                const retryDelay = 1000; // 1 second between retries
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
         }
         return null;

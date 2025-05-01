@@ -74,6 +74,20 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Helper to sanitize file IDs and prevent double slashes
+const sanitizeFileId = (fileId: string): string | null => {
+  if (!fileId || fileId === 'undefined' || fileId === 'null') {
+    return null;
+  }
+  
+  const trimmed = fileId.trim();
+  if (!trimmed || trimmed.includes('/') || trimmed.includes('\\')) {
+    return null;
+  }
+  
+  return trimmed;
+};
+
 // Проверка переменных окружения теперь только во время выполнения
 const checkEnvironmentVariables = () => {
   // Получаем значения переменных окружения на момент вызова функции
@@ -135,33 +149,15 @@ const useCreateBucketUrl = (fileId: string, type: 'user' | 'track' | 'banner' = 
     
     try {
         // Проверка корректности fileId - не должен быть пустым
-        const trimmedFileId = fileId.trim();
-        if (!trimmedFileId) {
-            debugLog('Empty fileId after trim, returning placeholder');
-            return getPlaceholderImage(type);
-        }
-        
-        // Убедимся, что в нем нет слешей или других проблемных символов
-        if (trimmedFileId.includes('/') || trimmedFileId.includes('\\')) {
-            debugLog('Invalid fileId with slashes:', trimmedFileId);
-            return getPlaceholderImage(type);
-        }
-        
-        // Дополнительно проверяем, что ID не содержит двойных слешей и не является пустым
-        if (!trimmedFileId || trimmedFileId === 'undefined' || trimmedFileId === 'null') {
-            debugLog('Invalid fileId (undefined/null as string), returning placeholder');
+        const sanitizedFileId = sanitizeFileId(fileId);
+        if (!sanitizedFileId) {
+            debugLog('Invalid fileId after sanitization, returning placeholder');
             return getPlaceholderImage(type);
         }
         
         // Всегда добавляем output=webp для изображений для обеспечения правильного отображения
-        const imageUrl = `${url}/storage/buckets/${bucketId}/files/${trimmedFileId}/view?project=${endpoint}`;
+        const imageUrl = `${url}/storage/buckets/${bucketId}/files/${sanitizedFileId}/view?project=${endpoint}`;
         const finalUrl = `${imageUrl}&output=webp`;
-        
-        // Дополнительная проверка на двойной слеш в URL
-        if (finalUrl.includes('/files//view')) {
-            debugLog('Generated URL with invalid double slash - using placeholder');
-            return getPlaceholderImage(type);
-        }
         
         // Cache the URL with timestamp
         optimizedUrlCache.set(cacheKey, {
@@ -169,7 +165,7 @@ const useCreateBucketUrl = (fileId: string, type: 'user' | 'track' | 'banner' = 
             timestamp: Date.now()
         });
         
-        debugLog('Generated new URL for', { fileId, cacheKey, finalUrl });
+        debugLog('Generated new URL for', { fileId: sanitizedFileId, cacheKey, finalUrl });
         return finalUrl;
     } catch (error) {
         debugLog('Error generating URL:', error);
