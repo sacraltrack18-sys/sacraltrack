@@ -39,7 +39,13 @@ const useCreateProfile = async (userId: string, name: string, image: string, bio
                 name: name,
                 image: profileImage,
                 bio: bio || '',
-                created_at: new Date().toISOString()
+                // Add statistical fields as strings
+                total_likes: '0',
+                total_followers: '0',
+                average_rating: '0',
+                total_ratings: '0',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             }
         );
 

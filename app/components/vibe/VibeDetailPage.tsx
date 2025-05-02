@@ -41,6 +41,7 @@ import {
 import { useShareVibeContext } from './useShareVibe';
 import { getProfileImageUrl } from '@/app/utils/imageUtils';
 import TopNav from '@/app/layouts/includes/TopNav';
+import VibeLikeButton from './VibeLikeButton';
 
 interface VibeDetailPageProps {
   vibe: VibePostWithProfile;
@@ -246,9 +247,9 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(() => {
     if (Array.isArray(vibe.stats)) {
-      return parseInt(vibe.stats[0], 10) || 0;
-    } else if (vibe.stats && typeof vibe.stats === 'object' && 'total_likes' in vibe.stats) {
-      return vibe.stats.total_likes || 0;
+      return parseInt(vibe.stats[0] || '0', 10);
+    } else if (typeof vibe.stats === 'object' && vibe.stats !== null && 'total_likes' in vibe.stats) {
+      return parseInt(vibe.stats.total_likes || '0', 10);
     }
     return 0;
   });
@@ -514,83 +515,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }
   };
 
-  const handleLikeToggle = async () => {
-    if (!user) {
-      setIsLoginOpen(true);
-      return;
-    }
-    
-    // Генерируем ID операции для логирования
-    const operationId = Math.random().toString(36).substring(7);
-    console.log(`[VIBE-DETAIL ${operationId}] Toggle like for vibe ${vibe.id}`);
-    
-    // Сохраняем текущее состояние для возможного отката
-    const wasLiked = isLiked;
-    const prevLikesCount = likesCount;
-    
-    // Оптимистично обновляем UI
-    setIsLiked(!isLiked);
-    setLikesCount(prev => !isLiked ? prev + 1 : Math.max(0, prev - 1));
-    
-    try {
-      // В зависимости от текущего состояния лайка вызываем соответствующий метод
-      if (!isLiked) {
-        console.log(`[VIBE-DETAIL ${operationId}] Adding like`);
-        const success = await likeVibe(vibe.id, user.id);
-        
-        if (success) {
-          console.log(`[VIBE-DETAIL ${operationId}] Like added successfully`);
-        } else {
-          // Если операция не удалась, откатываем состояние
-          console.error(`[VIBE-DETAIL ${operationId}] Failed to add like`);
-          setIsLiked(wasLiked);
-          setLikesCount(prevLikesCount);
-          toast.error('Failed to like. Please try again.');
-        }
-      } else {
-        console.log(`[VIBE-DETAIL ${operationId}] Removing like`);
-        const success = await unlikeVibe(vibe.id, user.id);
-        
-        if (success) {
-          console.log(`[VIBE-DETAIL ${operationId}] Like removed successfully`);
-        } else {
-          // Если операция не удалась, откатываем состояние
-          console.error(`[VIBE-DETAIL ${operationId}] Failed to remove like`);
-    setIsLiked(wasLiked);
-    setLikesCount(prevLikesCount);
-          toast.error('Failed to unlike. Please try again.');
-        }
-      }
-      
-      // Обновляем статистику вайба независимо от результата
-      // (так как наше состояние могло быть устаревшим)
-      setTimeout(() => {
-        refreshVibeStats();
-      }, 1000);
-    } catch (error) {
-      console.error(`[VIBE-DETAIL ${operationId}] Error in like operation:`, error);
-      
-      // Восстанавливаем предыдущее состояние при ошибке
-      setIsLiked(wasLiked);
-      setLikesCount(prevLikesCount);
-      
-      // Показываем ошибку пользователю
-      toast.error('Failed to update like. Please try again.', {
-        duration: 3000,
-        style: {
-          background: '#333',
-          color: '#fff',
-          borderRadius: '10px'
-        }
-      });
-      
-      // Если ошибка авторизации, предлагаем войти
-      if (error.toString().includes('401') || 
-          error.toString().includes('unauthorized') || 
-          error.toString().includes('unauthenticated')) {
-        setIsLoginOpen(true);
-      }
-    }
+  // Handler for updates from VibeLikeButton
+  const handleLikeUpdate = (newCount: number, isLiked: boolean) => {
+    setLikesCount(newCount);
+    setIsLiked(isLiked);
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
@@ -628,7 +556,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     addComment(optimisticComment);
     
     // Optimistically update counter
-    setCommentsCount(prev => prev + 1);
+    setCommentsCount(prev => {
+      const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+      return prevNum + 1;
+    });
     
     // Clear input
     setCommentText('');
@@ -782,7 +713,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           }
           
           // Revert optimistic counter update
-          setCommentsCount(prev => Math.max(0, prev - 1));
+          setCommentsCount(prev => {
+            const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+            return Math.max(0, prevNum - 1);
+          });
         }
       }
     }
@@ -879,6 +813,13 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }
   };
 
+  // Добавим функцию для безопасного приведения типов:
+  // Безопасное приведение count к числу
+  const ensureNumber = (count: string | number): number => {
+    if (typeof count === 'number') return count;
+    return parseInt(count.toString(), 10) || 0;
+  };
+
   return (
     <div className="min-h-screen pb-20 md:pb-10 bg-gradient-to-br from-[#24183D] to-[#0F172A] text-white">
       {/* Add TopNav component with required params */}
@@ -936,34 +877,14 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             <div className="flex-grow"></div>
             
             {/* Like button */}
-            <motion.button 
-              onClick={handleLikeToggle}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center space-x-2 group"
-            >
-              <motion.div
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-                animate={isLiked ? { 
-                  scale: [1, 1.4, 1],
-                  rotate: [0, 15, -15, 0],
-                } : {}}
-                transition={{ duration: 0.5 }}
-                className={`p-2 rounded-full ${isLiked 
-                  ? 'bg-gradient-to-br from-red-500/30 to-pink-500/30 shadow-lg shadow-red-500/20' 
-                  : 'bg-white/5 backdrop-blur-sm group-hover:bg-white/10'}`}
-              >
-                {isLiked ? (
-                  <HeartIconSolid className="h-5 w-5 text-red-500" />
-                ) : (
-                  <HeartIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
-                )}
-              </motion.div>
-              <span className={`text-sm font-medium ${isLiked ? 'text-red-400' : 'text-gray-400 group-hover:text-white'}`}>
-                {likesCount}
-              </span>
-            </motion.button>
+            <VibeLikeButton 
+              vibeId={vibe.id}
+              initialLikeCount={likesCount}
+              initialLikeState={isLiked}
+              onLikeUpdated={handleLikeUpdate}
+              className="flex items-center gap-2"
+              size="lg"
+            />
             
             {/* Comments count */}
             <div className="flex items-center space-x-2 group">
@@ -975,7 +896,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 <ChatBubbleLeftIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
               </motion.div>
               <span className="text-sm font-medium text-gray-400 group-hover:text-white">
-                {commentsCount}
+                {ensureNumber(commentsCount)}
               </span>
             </div>
             
@@ -1055,14 +976,14 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 <h3 className="text-lg font-semibold text-white">Comments</h3>
               </div>
               <motion.div 
-                animate={commentsCount > 0 ? { 
+                animate={ensureNumber(commentsCount) > 0 ? { 
                   scale: [1, 1.1, 1],
                   backgroundColor: ['rgba(32, 221, 187, 0.2)', 'rgba(32, 221, 187, 0.3)', 'rgba(32, 221, 187, 0.2)'],
                 } : {}}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className="text-sm font-medium px-2 py-1 rounded-full bg-[#20DDBB]/20 text-[#20DDBB]"
               >
-                {commentsCount}
+                {ensureNumber(commentsCount)}
               </motion.div>
             </div>
             
@@ -1208,7 +1129,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                               <button
                                 onClick={() => {
                                   deleteComment(comment.id);
-                                  setCommentsCount(prev => Math.max(0, prev - 1));
+                                  setCommentsCount(prev => {
+                                    const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+                                    return Math.max(0, prevNum - 1);
+                                  });
                                   toast.success('Pending comment removed', {
                                     style: {
                                       background: '#333',
@@ -1233,8 +1157,11 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                                 className="p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-full shadow-lg shadow-red-500/20 transition-all duration-300"
                                 onClick={() => {
                                   // Optimistically remove comment
-                                  const prevCount = commentsCount;
-                                  setCommentsCount(Math.max(0, prevCount - 1));
+                                  const prevCount = ensureNumber(commentsCount);
+                                  setCommentsCount(prev => {
+                                    const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+                                    return Math.max(0, prevNum - 1);
+                                  });
                                   
                                   if (deleteComment) {
                                     deleteComment(comment.id);

@@ -20,13 +20,14 @@ import useDeviceDetect from '@/app/hooks/useDeviceDetect';
 import toast from 'react-hot-toast';
 import { useGeneralStore } from '@/app/stores/general';
 import { database } from '@/libs/AppWriteClient';
-import { toggleVibeVote, getVibeLikeStatus, addVibeComment, getVibeComments } from '@/app/lib/vibeActions';
+import { addVibeComment, getVibeComments } from '@/app/lib/vibeActions';
 import { useRouter } from 'next/navigation';
 import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { BiLoaderCircle } from 'react-icons/bi';
 import { useShareVibeContext } from './useShareVibe';
 import { usePathname } from "next/navigation";
 import { format } from 'date-fns';
+import VibeLikeButton from './VibeLikeButton';
 
 // Интерфейс для комментариев
 interface VibeComment {
@@ -149,9 +150,63 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const router = useRouter();
   const { user } = useUser() || { user: null };
   const { isMobile } = useDeviceDetect();
-  const { userLikedVibes, checkIfUserLikedVibe, likeVibe, unlikeVibe, deleteVibePost, fetchUserLikedVibes } = useVibeStore();
+  const { deleteVibePost } = useVibeStore();
   const { setIsLoginOpen } = useGeneralStore();
   const { openShareModal } = useShareVibeContext();
+  
+  // State for comments and UI
+  const { 
+    comments: commentsList, 
+    fetchComments, 
+    addComment, 
+    deleteComment,
+    isLoading: commentsLoading 
+  } = useVibeComments(vibe.id);
+  const [comments, setComments] = useState<VibeComment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [showEmojiPanel, setShowEmojiPanel] = useState(true);
+  const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('music');
+  const [showQuickEmojis, setShowQuickEmojis] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [previewEmoji, setPreviewEmoji] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isLikeInProgress, setIsLikeInProgress] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Refs
+  const commentInputRef = useRef<HTMLInputElement>(null);
+  const commentsRef = useRef<HTMLDivElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const emojiPopupRef = useRef<HTMLDivElement>(null);
+  
+  // Массив быстрых эмодзи
+  const quickEmojis = ['😊', '🎵', '🎸', '🔥', '❤️', '👏', '🙌', '✨', '🎉', '😍'];
+  
+  // Local state for vibe stats to avoid global updates
+  const [vibeStats, setVibeStats] = useState<{
+    likesCount: number,
+    commentsCount: number
+  }>(() => {
+    // Initialize from vibe.stats
+    if (Array.isArray(vibe.stats)) {
+      return {
+        likesCount: parseInt(vibe.stats[0] || '0', 10) || 0,
+        commentsCount: parseInt(vibe.stats[1] || '0', 10) || 0
+      };
+    } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+      return {
+        likesCount: parseInt(vibe.stats.total_likes || '0', 10) || 0,
+        commentsCount: parseInt(vibe.stats.total_comments || '0', 10) || 0
+      };
+    }
+    return { likesCount: 0, commentsCount: 0 };
+  });
   
   // Улучшенная функция для получения URL изображения профиля
   function getProfileImageUrl(imageId: string): string {
@@ -225,87 +280,10 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   }
   
-  // Добавляем эффект для немедленной загрузки данных о лайках и комментариях
+  // Save DOM node references for menu handling
   useEffect(() => {
-    // Загружаем актуальные данные о лайках и комментариях при монтировании
-    refreshVibeStats();
-    
-    // Предзагружаем комментарии, чтобы счетчик был правильным сразу
-    fetchComments();
-    
-    // Счетчик для отслеживания количества выполненных обновлений
-    let updateCount = 0;
-    const maxUpdates = 2; // Максимальное количество автоматических обновлений
-    
-    // Таймер для первого обновления через 5 секунд
-    const firstTimer = setTimeout(() => {
-      const element = document.getElementById(`vibe-card-${vibe.id}`);
-      if (element && isElementInViewport(element)) {
-        console.log(`[VIBE-CARD] First auto-refresh for vibe ${vibe.id}`);
-        refreshVibeStats();
-        updateCount++;
-      }
-      
-      // Если обновление еще не достигло максимума, устанавливаем таймер для второго обновления
-      if (updateCount < maxUpdates) {
-        const secondTimer = setTimeout(() => {
-          const element = document.getElementById(`vibe-card-${vibe.id}`);
-          if (element && isElementInViewport(element)) {
-            console.log(`[VIBE-CARD] Second auto-refresh for vibe ${vibe.id}`);
-            refreshVibeStats();
-          }
-        }, 5000); // Второе обновление через 5 секунд после первого
-        
-        // Очистка второго таймера при размонтировании
-        return () => clearTimeout(secondTimer);
-      }
-    }, 5000); // Первое обновление через 5 секунд после монтирования
-    
-    // Очистка первого таймера при размонтировании
-    return () => clearTimeout(firstTimer);
-  }, []); // Пустой массив зависимостей гарантирует выполнение только при монтировании
-  
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(() => {
-    if (Array.isArray(vibe.stats)) {
-      return parseInt(vibe.stats[0], 10) || 0;
-    } else if (vibe.stats && typeof vibe.stats === 'object' && 'total_likes' in vibe.stats) {
-      return vibe.stats.total_likes || 0;
-    }
-    return 0;
-  });
-  const [commentsCount, setCommentsCount] = useState(() => {
-    if (Array.isArray(vibe.stats)) {
-      return parseInt(vibe.stats[1], 10) || 0;
-    } else if (vibe.stats && typeof vibe.stats === 'object' && 'total_comments' in vibe.stats) {
-      return vibe.stats.total_comments || 0;
-    }
-    return 0;
-  });
-  const [showComments, setShowComments] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showOptions, setShowOptions] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  
-  const { 
-    comments, 
-    fetchComments, 
-    addComment, 
-    deleteComment, 
-    addEmojiToComment, 
-    isLoading: commentsLoading 
-  } = useVibeComments(vibe.id);
-  const [commentText, setCommentText] = useState('');
-  const [showEmojiPanel, setShowEmojiPanel] = useState(true);
-  const [previewEmoji, setPreviewEmoji] = useState<string | null>(null);
-  const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('music');
-  const [showQuickEmojis, setShowQuickEmojis] = useState(false);
-  const emojiPopupRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Массив быстрых эмодзи
-  const quickEmojis = ['😊', '🎵', '🎸', '🔥', '❤️', '👏', '🙌', '✨', '🎉', '😍'];
+    // ... existing code ...
+  }, []);
   
   // Добавляем обработчик клика вне эмодзи попапа
   useEffect(() => {
@@ -320,6 +298,23 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
+  // Click outside handler for menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showMenu && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
   
   // Функция для быстрой вставки эмодзи
   const insertEmoji = (emoji: string) => {
@@ -340,7 +335,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       console.error('Error inserting emoji:', error);
     }
   };
-
+  
   // Создаем обертку для addComment, чтобы правильно обрабатывать наш интерфейс
   const addCommentWrapper = (comment: VibeComment, replaceId?: string) => {
     if (addComment && typeof addComment === 'function') {
@@ -354,136 +349,35 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         addComment(comment);
       }
     }
+    
+    // Update local comment count
+    setVibeStats(prev => ({
+      ...prev,
+      commentsCount: prev.commentsCount + 1
+    }));
   };
-
-  useEffect(() => {
-    const checkLikeStatus = async () => {
-      if (user?.id && vibe.id) {
-        try {
-          const hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
-          setIsLiked(hasLiked);
-        } catch (error) {
-          console.error('Error checking like status:', error);
-        }
-      } else {
-        setIsLiked(false);
-      }
-    };
-
-    checkLikeStatus();
+  
+  // Handle like updates from the VibeLikeButton component
+  const handleLikeUpdate = (newCount: number, isLiked: boolean) => {
+    // Update only the local stats
+    setVibeStats(prev => ({
+      ...prev,
+      likesCount: newCount
+    }));
     
-    // Загружаем актуальные данные о лайках и комментариях при монтировании
-    refreshVibeStats();
-    
-    // Simulate image loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [user?.id, vibe.id, checkIfUserLikedVibe, userLikedVibes]);
-
-  // Update comment count when comments are loaded
-  useEffect(() => {
-    if (comments && comments.length > 0) {
-      setCommentsCount(comments.length);
-    }
-  }, [comments]);
-
-  // Добавляем состояние для отслеживания запроса лайка в процессе
-  const [isLikeInProgress, setIsLikeInProgress] = useState(false);
-
-  const handleLikeToggle = async () => {
-    if (!user) {
-      setIsLoginOpen(true);
-      return;
-    }
-
-    // Генерируем ID операции для логирования
-    const operationId = Math.random().toString(36).substring(7);
-    console.log(`[VIBE-CARD ${operationId}] Toggle like for vibe ${vibe.id}`);
-    
-    // Сохраняем текущее состояние для возможного отката
-    const wasLiked = isLiked;
-    const prevLikesCount = likesCount;
-
-    // Оптимистично обновляем UI
-    setIsLiked(!isLiked);
-    setLikesCount(prev => !isLiked ? prev + 1 : Math.max(0, prev - 1));
-    
-    try {
-      // В зависимости от текущего состояния лайка вызываем соответствующий метод
-      if (!isLiked) {
-        console.log(`[VIBE-CARD ${operationId}] Adding like`);
-        const success = await likeVibe(vibe.id, user.id);
-        
-        if (success) {
-          console.log(`[VIBE-CARD ${operationId}] Like added successfully`);
-          // Вызываем onLike, если он предоставлен
-          if (onLike) onLike(vibe.id);
-      } else {
-          // Если операция не удалась, откатываем состояние
-          console.error(`[VIBE-CARD ${operationId}] Failed to add like`);
-          setIsLiked(wasLiked);
-          setLikesCount(prevLikesCount);
-          toast.error('Failed to like. Please try again.');
-        }
-      } else {
-        console.log(`[VIBE-CARD ${operationId}] Removing like`);
-        const success = await unlikeVibe(vibe.id, user.id);
-        
-        if (success) {
-          console.log(`[VIBE-CARD ${operationId}] Like removed successfully`);
-          // Вызываем onUnlike, если он предоставлен
-          if (onUnlike) onUnlike(vibe.id);
-        } else {
-          // Если операция не удалась, откатываем состояние
-          console.error(`[VIBE-CARD ${operationId}] Failed to remove like`);
-          setIsLiked(wasLiked);
-          setLikesCount(prevLikesCount);
-          toast.error('Failed to unlike. Please try again.');
-        }
-      }
-      
-      // Обновляем статистику вайба независимо от результата
-      // (так как наше состояние могло быть устаревшим)
-          setTimeout(() => {
-        refreshVibeStats();
-      }, 1000);
-    } catch (error) {
-      console.error(`[VIBE-CARD ${operationId}] Error in like operation:`, error);
-      
-      // Восстанавливаем предыдущее состояние при ошибке
-        setIsLiked(wasLiked);
-        setLikesCount(prevLikesCount);
-        
-      // Показываем ошибку пользователю
-      toast.error('Failed to update like. Please try again.');
-      
-      // Если ошибка авторизации, предлагаем войти
-      if (error.toString().includes('401') || 
-          error.toString().includes('unauthorized') || 
-          error.toString().includes('unauthenticated')) {
-          setIsLoginOpen(true);
-      }
+    // Call the parent handlers if provided
+    if (isLiked && onLike) {
+      onLike(vibe.id);
+    } else if (!isLiked && onUnlike) {
+      onUnlike(vibe.id);
     }
   };
-
-  const handleOpenComments = () => {
-    if (!user) {
-      setIsLoginOpen(true);
-      return;
-    }
-    setShowComments(true);
-    fetchComments();
-  };
-
-  // Function to refresh vibe stats from the database
+  
+  // Replace the refreshVibeStats function with a simpler version that only updates this card
   const refreshVibeStats = async () => {
     if (!vibe.id) return;
     
     try {
-      console.log(`[VIBE-CARD] Refreshing stats for vibe ${vibe.id}`);
       const vibeDoc = await database.getDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
@@ -508,29 +402,38 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         // Handle different formats of stats
         if (Array.isArray(statsObj)) {
           const newLikesCount = parseInt(statsObj[0], 10) || 0;
-          console.log(`[VIBE-CARD] Updated likes count from server: ${newLikesCount}`);
-          setLikesCount(newLikesCount);
+          const newCommentsCount = parseInt(statsObj[1], 10) || 0;
           
-          // Also update the stats in the vibe object
-          vibe.stats = [...statsObj];
+          // Only update local stats, not global store
+          setVibeStats({
+            likesCount: newLikesCount,
+            commentsCount: newCommentsCount
+          });
         } else if (typeof statsObj === 'object' && statsObj !== null) {
-          const newLikesCount = statsObj.total_likes || 0;
-          console.log(`[VIBE-CARD] Updated likes count from server: ${newLikesCount}`);
-          setLikesCount(newLikesCount);
+          const newLikesCount = parseInt(statsObj.total_likes, 10) || 0;
+          const newCommentsCount = parseInt(statsObj.total_comments, 10) || 0;
           
-          // Also update the stats in the vibe object
-          vibe.stats = {
-            ...statsObj
-          };
+          // Only update local stats, not global store
+          setVibeStats({
+            likesCount: newLikesCount,
+            commentsCount: newCommentsCount
+          });
         }
-      } else {
-        console.log('[VIBE-CARD] No stats found for vibe', vibe.id);
       }
     } catch (error) {
       console.error('[VIBE-CARD] Error refreshing vibe stats:', error);
     }
   };
-
+  
+  const handleOpenComments = () => {
+    if (!user) {
+      setIsLoginOpen(true);
+      return;
+    }
+    setShowComments(true);
+    fetchComments();
+  };
+  
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -565,7 +468,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       
       // Добавляем временный комментарий в UI и увеличиваем счетчик - мгновенный отклик
       addCommentWrapper(optimisticComment);
-      setCommentsCount(prev => prev + 1);
       
       // Если комментарии не загружены, показываем их
       if (!showComments) {
@@ -591,9 +493,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     } catch (error) {
       console.error('Error adding comment:', error);
       
-      // В случае ошибки уменьшаем счетчик и показываем уведомление
-      setCommentsCount(prev => Math.max(0, prev - 1));
-      
       // Показываем уведомление об ошибке
       toast.error(`Failed to add comment. Please try again.`, {
         duration: 3000,
@@ -608,7 +507,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       setCommentText(trimmedComment);
     }
   };
-
+  
   const handleShare = () => {
     if (!user) {
       setIsLoginOpen(true);
@@ -621,7 +520,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       userName: vibe.profile?.name || 'Artist'
     });
   };
-
+  
   // Add this function to handle card click
   const handleCardClick = (e: React.MouseEvent) => {
     // Добавляем консольный вывод для отладки
@@ -646,13 +545,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     // Навигация на страницу детального просмотра вайба
     router.push(`/vibe/${vibe.id}`);
   };
-
+  
   const handleDeleteVibe = async () => {
     if (!user || user.id !== vibe.user_id) return;
     
     try {
       setIsDeleting(true);
-      await deleteVibePost(vibe.id, user.id);
+      await deleteVibePost(vibe.id, vibe.media_url);
       
       toast.success('Vibe deleted successfully!', {
         icon: '🗑️',
@@ -673,7 +572,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       setShowOptions(false);
     }
   };
-
+  
   // Render vibe content based on type
   const renderVibeContent = () => {
     // Default type is 'photo' if not specified
@@ -710,7 +609,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         );
     }
   };
-
+  
   // Функция для проверки, находится ли элемент в поле зрения пользователя
   const isElementInViewport = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -721,90 +620,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
   };
-
-  // Add effect to sync with userLikedVibes from the store
-  useEffect(() => {
-    // Skip if no vibe id or no user
-    if (!vibe.id) return;
-
-    try {
-      // If userLikedVibes is an array and contains this vibe id, update the state
-      if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
-        if (!isLiked) {
-          console.log(`[VIBE-CARD] Syncing like state from store: vibe ${vibe.id} is liked`);
-          setIsLiked(true);
-          
-          // Also update the count if needed by refreshing stats
-          refreshVibeStats();
-        }
-      } else if (Array.isArray(userLikedVibes) && !userLikedVibes.includes(vibe.id)) {
-        if (isLiked) {
-          console.log(`[VIBE-CARD] Syncing like state from store: vibe ${vibe.id} is not liked`);
-          setIsLiked(false);
-          
-          // Also update the count if needed by refreshing stats
-          refreshVibeStats();
-        }
-      }
-    } catch (error) {
-      console.error('[VIBE-CARD] Error checking like status from store:', error);
-    }
-  }, [userLikedVibes, vibe.id, isLiked]);
-
-  // On initial load, check if user liked this vibe
-  useEffect(() => {
-    // Don't run if user or vibe.id is not available
-    if (!user || !vibe.id) return;
-    
-    const checkInitialLikeStatus = async () => {    
-      try {
-        // Method 1: Check from store first (most efficient)
-        let hasLiked = false;
-        if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
-          hasLiked = true;
-          setIsLiked(true);
-          return; // Exit early, no need for API call or stats refresh
-        }
-        
-        // Method 2: Only check with API if needed and not checked previously in this session
-        if (!hasLiked) {
-          // Use session storage to track which vibe IDs we've already checked
-          let checkedIds: string[] = [];
-          try {
-            const sessionCheckedIds = sessionStorage.getItem('checked_vibe_ids');
-            if (sessionCheckedIds) {
-              checkedIds = JSON.parse(sessionCheckedIds);
-            }
-          } catch (e) {
-            // Ignore errors
-          }
-          
-          // Only make API call if we haven't checked this vibe previously
-          if (!checkedIds.includes(vibe.id)) {
-            hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
-            
-            // If API says it's liked but store doesn't, update store
-            if (hasLiked && Array.isArray(userLikedVibes) && !userLikedVibes.includes(vibe.id)) {
-              fetchUserLikedVibes(user.id);
-            }
-            
-            setIsLiked(hasLiked);
-          }
-        }
-        
-        // Only refresh stats if we don't have them or they're in an unexpected format
-        if (!vibe.stats || 
-           (Array.isArray(vibe.stats) && vibe.stats.length === 0) || 
-           (typeof vibe.stats === 'object' && Object.keys(vibe.stats).length === 0)) {
-          await refreshVibeStats();
-        }
-      } catch (error) {
-        console.error('[VIBE-CARD] Error checking initial like status:', error);
-      }
-    };
-    
-    checkInitialLikeStatus();
-  }, [vibe.id, user, userLikedVibes, checkIfUserLikedVibe, fetchUserLikedVibes]);
 
   return (
     <div className="mb-8 mx-auto w-full md:w-[450px]">
@@ -912,21 +727,12 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           {/* Action buttons */}
           <div className="flex items-center justify-between w-full mt-4">
             <div className="flex items-center gap-4">
-              <motion.button 
-                onClick={(e) => { e.stopPropagation(); handleLikeToggle(); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/10 hover:from-[#20DDBB]/30 hover:to-[#20DDBB]/20 border border-[#20DDBB]/30 hover:border-[#20DDBB]/50 transition-all duration-300 group"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLiked ? (
-                  <HeartIconSolid className="w-5 h-5 text-red-500" />
-                ) : (
-                  <HeartIcon className="w-5 h-5 text-white" />
-                )}
-                <span className="text-sm font-medium text-white">
-                  {isLikeInProgress ? '...' : likesCount}
-                </span>
-              </motion.button>
+              <VibeLikeButton 
+                vibeId={vibe.id}
+                initialLikeCount={vibeStats.likesCount}
+                onLikeUpdated={handleLikeUpdate}
+                className="h-[50px] flex p-4 hover:bg-white/5 rounded-lg transition-colors duration-200"
+              />
 
               <motion.button 
                 onClick={(e) => { e.stopPropagation(); handleOpenComments(); }}
@@ -935,7 +741,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 whileTap={{ scale: 0.98 }}
               >
                 <ChatBubbleLeftIcon className="w-5 h-5 text-white" />
-                <span className="text-sm font-medium text-white">{commentsCount}</span>
+                <span className="text-sm font-medium text-white">{vibeStats.commentsCount}</span>
               </motion.button>
             </div>
 
@@ -958,7 +764,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-hidden"
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center overflow-hidden"
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
               onClick={(e) => { 
                 e.stopPropagation(); 
                 // Обновляем счетчики перед закрытием попапа
@@ -971,27 +778,31 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden shadow-2xl border border-white/10 max-w-md w-full max-h-[90vh] flex flex-col"
+                className="bg-gradient-to-br from-[#1E1A36] to-[#2A2151] rounded-xl overflow-hidden shadow-2xl border border-white/10 w-full max-w-md md:max-w-md mx-2 my-2 md:mx-0 flex flex-col max-h-[85vh] md:max-h-[90vh]"
               >
                 {/* Заголовок */}
-                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#1A1A2E]/50">
+                <div className="p-3 md:p-4 border-b border-white/10 flex items-center justify-between bg-[#1A1A2E]/50 sticky top-0 z-10">
                   <div className="flex items-center gap-2">
                     <span className="text-[#20DDBB] text-xl">😊</span>
                     <h3 className="text-white font-semibold text-lg">Comments</h3>
                     <span className="bg-[#20DDBB]/20 text-[#20DDBB] text-xs px-2 py-0.5 rounded-full ml-2">
-                      {commentsCount}
+                      {vibeStats.commentsCount}
                     </span>
                   </div>
                   <button 
-                    onClick={() => setShowComments(false)}
-                    className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowComments(false);
+                    }}
+                    className="p-2 rounded-full hover:bg-white/10 transition-colors touch-manipulation"
+                    aria-label="Close comments"
                   >
-                    <XMarkIcon className="h-5 w-5 text-gray-400" />
+                    <XMarkIcon className="h-6 w-6 text-gray-400" />
                   </button>
                 </div>
                 
                 {/* Список комментариев */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px] max-h-[500px]">
+                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 min-h-[200px] md:min-h-[300px] overscroll-contain">
                   {commentsLoading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="animate-spin h-8 w-8 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
@@ -1000,7 +811,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     comments.map((comment: any) => (
                       <div key={comment.id} className={`bg-[#1A1A2E]/80 p-3 rounded-xl border ${comment.isOptimistic ? 'border-[#20DDBB]/30 bg-gradient-to-r from-[#20DDBB]/5 to-[#0F9E8E]/5' : 'border-white/5'}`}>
                         <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
+                          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
                             <Image 
                               src={comment.profile?.image ? getProfileImageUrl(comment.profile.image) : '/images/placeholders/user-placeholder.svg'} 
                               alt={comment.profile?.name || 'User'}
@@ -1010,10 +821,10 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                             />
                           </div>
                           
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-medium text-white text-sm">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-white text-sm truncate">
                                   {comment.profile?.name || 'User'}
                                 </h4>
                                 <p className="text-xs text-gray-400">
@@ -1038,17 +849,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                               
                               {user?.id === comment.user_id && !comment.isOptimistic && (
                                 <button 
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     if (deleteComment) deleteComment(comment.id);
                                   }}
-                                  className="p-1 rounded hover:bg-red-500/10 text-red-400"
+                                  className="p-2 rounded-full hover:bg-red-500/10 text-red-400 touch-manipulation ml-2"
                                 >
                                   <TrashIcon className="h-4 w-4" />
                                 </button>
                               )}
                             </div>
                             
-                            <p className="mt-2 text-sm text-gray-200">{comment.text}</p>
+                            <p className="mt-2 text-sm text-gray-200 break-words">{comment.text}</p>
                           </div>
                         </div>
                       </div>
@@ -1062,9 +874,9 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 </div>
                 
                 {/* Форма добавления комментария */}
-                <form onSubmit={handleSubmitComment} className="p-4 border-t border-white/10 bg-[#1A1A2E]/50">
+                <form onSubmit={handleSubmitComment} className="p-3 md:p-4 border-t border-white/10 bg-[#1A1A2E]/50 sticky bottom-0 z-10">
                   <div className="flex gap-2">
-                    <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0 bg-gradient-to-br from-[#1E1A36] to-[#2A2151]">
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0 bg-gradient-to-br from-[#1E1A36] to-[#2A2151]">
                       <Image 
                         src={user?.image ? getProfileImageUrl(user.image) : '/images/placeholders/user-placeholder.svg'} 
                         alt={user?.name || 'User'}
@@ -1080,6 +892,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         value={commentText}
                         onChange={(e) => setCommentText(e.target.value)}
                         placeholder="Add a comment..."
+                        ref={inputRef}
                         className="w-full bg-[#272B43] border border-white/10 rounded-l-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#20DDBB] transition-all placeholder-gray-500 pr-16"
                       />
                       
@@ -1087,9 +900,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         {commentText && (
                           <motion.button 
                             type="button"
-                            onClick={() => setCommentText('')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCommentText('');
+                              inputRef.current?.focus();
+                            }}
                             whileTap={{ scale: 0.8 }}
-                            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10"
+                            className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 touch-manipulation"
                           >
                             <XMarkIcon className="h-4 w-4" />
                           </motion.button>
@@ -1097,12 +914,15 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         
                         <motion.button
                           type="button"
-                          onClick={() => setShowQuickEmojis(!showQuickEmojis)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowQuickEmojis(!showQuickEmojis);
+                          }}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          className={`p-1.5 rounded-full transition-all ${showQuickEmojis ? 'bg-[#20DDBB]/30 text-[#20DDBB]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                          className={`p-2 rounded-full transition-all touch-manipulation ${showQuickEmojis ? 'bg-[#20DDBB]/30 text-[#20DDBB]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                         >
-                          <span>{showQuickEmojis ? '😊' : '😊'}</span>
+                          <span className="text-lg">😊</span>
                         </motion.button>
                       </div>
                       
@@ -1110,20 +930,25 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                       <AnimatePresence>
                         {showQuickEmojis && (
                           <motion.div
+                            ref={emojiPopupRef}
                             initial={{ opacity: 0, y: 10, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.9 }}
                             transition={{ type: "spring", damping: 15 }}
-                            className="absolute bottom-full right-0 mb-2 bg-gradient-to-r from-[#1E1A36]/95 to-[#2A2151]/95 backdrop-blur-md p-2 rounded-xl shadow-lg border border-[#20DDBB]/20 z-20"
+                            className="absolute bottom-full right-0 mb-2 bg-gradient-to-r from-[#1E1A36]/95 to-[#2A2151]/95 backdrop-blur-md p-2 rounded-xl shadow-lg border border-[#20DDBB]/20 z-50"
                           >
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-1 max-w-[240px]">
                               {quickEmojis.map((emoji, idx) => (
                                 <motion.button
                                   key={`quick-${emoji}`}
                                   type="button"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     insertEmoji(emoji);
-                                    setTimeout(() => setShowQuickEmojis(false), 300);
+                                    setTimeout(() => {
+                                      setShowQuickEmojis(false);
+                                      inputRef.current?.focus();
+                                    }, 300);
                                   }}
                                   whileHover={{ scale: 1.2 }}
                                   whileTap={{ scale: 0.8, rotate: 10 }}
@@ -1133,7 +958,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                                     y: 0,
                                     transition: { delay: idx * 0.03 }
                                   }}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#20DDBB]/20 text-lg"
+                                  className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#20DDBB]/20 text-lg touch-manipulation"
                                 >
                                   {emoji}
                                 </motion.button>
@@ -1149,7 +974,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                       disabled={!commentText.trim()}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 text-white px-3 py-2.5 rounded-r-xl font-medium text-sm hover:shadow-[0_0_10px_rgba(32,221,187,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px] relative"
+                      className="bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 text-white px-3 py-2.5 rounded-r-xl font-medium text-sm hover:shadow-[0_0_10px_rgba(32,221,187,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px] relative touch-manipulation"
                     >
                       {/* Анимация успешной вставки эмодзи */}
                       <AnimatePresence>

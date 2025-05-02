@@ -42,9 +42,9 @@ export async function POST(req: Request) {
         location: 'Test Location',
         tags: ['test', 'api'],
         stats: {
-          total_likes: 0,
-          total_comments: 0,
-          total_views: 0
+          total_likes: '0',
+          total_comments: '0',
+          total_views: '0'
         }
       }
     );

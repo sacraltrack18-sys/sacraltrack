@@ -318,12 +318,13 @@ async function updateVibeStats(vibe_id: string): Promise<void> {
       getCommentsCount(vibe_id)
     ]);
     
+    // Собираем всю статистику
+    let viewsCount = 0;
+    
+    let newStats: string[] | { total_likes: string, total_comments: string, total_views: string };
+    
     // Текущие stats могут быть в разных форматах, обрабатываем все случаи
     const currentStats = vibeDoc.stats;
-    let newStats: string[] | { total_likes: number, total_comments: number, total_views: number };
-    
-    // Извлекаем текущее количество просмотров (если есть)
-    let viewsCount = 0;
     
     if (Array.isArray(currentStats)) {
       viewsCount = parseInt(currentStats[2] || '0', 10);
@@ -332,9 +333,9 @@ async function updateVibeStats(vibe_id: string): Promise<void> {
     } else if (typeof currentStats === 'object' && currentStats !== null) {
       viewsCount = currentStats.total_views || 0;
       newStats = {
-        total_likes: likesCount,
-        total_comments: commentsCount,
-        total_views: viewsCount
+        total_likes: likesCount.toString(),
+        total_comments: commentsCount.toString(),
+        total_views: viewsCount.toString()
       };
       console.log(`[VIBE-STATS] Updating object stats: ${JSON.stringify(currentStats)} -> ${JSON.stringify(newStats)}`);
     } else {

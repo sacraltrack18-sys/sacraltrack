@@ -10,6 +10,7 @@ import { BsMusicNoteBeamed } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
 import { toast } from "react-hot-toast";
+import { clearAllAuthState } from '@/app/utils/cacheUtils';
 
 const backgroundAnimation = {
     initial: { backgroundPosition: "0% 50%" },
@@ -71,9 +72,26 @@ export default function Register() {
         try {
             setLoading(true);
             
-            // Set a flag in sessionStorage to prevent showing errors during redirect
+            // Check for existing Google auth in progress and clear it if it exists
             if (typeof window !== 'undefined') {
+                // If there's a stale flag, clear it first
+                if (sessionStorage.getItem('googleAuthInProgress')) {
+                    console.log('Clearing existing googleAuthInProgress flag');
+                    sessionStorage.removeItem('googleAuthInProgress');
+                    // Brief pause to ensure browser state is updated
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // Set a new flag
                 sessionStorage.setItem('googleAuthInProgress', 'true');
+                
+                // Set an expiration timeout - clear the flag after 5 minutes to prevent stale state
+                setTimeout(() => {
+                    if (sessionStorage.getItem('googleAuthInProgress')) {
+                        console.log('Clearing stale googleAuthInProgress flag (timeout)');
+                        sessionStorage.removeItem('googleAuthInProgress');
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
             }
             
             // Проверяем наличие необходимых переменных окружения
@@ -88,50 +106,110 @@ export default function Register() {
             // Закрываем форму регистрации перед редиректом
             setIsRegisterOpen(false);
 
-            // Формируем URL для перенаправления
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '');
-            const successUrl = `${baseUrl}/auth/google/success`;
-            const failureUrl = `${baseUrl}/fail`;
-
-            // Проверяем текущую сессию с обработкой ошибок
+            // Double-check that we're properly clearing any existing session
             try {
+                console.log('Checking for existing session to clean up');
                 const session = await account.getSession('current');
                 if (session) {
+                    console.log('Found existing session, deleting it');
                     await account.deleteSession('current');
+                    // Brief pause to ensure session is cleared
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-            } catch (error) {
-                // Если сессии нет, это нормально, продолжаем
-                console.log('No existing session found');
+            } catch (sessionError) {
+                // If there's no session or we can't access it, that's fine
+                console.log('No existing session found or no access to check');
             }
 
-            // Создаем OAuth сессию - после этого произойдет редирект, так что код ниже не выполнится
+            // Формируем URL для перенаправления - ensure they're properly encoded
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '');
+            const successUrl = encodeURI(`${baseUrl}/auth/google/success`);
+            const failureUrl = encodeURI(`${baseUrl}/auth/google/fail`);
+
+            console.log('Starting OAuth2 session with Google');
+            console.log('Success URL:', successUrl);
+            console.log('Failure URL:', failureUrl);
+            
+            // Clear any existing toast notifications
+            toast.dismiss();
+            
+            // Show a toast indicating redirection
+            toast.success('Redirecting to Google login...', {
+                duration: 3000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #20DDBB'
+                }
+            });
+            
+            // Add a short delay to ensure toast is displayed before redirect
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Создаем OAuth сессию - после этого произойдет редирект
             await account.createOAuth2Session(
                 'google',
                 successUrl,
                 failureUrl
             );
+            
+            // This code should not execute due to redirect, but keep it as a fallback
+            console.log('OAuth2 session created, redirect should have occurred');
         } catch (error) {
             console.error('Google registration error:', error);
             
-            // Проверяем, не был ли пользователь уже перенаправлен или не находится в процессе
-            if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
-                if (error.code === 400) {
-                    toast.error('Ошибка конфигурации. Пожалуйста, проверьте настройки приложения.');
-                } else if (error.code === 401) {
-                    toast.error('Ошибка аутентификации. Попробуйте еще раз.');
-                } else if (error.code === 429) {
-                    toast.error('Слишком много попыток. Подождите несколько минут.');
-                } else {
-                    toast.error('Не удалось выполнить вход через Google. Попробуйте позже.');
-                }
-            }
-            
-            setLoading(false);
-            
-            // Очищаем флаг, если произошла ошибка
+            // Clear the Google auth in progress flag
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
             }
+            
+            // More specific error handling
+            let errorMessage = 'Failed to start Google authentication. Please try again later.';
+            
+            if (error.code === 400) {
+                errorMessage = 'Invalid OAuth configuration. Please contact support.';
+            } else if (error.code === 401) {
+                errorMessage = 'Authentication failed. Please try again.';
+            } else if (error.code === 429) {
+                errorMessage = 'Too many requests. Please wait a few minutes before trying again.';
+            } else if (error.code === 503) {
+                errorMessage = 'Google authentication service is temporarily unavailable. Please try again later.';
+            } else if (error.message && error.message.includes('network')) {
+                errorMessage = 'Network error. Please check your internet connection and try again.';
+            }
+            
+            toast.error(errorMessage, {
+                duration: 5000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #EF4444'
+                }
+            });
+            
+            // Suggest email registration instead
+            toast((t) => (
+                <div className="flex items-center gap-4">
+                    <span>Try regular email registration instead</span>
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                        }}
+                        className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1CB99A] transition-colors"
+                    >
+                        Continue
+                    </button>
+                </div>
+            ), {
+                duration: 8000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff', 
+                    borderLeft: '4px solid #20DDBB'
+                }
+            });
+            
+            setLoading(false);
         }
     }
 
@@ -143,7 +221,7 @@ export default function Register() {
         // Check if enough time has passed since the last attempt
         const now = Date.now();
         const timeSinceLastAttempt = now - lastAttemptTime;
-        const requiredDelay = 5000; // 5 seconds delay between attempts
+        const requiredDelay = 10000; // 10 seconds delay between attempts (increased from 5000)
 
         if (timeSinceLastAttempt < requiredDelay) {
             const remainingTime = Math.ceil((requiredDelay - timeSinceLastAttempt) / 1000);
@@ -162,12 +240,70 @@ export default function Register() {
             setLoading(true);
             setLastAttemptTime(now);
             
-            await contextUser.register(name, email, password);
+            // Add retry logic with exponential backoff
+            let retries = 0;
+            const maxRetries = 3;
+            let success = false;
+            let lastError = null;
+            
+            while (retries < maxRetries && !success) {
+                try {
+                    if (retries > 0) {
+                        // Wait with exponential backoff (1s, 2s, 4s)
+                        const waitTime = Math.pow(2, retries - 1) * 1000;
+                        console.log(`Registration attempt ${retries + 1}/${maxRetries}, waiting ${waitTime}ms before retry`);
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                    }
+                    
+                    await contextUser.register(name, email, password);
+                    success = true;
+                } catch (err) {
+                    lastError = err;
+                    // Only retry if it's a rate limit or network error, not for validation errors
+                    if (err.message && (err.message.includes('rate limit') || 
+                                      err.message.includes('network') ||
+                                      err.message.includes('too many attempts') ||
+                                      err.message.includes('connection') ||
+                                      err.message.includes('timeout'))) {
+                        retries++;
+                        console.log(`Registration attempt failed: ${err.message}. ${retries < maxRetries ? 'Will retry.' : 'Max retries reached.'}`);
+                        
+                        if (retries >= maxRetries) {
+                            throw new Error(`Failed to authenticate after multiple retries: ${err.message}`);
+                        }
+                    } else {
+                        // Don't retry for validation errors or other issues
+                        throw err;
+                    }
+                }
+            }
+            
             setRegistrationSuccess(true);
             
             const verifyUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/verify` : 'https://sacraltrack.space/verify';
-            await account.createVerification(verifyUrl);
-            toast.success('Please check your email to verify your account');
+            
+            try {
+                await account.createVerification(verifyUrl);
+                toast.success('Please check your email to verify your account', {
+                    duration: 6000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #20DDBB'
+                    }
+                });
+            } catch (verificationError) {
+                console.error('Error sending verification email:', verificationError);
+                // Still show success even if verification email fails
+                toast.success('Registration successful! Please check your email or try logging in.', {
+                    duration: 6000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #20DDBB'
+                    }
+                });
+            }
             
             // Закрываем форму регистрации сразу после успешной регистрации
             setIsRegisterOpen(false);
@@ -175,10 +311,15 @@ export default function Register() {
             console.error('Registration error:', error);
             setLoading(false);
             
+            // Clear any Google auth in progress flag if it exists
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.removeItem('googleAuthInProgress');
+            }
+            
             // Handle rate limit error specifically
-            if (error.message.includes('rate limit') || error.message.includes('too many attempts')) {
+            if (error.message && (error.message.includes('rate limit') || error.message.includes('too many attempts'))) {
                 toast.error('Too many registration attempts. Please try again in a few minutes.', {
-                    duration: 5000,
+                    duration: 8000,
                     style: {
                         background: '#272B43',
                         color: '#fff',
@@ -187,9 +328,46 @@ export default function Register() {
                 });
                 return;
             }
+            
+            // Handle authentication failure errors
+            if (error.message && error.message.includes('authenticate after multiple')) {
+                toast.error('Authentication failed. Please try again later or use a different method.', {
+                    duration: 8000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #EF4444'
+                    }
+                });
+                
+                // Add a suggestion to use Google login instead
+                toast((t) => (
+                    <div className="flex items-center gap-4">
+                        <span>Try signing in with Google instead</span>
+                        <button
+                            onClick={() => {
+                                toast.dismiss(t.id);
+                                handleGoogleRegister();
+                            }}
+                            className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1CB99A] transition-colors"
+                        >
+                            Google Login
+                        </button>
+                    </div>
+                ), {
+                    duration: 15000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #20DDBB'
+                    }
+                });
+                return;
+            }
 
             // Handle session exists error
-            if (error.message.includes('log out before creating')) {
+            if (error.message && error.message.includes('log out before creating')) {
+                // Keep existing code for session exists error
                 toast.error('Please log out of your current account before registering a new one', {
                     duration: 5000,
                     style: {
@@ -210,7 +388,7 @@ export default function Register() {
                                 // Try registration again after logout
                                 register();
                             }}
-                            className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1CB99A] transition-colors"
+                            className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1919A] transition-colors"
                         >
                             Logout
                         </button>
@@ -577,6 +755,28 @@ export default function Register() {
                                     Log in
                                 </button>
                             </p>
+                            
+                            {/* Troubleshooting section */}
+                            <div className="mt-4 text-xs">
+                                <button 
+                                    onClick={() => {
+                                        // Call the function without storing its result
+                                        clearAllAuthState();
+                                        // Always show success message
+                                        toast.success('Authentication state cleared. Please try again.', {
+                                            duration: 3000,
+                                            style: {
+                                                background: '#272B43',
+                                                color: '#fff',
+                                                borderLeft: '4px solid #20DDBB'
+                                            }
+                                        });
+                                    }}
+                                    className="text-[#818BAC] hover:text-[#20DDBB] text-xs underline transition-colors duration-300"
+                                >
+                                    Having trouble? Click here to clear auth state
+                                </button>
+                            </div>
                         </motion.div>
                     </div>
                 </motion.div>

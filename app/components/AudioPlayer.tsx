@@ -90,17 +90,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
         // If no cache, fetch the content
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                // Cancel any previous requests to prevent race conditions
+                // Create a new abort controller for each attempt but link it to our main ref
                 const abortController = new AbortController();
-                const signal = abortController.signal;
                 
                 // Set a timeout to avoid hanging requests
-                const timeoutId = setTimeout(() => abortController.abort(), 10000);
+                const timeoutId = setTimeout(() => {
+                    try {
+                        abortController.abort();
+                    } catch (e) {
+                        console.warn('Error aborting fetch:', e);
+                    }
+                }, 10000);
                 
                 const response = await fetch(url, { 
                     headers: { 'Cache-Control': 'no-cache' },
                     cache: 'no-store',
-                    signal
+                    signal: abortController.signal
                 });
                 
                 // Clear the timeout as request completed
@@ -130,7 +135,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
             } catch (err) {
                 // Don't retry on AbortError as it was intentional
                 if (err instanceof DOMException && err.name === 'AbortError') {
-                    console.warn('M3U8 fetch aborted');
+                    console.warn('M3U8 fetch aborted - cleanup in progress');
                     return null;
                 }
                 
@@ -198,12 +203,57 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
         }
     }, []);
 
+    // Detect iOS devices
+    const isIOS = useCallback(() => {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }, []);
+
+    // Special setup for iOS devices
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        
+        // iOS Safari requires these settings to work properly
+        if (isIOS()) {
+            // Set these properties for better iOS compatibility
+            audio.preload = 'metadata';
+            audio.autoplay = false;
+            
+            // iOS Safari requires these event listeners to enable audio playback
+            const unlockAudio = () => {
+                if (audio.paused) {
+                    // Play and immediately pause to unlock
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            audio.pause();
+                            // Reset the time to ensure clean playback
+                            audio.currentTime = 0;
+                        }).catch(err => {
+                            console.warn('Audio unlock failed:', err);
+                        });
+                    }
+                }
+            };
+            
+            // These events can unlock audio on iOS
+            const events = ['touchstart', 'touchend', 'click'];
+            events.forEach(event => document.body.addEventListener(event, unlockAudio, { once: true }));
+            
+            return () => {
+                events.forEach(event => document.body.removeEventListener(event, unlockAudio));
+            };
+        }
+    }, [isIOS]);
+
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio || !m3u8Url) return;
 
         let hls: Hls;
         let isMounted = true;
+        const abortControllerRef = new AbortController();
 
         const setupHls = async () => {
             try {
@@ -219,6 +269,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
                     manifestBlobRef.current = null;
                 }
                 
+                // Use the abort controller for this fetch
                 const content = await fetchM3U8Content(m3u8Url);
                 if (!content || !isMounted) return;
                 
@@ -233,7 +284,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
 
                 if (Hls.isSupported()) {
                     if (hlsRef.current) {
-                        hlsRef.current.destroy();
+                        try {
+                            hlsRef.current.stopLoad();
+                            hlsRef.current.detachMedia();
+                            hlsRef.current.destroy();
+                            hlsRef.current = null;
+                        } catch (err) {
+                            console.warn('Error cleaning up previous HLS instance:', err);
+                        }
                     }
 
                     // Оптимизированная конфигурация HLS для аудио
@@ -248,201 +306,208 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ m3u8Url, isPlaying, on
                         manifestLoadingTimeOut: 10000,
                         levelLoadingTimeOut: 10000,
                         startLevel: -1, // Автоматический выбор качества
-                        abrEwmaDefaultEstimate: 500000,
-                        abrMaxWithRealBitrate: true,
-                        maxStarvationDelay: 2, // Уменьшаем задержку "голодания" для аудио
-                        maxLoadingDelay: 2,
-                        startFragPrefetch: true, // Предварительная загрузка фрагментов
-                        progressive: true,
-                        debug: false,
-                        xhrSetup: (xhr: XMLHttpRequest) => {
-                            xhr.withCredentials = false;
-                            // Добавляем заголовки для кэширования
-                            xhr.setRequestHeader('Cache-Control', 'max-age=3600');
-                        }
+                        // Add these settings to improve stability, especially on mobile
+                        abrEwmaDefaultEstimate: 500000, // Default bandwidth estimate (500kbps)
+                        testBandwidth: false, // Disable bandwidth testing to prevent instability
+                        fragLoadingMaxRetry: 4, // More retries for fragment loading
+                        manifestLoadingMaxRetry: 4, // More retries for manifest loading
+                        levelLoadingMaxRetry: 4 // More retries for level loading
                     };
-                    
-                    hls = new Hls(hlsConfig);
-                    hlsRef.current = hls;
 
-                    // Регистрируем обработчики событий
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        setError(null);
-                        setLoadProgress(0.8); // Почти готово
+                    try {
+                        hls = new Hls(hlsConfig);
+                        hlsRef.current = hls;
+
+                        hls.on(Hls.Events.BUFFER_APPENDING, handleBufferProgress);
                         
-                        if (isPlaying && isMounted) {
-                            const playPromise = audio.play();
-                            if (playPromise !== undefined) {
-                                playPromise.catch((error) => {
-                                    console.warn('Audio playback was prevented:', error);
-                                    if (isMounted) {
-                                        onPause(); // Сообщаем родительскому компоненту о паузе
-                                    }
-                                });
-                            }
-                        }
-                        
-                        setIsLoading(false);
-                        setLoadProgress(1); // Полностью загружено
-                    });
-
-                    // Обработка событий буферизации
-                    hls.on(Hls.Events.BUFFER_APPENDING, handleBufferProgress);
-
-                    // Улучшенная обработка ошибок
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        if (data.fatal) {
-                            console.error('HLS fatal error:', data.type, data.details);
-                            
-                            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                                // Для сетевых ошибок пробуем восстановиться
-                                if (retryCountRef.current < maxRetries) {
-                                    retryCountRef.current++;
-                                    console.log(`Attempting recovery #${retryCountRef.current}...`);
-                                    hls.startLoad();
-                                } else {
-                                    if (isMounted) {
-                                        setError("Network error. Check your connection.");
-                                        hls.destroy();
-                                    }
-                                }
-                            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                                // Для ошибок воспроизведения пробуем восстановиться
-                                if (retryCountRef.current < maxRetries) {
-                                    retryCountRef.current++;
-                                    console.log(`Attempting media recovery #${retryCountRef.current}...`);
-                                    hls.recoverMediaError();
-                                } else {
-                                    if (isMounted) {
-                                        setError("Media error. Please try again.");
-                                        hls.destroy();
-                                    }
+                        // Add more error recovery handlers
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            if (data.fatal) {
+                                switch(data.type) {
+                                    case Hls.ErrorTypes.NETWORK_ERROR:
+                                        console.warn('HLS network error detected, trying to recover...');
+                                        // Handle network errors with a delay to prevent rapid retries
+                                        setTimeout(() => {
+                                            if (isMounted && hls) {
+                                                hls.startLoad();
+                                            }
+                                        }, 1000);
+                                        break;
+                                    case Hls.ErrorTypes.MEDIA_ERROR:
+                                        console.warn('HLS media error detected, trying to recover...');
+                                        hls.recoverMediaError();
+                                        break;
+                                    default:
+                                        // Cannot recover, so try to destroy and recreate
+                                        console.error('Fatal HLS error:', data);
+                                        if (isMounted) {
+                                            try {
+                                                hls.destroy();
+                                                hlsRef.current = null;
+                                                // Only attempt recreation if still mounted
+                                                setTimeout(() => {
+                                                    if (isMounted) {
+                                                        setupHls();
+                                                    }
+                                                }, 1000);
+                                            } catch (err) {
+                                                console.error('Error during HLS recovery:', err);
+                                                setError('Playback error. Please try again.');
+                                            }
+                                        }
+                                        break;
                                 }
                             } else {
-                                if (isMounted) {
-                                    setError("Playback error");
-                                    hls.destroy();
+                                // Non-fatal error, just log it
+                                console.warn('Non-fatal HLS error:', data);
+                            }
+                        });
+
+                        hls.loadSource(manifestUrl);
+                        hls.attachMedia(audio);
+                        setLoadProgress(0.8);
+                        
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                            setLoadProgress(1.0);
+                            if (isPlaying && isMounted) {
+                                try {
+                                    const playPromise = audio.play();
+                                    if (playPromise !== undefined) {
+                                        playPromise.catch(error => {
+                                            // Handle autoplay restrictions
+                                            if (error.name === 'NotAllowedError') {
+                                                console.warn('Autoplay prevented by browser policy');
+                                            } else {
+                                                console.error('Error playing audio:', error);
+                                            }
+                                        });
+                                    }
+                                } catch (e) {
+                                    console.error('Error during play attempt:', e);
                                 }
                             }
-                        } else {
-                            // Для нефатальных ошибок просто логируем
-                            console.warn('HLS non-fatal error:', data.type, data.details);
-                        }
-                    });
-
-                    // Добавляем дополнительный обработчик для отслеживания буферизации
-                    hls.on(Hls.Events.FRAG_BUFFERED, () => {
-                        if (isMounted) {
-                            setLoadProgress(1); // Фрагмент буферизован
-                            setIsLoading(false);
-                        }
-                    });
-
-                    hls.attachMedia(audio);
-                    hls.loadSource(manifestUrl);
-
-                } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Для устройств Apple, которые поддерживают HLS нативно
-                    audio.src = m3u8Url;
-                    
-                    // Для Safari устанавливаем обработчики ошибок
-                    audio.addEventListener('error', (e) => {
-                        console.error('Native HLS playback error:', e);
-                        if (isMounted) {
-                            setError('Playback error. Please try again.');
-                        }
-                    });
-                    
-                    if (isPlaying) {
-                        const playPromise = audio.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(() => {
-                                if (isMounted) {
-                                    onPause();
-                                }
-                            });
-                        }
+                        });
+                    } catch (hlsError) {
+                        console.error('Error setting up HLS:', hlsError);
+                        setError('Failed to initialize audio player.');
+                        setIsLoading(false);
                     }
-                    
+                } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                    // For Safari and iOS devices that support HLS natively
+                    audio.src = manifestUrl;
+                    audio.addEventListener('loadedmetadata', () => {
+                        setLoadProgress(1.0);
+                        if (isPlaying && isMounted) {
+                            try {
+                                const playPromise = audio.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.catch(error => {
+                                        console.error('Error playing audio:', error);
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('Error during play attempt:', e);
+                            }
+                        }
+                    });
+                } else {
+                    setError('Your browser does not support HLS playback.');
                     setIsLoading(false);
                 }
             } catch (err) {
-                console.error('Error initializing HLS:', err);
-                if (isMounted) {
-                    setError('Error initializing player');
+                // Check if the error is an AbortError (which we can safely ignore)
+                if (err instanceof DOMException && err.name === 'AbortError') {
+                    console.warn('Audio setup aborted - this is normal during cleanup');
+                } else {
+                    console.error('Error in setupHLS:', err);
+                    setError('Could not initialize audio player.');
                     setIsLoading(false);
                 }
             }
         };
 
-        if (audioRef.current) {
-            setupHls();
-        }
+        setupHls();
 
         return () => {
             isMounted = false;
             
+            // Abort any in-flight fetches
+            abortControllerRef.abort();
+            
+            // Clean up HLS instance
             if (hlsRef.current) {
-                hlsRef.current.destroy();
-                hlsRef.current = null;
+                try {
+                    // First stop loading to prevent media errors
+                    hlsRef.current.stopLoad();
+                    // Then detach media
+                    hlsRef.current.detachMedia();
+                    // Finally destroy the instance
+                    hlsRef.current.destroy();
+                    hlsRef.current = null;
+                } catch (err) {
+                    console.warn('Error cleaning up HLS instance:', err);
+                }
             }
             
+            // Clean up audio element
+            if (audio) {
+                try {
+                    audio.pause();
+                    audio.src = '';
+                    audio.load(); // This forces the audio element to reset
+                } catch (err) {
+                    console.warn('Error cleaning up audio element:', err);
+                }
+            }
+            
+            // Clean up blob URL
             if (manifestBlobRef.current) {
-                URL.revokeObjectURL(manifestBlobRef.current);
-                manifestBlobRef.current = null;
+                try {
+                    URL.revokeObjectURL(manifestBlobRef.current);
+                    manifestBlobRef.current = null;
+                } catch (err) {
+                    console.warn('Error revoking object URL:', err);
+                }
             }
-            
-            retryCountRef.current = 0;
         };
-    }, [m3u8Url, createManifest, fetchM3U8Content, handleBufferProgress, isPlaying, onPause]);
+    }, [m3u8Url, createManifest, fetchM3U8Content, handleBufferProgress, isPlaying]);
 
-    // Управление воспроизведением с улучшенной обработкой ошибок
+    // Эффект для обработки изменений состояния проигрывания (play/pause)
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
-
-        const handlePlay = async () => {
+        
+        if (isPlaying) {
+            // Only try to play if the audio is actually paused
+            if (audio.paused) {
+                try {
+                    // Use a safe play approach with promise handling
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.error('Error playing audio:', error);
+                            // If play fails, ensure the UI state is updated
+                            if (error.name !== 'AbortError') {
+                                onPause();
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Exception during play:', error);
+                    onPause();
+                }
+            }
+        } else {
+            // When pausing, first be sure to cancel any pending play promises
             try {
-                setIsLoading(true);
-                
-                if (isPlaying) {
-                    // Проверяем, не воспроизводится ли уже аудио
-                    if (audio.paused) {
-                        try {
-                            const playPromise = audio.play();
-                            if (playPromise !== undefined) {
-                                await playPromise;
-                            }
-                        } catch (playError) {
-                            // Игнорируем AbortError, так как это нормально при быстром переключении
-                            if (playError && typeof playError === 'object' && 'name' in playError && playError.name !== 'AbortError') {
-                                console.error('AudioPlayer: Play error:', playError);
-                                onPause(); // Информируем родительский компонент о проблеме
-                            }
-                        }
-                    }
-                } else {
-                    // Проверяем, не на паузе ли уже аудио
-                    if (!audio.paused) {
-                        audio.pause();
-                    }
+                // Pause only if it's actually playing to avoid unnecessary events
+                if (!audio.paused) {
+                    audio.pause();
                 }
             } catch (error) {
-                console.error('AudioPlayer: Playback error:', error);
-                onPause(); // Информируем родительский компонент о проблеме
-            } finally {
-                setIsLoading(false);
+                console.warn('Error pausing audio:', error);
             }
-        };
-
-        // Небольшая задержка перед воспроизведением для предотвращения проблем с браузерами
-        const timeoutId = setTimeout(handlePlay, 100);
-
-        return () => {
-            clearTimeout(timeoutId);
-            // Не вызываем pause() при размонтировании, чтобы избежать конфликтов
-            // с другими вызовами play()/pause()
-        };
+        }
     }, [isPlaying, onPause]);
 
     // Обработка событий аудио с улучшенной логикой

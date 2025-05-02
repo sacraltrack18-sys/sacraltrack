@@ -23,41 +23,41 @@ export const MUSIC_EMOJIS = [
 ];
 
 // Вспомогательная функция для нормализации статистики
-const normalizeVibeStats = (stats: any): { total_likes: number; total_comments: number; total_views: number } => {
+const normalizeVibeStats = (stats: any): { total_likes: string; total_comments: string; total_views: string } => {
   // Если stats это массив
   if (Array.isArray(stats)) {
     const statsArray = [...stats];
     while (statsArray.length < 3) statsArray.push('0');
     return {
-      total_likes: parseInt(statsArray[0], 10) || 0,
-      total_comments: parseInt(statsArray[1], 10) || 0,
-      total_views: parseInt(statsArray[2], 10) || 0
+      total_likes: statsArray[0] || '0',
+      total_comments: statsArray[1] || '0',
+      total_views: statsArray[2] || '0'
     };
   }
   
   // Если stats это объект
   if (typeof stats === 'object' && stats !== null && !Array.isArray(stats)) {
     return {
-      total_likes: typeof stats.total_likes === 'number' ? stats.total_likes : 0,
-      total_comments: typeof stats.total_comments === 'number' ? stats.total_comments : 0,
-      total_views: typeof stats.total_views === 'number' ? stats.total_views : 0
+      total_likes: typeof stats.total_likes === 'number' ? stats.total_likes.toString() : (stats.total_likes || '0'),
+      total_comments: typeof stats.total_comments === 'number' ? stats.total_comments.toString() : (stats.total_comments || '0'),
+      total_views: typeof stats.total_views === 'number' ? stats.total_views.toString() : (stats.total_views || '0')
     };
   }
   
-  // По умолчанию возвращаем нули
+  // По умолчанию возвращаем нули в строковом виде
   return {
-    total_likes: 0,
-    total_comments: 0,
-    total_views: 0
+    total_likes: '0',
+    total_comments: '0',
+    total_views: '0'
   };
 };
 
 // Функция для преобразования нормализованной статистики обратно в массив
-const statsToArray = (stats: { total_likes: number; total_comments: number; total_views: number }): string[] => {
-  // Make sure we're returning numbers converted to strings, not objects that might be converted to "[object Object]"
-  const likes = typeof stats.total_likes === 'number' ? stats.total_likes.toString() : '0';
-  const comments = typeof stats.total_comments === 'number' ? stats.total_comments.toString() : '0';
-  const views = typeof stats.total_views === 'number' ? stats.total_views.toString() : '0';
+const statsToArray = (stats: { total_likes: string; total_comments: string; total_views: string }): string[] => {
+  // Make sure we're returning strings, not objects that might be converted to "[object Object]"
+  const likes = stats.total_likes || '0';
+  const comments = stats.total_comments || '0';
+  const views = stats.total_views || '0';
   
   return [likes, comments, views];
 };
@@ -240,7 +240,7 @@ export const useVibeComments = (vibeId?: string) => {
       const currentStats = normalizeVibeStats(vibeDoc.stats);
       const updatedStats = {
         ...currentStats,
-        total_comments: Math.max(0, currentStats.total_comments + change)
+        total_comments: Math.max(0, parseInt(currentStats.total_comments, 10) + change).toString()
       };
 
       // Преобразуем объект статистики в массив для обновления документа

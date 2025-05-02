@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import PostMainLikes from "./PostMainLikes";
-import React, { useEffect, useState, memo, useCallback, useRef, useMemo, Suspense, lazy, useImperativeHandle, forwardRef } from "react";
+import React, { useEffect, useState, memo, useCallback, useRef, useMemo, Suspense, lazy } from "react";
 import useCreateBucketUrl from "../hooks/useCreateBucketUrl";
 import { PostMainCompTypes, PostWithProfile } from "../types";
 import { usePathname } from "next/navigation";
@@ -88,7 +88,6 @@ interface PostImageProps {
     onReact?: (reactionType: string) => void;
     reactions?: Record<string, number>;
     currentReaction?: string | null;
-    statsCounterRef?: React.RefObject<StatsCounterRef | null>;
 }
 
 // Sound wave animation component
@@ -272,7 +271,7 @@ const PostImageFallback = memo(() => (
 
 PostImageFallback.displayName = 'PostImageFallback';
 
-const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePlay, post, onReact, reactions, currentReaction, statsCounterRef }: PostImageProps) => {
+const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePlay, post, onReact, reactions, currentReaction }: PostImageProps) => {
   // Состояние для показа комментариев
   const [showComments, setShowComments] = useState(false);
   // Состояние для отслеживания, были ли уже показаны комментарии
@@ -402,7 +401,7 @@ const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePla
         />
         
         {/* Stats Counter in top right corner */}
-        {post && <StatsCounter post={post} ref={statsCounterRef} />}
+        {post && <StatsCounter post={post} />}
         
         {/* Desktop play/pause overlay - показываем при наведении */}
         {!isMobile && (
@@ -647,136 +646,165 @@ const ReactionEffect = memo(({ type }: { type: string }) => {
 
 ReactionEffect.displayName = 'ReactionEffect';
 
-// Интерфейс для props компонента
-interface StatsCounterProps {
-  post: any;
-}
-
-// Интерфейс для ref компонента
-interface StatsCounterRef {
-  updateStatistics: () => void;
-}
-
-// Компонент для отображения счетчиков статистики на изображении
-const StatsCounter = memo(forwardRef<StatsCounterRef, StatsCounterProps>(
-  ({ post }, ref) => {
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
-    const hasLoadedRef = useRef(false);
-    const retryCount = useRef(0);
-    const MAX_RETRIES = 2;
-
-    // Функция для получения актуальной статистики
-    const fetchStatistics = useCallback(async () => {
-      if (!post?.id) return;
-      
-      try {
-        console.log(`[StatsCounter] Fetching statistics for track ID: ${post.id}`);
-        // Запрос к API для получения статистики
-        const response = await fetch(`/api/track-stats/${post.id}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => 'Unknown error');
-          throw new Error(`Failed to fetch stats (${response.status}): ${errorText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success && data.statistics) {
-          console.log(`[StatsCounter] Successfully fetched statistics for track ID: ${post.id}`);
-          setStats(data.statistics);
-          setError(null);
-          retryCount.current = 0; // Reset retry count on success
-          hasLoadedRef.current = true; // Mark as loaded successfully
-        } else {
-          console.warn(`[StatsCounter] No statistics found for track ID: ${post.id}`, data);
-          throw new Error('No statistics data found');
-        }
-      } catch (error) {
-        console.error(`[StatsCounter] Error fetching track statistics:`, error);
-        setError(error instanceof Error ? error : new Error('Failed to fetch stats'));
-        
-        // Attempt to retry failed requests, but not too many times
-        if (retryCount.current < MAX_RETRIES) {
-          retryCount.current += 1;
-          console.log(`[StatsCounter] Retrying fetch (${retryCount.current}/${MAX_RETRIES})...`);
-          // Use exponential backoff for retries
-          setTimeout(() => fetchStatistics(), 1000 * retryCount.current);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }, [post?.id]);
-
-    // Инициализация и настройка загрузки статистики один раз при монтировании
-    useEffect(() => {
-      // Загружаем данные только один раз при монтировании компонента
-      if (!hasLoadedRef.current) {
-        fetchStatistics();
-      }
-      
-      // Очистка при размонтировании
-      return () => {
-        // No interval to clear anymore
-      };
-    }, [fetchStatistics]);
-
-    // Функция для обновления статистики после действия (например, воспроизведения)
-    // Может быть вызвана извне через ref
-    const updateAfterAction = useCallback(() => {
-      fetchStatistics();
-    }, [fetchStatistics]);
-
-    // Expose the update function via ref
-    useImperativeHandle(ref, () => ({
-      updateStatistics: updateAfterAction
-    }));
-
-    // Показываем скелетон при загрузке
-    if (loading) {
-      return (
-        <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-10 bg-white/20 animate-pulse rounded-full"></div>
-          </div>
-        </div>
-      );
-    }
-
-    // Показываем ошибку, если не удалось загрузить данные после всех попыток
-    if (error && retryCount.current >= MAX_RETRIES) {
-      return (
-        <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
-          <div className="flex items-center gap-1.5">
-            <FaHeadphones className="text-gray-400 text-xs" />
-            <span className="text-white text-xs font-medium">-</span>
-          </div>
-        </div>
-      );
-    }
-
-    // Показываем статистику, если есть данные
-    return (
-      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
-        {/* Счетчик прослушиваний */}
-        <div className="flex items-center gap-1.5">
-          <FaHeadphones className="text-[#20DDBB] text-xs" />
-          <span className="text-white text-xs font-medium">
-            {stats?.plays_count ? parseInt(stats.plays_count, 10).toLocaleString() : '0'}
-          </span>
-        </div>
-      </div>
-    );
-  }
-));
-
-StatsCounter.displayName = 'StatsCounter';
-
 // Обновляем сигнатуру компонента для корректной работы с пропсами
 interface PostMainProps {
   post: PostWithProfile;
 }
+
+// Функция для проверки и создания документа статистики для трека
+const ensureTrackStatisticsExist = async (trackId: string) => {
+  if (!trackId) return;
+  
+  try {
+    // Проверяем, существует ли документ статистики
+    console.log(`Проверяем статистику для трека с ID: ${trackId}`);
+    
+    try {
+      await database.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.statisticsCollectionId,
+        trackId
+      );
+      console.log(`Документ статистики существует для трека: ${trackId}`);
+      return; // Документ существует, ничего не делаем
+    } catch (error) {
+      console.log(`Документ статистики не найден, создаем новый для трека: ${trackId}`);
+      // Документ не существует, создаем новый
+    }
+    
+    // Создаем документ статистики с ID трека в качестве ID документа
+    const statsData = {
+      track_id: trackId,
+      plays_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      downloads_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      purchases_count: "0", // Преобразуем в строку для совместимости с Appwrite
+      likes: "0", // Преобразуем в строку для совместимости с Appwrite
+      shares: "0", // Преобразуем в строку для совместимости с Appwrite
+      last_played: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const result = await database.createDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.statisticsCollectionId,
+      trackId, // Используем ID трека как ID документа
+      statsData
+    );
+    
+    console.log(`Создан документ статистики с ID: ${result.$id}`);
+  } catch (error) {
+    console.error('Ошибка при создании документа статистики:', error);
+    // Не бросаем исключение - это некритичная функциональность
+  }
+};
+
+// Компонент для отображения счетчиков статистики на изображении
+const StatsCounter = memo(({ post }: { post: any }) => {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 2;
+
+  // Функция для получения актуальной статистики
+  const fetchStatistics = useCallback(async () => {
+    if (!post?.id) return;
+    
+    try {
+      console.log(`[StatsCounter] Fetching statistics for track ID: ${post.id}`);
+      // Запрос к API для получения статистики
+      const response = await fetch(`/api/track-stats/${post.id}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`Failed to fetch stats (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.statistics) {
+        console.log(`[StatsCounter] Successfully fetched statistics for track ID: ${post.id}`);
+        setStats(data.statistics);
+        setError(null);
+        retryCount.current = 0; // Reset retry count on success
+      } else {
+        console.warn(`[StatsCounter] No statistics found for track ID: ${post.id}`, data);
+        throw new Error('No statistics data found');
+      }
+    } catch (error) {
+      console.error(`[StatsCounter] Error fetching track statistics:`, error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch stats'));
+      
+      // Attempt to retry failed requests, but not too many times
+      if (retryCount.current < MAX_RETRIES) {
+        retryCount.current += 1;
+        console.log(`[StatsCounter] Retrying fetch (${retryCount.current}/${MAX_RETRIES})...`);
+        // Use exponential backoff for retries
+        setTimeout(() => fetchStatistics(), 1000 * retryCount.current);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [post?.id]);
+
+  // Инициализация и настройка интервала обновления
+  useEffect(() => {
+    // Сразу загружаем данные
+    fetchStatistics();
+    
+    // Настраиваем интервал обновления каждые 15 секунд (увеличили для снижения нагрузки)
+    intervalRef.current = setInterval(() => {
+      fetchStatistics();
+    }, 15000);
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [fetchStatistics]);
+
+  // Показываем скелетон при загрузке
+  if (loading) {
+    return (
+      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-10 bg-white/20 animate-pulse rounded-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Показываем ошибку, если не удалось загрузить данные после всех попыток
+  if (error && retryCount.current >= MAX_RETRIES) {
+    return (
+      <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
+        <div className="flex items-center gap-1.5">
+          <FaHeadphones className="text-gray-400 text-xs" />
+          <span className="text-white text-xs font-medium">-</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Показываем статистику, если есть данные
+  return (
+    <div className="absolute top-2 right-2 z-10 bg-black/40 backdrop-blur-md rounded-lg p-2 flex items-end">
+      {/* Счетчик прослушиваний */}
+      <div className="flex items-center gap-1.5">
+        <FaHeadphones className="text-[#20DDBB] text-xs" />
+        <span className="text-white text-xs font-medium">
+          {stats?.plays_count ? parseInt(stats.plays_count, 10).toLocaleString() : '0'}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+StatsCounter.displayName = 'StatsCounter';
 
 const PostMain = memo(({ post }: PostMainProps) => {
     const [imageError, setImageError] = useState(false);
@@ -796,7 +824,6 @@ const PostMain = memo(({ post }: PostMainProps) => {
     const avatarUrlRef = useRef('');
     const m3u8UrlRef = useRef('');
     const playCountRecordedRef = useRef(false);
-    const statsCounterRef = useRef<StatsCounterRef>(null); // Ref for StatsCounter component
     
     // Memoized values to prevent unnecessary recalculations
     const userContext = useUser();
@@ -872,8 +899,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
     // Проверяем наличие документа статистики при загрузке компонента
     useEffect(() => {
         if (post?.id) {
-            // Статистика загружается один раз при монтировании StatsCounter компонента
-            // Функция ensureTrackStatisticsExist больше не нужна здесь
+            ensureTrackStatisticsExist(post.id).catch(console.error);
         }
     }, [post?.id]);
 
@@ -887,14 +913,6 @@ const PostMain = memo(({ post }: PostMainProps) => {
             } else {
                 // Если на паузе, запускаем
                 togglePlayPause();
-                
-                // Обновляем статистику только при начале воспроизведения
-                if (statsCounterRef.current) {
-                    statsCounterRef.current.updateStatistics();
-                }
-                
-                // Записываем воспроизведение в статистику
-                incrementPlayCount();
             }
         } else {
             // Если выбран другой трек или нет активного трека
@@ -905,17 +923,9 @@ const PostMain = memo(({ post }: PostMainProps) => {
             setCurrentAudioId(post.id);
             setTimeout(() => {
                 togglePlayPause();
-                
-                // Обновляем статистику только при начале воспроизведения
-                if (statsCounterRef.current) {
-                    statsCounterRef.current.updateStatistics();
-                }
-                
-                // Записываем воспроизведение в статистику
-                incrementPlayCount();
             }, 50);
         }
-    }, [post.id, currentAudioId, globalIsPlaying, togglePlayPause, stopAllPlayback, setCurrentAudioId, incrementPlayCount]);
+    }, [post.id, currentAudioId, globalIsPlaying, togglePlayPause, stopAllPlayback, setCurrentAudioId]);
 
     // Handle intersection observer for lazy loading
     useEffect(() => {
@@ -1080,7 +1090,6 @@ const PostMain = memo(({ post }: PostMainProps) => {
                 onReact={handleReaction}
                 reactions={reactions}
                 currentReaction={currentReaction}
-                statsCounterRef={statsCounterRef}
             />
 
             <div className="px-4 py-2 w-full">

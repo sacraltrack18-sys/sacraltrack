@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
         newStats = [likes_count.toString(), comments_count.toString(), viewsCount];
       } else if (typeof currentStats === 'object' && currentStats !== null) {
         newStats = {
-          total_likes: likes_count,
-          total_comments: comments_count,
-          total_views: currentStats.total_views || 0
+          total_likes: likes_count.toString(),
+          total_comments: comments_count.toString(),
+          total_views: (currentStats.total_views || 0).toString()
         };
       } else {
         // Если stats не существует или имеет неверный формат, создаем новый массив

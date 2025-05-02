@@ -31,7 +31,7 @@ const useTrackStatistics = (trackId?: string) => {
   // Флаг первой загрузки
   const initialLoadRef = useRef(true);
   // Максимальное количество автоматических обновлений за одну загрузку
-  const MAX_AUTO_UPDATES = 2;
+  const MAX_AUTO_UPDATES = 1;
 
   // Проверка и создание документа статистики при необходимости
   const ensureTrackStatisticsExist = useCallback(async () => {
@@ -234,16 +234,11 @@ const useTrackStatistics = (trackId?: string) => {
         })
         .catch(console.error);
     
-      // Настраиваем интервал для периодического обновления, но только если лимит не достигнут
-      // Второе обновление произойдет по интервалу, если лимит еще не достигнут
-      const intervalId = setInterval(() => {
-        if (canAutoUpdate()) {
-          fetchStatistics();
-        }
-      }, 30000); // Увеличиваем интервал до 30 секунд
+      // Больше не настраиваем интервал для периодического обновления
+      // Обновление теперь происходит только при загрузке страницы или при конкретных действиях пользователя
       
       return () => {
-        clearInterval(intervalId);
+        // Нет интервала для очистки
       };
     }
   }, [trackId, fetchStatistics, ensureTrackStatisticsExist, canAutoUpdate]);
