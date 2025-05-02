@@ -1083,28 +1083,18 @@ const PostMain = memo(({ post }: PostMainProps) => {
                 statsCounterRef={statsCounterRef}
             />
 
-            <div className="px-4 py-2 w-full">
+            <div className="px-4 py-2 border-t border-white/5">
                 <AudioPlayer 
-                    m3u8Url={m3u8UrlRef.current} 
-                    isPlaying={isPlaying} 
+                    m3u8Url={m3u8UrlRef.current}
+                    isPlaying={isPlaying}
                     onPlay={() => {
-                        if (currentAudioId !== post.id) {
-                            // Если другой трек активен, сначала остановить его
-                            if (globalIsPlaying) {
-                                stopAllPlayback();
-                            }
-                            setCurrentAudioId(post.id);
-                            togglePlayPause();
-                        } else if (!globalIsPlaying) {
-                            // Если этот трек на паузе, возобновить
-                            togglePlayPause();
-                        }
-                    }} 
+                        setCurrentAudioId(post.id);
+                        if (!isPlaying) togglePlayPause();
+                    }}
                     onPause={() => {
-                        if (currentAudioId === post.id && globalIsPlaying) {
-                            togglePlayPause();
-                        }
-                    }} 
+                        stopAllPlayback();
+                    }}
+                    preload={true}
                 />
             </div>
 

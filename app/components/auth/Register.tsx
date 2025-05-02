@@ -10,7 +10,7 @@ import { BsMusicNoteBeamed } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
 import { toast } from "react-hot-toast";
-import { clearAllAuthState } from '@/app/utils/cacheUtils';
+import { clearUserCache } from '@/app/utils/cacheUtils';
 
 const backgroundAnimation = {
     initial: { backgroundPosition: "0% 50%" },
@@ -760,9 +760,7 @@ export default function Register() {
                             <div className="mt-4 text-xs">
                                 <button 
                                     onClick={() => {
-                                        // Call the function without storing its result
-                                        clearAllAuthState();
-                                        // Always show success message
+                                        clearUserCache();
                                         toast.success('Authentication state cleared. Please try again.', {
                                             duration: 3000,
                                             style: {

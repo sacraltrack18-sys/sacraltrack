@@ -392,6 +392,7 @@ export default function PurchasedTracks() {
                     isPlaying={isPlaying[purchase.track_id] || false}
                     onPlay={() => setIsPlaying(prev => ({ ...prev, [purchase.track_id]: true }))}
                     onPause={() => setIsPlaying(prev => ({ ...prev, [purchase.track_id]: false }))}
+                    preload={true}
                   />
                 )}
               </div>

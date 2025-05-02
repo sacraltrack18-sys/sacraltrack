@@ -58,29 +58,40 @@ export default function Login() {
                 sessionStorage.setItem('googleAuthInProgress', 'true');
             }
             
-            const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/google/success` : 'http://localhost:3000/auth/google/success';
-            const failureUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/fail` : 'http://localhost:3000/fail';
+            // Use environment variables for URLs or fallback to localhost
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+            const successUrl = `${appUrl}/auth/google/success`;
+            const failureUrl = `${appUrl}/fail`;
 
+            // Check if Appwrite endpoint is configured
             if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
+                toast.error('Authentication service configuration is missing. Please contact support.');
                 throw new Error('Appwrite configuration is missing');
             }
 
-            // Закрываем форму логина перед OAuth
+            // Close login form before OAuth redirection
             setIsLoginOpen(false);
 
-            // Проверяем, существует ли уже сессия
+            // Check for existing session
             try {
                 const session = await account.getSession('current');
                 if (session) {
-                    // Если сессия существует, перенаправляем на главную
+                    console.log('Existing session found, redirecting to homepage');
                     window.location.href = '/';
                     return;
                 }
-            } catch (error) {
-                // Если сессии нет, продолжаем с OAuth
-                console.log('No existing session found');
+            } catch (sessionError) {
+                // No session exists, proceed with OAuth
+                console.log('No existing session found, proceeding with OAuth');
             }
 
+            // Show toast notification that we're redirecting to Google
+            toast.loading('Redirecting to Google login...', {
+                id: 'google-redirect',
+                duration: 3000
+            });
+
+            // Create OAuth session with Google provider
             await account.createOAuth2Session(
                 'google',
                 successUrl,
@@ -89,14 +100,16 @@ export default function Login() {
         } catch (error) {
             console.error('Google login error:', error);
             
-            // Проверяем, не был ли пользователь уже перенаправлен или не находится в процессе
+            // Only show errors if user hasn't been redirected yet
             if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
+                toast.dismiss('google-redirect');
+                
                 if (error.code === 400) {
-                    toast.error('Configuration error. Please check application settings.');
+                    toast.error('Authentication configuration error. Please try again later or contact support.');
                 } else if (error.code === 401) {
                     toast.error('Authentication error. Please try again.');
                 } else if (error.code === 429) {
-                    toast.error('Too many attempts. Please wait a few minutes.');
+                    toast.error('Too many login attempts. Please wait a few minutes and try again.');
                 } else {
                     toast.error('Failed to login with Google. Please try again later.');
                 }
@@ -104,7 +117,7 @@ export default function Login() {
             
             setLoading(false);
             
-            // Очищаем флаг, если произошла ошибка
+            // Clear the authentication in progress flag if there was an error
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
             }
