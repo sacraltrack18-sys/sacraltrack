@@ -388,7 +388,7 @@ export const useVibeStore = create<VibeStore>()(
             try {
               const profileDoc = await database.getDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILES!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
                 vibeDoc.user_id
               );
               
