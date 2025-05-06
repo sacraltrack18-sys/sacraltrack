@@ -88,7 +88,12 @@ export default function Login() {
             // Show toast notification that we're redirecting to Google
             toast.loading('Redirecting to Google login...', {
                 id: 'google-redirect',
-                duration: 3000
+                duration: 5000,
+                style: {
+                    background: '#272B43',
+                    color: '#fff',
+                    borderLeft: '4px solid #8A2BE2'
+                }
             });
 
             // Create OAuth session with Google provider
@@ -104,14 +109,24 @@ export default function Login() {
             if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
                 toast.dismiss('google-redirect');
                 
+                // Улучшаем стиль сообщений об ошибках
+                const errorStyle = {
+                    duration: 5000,
+                    style: {
+                        background: '#272B43',
+                        color: '#fff',
+                        borderLeft: '4px solid #EF4444'
+                    }
+                };
+                
                 if (error.code === 400) {
-                    toast.error('Authentication configuration error. Please try again later or contact support.');
+                    toast.error('Authentication configuration error. Please try again later or contact support.', errorStyle);
                 } else if (error.code === 401) {
-                    toast.error('Authentication error. Please try again.');
+                    toast.error('Authentication error. Please try again.', errorStyle);
                 } else if (error.code === 429) {
-                    toast.error('Too many login attempts. Please wait a few minutes and try again.');
+                    toast.error('Too many login attempts. Please wait a few minutes and try again.', errorStyle);
                 } else {
-                    toast.error('Failed to login with Google. Please try again later.');
+                    toast.error('Failed to login with Google. Please try again later.', errorStyle);
                 }
             }
             

@@ -12,6 +12,7 @@ interface AudioPlayerProps {
     onPlay: () => void;
     onPause: () => void;
     preload?: boolean;
+    hideCurrentTime?: boolean;
 }
 
 // Define the type for the time update function
@@ -32,7 +33,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     isPlaying, 
     onPlay, 
     onPause,
-    preload = true // По умолчанию включаем предзагрузку
+    preload = true, // По умолчанию включаем предзагрузку
+    hideCurrentTime = false // По умолчанию показываем текущее время
 }) => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
@@ -1087,8 +1089,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         }}
                     />
                 </div>
-                <div className="text-white/80 text-sm font-medium min-w-[45px] text-right">
-                    {formatTime(currentTime)}{duration ? ` / ${formatTime(duration)}` : ''}
+                <div className="audio-player-time text-white/80 text-sm font-medium min-w-[45px] text-right">
+                    {hideCurrentTime 
+                        ? (duration ? `${formatTime(duration)}` : '') 
+                        : (`${formatTime(currentTime)}${duration ? ` / ${formatTime(duration)}` : ''}`)}
                 </div>
             </div>
 

@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                             zIndex: 10000000
                                         }}
                                         toastOptions={{
-                                            duration: 3000,
+                                            duration: 5000,
                                             style: {
                                                 background: '#272B43',
                                                 color: '#fff',
@@ -117,12 +117,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                                     primary: '#8B5CF6',
                                                     secondary: '#FFFAEE',
                                                 },
+                                                style: {
+                                                    borderLeft: '4px solid #20DDBB',
+                                                    background: '#272B43',
+                                                    color: '#fff'
+                                                }
                                             },
                                             error: {
                                                 iconTheme: {
                                                     primary: '#EF4444',
                                                     secondary: '#FFFAEE',
                                                 },
+                                                style: {
+                                                    borderLeft: '4px solid #EF4444', 
+                                                    background: '#272B43',
+                                                    color: '#fff'
+                                                }
                                             },
                                         }}
                                     />

@@ -215,7 +215,7 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
             >
               {rank.score}
             </motion.div>
-            <span className={`text-white text-xs font-bold`}>
+            <span className="text-white text-xs font-bold">
               {rank.name}
             </span>
           </motion.div>

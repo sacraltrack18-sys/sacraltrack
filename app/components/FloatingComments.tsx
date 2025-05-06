@@ -63,7 +63,7 @@ const FloatingComment = ({ comment, index }: { comment: CommentWithProfile; inde
                     </p>
                 </div>
             </div>
-            <p className="text-white/85 text-sm mt-2 line-clamp-1 overflow-ellipsis">
+            <p className="text-white text-sm mt-2 line-clamp-1 overflow-ellipsis">
                 {comment.text}
             </p>
         </motion.div>

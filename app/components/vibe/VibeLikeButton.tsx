@@ -176,29 +176,46 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
     }
   }, [initialLikeState]);
 
-  const handleLikeToggle = async () => {
+  const handleLikeToggle = async (e?: React.MouseEvent) => {
+    // Остановим всплытие события, если клик был по кнопке
+    if (e) {
+      e.stopPropagation();
+    }
+
     if (!user) {
       setIsLoginOpen(true);
       return;
     }
     
-    if (isUpdating) return; // Prevent multiple clicks
+    // Предотвращаем множественные запросы, но не блокируем UI обновление
+    if (isUpdating) {
+      console.log(`[VibeLikeButton] Operation already in progress, showing optimistic update`);
+      // Немедленно обновим UI даже если запрос в процессе
+      setIsLiked(!isLiked);
+      const newCount = !isLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
+      setLikesCount(newCount);
+      return;
+    }
     
-    // Generate unique operation ID for logging
+    // Генерируем уникальный ID операции для логирования
     const operationId = Math.random().toString(36).substring(7);
     console.log(`[VibeLikeButton ${operationId}] Toggle like for vibe ${vibeId}`);
     
-    // Store previous state for rollback if needed
+    // Сохраняем предыдущее состояние для отката при ошибке
     const wasLiked = isLiked;
     const prevLikesCount = likesCount;
     
-    // Optimistically update UI
-    setIsUpdating(true);
+    // Немедленно обновляем UI оптимистично
     setIsLiked(!isLiked);
     const newCount = !isLiked ? prevLikesCount + 1 : Math.max(0, prevLikesCount - 1);
     setLikesCount(newCount);
+
+    // Уведомляем родительский компонент о немедленном обновлении, если есть callback
+    if (onLikeUpdated) {
+      onLikeUpdated(newCount, !isLiked);
+    }
     
-    // Store in localStorage (optimistic update)
+    // Сохраняем в localStorage (оптимистичное обновление)
     try {
       localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
       localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), !isLiked ? 'true' : 'false');
@@ -206,8 +223,11 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
       console.error('[VibeLikeButton] Error updating localStorage:', e);
     }
     
+    // Отмечаем начало асинхронной операции
+    setIsUpdating(true);
+    
     try {
-      // Call appropriate method based on current like state
+      // Вызываем соответствующий метод в зависимости от текущего состояния лайка
       let success;
       if (!isLiked) {
         console.log(`[VibeLikeButton ${operationId}] Adding like`);
@@ -217,13 +237,13 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         success = await unlikeVibe(vibeId, user.id);
       }
       
+      // Если операция не удалась, откатываем состояние
       if (!success) {
-        // If operation failed, rollback state
         console.error(`[VibeLikeButton ${operationId}] Failed to ${!isLiked ? 'add' : 'remove'} like`);
         setIsLiked(wasLiked);
         setLikesCount(prevLikesCount);
         
-        // Revert localStorage
+        // Откатываем localStorage
         try {
           localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
           localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
@@ -233,27 +253,19 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         
         toast.error(`Failed to ${!isLiked ? 'like' : 'unlike'}. Please try again.`);
       } else {
-        // Ensure userLikedVibes is up to date for other components
+        // Обновляем userLikedVibes для других компонентов
         if (user && user.id) {
           fetchUserLikedVibes(user.id);
-        }
-        
-        // Notify parent component about the update if callback is provided
-        if (onLikeUpdated) {
-          onLikeUpdated(
-            !isLiked ? prevLikesCount + 1 : Math.max(0, prevLikesCount - 1),
-            !isLiked
-          );
         }
       }
     } catch (error) {
       console.error(`[VibeLikeButton ${operationId}] Error in like operation:`, error);
       
-      // Restore previous state on error
+      // Восстанавливаем предыдущее состояние при ошибке
       setIsLiked(wasLiked);
       setLikesCount(prevLikesCount);
       
-      // Revert localStorage
+      // Откатываем localStorage
       try {
         localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
         localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
@@ -261,7 +273,7 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         console.error('[VibeLikeButton] Error updating localStorage:', e);
       }
       
-      // Show error to user
+      // Показываем ошибку пользователю
       toast.error('Failed to update like. Please try again.', {
         duration: 3000,
         style: {
@@ -271,7 +283,7 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         }
       });
       
-      // If auth error, prompt login
+      // Если ошибка аутентификации, предлагаем логин
       if (error.toString().includes('401') || 
           error.toString().includes('unauthorized') || 
           error.toString().includes('unauthenticated')) {
@@ -298,10 +310,7 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
   return (
     <div 
       className={`flex items-center cursor-pointer ${className}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        handleLikeToggle();
-      }}
+      onClick={handleLikeToggle}
     >
       {isLiked ? (
         <HeartIconSolid className={`${iconSizeClass} text-pink-500`} />

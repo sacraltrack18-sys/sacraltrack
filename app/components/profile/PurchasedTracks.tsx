@@ -292,11 +292,11 @@ export default function PurchasedTracks() {
       <div className="w-full max-w-[1500px] mx-auto py-6">
         <div className="grid gap-4">
           {[...Array(3)].map((_, index) => (
-            <div key={index} className="bg-[#1E2136] rounded-2xl overflow-hidden w-full max-w-[450px] mx-auto">
+            <div key={index} className="bg-[#1E2136] rounded-2xl overflow-hidden w-full max-w-[400px] mx-auto">
               {/* Header skeleton */}
-              <div className="p-4">
+              <div className="p-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#2D2D44] animate-pulse"></div>
+                  <div className="w-10 h-10 rounded-full bg-[#2D2D44] animate-pulse"></div>
                   <div className="space-y-2 flex-1">
                     <div className="h-4 bg-[#2D2D44] rounded-lg w-32 animate-pulse"></div>
                     <div className="h-3 bg-[#2D2D44] rounded-lg w-24 animate-pulse"></div>
@@ -306,7 +306,7 @@ export default function PurchasedTracks() {
 
               {/* Image skeleton */}
               <div className="relative w-full">
-                <div className="w-full aspect-square bg-[#2D2D44] animate-pulse">
+                <div className="w-full aspect-[4/3] bg-[#2D2D44] animate-pulse">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <svg className="w-12 h-12 text-[#3D3D54] animate-spin" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
@@ -317,20 +317,20 @@ export default function PurchasedTracks() {
               </div>
 
               {/* Audio player skeleton */}
-              <div className="px-4 py-2">
-                <div className="h-12 bg-[#2D2D44] rounded-lg animate-pulse"></div>
+              <div className="px-3 py-2">
+                <div className="h-10 bg-[#2D2D44] rounded-lg animate-pulse"></div>
               </div>
 
               {/* Info and buttons skeleton */}
-              <div className="p-4 flex justify-between items-center">
+              <div className="p-3 flex justify-between items-center">
                 <div className="space-y-2">
                   <div className="h-3 bg-[#2D2D44] rounded-lg w-36 animate-pulse"></div>
                   <div className="h-3 bg-[#2D2D44] rounded-lg w-24 animate-pulse"></div>
                   <div className="h-3 bg-[#2D2D44] rounded-lg w-28 animate-pulse"></div>
                 </div>
                 <div className="flex gap-2">
-                  <div className="w-20 h-10 bg-[#2D2D44] rounded-lg animate-pulse"></div>
-                  <div className="w-20 h-10 bg-[#2D2D44] rounded-lg animate-pulse"></div>
+                  <div className="w-16 h-8 bg-[#2D2D44] rounded-lg animate-pulse"></div>
+                  <div className="w-16 h-8 bg-[#2D2D44] rounded-lg animate-pulse"></div>
                 </div>
               </div>
             </div>
@@ -346,36 +346,36 @@ export default function PurchasedTracks() {
   }
 
   return (
-    <div className="w-full max-w-[1500px] mx-auto py-6">
-      <div className="grid gap-4">
+    <div className="w-full max-w-[1500px] mx-auto py-3 overflow-auto pb-20">
+      <div className="grid gap-4 mx-auto max-w-[90%] md:max-w-[400px]">
         {purchases.map((purchase) => (
           purchase.track ? (
-            <div key={purchase.$id} className="bg-[#1E2136] rounded-2xl overflow-hidden w-full max-w-[450px] mx-auto">
-              <div className="p-4">
-                <div className="flex items-center gap-3">
+            <div key={purchase.$id} className="bg-[#1E2136] rounded-xl overflow-hidden w-full shadow-lg border border-[#3f2d63]/20 hover:border-[#3f2d63]/50 transition-all">
+              <div className="p-3">
+                <div className="flex items-center gap-2">
                   <img
-                    className="w-12 h-12 rounded-full object-cover"
+                    className="w-10 h-10 rounded-full object-cover border border-[#3f2d63]/50"
                     src={purchase.authorProfile?.image 
                       ? useCreateBucketUrl(purchase.authorProfile.image) 
                       : '/images/placeholders/user-placeholder.svg'}
                     alt={purchase.authorProfile?.name || 'Artist'}
                   />
                   <div>
-                    <p className="text-white font-medium">
+                    <p className="text-white font-medium text-sm">
                       {purchase.authorProfile?.name && purchase.authorProfile.name !== 'Unknown User' 
                         ? purchase.authorProfile.name 
                         : purchase.track?.profile?.name && purchase.track.profile.name !== 'Unknown User'
                           ? purchase.track.profile.name
                           : 'Unknown User'}
                     </p>
-                    <p className="text-[#818BAC] text-sm">{purchase.track?.trackname || 'Untitled Track'}</p>
+                    <p className="text-[#818BAC] text-xs">{purchase.track?.trackname || 'Untitled Track'}</p>
                   </div>
                 </div>
               </div>
 
               <div className="relative w-full">
                 <div 
-                  className="w-full aspect-square bg-cover bg-center"
+                  className="w-full aspect-[1/1] bg-cover bg-center"
                   style={{ 
                     backgroundImage: purchase.track?.image_url ? 
                       `url(${useCreateBucketUrl(purchase.track.image_url)})` :
@@ -385,7 +385,7 @@ export default function PurchasedTracks() {
                 </div>
               </div>
 
-              <div className="px-4 py-2 w-full">
+              <div className="px-3 py-2 w-full">
                 {purchase.track?.m3u8_url && (
                   <AudioPlayer 
                     m3u8Url={useCreateBucketUrl(purchase.track.m3u8_url)} 
@@ -397,22 +397,11 @@ export default function PurchasedTracks() {
                 )}
               </div>
 
-              <div className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-[#818BAC] text-sm">
-                    Purchased on {new Date(purchase.purchase_date).toLocaleDateString()}
-                  </p>
-                  <p className="text-[#818BAC] text-sm">
-                    Amount: ${purchase.amount}
-                  </p>
-                  <p className="text-[#818BAC] text-sm">
-                    Genre: {purchase.track?.genre || 'Unknown Genre'}
-                  </p>
-                </div>
-                <div className="flex gap-2">
+              <div className="p-3">
+                <div className="flex gap-2 mb-2">
                   <button
                     onClick={() => purchase.track?.mp3_url && handleDownloadFormat(purchase.track_id, purchase.track.mp3_url, purchase.track.trackname || 'track', 'mp3')}
-                    className="flex items-center gap-2 bg-[#2D2D44] text-white px-4 py-2 rounded-lg hover:bg-[#3D3D54] transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1 bg-[#2D2D44] text-white px-3 py-1.5 rounded-lg hover:bg-[#3D3D54] transition-colors disabled:opacity-50 text-xs"
                     disabled={!purchase.track?.mp3_url || downloadingFiles[purchase.track_id] === 'mp3'}
                   >
                     {downloadingFiles[purchase.track_id] === 'mp3' ? (
@@ -435,7 +424,7 @@ export default function PurchasedTracks() {
                         handleDownloadFormat(purchase.track_id, downloadUrl, purchase.track?.trackname || 'track', 'wav');
                       }
                     }}
-                    className="flex items-center gap-2 bg-[#20DDBB] text-white px-4 py-2 rounded-lg hover:bg-[#1CB99D] transition-colors disabled:opacity-50 relative overflow-hidden"
+                    className="flex items-center gap-1 bg-[#20DDBB] text-white px-3 py-1.5 rounded-lg hover:bg-[#1CB99D] transition-colors disabled:opacity-50 relative overflow-hidden text-xs"
                     // Кнопка активна, если есть wav_url или audio_url и файл не загружается в данный момент
                     disabled={((!purchase.track?.wav_url && !purchase.track?.audio_url) || downloadingFiles[purchase.track_id] === 'wav')}
                   >
@@ -453,17 +442,28 @@ export default function PurchasedTracks() {
                     )}
                   </button>
                 </div>
+                <div className="flex flex-col">
+                  <p className="text-[#818BAC] text-xs">
+                    Purchased on {new Date(purchase.purchase_date).toLocaleDateString()}
+                  </p>
+                  <p className="text-[#818BAC] text-xs">
+                    Amount: ${purchase.amount}
+                  </p>
+                  <p className="text-[#818BAC] text-xs">
+                    Genre: {purchase.track?.genre || 'Unknown Genre'}
+                  </p>
+                </div>
               </div>
             </div>
           ) : null
         ))}
 
         {hasMore && (
-          <div className="flex justify-center mt-4">
+          <div className="flex justify-center mt-4 mb-6">
             <button
               onClick={handleLoadMore}
               disabled={loading}
-              className="bg-[#2D2D44] text-white px-6 py-2 rounded-lg hover:bg-[#3D3D54] transition-colors disabled:opacity-50"
+              className="bg-[#2D2D44] text-white px-5 py-1.5 rounded-lg hover:bg-[#3D3D54] transition-colors disabled:opacity-50 text-sm"
             >
               {loading ? 'Loading...' : 'Load More'}
             </button>
