@@ -360,57 +360,105 @@ export const useVibeStore = create<VibeStore>()(
         },
 
         fetchVibeById: async (vibeId) => {
+          if (!vibeId) {
+            console.error('[VIBE-STORE] fetchVibeById called with no vibeId');
+            return;
+          }
+          
           try {
             set({ isLoadingVibes: true, error: null });
             
-            const doc = await database.getDocument(
+            // Function to get localStorage key for this vibe
+            const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
+            
+            // Try to get the vibe from the API
+            const vibeDoc = await database.getDocument(
               process.env.NEXT_PUBLIC_DATABASE_ID!,
               process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
               vibeId
             );
-
-            // Fetch profile
-            let profile: VibePostWithProfile['profile'] | undefined;
+            
+            if (!vibeDoc) {
+              set({ error: 'Vibe not found', isLoadingVibes: false });
+              return;
+            }
+            
+            // Get the user profile for this vibe
+            let profile: VibePostWithProfile['profile'] = undefined;
             try {
-              const profileResponse = await database.listDocuments(
+              const profileDoc = await database.getDocument(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                [Query.equal('user_id', doc.user_id)]
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILES!,
+                vibeDoc.user_id
               );
               
-              if (profileResponse.documents.length > 0) {
-                const profileDoc = profileResponse.documents[0];
+              if (profileDoc) {
                 profile = {
                   user_id: profileDoc.user_id,
-                  name: profileDoc.name,
-                  image: profileDoc.image,
+                  name: profileDoc.name || 'Unknown User',
+                  image: profileDoc.image || '',
                   username: profileDoc.username
                 };
               }
-            } catch (error) {
-              console.error('Error fetching profile:', error);
+            } catch (profileError) {
+              console.error('[VIBE-STORE] Error fetching profile:', profileError);
+              // Continue even if profile fetch fails
             }
-
-            const vibe: VibePostWithProfile = {
-              id: doc.$id,
-              user_id: doc.user_id,
-              type: doc.type,
-              media_url: getFullMediaUrl(doc.media_url),
-              caption: doc.caption,
-              mood: doc.mood,
-              created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
-              location: doc.location,
-              tags: doc.tags,
-              stats: doc.stats || ['0', '0', '0'],
+            
+            // Check if there's a stored like count in localStorage
+            let statsObj = vibeDoc.stats;
+            try {
+              const storedCountKey = getVibeLocalStorageKey(vibeId);
+              const storedCount = localStorage.getItem(storedCountKey);
+              
+              if (storedCount) {
+                const parsedCount = parseInt(storedCount, 10);
+                if (!isNaN(parsedCount)) {
+                  console.log(`[VIBE-STORE] Using stored like count for ${vibeId}: ${parsedCount}`);
+                  
+                  // Update the stats object based on its current format
+                  if (Array.isArray(statsObj)) {
+                    statsObj = [parsedCount.toString(), ...statsObj.slice(1)];
+                  } else if (typeof statsObj === 'object' && statsObj !== null) {
+                    statsObj = {
+                      ...statsObj,
+                      total_likes: parsedCount.toString()
+                    };
+                  } else {
+                    // If no stats object exists, create one
+                    statsObj = [parsedCount.toString(), '0', '0'];
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('[VIBE-STORE] Error accessing localStorage:', error);
+            }
+            
+            // Create a combined vibe post with profile
+            const vibeWithProfile: VibePostWithProfile = {
+              id: vibeDoc.$id,
+              user_id: vibeDoc.user_id,
+              type: vibeDoc.type || 'photo',
+              media_url: vibeDoc.media_url,
+              caption: vibeDoc.caption,
+              mood: vibeDoc.mood,
+              created_at: vibeDoc.$createdAt || vibeDoc.created_at || new Date().toISOString(),
+              location: vibeDoc.location,
+              tags: vibeDoc.tags,
+              stats: statsObj, // Use the potentially updated stats
               profile
             };
-
-            set({ vibePostById: vibe, isLoadingVibes: false });
-          } catch (error) {
-            console.error('Error fetching vibe by id:', error);
+            
             set({ 
-              error: 'Failed to load vibe', 
-              isLoadingVibes: false 
+              vibePostById: vibeWithProfile,
+              isLoadingVibes: false
+            });
+            
+          } catch (error) {
+            console.error('[VIBE-STORE] Error fetching vibe by ID:', error);
+            set({ 
+              error: 'Failed to fetch vibe. Please try again.',
+              isLoadingVibes: false
             });
           }
         },

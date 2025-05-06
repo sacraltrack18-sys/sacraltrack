@@ -245,14 +245,44 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const { userLikedVibes, checkIfUserLikedVibe, likeVibe, unlikeVibe, fetchUserLikedVibes } = useVibeStore();
   const { setIsLoginOpen } = useGeneralStore();
   const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(() => {
+  
+  // Functions to get localStorage keys
+  const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
+  const getVibeUserLikedLocalStorageKey = (id: string, userId: string) => `vibe_liked_by_user_${id}_${userId}`;
+  
+  // Calculate the initial likes count from multiple sources
+  const calculateInitialLikesCount = () => {
+    let count = 0;
+    
+    // 1. Try to get from vibe.stats first
     if (Array.isArray(vibe.stats)) {
-      return parseInt(vibe.stats[0] || '0', 10);
+      count = parseInt(vibe.stats[0] || '0', 10);
     } else if (typeof vibe.stats === 'object' && vibe.stats !== null && 'total_likes' in vibe.stats) {
-      return parseInt(vibe.stats.total_likes || '0', 10);
+      count = parseInt(vibe.stats.total_likes || '0', 10);
     }
-    return 0;
-  });
+    
+    // 2. Check localStorage for potentially fresher data
+    try {
+      const storedCountKey = getVibeLocalStorageKey(vibe.id);
+      const storedCount = localStorage.getItem(storedCountKey);
+      
+      if (storedCount) {
+        const parsedCount = parseInt(storedCount, 10);
+        if (!isNaN(parsedCount)) {
+          console.log(`[VIBE-DETAIL] Using stored like count for ${vibe.id}: ${parsedCount}`);
+          count = parsedCount;
+        }
+      }
+    } catch (error) {
+      console.error('[VIBE-DETAIL] Error accessing localStorage:', error);
+    }
+    
+    return count;
+  };
+  
+  // Initialize state with calculated stats
+  const [likesCount, setLikesCount] = useState(calculateInitialLikesCount());
+  
   const [commentsCount, setCommentsCount] = useState(() => {
     if (Array.isArray(vibe.stats)) {
       return parseInt(vibe.stats[1], 10) || 0;
@@ -368,6 +398,18 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     
     const checkInitialLikeStatus = async () => {
       try {
+        // Check localStorage first (fastest)
+        if (user && user.id) {
+          const userLikedKey = getVibeUserLikedLocalStorageKey(vibe.id, user.id);
+          const userLiked = localStorage.getItem(userLikedKey);
+          
+          if (userLiked === 'true') {
+            console.log(`[VIBE-DETAIL] Setting isLiked=true from localStorage for ${vibe.id}`);
+            setIsLiked(true);
+            return;
+          }
+        }
+        
         // Check if we have the stats already to avoid unnecessary refreshes
         const hasValidStats = vibe.stats && (
           (Array.isArray(vibe.stats) && vibe.stats.length > 0) ||
@@ -379,6 +421,15 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibe.id)) {
           hasLiked = true;
           setIsLiked(true);
+          
+          // Store in localStorage
+          if (user && user.id) {
+            try {
+              localStorage.setItem(getVibeUserLikedLocalStorageKey(vibe.id, user.id), 'true');
+            } catch (e) {
+              console.error('[VIBE-DETAIL] Error updating localStorage:', e);
+            }
+          }
           
           // No need to refresh stats if we already have them
           if (hasValidStats) {
@@ -403,6 +454,17 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           if (!checkedIds.includes(vibe.id)) {
             hasLiked = await checkIfUserLikedVibe(vibe.id, user.id);
             setIsLiked(hasLiked);
+            
+            // Store in localStorage and update checked IDs
+            if (user && user.id) {
+              try {
+                localStorage.setItem(getVibeUserLikedLocalStorageKey(vibe.id, user.id), hasLiked ? 'true' : 'false');
+                checkedIds.push(vibe.id);
+                sessionStorage.setItem('checked_vibe_ids', JSON.stringify(checkedIds));
+              } catch (e) {
+                console.error('[VIBE-DETAIL] Error updating storage:', e);
+              }
+            }
           }
         }
         
@@ -493,6 +555,13 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           setLikesCount(newLikesCount);
           setCommentsCount(newCommentsCount);
           
+          // Store in localStorage
+          try {
+            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
+          } catch (error) {
+            console.error('[VIBE-DETAIL] Error storing like count in localStorage:', error);
+          }
+          
           // Also update the stats in the vibe object
           vibe.stats = [...statsObj];
         } else if (typeof statsObj === 'object' && statsObj !== null) {
@@ -501,6 +570,13 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           console.log(`[VIBE-DETAIL] Updated stats from server: likes=${newLikesCount}, comments=${newCommentsCount}`);
           setLikesCount(newLikesCount);
           setCommentsCount(newCommentsCount);
+          
+          // Store in localStorage
+          try {
+            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
+          } catch (error) {
+            console.error('[VIBE-DETAIL] Error storing like count in localStorage:', error);
+          }
           
           // Also update the stats in the vibe object
           vibe.stats = {
@@ -519,6 +595,16 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const handleLikeUpdate = (newCount: number, isLiked: boolean) => {
     setLikesCount(newCount);
     setIsLiked(isLiked);
+    
+    // Update localStorage
+    try {
+      localStorage.setItem(getVibeLocalStorageKey(vibe.id), newCount.toString());
+      if (user && user.id) {
+        localStorage.setItem(getVibeUserLikedLocalStorageKey(vibe.id, user.id), isLiked ? 'true' : 'false');
+      }
+    } catch (error) {
+      console.error('[VIBE-DETAIL] Error updating localStorage:', error);
+    }
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {

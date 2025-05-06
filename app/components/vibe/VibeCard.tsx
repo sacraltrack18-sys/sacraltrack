@@ -177,6 +177,50 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  // For storing like state locally
+  const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
+
+  // Calculate initial stats from multiple sources for better reliability
+  const calculateInitialStats = () => {
+    let likesCount = 0;
+    let commentsCount = 0;
+
+    // 1. Try to get from vibe.stats first
+    if (vibe.stats) {
+      if (Array.isArray(vibe.stats)) {
+        likesCount = parseInt(vibe.stats[0] || '0', 10);
+        commentsCount = parseInt(vibe.stats[1] || '0', 10);
+      } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
+        likesCount = parseInt(vibe.stats.total_likes || '0', 10);
+        commentsCount = parseInt(vibe.stats.total_comments || '0', 10);
+      }
+    }
+
+    // 2. Check localStorage for potentially fresher data
+    try {
+      const storedCountKey = getVibeLocalStorageKey(vibe.id);
+      const storedCount = localStorage.getItem(storedCountKey);
+      
+      if (storedCount) {
+        const parsedCount = parseInt(storedCount, 10);
+        if (!isNaN(parsedCount)) {
+          console.log(`[VIBE-CARD] Using stored like count for ${vibe.id}: ${parsedCount}`);
+          likesCount = parsedCount;
+        }
+      }
+    } catch (error) {
+      console.error('[VIBE-CARD] Error accessing localStorage:', error);
+    }
+
+    return {
+      likesCount,
+      commentsCount
+    };
+  };
+
+  // Initialize state with calculated stats
+  const [vibeStats, setVibeStats] = useState(calculateInitialStats());
+  
   // Refs
   const commentInputRef = useRef<HTMLInputElement>(null);
   const commentsRef = useRef<HTMLDivElement>(null);
@@ -188,25 +232,12 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   // Массив быстрых эмодзи
   const quickEmojis = ['😊', '🎵', '🎸', '🔥', '❤️', '👏', '🙌', '✨', '🎉', '😍'];
   
-  // Local state for vibe stats to avoid global updates
-  const [vibeStats, setVibeStats] = useState<{
-    likesCount: number,
-    commentsCount: number
-  }>(() => {
-    // Initialize from vibe.stats
-    if (Array.isArray(vibe.stats)) {
-      return {
-        likesCount: parseInt(vibe.stats[0] || '0', 10) || 0,
-        commentsCount: parseInt(vibe.stats[1] || '0', 10) || 0
-      };
-    } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-      return {
-        likesCount: parseInt(vibe.stats.total_likes || '0', 10) || 0,
-        commentsCount: parseInt(vibe.stats.total_comments || '0', 10) || 0
-      };
+  // Refresh vibe stats on component mount
+  useEffect(() => {
+    if (vibe.id) {
+      refreshVibeStats();
     }
-    return { likesCount: 0, commentsCount: 0 };
-  });
+  }, [vibe.id]);
   
   // Улучшенная функция для получения URL изображения профиля
   function getProfileImageUrl(imageId: string): string {
@@ -365,6 +396,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       likesCount: newCount
     }));
     
+    // Store the updated count in localStorage
+    try {
+      localStorage.setItem(getVibeLocalStorageKey(vibe.id), newCount.toString());
+    } catch (error) {
+      console.error('[VIBE-CARD] Error storing like count in localStorage:', error);
+    }
+    
     // Call the parent handlers if provided
     if (isLiked && onLike) {
       onLike(vibe.id);
@@ -409,6 +447,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             likesCount: newLikesCount,
             commentsCount: newCommentsCount
           });
+          
+          // Also update localStorage
+          try {
+            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
+          } catch (error) {
+            console.error('[VIBE-CARD] Error storing like count in localStorage:', error);
+          }
         } else if (typeof statsObj === 'object' && statsObj !== null) {
           const newLikesCount = parseInt(statsObj.total_likes, 10) || 0;
           const newCommentsCount = parseInt(statsObj.total_comments, 10) || 0;
@@ -418,6 +463,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             likesCount: newLikesCount,
             commentsCount: newCommentsCount
           });
+          
+          // Also update localStorage
+          try {
+            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
+          } catch (error) {
+            console.error('[VIBE-CARD] Error storing like count in localStorage:', error);
+          }
         }
       }
     } catch (error) {

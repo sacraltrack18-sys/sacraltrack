@@ -28,7 +28,7 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
   className = '',
 }) => {
   const { user } = useUser() || { user: null };
-  const { userLikedVibes, likeVibe, unlikeVibe, checkIfUserLikedVibe } = useVibeStore();
+  const { userLikedVibes, likeVibe, unlikeVibe, checkIfUserLikedVibe, fetchUserLikedVibes } = useVibeStore();
   const { setIsLoginOpen } = useGeneralStore();
   
   // Local state for the like button
@@ -37,6 +37,52 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
     typeof initialLikeCount === 'string' ? parseInt(initialLikeCount) || 0 : initialLikeCount || 0
   );
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Function to get local storage key for this vibe
+  const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
+  const getVibeUserLikedLocalStorageKey = (id: string, userId: string) => `vibe_liked_by_user_${id}_${userId}`;
+
+  // Check if the like count is stored in localStorage
+  useEffect(() => {
+    if (!vibeId) return;
+    
+    try {
+      // Get stored like count
+      const storedCountKey = getVibeLocalStorageKey(vibeId);
+      const storedCount = localStorage.getItem(storedCountKey);
+      
+      if (storedCount) {
+        const parsedCount = parseInt(storedCount, 10);
+        if (!isNaN(parsedCount) && parsedCount !== likesCount) {
+          console.log(`[VibeLikeButton] Using stored like count for ${vibeId}: ${parsedCount}`);
+          setLikesCount(parsedCount);
+          
+          // Notify parent of updated count if callback provided
+          if (onLikeUpdated) {
+            onLikeUpdated(parsedCount, isLiked);
+          }
+        }
+      }
+      
+      // If user is logged in, check if they liked this vibe in localStorage
+      if (user && user.id) {
+        const userLikedKey = getVibeUserLikedLocalStorageKey(vibeId, user.id);
+        const userLiked = localStorage.getItem(userLikedKey);
+        
+        if (userLiked === 'true' && !isLiked) {
+          console.log(`[VibeLikeButton] Setting isLiked=true from localStorage for ${vibeId}`);
+          setIsLiked(true);
+          
+          // Notify parent of updated like state if callback provided
+          if (onLikeUpdated) {
+            onLikeUpdated(likesCount, true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[VibeLikeButton] Error accessing localStorage:', error);
+    }
+  }, [vibeId, user]);
 
   // Check initial like state when component mounts
   useEffect(() => {
@@ -47,12 +93,26 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         // First check store for faster response
         if (Array.isArray(userLikedVibes) && userLikedVibes.includes(vibeId)) {
           setIsLiked(true);
+          
+          // Update localStorage
+          try {
+            localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), 'true');
+          } catch (e) {
+            console.error('[VibeLikeButton] Error updating localStorage:', e);
+          }
           return;
         }
         
         // If not in store, check the API
         const hasLiked = await checkIfUserLikedVibe(vibeId, user.id);
         setIsLiked(hasLiked);
+        
+        // Update localStorage
+        try {
+          localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), hasLiked ? 'true' : 'false');
+        } catch (e) {
+          console.error('[VibeLikeButton] Error updating localStorage:', e);
+        }
       } catch (error) {
         console.error('[VibeLikeButton] Error checking like status:', error);
       }
@@ -69,6 +129,15 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
       const isLikedInStore = userLikedVibes.includes(vibeId);
       if (isLikedInStore !== isLiked) {
         setIsLiked(isLikedInStore);
+        
+        // Update localStorage if user is logged in
+        if (user && user.id) {
+          try {
+            localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), isLikedInStore ? 'true' : 'false');
+          } catch (e) {
+            console.error('[VibeLikeButton] Error updating localStorage:', e);
+          }
+        }
       }
     }
   }, [userLikedVibes, vibeId, isLiked]);
@@ -81,6 +150,13 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
       
     if (newCount !== likesCount) {
       setLikesCount(newCount);
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
+      } catch (e) {
+        console.error('[VibeLikeButton] Error updating localStorage:', e);
+      }
     }
   }, [initialLikeCount]);
   
@@ -88,6 +164,15 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
   useEffect(() => {
     if (initialLikeState !== isLiked) {
       setIsLiked(initialLikeState);
+      
+      // Update localStorage if user is logged in
+      if (user && user.id) {
+        try {
+          localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), initialLikeState ? 'true' : 'false');
+        } catch (e) {
+          console.error('[VibeLikeButton] Error updating localStorage:', e);
+        }
+      }
     }
   }, [initialLikeState]);
 
@@ -110,7 +195,16 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
     // Optimistically update UI
     setIsUpdating(true);
     setIsLiked(!isLiked);
-    setLikesCount(prev => !isLiked ? prev + 1 : Math.max(0, prev - 1));
+    const newCount = !isLiked ? prevLikesCount + 1 : Math.max(0, prevLikesCount - 1);
+    setLikesCount(newCount);
+    
+    // Store in localStorage (optimistic update)
+    try {
+      localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
+      localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), !isLiked ? 'true' : 'false');
+    } catch (e) {
+      console.error('[VibeLikeButton] Error updating localStorage:', e);
+    }
     
     try {
       // Call appropriate method based on current like state
@@ -128,8 +222,22 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
         console.error(`[VibeLikeButton ${operationId}] Failed to ${!isLiked ? 'add' : 'remove'} like`);
         setIsLiked(wasLiked);
         setLikesCount(prevLikesCount);
+        
+        // Revert localStorage
+        try {
+          localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
+          localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
+        } catch (e) {
+          console.error('[VibeLikeButton] Error updating localStorage:', e);
+        }
+        
         toast.error(`Failed to ${!isLiked ? 'like' : 'unlike'}. Please try again.`);
       } else {
+        // Ensure userLikedVibes is up to date for other components
+        if (user && user.id) {
+          fetchUserLikedVibes(user.id);
+        }
+        
         // Notify parent component about the update if callback is provided
         if (onLikeUpdated) {
           onLikeUpdated(
@@ -144,6 +252,14 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
       // Restore previous state on error
       setIsLiked(wasLiked);
       setLikesCount(prevLikesCount);
+      
+      // Revert localStorage
+      try {
+        localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
+        localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
+      } catch (e) {
+        console.error('[VibeLikeButton] Error updating localStorage:', e);
+      }
       
       // Show error to user
       toast.error('Failed to update like. Please try again.', {
