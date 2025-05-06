@@ -5,66 +5,294 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Страница не найдена - SacralTrack</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background-color: #1E1F2B;
-      color: white;
+    :root {
+      --primary: #8B5CF6;
+      --primary-dark: #7C3AED;
+      --primary-light: #C4B5FD;
+      --dark: #1E1F2B;
+      --light: #F9FAFB;
+      --accent: #FF5E5E;
+    }
+    
+    * {
       margin: 0;
       padding: 0;
-      height: 100vh;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background: radial-gradient(circle at center, var(--dark) 0%, #111118 100%);
+      color: white;
+      min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .stars {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .star {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) infinite ease-in-out;
+      opacity: 0;
+    }
+    
+    @keyframes twinkle {
+      0% { opacity: 0; }
+      50% { opacity: var(--opacity); }
+      100% { opacity: 0; }
+    }
+    
+    .content-container {
+      position: relative;
+      z-index: 1;
       text-align: center;
+      max-width: 90%;
+      width: 600px;
+      background: rgba(30, 31, 43, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 3rem 2rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(139, 92, 246, 0.2);
     }
-    .container {
-      max-width: 600px;
-      padding: 0 20px;
+    
+    .glitch-wrapper {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 1rem;
     }
-    h1 {
-      font-size: 6rem;
-      margin: 0;
-      color: #8B5CF6;
+    
+    .glitch-text {
+      font-size: 8rem;
+      font-weight: 800;
+      color: var(--primary);
+      position: relative;
+      letter-spacing: -5px;
+      animation: glow 2s ease-in-out infinite alternate;
+      text-shadow: 0 0 10px rgba(139, 92, 246, 0.8);
     }
+    
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary), 0 0 15px var(--primary-light);
+      }
+      to {
+        text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary-light);
+      }
+    }
+    
+    .glitch-text::before,
+    .glitch-text::after {
+      content: "404";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .glitch-text::before {
+      left: 2px;
+      text-shadow: -1px 0 var(--accent);
+      animation: glitch-animation-1 0.8s infinite ease-in-out alternate-reverse;
+    }
+    
+    .glitch-text::after {
+      left: -2px;
+      text-shadow: 1px 0 var(--primary-light);
+      animation: glitch-animation-2 1.2s infinite ease-in-out alternate-reverse;
+    }
+    
+    @keyframes glitch-animation-1 {
+      0% { clip-path: inset(80% 0 20% 0); }
+      20% { clip-path: inset(20% 0 80% 0); }
+      40% { clip-path: inset(80% 0 40% 0); }
+      60% { clip-path: inset(10% 0 90% 0); }
+      80% { clip-path: inset(90% 0 5% 0); }
+      100% { clip-path: inset(70% 0 30% 0); }
+    }
+    
+    @keyframes glitch-animation-2 {
+      0% { clip-path: inset(20% 0 80% 0); }
+      20% { clip-path: inset(40% 0 60% 0); }
+      40% { clip-path: inset(60% 0 20% 0); }
+      60% { clip-path: inset(80% 0 10% 0); }
+      80% { clip-path: inset(50% 0 30% 0); }
+      100% { clip-path: inset(10% 0 90% 0); }
+    }
+    
     h2 {
-      font-size: 2rem;
-      margin-top: 0.5rem;
+      font-size: 2.2rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(to right, var(--primary-light), var(--primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
+    
     p {
       color: #D1D5DB;
-      margin: 2rem 0;
-      font-size: 1.1rem;
+      margin-bottom: 2.5rem;
+      font-size: 1.2rem;
       line-height: 1.6;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    .button {
+    
+    .btn-home {
+      position: relative;
       display: inline-block;
-      background-color: #8B5CF6;
+      padding: 0.8rem 2.5rem;
+      background: linear-gradient(45deg, var(--primary), var(--primary-dark));
       color: white;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 1.1rem;
       text-decoration: none;
-      font-weight: 500;
-      transition: background-color 0.2s;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      z-index: 1;
+      box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
     }
-    .button:hover {
-      background-color: #7C3AED;
+    
+    .btn-home::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, var(--primary-dark), var(--primary));
+      opacity: 0;
+      z-index: -1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .btn-home:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(139, 92, 246, 0.6);
+    }
+    
+    .btn-home:hover::before {
+      opacity: 1;
+    }
+    
+    .btn-home:active {
+      transform: translateY(-1px);
+    }
+    
+    .btn-home i {
+      margin-right: 8px;
+    }
+    
+    .cosmic-path {
+      position: absolute;
+      bottom: -50px;
+      left: 0;
+      width: 100%;
+      height: 100px;
+      background: linear-gradient(to top, rgba(139, 92, 246, 0.1), transparent);
+      z-index: 0;
+    }
+    
+    /* For mobile devices */
+    @media (max-width: 768px) {
+      .glitch-text {
+        font-size: 6rem;
+      }
+      
+      h2 {
+        font-size: 1.8rem;
+      }
+      
+      p {
+        font-size: 1rem;
+      }
+      
+      .content-container {
+        padding: 2rem 1.5rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .glitch-text {
+        font-size: 5rem;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>404</h1>
+  <div class="stars" id="stars"></div>
+  <div class="content-container">
+    <div class="glitch-wrapper">
+      <div class="glitch-text">404</div>
+    </div>
     <h2>Страница не найдена</h2>
     <p>
-      К сожалению, страница, которую вы ищете, не существует или была перемещена.
+      Похоже, вы попали в неизведанную часть космоса. Страница, которую вы ищете, улетела в другую галактику или никогда не существовала.
     </p>
-    <a href="/" class="button">Вернуться на главную</a>
+    <a href="/" class="btn-home">
+      <i>↩</i> Вернуться на главную
+    </a>
   </div>
+  <div class="cosmic-path"></div>
+  
   <script>
-    // Редирект на домашнюю страницу через JavaScript, если пользователь остается слишком долго
+    // Generate random stars
+    function createStars() {
+      const stars = document.getElementById('stars');
+      const starsCount = Math.floor(window.innerWidth * window.innerHeight / 1000);
+      
+      for (let i = 0; i < starsCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Random star properties
+        const size = Math.random() * 3 + 1;
+        const opacity = Math.random() * 0.8 + 0.2;
+        const duration = Math.random() * 5 + 3;
+        const delay = Math.random() * 5;
+        
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.setProperty('--opacity', opacity);
+        star.style.setProperty('--duration', `${duration}s`);
+        star.style.animationDelay = `${delay}s`;
+        
+        stars.appendChild(star);
+      }
+    }
+    
+    // Initialize stars on page load
+    window.addEventListener('load', createStars);
+    
+    // Redirect to home page after 20 seconds
     setTimeout(function() {
       window.location.href = '/';
-    }, 15000); // 15 секунд
+    }, 20000);
   </script>
 </body>
 </html> 

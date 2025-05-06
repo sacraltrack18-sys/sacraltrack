@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useVibeStore, VibePostWithProfile } from '@/app/stores/vibeStore';
 import { useUser } from '@/app/context/user';
-import { useVibeComments, MUSIC_EMOJIS } from '@/app/hooks/useVibeComments';
+import { MUSIC_EMOJIS } from '@/app/hooks/useVibeComments';
 import { 
   HeartIcon, 
   ChatBubbleLeftIcon, 
@@ -54,15 +54,16 @@ interface VibeComment {
   text: string;
   created_at: string;
   profile?: {
-    id: string;
+    user_id: string;
     name: string;
-    image?: string;
+    image: string;
+    username?: string;
   };
   isOptimistic?: boolean;
 }
 
 // Move the useComments hook outside the component
-const useComments = (vibeId: string) => {
+const useComments = (vibeId: string, userId?: string) => {
   const [comments, setComments] = useState<VibeComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,18 +82,20 @@ const useComments = (vibeId: string) => {
         const formattedComments = await Promise.all(fetchedComments.comments.map(async (comment: any) => {
           // Get profile info if needed
           let profileInfo = { 
-            id: comment.user_id,
+            user_id: comment.user_id,
             name: 'User',
-            image: undefined
+            image: '/images/placeholders/user-placeholder.svg',
+            username: undefined
           };
           
           try {
             // Extract profile information from the comment if available
             if (comment.profile) {
               profileInfo = {
-                id: comment.profile.id || comment.user_id,
+                user_id: comment.profile.user_id || comment.profile.id || comment.user_id,
                 name: comment.profile.name || comment.userName || 'User',
-                image: comment.profile.image || comment.profileImage || undefined
+                image: comment.profile.image || comment.profileImage || '/images/placeholders/user-placeholder.svg',
+                username: comment.profile.username
               };
             }
             
@@ -119,9 +122,10 @@ const useComments = (vibeId: string) => {
                 if (userProfileResponse.documents.length > 0) {
                   const userProfile = userProfileResponse.documents[0];
                   profileInfo = {
-                    id: comment.user_id,
+                    user_id: comment.user_id,
                     name: userProfile.name || profileInfo.name,
-                    image: userProfile.image || profileInfo.image
+                    image: userProfile.image || profileInfo.image,
+                    username: userProfile.username
                   };
                 }
               } catch (profileFetchError) {
@@ -142,6 +146,11 @@ const useComments = (vibeId: string) => {
           };
         }));
         
+        // Sort comments by date (newest first)
+        formattedComments.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        
         setComments(formattedComments);
         
         // Update total count
@@ -151,9 +160,14 @@ const useComments = (vibeId: string) => {
           setTotalCount(formattedComments.length);
         }
       } else if (fetchedComments && Array.isArray(fetchedComments)) {
+        // Sort comments by date (newest first)
+        const sortedComments = [...fetchedComments].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        
         // Handle case where API directly returns an array of comments
-        setComments(fetchedComments);
-        setTotalCount(fetchedComments.length);
+        setComments(sortedComments);
+        setTotalCount(sortedComments.length);
       } else {
         // Handle unexpected response format
         console.error('Unexpected format for fetchedComments:', fetchedComments);
@@ -189,41 +203,67 @@ const useComments = (vibeId: string) => {
       console.error('Error in addComment:', error);
     }
   }, []);
-
-  const deleteComment = useCallback((commentId: string) => {
+  
+  const deleteComment = useCallback(async (commentId: string) => {
     try {
-      if (!commentId) {
-        console.error('Invalid commentId received in deleteComment:', commentId);
+      setLoading(true);
+      
+      // Optimistically remove comment from UI
+      setComments(prev => prev.filter(comment => comment.id !== commentId));
+      setTotalCount(prev => Math.max(0, prev - 1));
+      
+      // Check if userId is available
+      if (!userId) {
+        console.warn('Cannot delete comment - user ID is missing');
         return;
       }
       
-      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
-      setTotalCount(prev => Math.max(0, prev - 1));
+      // Import deleteVibeComment directly to avoid circular dependencies
+      const { deleteVibeComment } = await import('@/app/lib/vibeActions');
+      
+      // Call the API with all required parameters
+      await deleteVibeComment(commentId, userId, vibeId);
+      
+      // Refresh the comments after deletion
+      await fetchComments();
+      
+      toast.success('Comment deleted successfully', {
+        duration: 2000,
+        style: {
+          background: '#333',
+          color: '#fff',
+          borderRadius: '10px'
+        }
+      });
     } catch (error) {
-      console.error('Error in deleteComment:', error);
+      console.error('Error deleting comment:', error);
+      toast.error('Failed to delete comment. Please try again.', {
+        duration: 3000,
+        style: {
+          background: '#333',
+          color: '#fff',
+          borderRadius: '10px'
+        }
+      });
+      
+      // Restore comments list if deletion fails
+      await fetchComments();
+    } finally {
+      setLoading(false);
     }
+  }, [fetchComments, userId, vibeId]);
+  
+  // Add utility function to add emoji to comment text
+  const addEmojiToComment = useCallback((emoji: string, commentText: string) => {
+    return commentText + emoji;
   }, []);
-
-  const addEmojiToComment = useCallback((emoji: string) => {
-    try {
-      // This function adds an emoji to the comment text
-      if (typeof emoji !== 'string') {
-        console.error('Invalid emoji in addEmojiToComment:', emoji);
-        return '';
-      }
-      return emoji;
-    } catch (error) {
-      console.error('Error in addEmojiToComment:', error);
-      return '';
-    }
-  }, []);
-
-  return { 
-    comments, 
-    fetchComments, 
-    addComment, 
-    deleteComment, 
-    addEmojiToComment, 
+  
+  return {
+    comments,
+    fetchComments,
+    addComment,
+    deleteComment,
+    addEmojiToComment,
     isLoading: loading,
     error,
     totalCount
@@ -237,6 +277,33 @@ type ShareOptions = {
   userName?: string;
   modalOffset?: number;
 };
+
+// Add a function to handle vibe media URL properly
+function getVibeImageUrl(mediaUrl: string | undefined): string {
+  if (!mediaUrl || mediaUrl.trim() === '') {
+    console.log('Empty media URL, using placeholder');
+    return '/images/placeholders/default-placeholder.svg';
+  }
+  
+  try {
+    // If it's already a full URL, return it as is
+    if (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) {
+      console.log('Media URL is already a full URL:', mediaUrl);
+      return mediaUrl;
+    }
+    
+    // Debug info
+    console.log('Processing media URL:', mediaUrl);
+    
+    // Use createBucketUrl to generate a proper URL for Appwrite storage
+    const bucketUrl = createBucketUrl(mediaUrl, 'track');
+    console.log('Generated bucket URL:', bucketUrl);
+    return bucketUrl;
+  } catch (error) {
+    console.error('Error in getVibeImageUrl:', error);
+    return '/images/placeholders/default-placeholder.svg';
+  }
+}
 
 const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   const router = useRouter();
@@ -256,9 +323,19 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     
     // 1. Try to get from vibe.stats first
     if (Array.isArray(vibe.stats)) {
-      count = parseInt(vibe.stats[0] || '0', 10);
+      // Безопасно преобразуем данные stats из массива (которые могут быть числами или строками)
+      count = typeof vibe.stats[0] === 'string' 
+        ? parseInt(vibe.stats[0], 10) 
+        : typeof vibe.stats[0] === 'number' 
+          ? vibe.stats[0] 
+          : 0;
     } else if (typeof vibe.stats === 'object' && vibe.stats !== null && 'total_likes' in vibe.stats) {
-      count = parseInt(vibe.stats.total_likes || '0', 10);
+      // Безопасно преобразуем total_likes, который может быть числом или строкой
+      count = typeof vibe.stats.total_likes === 'string' 
+        ? parseInt(vibe.stats.total_likes, 10) 
+        : typeof vibe.stats.total_likes === 'number' 
+          ? vibe.stats.total_likes 
+          : 0;
     }
     
     // 2. Check localStorage for potentially fresher data
@@ -285,9 +362,19 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   
   const [commentsCount, setCommentsCount] = useState(() => {
     if (Array.isArray(vibe.stats)) {
-      return parseInt(vibe.stats[1], 10) || 0;
+      // Безопасно преобразуем данные stats из массива (которые могут быть числами или строками)
+      return typeof vibe.stats[1] === 'string' 
+        ? parseInt(vibe.stats[1], 10) || 0
+        : typeof vibe.stats[1] === 'number' 
+          ? vibe.stats[1] 
+          : 0;
     } else if (vibe.stats && typeof vibe.stats === 'object' && 'total_comments' in vibe.stats) {
-      return vibe.stats.total_comments || 0;
+      // Безопасно преобразуем total_comments, который может быть числом или строкой
+      return typeof vibe.stats.total_comments === 'string' 
+        ? parseInt(vibe.stats.total_comments, 10) || 0
+        : typeof vibe.stats.total_comments === 'number' 
+          ? vibe.stats.total_comments 
+          : 0;
     }
     return 0;
   });
@@ -307,45 +394,29 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     isLoading: commentsLoading,
     error,
     totalCount
-  } = useComments(vibe.id);
+  } = useComments(vibe.id, user?.id);
   const [commentText, setCommentText] = useState('');
   
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   
-  // Обновим функцию sanitizeText для безопасной работы с эмодзи
+  // Добавим функцию sanitizeText
   const sanitizeText = (text: string): string => {
-    try {
-      // Проверяем, что текст - строка
-      if (typeof text !== 'string') {
-        console.warn('sanitizeText: received non-string input', text);
-        return '';
-      }
-      
-      // Ограничиваем длину текста
-      let safeText = text.slice(0, 1000);
-      
-      // Удаляем или заменяем потенциально проблемные символы
-      safeText = safeText.trim();
-      
-      // Экранируем специальные символы для безопасной передачи на сервер
-      // Не изменяем эмодзи, но обрабатываем другие специальные символы
-      const escapeSpecialChars = (str: string) => {
-        try {
-          return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-        } catch (error) {
-          console.error('Error in escapeSpecialChars:', error);
-          return str; // Return the original string if escaping fails
-        }
-      };
-      
-      return escapeSpecialChars(safeText);
-    } catch (error) {
-      console.error('Error sanitizing text:', error);
-      return '';
+    if (!text) return '';
+
+    // Удаляем потенциальные XSS-атаки и опасный контент
+    let sanitized = text
+      .trim()
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Удаляем script теги
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Удаляем iframe
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')    // Удаляем style теги
+      .replace(/<[^>]*>/g, ''); // Удаляем HTML теги
+
+    // Ограничиваем длину комментария
+    if (sanitized.length > 500) {
+      sanitized = sanitized.substring(0, 500);
     }
+
+    return sanitized;
   };
   
   // Добавим функцию для отображения комментариев с эмодзи
@@ -381,14 +452,36 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }
   };
   
-  // Add an enhanced useEffect specifically for comments loading
+  // Add a more aggressive initial loading approach to ensure comments are loaded
   useEffect(() => {
-    // Force load comments when component mounts or when vibe.id changes
-    if (vibe.id && fetchComments) {
-      console.log('Explicitly loading comments for vibe ID:', vibe.id);
-      
-      // Fetch comments immediately
+    if (vibe.id) {
+      console.log('[VIBE-DETAIL] Initial comments loading for:', vibe.id);
+      // Try to load comments immediately
       fetchComments();
+      
+      // Set up polling with visibility detection
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          console.log('[VIBE-DETAIL] Visibility changed to visible, fetching comments');
+          fetchComments();
+        }
+      };
+      
+      // Set up interval for polling
+      const pollId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          console.log('[VIBE-DETAIL] Polling for new comments');
+          fetchComments();
+        }
+      }, 30000); // Poll every 30 seconds while visible
+      
+      // Add visibility change listener
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      
+      return () => {
+        clearInterval(pollId);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      };
     }
   }, [vibe.id, fetchComments]);
 
@@ -520,74 +613,25 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  // Function to refresh vibe stats
-  const refreshVibeStats = async () => {
-    if (!vibe.id) return;
-    
+  // Добавим функцию refreshVibeStats
+  const refreshVibeStats = async (): Promise<void> => {
     try {
-      console.log(`[VIBE-DETAIL] Refreshing stats for vibe ${vibe.id}`);
-      const vibeDoc = await database.getDocument(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
-        vibe.id
-      );
+      // Запрашиваем обновленную статистику вайба с сервера
+      const response = await fetch(`/api/vibes/${vibe.id}/stats`);
       
-      if (vibeDoc && vibeDoc.stats) {
-        let statsObj;
-        
-        // Parse stats if they're in string format
-        if (typeof vibeDoc.stats === 'string') {
-          try {
-            statsObj = JSON.parse(vibeDoc.stats);
-          } catch (parseError) {
-            console.error('[VIBE-DETAIL] Error parsing stats:', parseError);
-            statsObj = vibeDoc.stats;
-          }
-        } else {
-          statsObj = vibeDoc.stats;
-        }
-        
-        // Handle different formats of stats
-        if (Array.isArray(statsObj)) {
-          const newLikesCount = parseInt(statsObj[0], 10) || 0;
-          const newCommentsCount = parseInt(statsObj[1], 10) || 0;
-          console.log(`[VIBE-DETAIL] Updated stats from server: likes=${newLikesCount}, comments=${newCommentsCount}`);
-          setLikesCount(newLikesCount);
-          setCommentsCount(newCommentsCount);
-          
-          // Store in localStorage
-          try {
-            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
-          } catch (error) {
-            console.error('[VIBE-DETAIL] Error storing like count in localStorage:', error);
-          }
-          
-          // Also update the stats in the vibe object
-          vibe.stats = [...statsObj];
-        } else if (typeof statsObj === 'object' && statsObj !== null) {
-          const newLikesCount = statsObj.total_likes || 0;
-          const newCommentsCount = statsObj.total_comments || 0;
-          console.log(`[VIBE-DETAIL] Updated stats from server: likes=${newLikesCount}, comments=${newCommentsCount}`);
-          setLikesCount(newLikesCount);
-          setCommentsCount(newCommentsCount);
-          
-          // Store in localStorage
-          try {
-            localStorage.setItem(getVibeLocalStorageKey(vibe.id), newLikesCount.toString());
-          } catch (error) {
-            console.error('[VIBE-DETAIL] Error storing like count in localStorage:', error);
-          }
-          
-          // Also update the stats in the vibe object
-          vibe.stats = {
-            ...statsObj
-          };
-        }
-      } else {
-        console.log('[VIBE-DETAIL] No stats found for vibe', vibe.id);
+      if (!response.ok) {
+        console.error('Failed to refresh vibe stats:', response.statusText);
+        return;
+      }
+
+      const statsData = await response.json();
+      
+      // Обновляем счетчики в UI
+      if (statsData && typeof statsData.total_comments === 'number') {
+        setCommentsCount(statsData.total_comments);
       }
     } catch (error) {
-      console.error('[VIBE-DETAIL] Error refreshing vibe stats:', error);
+      console.error('Error refreshing vibe stats:', error);
     }
   };
 
@@ -607,6 +651,15 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     }
   };
 
+  // Add a new useEffect to keep the comment count in sync with the actual comments
+  useEffect(() => {
+    if (totalCount !== commentsCount) {
+      setCommentsCount(totalCount);
+    }
+  }, [totalCount, commentsCount]);
+
+  // Обновляем вызов функции addVibeComment и обработку её результата
+  // Код функции handleSubmitComment
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -631,24 +684,24 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       text: text,
       created_at: new Date().toISOString(),
       profile: {
-        id: user.id,
+        user_id: user.id,
         name: user.name || 'You',
-        image: user.image || undefined
+        image: user.image || '/images/placeholders/user-placeholder.svg'
       },
       isOptimistic: true
     };
+    
+    // Clear input first for better UX
+    setCommentText('');
     
     // Optimistically add comment to UI
     addComment(optimisticComment);
     
     // Optimistically update counter
     setCommentsCount(prev => {
-      const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+      const prevNum = safeNumberConversion(prev);
       return prevNum + 1;
     });
-    
-    // Clear input
-    setCommentText('');
     
     // Sanitize text before sending to server
     const sanitizedText = sanitizeText(text);
@@ -670,35 +723,38 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           toast.loading(`Retrying... (${retryCount}/${maxRetries})`, { id: 'comment-retry' });
         }
         
-        // Send to server
-        const { data, error } = await addVibeComment({
-          user_id: user.id,
+        // Send to server using the correct parameter structure
+        const response = await addVibeComment({
           vibe_id: vibe.id,
+          user_id: user.id,
           text: sanitizedText
         });
         
-        if (error) {
-          throw new Error(error.message || 'Error adding comment');
+        if (response.error) {
+          throw new Error(response.error.message || 'Error adding comment');
         }
         
-        if (data) {
+        if (response.data) {
           try {
             // Safely verify and create comment object with type checks
             const serverComment: VibeComment = {
-              id: typeof data.id === 'string' ? data.id : optimisticId,
-              user_id: typeof data.user_id === 'string' ? data.user_id : user.id,
-              vibe_id: typeof data.vibe_id === 'string' ? data.vibe_id : vibe.id,
-              text: typeof data.text === 'string' ? data.text : sanitizedText,
-              created_at: typeof data.created_at === 'string' ? data.created_at : new Date().toISOString(),
+              id: typeof response.data.id === 'string' ? response.data.id : optimisticId,
+              user_id: typeof response.data.user_id === 'string' ? response.data.user_id : user.id,
+              vibe_id: typeof response.data.vibe_id === 'string' ? response.data.vibe_id : vibe.id,
+              text: typeof response.data.text === 'string' ? response.data.text : sanitizedText,
+              created_at: typeof response.data.created_at === 'string' ? response.data.created_at : new Date().toISOString(),
               profile: {
-                id: user.id,
+                user_id: typeof response.data.user_id === 'string' ? response.data.user_id : user.id,
                 name: user.name || 'You',
-                image: user.image || undefined
+                image: user.image || '/images/placeholders/user-placeholder.svg'
               }
             };
             
             // Replace the optimistic comment with the real one
             addComment(serverComment, optimisticId);
+            
+            // Refresh the comment list to ensure consistency
+            await fetchComments();
             
             // Refresh vibe stats to ensure counts are accurate
             try {
@@ -800,7 +856,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
           
           // Revert optimistic counter update
           setCommentsCount(prev => {
-            const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
+            const prevNum = safeNumberConversion(prev);
             return Math.max(0, prevNum - 1);
           });
         }
@@ -875,12 +931,15 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             />
             <div className="w-full flex items-center justify-center">
               <Image 
-                src={imageError ? '/images/placeholders/image-placeholder.png' : (vibe.media_url || '/images/placeholders/default-placeholder.svg')}
+                src={imageError ? '/images/placeholders/image-placeholder.png' : getVibeImageUrl(vibe.media_url)}
                 alt={vibe.caption || 'Vibe post'}
                 className={`w-full object-contain transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                 width={800}
                 height={1000}
-                onError={() => setImageError(true)}
+                onError={(e) => {
+                  console.error('Image load error for:', vibe.media_url);
+                  setImageError(true);
+                }}
                 onLoad={() => setIsLoading(false)}
                 priority
               />
@@ -901,9 +960,88 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
 
   // Добавим функцию для безопасного приведения типов:
   // Безопасное приведение count к числу
-  const ensureNumber = (count: string | number): number => {
+  const ensureNumber = (count: any): number => {
     if (typeof count === 'number') return count;
-    return parseInt(count.toString(), 10) || 0;
+    if (typeof count === 'string') return parseInt(count, 10) || 0;
+    if (count === null || count === undefined) return 0;
+    
+    // Безопасная попытка преобразования в строку, если это возможно
+    try {
+      const asString = String(count);
+      return parseInt(asString, 10) || 0;
+    } catch (e) {
+      console.error('Error converting value to number:', e);
+      return 0;
+    }
+  };
+
+  // Обновляем функцию форматирования числа для новых требований отображения
+  const formatNumber = (num: number | string | undefined): string => {
+    if (num === undefined) return '0';
+    
+    const parsedNum = typeof num === 'string' ? parseInt(num, 10) : num;
+    
+    if (isNaN(parsedNum)) return '0';
+    
+    if (parsedNum >= 1000000) {
+      return Math.floor(parsedNum / 1000000) + 'M+';
+    } else if (parsedNum >= 1000) {
+      return Math.floor(parsedNum / 1000) + 'k+';
+    } else if (parsedNum >= 100) {
+      return '100+';
+    } else {
+      return String(parsedNum);
+    }
+  };
+
+  // Функция получения URL для шеринга
+  const getShareUrl = () => {
+    // Create the URL for sharing
+    const url = typeof window !== 'undefined' 
+      ? `${window.location.origin}/vibe/${vibe.id || ''}`
+      : `https://your-site.com/vibe/${vibe.id || ''}`;
+    
+    return url;
+  };
+
+  // Безопасная функция для преобразования значения к числу
+  const safeNumberConversion = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return parseInt(value, 10) || 0;
+    return 0;
+  };
+
+  // Исправленная функция для обработки кнопки удаления комментария
+  const handleDeleteComment = (commentId: string) => {
+    // Проверяем, что пользователь залогинен
+    if (!user?.id) {
+      toast.error('You must be logged in to delete comments', {
+        duration: 3000,
+        style: {
+          background: '#333',
+          color: '#fff',
+          borderRadius: '10px'
+        }
+      });
+      setIsLoginOpen(true);
+      return;
+    }
+    
+    // Оптимистично удаляем комментарий
+    deleteComment(commentId);
+    
+    // Обновляем счетчик комментариев
+    setCommentsCount(prev => Math.max(0, safeNumberConversion(prev) - 1));
+    
+    toast.success('Comment deleted!', {
+      duration: 2000,
+      style: {
+        background: '#333',
+        color: '#fff',
+        borderRadius: '10px'
+      },
+      icon: '🗑️'
+    });
   };
 
   return (
@@ -982,7 +1120,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 <ChatBubbleLeftIcon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
               </motion.div>
               <span className="text-sm font-medium text-gray-400 group-hover:text-white">
-                {ensureNumber(commentsCount)}
+                {formatNumber(commentsCount)}
               </span>
             </div>
             
@@ -1069,7 +1207,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className="text-sm font-medium px-2 py-1 rounded-full bg-[#20DDBB]/20 text-[#20DDBB]"
               >
-                {ensureNumber(commentsCount)}
+                {formatNumber(commentsCount)}
               </motion.div>
             </div>
             
@@ -1161,7 +1299,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                                         const originalText = comment.text.replace(' (Pending sync...)', '');
                                         
                                         // Delete the pending comment
-                                        deleteComment(comment.id);
+                                        handleDeleteComment(comment.id);
                                         
                                         // Set the comment text input field to the original text
                                         setCommentText(originalText);
@@ -1214,11 +1352,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                               </p>
                               <button
                                 onClick={() => {
-                                  deleteComment(comment.id);
-                                  setCommentsCount(prev => {
-                                    const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
-                                    return Math.max(0, prevNum - 1);
-                                  });
+                                  handleDeleteComment(comment.id);
+                                  setCommentsCount(prev => Math.max(0, safeNumberConversion(prev) - 1));
                                   toast.success('Pending comment removed', {
                                     style: {
                                       background: '#333',
@@ -1242,26 +1377,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                                 whileTap={{ scale: 0.9 }}
                                 className="p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-full shadow-lg shadow-red-500/20 transition-all duration-300"
                                 onClick={() => {
-                                  // Optimistically remove comment
-                                  const prevCount = ensureNumber(commentsCount);
-                                  setCommentsCount(prev => {
-                                    const prevNum = typeof prev === 'number' ? prev : parseInt(prev.toString(), 10) || 0;
-                                    return Math.max(0, prevNum - 1);
-                                  });
-                                  
-                                  if (deleteComment) {
-                                    deleteComment(comment.id);
-                                    
-                                    toast.success('Comment deleted!', {
-                                      duration: 2000,
-                                      style: {
-                                        background: '#333',
-                                        color: '#fff',
-                                        borderRadius: '10px'
-                                      },
-                                      icon: '🗑️'
-                                    });
-                                  }
+                                  // Optimistically remove comment and update count using safe function
+                                  const prevCount = safeNumberConversion(commentsCount);
+                                  // Используем функцию handleDeleteComment для удаления комментария
+                                  handleDeleteComment(comment.id);
                                 }}
                                 title="Delete comment"
                               >
@@ -1357,7 +1476,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                     <div className="absolute right-12 top-1/2 transform -translate-y-1/2 overflow-hidden">
                       <motion.button
                         type="button"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowEmojiPicker(!showEmojiPicker);
+                        }}
                         className={`p-1.5 rounded-full transition-all ${
                           showEmojiPicker 
                             ? 'bg-[#20DDBB]/30 text-[#20DDBB]' 
@@ -1417,7 +1539,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                         <p className="text-xs text-gray-300 font-medium">Choose an emoji</p>
                         <motion.button
                           type="button"
-                          onClick={() => setShowEmojiPicker(false)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowEmojiPicker(false);
+                          }}
                           className="p-1 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
@@ -1437,7 +1562,10 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                           <motion.button
                             key={`picker-${emoji}`}
                             type="button"
-                            onClick={() => handleAddEmoji(emoji)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleAddEmoji(emoji);
+                            }}
                             whileHover={{ 
                               scale: 1.2, 
                               backgroundColor: 'rgba(32, 221, 187, 0.3)'

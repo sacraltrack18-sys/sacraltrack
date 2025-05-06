@@ -13,6 +13,7 @@ import { OnboardingProvider } from './context/OnboardingContext';
 import { ShareVibeProvider } from './components/vibe/useShareVibe';
 import { useUser } from './context/user';
 import AuthErrorHandler from './components/AuthErrorHandler';
+import NotFoundHandler from './components/NotFoundHandler';
 import { clsx } from 'clsx';
 import { inter } from '@/app/fonts/inter';
 
@@ -67,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <style dangerouslySetInnerHTML={{ __html: `
                     body { background: linear-gradient(60deg,#2E2469,#351E43); }
                     .bg-gradient { background: linear-gradient(60deg,#2E2469,#351E43); }
-                    #TopNav { background: linear-gradient(60deg,#2E2469,#351E43); }
+                    #TopNav { background: #2D2A5E; backdrop-filter: none; }
                 ` }} />
             </head>
             <body className={clsx(inter.variable, 'bg-[#0F1122]')}>
@@ -99,51 +100,53 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <OnboardingProvider>
                             <ShareVibeProvider appName="Sacral Track">
                                 <AuthErrorHandler>
-                                    <Toaster
-                                        position="top-center"
-                                        containerStyle={{
-                                            zIndex: 10000000
-                                        }}
-                                        toastOptions={{
-                                            duration: 5000,
-                                            style: {
-                                                background: '#272B43',
-                                                color: '#fff',
+                                    <NotFoundHandler>
+                                        <Toaster
+                                            position="top-center"
+                                            containerStyle={{
                                                 zIndex: 10000000
-                                            },
-                                            // Custom success/error styles
-                                            success: {
-                                                iconTheme: {
-                                                    primary: '#8B5CF6',
-                                                    secondary: '#FFFAEE',
-                                                },
+                                            }}
+                                            toastOptions={{
+                                                duration: 5000,
                                                 style: {
-                                                    borderLeft: '4px solid #20DDBB',
                                                     background: '#272B43',
-                                                    color: '#fff'
-                                                }
-                                            },
-                                            error: {
-                                                iconTheme: {
-                                                    primary: '#EF4444',
-                                                    secondary: '#FFFAEE',
+                                                    color: '#fff',
+                                                    zIndex: 10000000
                                                 },
-                                                style: {
-                                                    borderLeft: '4px solid #EF4444', 
-                                                    background: '#272B43',
-                                                    color: '#fff'
-                                                }
-                                            },
-                                        }}
-                                    />
-                                    <AllOverlays />
-                                    {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
-                                    {typeof window !== 'undefined' && (
-                                      <div suppressHydrationWarning>
-                                        <ClientWelcomeModal />
-                                      </div>
-                                    )}
-                                    {children}
+                                                // Custom success/error styles
+                                                success: {
+                                                    iconTheme: {
+                                                        primary: '#8B5CF6',
+                                                        secondary: '#FFFAEE',
+                                                    },
+                                                    style: {
+                                                        borderLeft: '4px solid #20DDBB',
+                                                        background: '#272B43',
+                                                        color: '#fff'
+                                                    }
+                                                },
+                                                error: {
+                                                    iconTheme: {
+                                                        primary: '#EF4444',
+                                                        secondary: '#FFFAEE',
+                                                    },
+                                                    style: {
+                                                        borderLeft: '4px solid #EF4444', 
+                                                        background: '#272B43',
+                                                        color: '#fff'
+                                                    }
+                                                },
+                                            }}
+                                        />
+                                        <AllOverlays />
+                                        {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
+                                        {typeof window !== 'undefined' && (
+                                          <div suppressHydrationWarning>
+                                            <ClientWelcomeModal />
+                                          </div>
+                                        )}
+                                        {children}
+                                    </NotFoundHandler>
                                 </AuthErrorHandler>
                             </ShareVibeProvider>
                         </OnboardingProvider>

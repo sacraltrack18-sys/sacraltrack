@@ -38,7 +38,7 @@ export interface VibePost {
   created_at: string;
   location?: string;
   tags?: string;
-  stats: string[] | { total_likes: string; total_comments: string; total_views: string };
+  stats: number[] | { total_likes: number; total_comments: number; total_views: number };
 }
 
 export interface VibePostWithProfile extends VibePost {
@@ -87,41 +87,39 @@ interface VibeStore {
   resetVibeState: () => void;
 }
 
-// Создадим утилитарные функции для работы со статистикой
-
-const normalizeVibeStats = (stats: any): { total_likes: string; total_comments: string; total_views: string } => {
+// Функции для работы со статистикой
+const normalizeVibeStats = (stats: any): { total_likes: number; total_comments: number; total_views: number } => {
+  // Если stats это массив
   if (Array.isArray(stats)) {
-    // Если stats - это массив, конвертируем его в объект
-    const statsArray = stats.map(s => s || '0');
+    const statsArray = [...stats];
+    while (statsArray.length < 3) statsArray.push(0);
     return {
-      total_likes: statsArray[0] || '0',
-      total_comments: statsArray[1] || '0',
-      total_views: statsArray[2] || '0'
-    };
-  } else if (typeof stats === 'object' && stats !== null) {
-    // Если stats уже объект, проверяем и нормализуем его поля
-    return {
-      total_likes: typeof stats.total_likes === 'number' ? stats.total_likes.toString() : (stats.total_likes || '0'),
-      total_comments: typeof stats.total_comments === 'number' ? stats.total_comments.toString() : (stats.total_comments || '0'),
-      total_views: typeof stats.total_views === 'number' ? stats.total_views.toString() : (stats.total_views || '0')
-    };
-  } else {
-    // Возвращаем дефолтные значения, если stats нет или имеет неподдерживаемый формат
-    return {
-      total_likes: '0',
-      total_comments: '0',
-      total_views: '0'
+      total_likes: typeof statsArray[0] === 'string' ? parseInt(statsArray[0] || '0', 10) : (statsArray[0] || 0),
+      total_comments: typeof statsArray[1] === 'string' ? parseInt(statsArray[1] || '0', 10) : (statsArray[1] || 0),
+      total_views: typeof statsArray[2] === 'string' ? parseInt(statsArray[2] || '0', 10) : (statsArray[2] || 0)
     };
   }
+  
+  // Если stats это объект
+  if (typeof stats === 'object' && stats !== null && !Array.isArray(stats)) {
+    return {
+      total_likes: typeof stats.total_likes === 'string' ? parseInt(stats.total_likes || '0', 10) : (stats.total_likes || 0),
+      total_comments: typeof stats.total_comments === 'string' ? parseInt(stats.total_comments || '0', 10) : (stats.total_comments || 0),
+      total_views: typeof stats.total_views === 'string' ? parseInt(stats.total_views || '0', 10) : (stats.total_views || 0)
+    };
+  }
+  
+  // По умолчанию возвращаем нули
+  return {
+    total_likes: 0,
+    total_comments: 0,
+    total_views: 0
+  };
 };
 
 // Функция для преобразования нормализованной статистики обратно в массив
-const statsToArray = (stats: { total_likes: string; total_comments: string; total_views: string }): string[] => {
-  // Конвертируем объект stats в массив для хранения в Appwrite
-  const likes = stats.total_likes || '0';
-  const comments = stats.total_comments || '0';
-  const views = stats.total_views || '0';
-  return [likes, comments, views];
+const statsToArray = (stats: { total_likes: number; total_comments: number; total_views: number }): number[] => {
+  return [stats.total_likes || 0, stats.total_comments || 0, stats.total_views || 0];
 };
 
 export const useVibeStore = create<VibeStore>()(
@@ -197,7 +195,7 @@ export const useVibeStore = create<VibeStore>()(
                   created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
-                  stats: doc.stats || ['0', '0', '0'],
+                  stats: doc.stats || [0, 0, 0],
                   profile
                 };
               })
@@ -279,7 +277,7 @@ export const useVibeStore = create<VibeStore>()(
                   created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
                   location: doc.location,
                   tags: doc.tags,
-                  stats: doc.stats || ['0', '0', '0'],
+                  stats: doc.stats || [0, 0, 0],
                   profile
                 };
               })
@@ -345,7 +343,7 @@ export const useVibeStore = create<VibeStore>()(
               created_at: doc.$createdAt || doc.created_at || new Date().toISOString(),
               location: doc.location,
               tags: doc.tags,
-              stats: doc.stats || ['0', '0', '0'],
+              stats: doc.stats || [0, 0, 0],
               profile
             }));
 
@@ -386,13 +384,14 @@ export const useVibeStore = create<VibeStore>()(
             // Get the user profile for this vibe
             let profile: VibePostWithProfile['profile'] = undefined;
             try {
-              const profileDoc = await database.getDocument(
+              const profileResponse = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                vibeDoc.user_id
+                [Query.equal('user_id', vibeDoc.user_id)]
               );
               
-              if (profileDoc) {
+              if (profileResponse.documents.length > 0) {
+                const profileDoc = profileResponse.documents[0];
                 profile = {
                   user_id: profileDoc.user_id,
                   name: profileDoc.name || 'Unknown User',
@@ -418,15 +417,15 @@ export const useVibeStore = create<VibeStore>()(
                   
                   // Update the stats object based on its current format
                   if (Array.isArray(statsObj)) {
-                    statsObj = [parsedCount.toString(), ...statsObj.slice(1)];
+                    statsObj = [parsedCount, ...statsObj.slice(1)];
                   } else if (typeof statsObj === 'object' && statsObj !== null) {
                     statsObj = {
                       ...statsObj,
-                      total_likes: parsedCount.toString()
+                      total_likes: parsedCount
                     };
                   } else {
                     // If no stats object exists, create one
-                    statsObj = [parsedCount.toString(), '0', '0'];
+                    statsObj = [parsedCount, 0, 0];
                   }
                 }
               }
@@ -630,9 +629,9 @@ export const useVibeStore = create<VibeStore>()(
             };
             
             // Добавляем поля для статистики
-            documentData.total_likes = '0';
-            documentData.total_comments = '0';
-            documentData.total_views = '0';
+            documentData.total_likes = 0;
+            documentData.total_comments = 0;
+            documentData.total_views = 0;
             
             console.log('Document data for creation:', documentData);
             
@@ -717,6 +716,9 @@ export const useVibeStore = create<VibeStore>()(
             });
             throw error;
           }
+          
+          // Если каким-то образом мы дошли сюда, возвращаем null
+          return null;
         },
 
         likeVibe: async (vibeId, userId) => {
@@ -771,15 +773,15 @@ export const useVibeStore = create<VibeStore>()(
               let updatedStats;
               
               if (Array.isArray(post.stats)) {
-                const likesCount = parseInt(post.stats[0] || '0') + 1;
-                updatedStats = [likesCount.toString(), ...post.stats.slice(1)];
+                const likesCount = post.stats[0] + 1;
+                updatedStats = [likesCount, ...post.stats.slice(1)];
               } else if (typeof post.stats === 'object' && post.stats !== null) {
                 updatedStats = {
                   ...post.stats,
-                  total_likes: (parseInt(post.stats.total_likes || '0') + 1).toString()
+                  total_likes: post.stats.total_likes + 1
                 };
               } else {
-                updatedStats = ['1', '0', '0'];
+                updatedStats = [1, 0, 0];
               }
               
               return {
@@ -797,15 +799,15 @@ export const useVibeStore = create<VibeStore>()(
             let updatedStats;
             
             if (Array.isArray(vibePostById.stats)) {
-              const likesCount = parseInt(vibePostById.stats[0] || '0') + 1;
-              updatedStats = [likesCount.toString(), ...vibePostById.stats.slice(1)];
+              const likesCount = vibePostById.stats[0] + 1;
+              updatedStats = [likesCount, ...vibePostById.stats.slice(1)];
             } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
               updatedStats = {
                 ...vibePostById.stats,
-                total_likes: (parseInt(vibePostById.stats.total_likes || '0') + 1).toString()
+                total_likes: vibePostById.stats.total_likes + 1
               };
             } else {
-              updatedStats = ['1', '0', '0'];
+              updatedStats = [1, 0, 0];
             }
             
             updatedPostById = {
@@ -872,14 +874,14 @@ export const useVibeStore = create<VibeStore>()(
                   let syncedStats;
                   
                   if (Array.isArray(post.stats)) {
-                    syncedStats = [exactLikesCount.toString(), ...post.stats.slice(1)];
+                    syncedStats = [exactLikesCount, ...post.stats.slice(1)];
                   } else if (typeof post.stats === 'object' && post.stats !== null) {
                     syncedStats = {
                       ...post.stats,
-                      total_likes: exactLikesCount.toString()
+                      total_likes: exactLikesCount
                     };
                   } else {
-                    syncedStats = [exactLikesCount.toString(), '0', '0'];
+                    syncedStats = [exactLikesCount, 0, 0];
                   }
                     
                     return { 
@@ -896,14 +898,14 @@ export const useVibeStore = create<VibeStore>()(
                 let syncedStats;
                 
                 if (Array.isArray(vibePostById.stats)) {
-                  syncedStats = [exactLikesCount.toString(), ...vibePostById.stats.slice(1)];
+                  syncedStats = [exactLikesCount, ...vibePostById.stats.slice(1)];
                 } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
                   syncedStats = {
                     ...vibePostById.stats,
-                    total_likes: exactLikesCount.toString()
+                    total_likes: exactLikesCount
                   };
                 } else {
-                  syncedStats = [exactLikesCount.toString(), '0', '0'];
+                  syncedStats = [exactLikesCount, 0, 0];
                 }
                 
                 syncedPostById = {
@@ -987,15 +989,15 @@ export const useVibeStore = create<VibeStore>()(
               let updatedStats;
               
               if (Array.isArray(post.stats)) {
-                const likesCount = Math.max(0, parseInt(post.stats[0] || '0') - 1);
-                updatedStats = [likesCount.toString(), ...post.stats.slice(1)];
+                const likesCount = Math.max(0, post.stats[0] - 1);
+                updatedStats = [likesCount, ...post.stats.slice(1)];
               } else if (typeof post.stats === 'object' && post.stats !== null) {
                 updatedStats = {
                   ...post.stats,
-                  total_likes: Math.max(0, parseInt(post.stats.total_likes || '0') - 1).toString()
+                  total_likes: Math.max(0, post.stats.total_likes - 1)
                 };
               } else {
-                updatedStats = ['0', '0', '0'];
+                updatedStats = [0, 0, 0];
               }
               
               return {
@@ -1013,15 +1015,15 @@ export const useVibeStore = create<VibeStore>()(
             let updatedStats;
             
             if (Array.isArray(vibePostById.stats)) {
-              const likesCount = Math.max(0, parseInt(vibePostById.stats[0] || '0') - 1);
-              updatedStats = [likesCount.toString(), ...vibePostById.stats.slice(1)];
+              const likesCount = Math.max(0, vibePostById.stats[0] - 1);
+              updatedStats = [likesCount, ...vibePostById.stats.slice(1)];
             } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
               updatedStats = {
                 ...vibePostById.stats,
-                total_likes: Math.max(0, parseInt(vibePostById.stats.total_likes || '0') - 1).toString()
+                total_likes: Math.max(0, vibePostById.stats.total_likes - 1)
               };
             } else {
-              updatedStats = ['0', '0', '0'];
+              updatedStats = [0, 0, 0];
             }
             
             updatedPostById = {
@@ -1088,14 +1090,14 @@ export const useVibeStore = create<VibeStore>()(
                   let syncedStats;
                   
                   if (Array.isArray(post.stats)) {
-                    syncedStats = [exactLikesCount.toString(), ...post.stats.slice(1)];
+                    syncedStats = [exactLikesCount, ...post.stats.slice(1)];
                   } else if (typeof post.stats === 'object' && post.stats !== null) {
                     syncedStats = {
                       ...post.stats,
-                      total_likes: exactLikesCount.toString()
+                      total_likes: exactLikesCount
                     };
                   } else {
-                    syncedStats = [exactLikesCount.toString(), '0', '0'];
+                    syncedStats = [exactLikesCount, 0, 0];
                   }
                     
                     return { 
@@ -1112,14 +1114,14 @@ export const useVibeStore = create<VibeStore>()(
                 let syncedStats;
                 
                 if (Array.isArray(vibePostById.stats)) {
-                  syncedStats = [exactLikesCount.toString(), ...vibePostById.stats.slice(1)];
+                  syncedStats = [exactLikesCount, ...vibePostById.stats.slice(1)];
                 } else if (typeof vibePostById.stats === 'object' && vibePostById.stats !== null) {
                   syncedStats = {
                     ...vibePostById.stats,
-                    total_likes: exactLikesCount.toString()
+                    total_likes: exactLikesCount
                   };
                 } else {
-                  syncedStats = [exactLikesCount.toString(), '0', '0'];
+                  syncedStats = [exactLikesCount, 0, 0];
                 }
                 
                 syncedPostById = {

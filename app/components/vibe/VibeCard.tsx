@@ -37,10 +37,9 @@ interface VibeComment {
   text: string;
   created_at: string;
   profile?: {
-    id?: string;
-    user_id?: string;
+    user_id: string;
     name: string;
-    image?: string;
+    image: string;
     username?: string;
   };
   isOptimistic?: boolean;
@@ -162,7 +161,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     deleteComment,
     isLoading: commentsLoading 
   } = useVibeComments(vibe.id);
-  const [comments, setComments] = useState<VibeComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [showEmojiPanel, setShowEmojiPanel] = useState(true);
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('music');
@@ -176,6 +174,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [commentsLoadTimeout, setCommentsLoadTimeout] = useState(false);
   
   // For storing like state locally
   const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
@@ -188,11 +187,31 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     // 1. Try to get from vibe.stats first
     if (vibe.stats) {
       if (Array.isArray(vibe.stats)) {
-        likesCount = parseInt(vibe.stats[0] || '0', 10);
-        commentsCount = parseInt(vibe.stats[1] || '0', 10);
+        // Безопасное преобразование для массивов статистики
+        likesCount = typeof vibe.stats[0] === 'string' 
+          ? parseInt(vibe.stats[0], 10) || 0 
+          : typeof vibe.stats[0] === 'number' 
+            ? vibe.stats[0] 
+            : 0;
+            
+        commentsCount = typeof vibe.stats[1] === 'string' 
+          ? parseInt(vibe.stats[1], 10) || 0 
+          : typeof vibe.stats[1] === 'number' 
+            ? vibe.stats[1] 
+            : 0;
       } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-        likesCount = parseInt(vibe.stats.total_likes || '0', 10);
-        commentsCount = parseInt(vibe.stats.total_comments || '0', 10);
+        // Безопасное преобразование для объекта статистики
+        likesCount = typeof vibe.stats.total_likes === 'string' 
+          ? parseInt(vibe.stats.total_likes, 10) || 0 
+          : typeof vibe.stats.total_likes === 'number' 
+            ? vibe.stats.total_likes 
+            : 0;
+            
+        commentsCount = typeof vibe.stats.total_comments === 'string' 
+          ? parseInt(vibe.stats.total_comments, 10) || 0 
+          : typeof vibe.stats.total_comments === 'number' 
+            ? vibe.stats.total_comments 
+            : 0;
       }
     }
 
@@ -367,28 +386,82 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
-  // Создаем обертку для addComment, чтобы правильно обрабатывать наш интерфейс
-  const addCommentWrapper = (comment: VibeComment, replaceId?: string) => {
-    if (addComment && typeof addComment === 'function') {
-      if (replaceId) {
-        // Если есть ID для замены, передаем этот параметр в хук
-        // @ts-ignore - игнорируем проверку типов, т.к. нас интересует только текст комментария
-        addComment(comment, replaceId);
-      } else {
-        // Добавляем новый комментарий через хук
-        // @ts-ignore - игнорируем проверку типов, т.к. нас интересует только текст комментария
-        addComment(comment);
+  // Improved handleOpenComments function with loading timeout protection
+  const handleOpenComments = () => {
+    // Toggle comments visibility
+    setShowComments(prev => !prev);
+    
+    // Reset timeout counter when toggling comments
+    setCommentsLoadTimeout(false);
+    
+    if (!showComments) {
+      // If we're opening comments and none are loaded yet
+      if (commentsList.length === 0 && !commentsLoading) {
+        console.log(`[VIBE-CARD] Fetching comments for ${vibe.id}`);
+        fetchComments();
+        
+        // Set 5-second timeout to prevent infinite loading state
+        const timeoutId = setTimeout(() => {
+          setCommentsLoadTimeout(true);
+        }, 5000);
+        
+        // Store the timeout ID so we can clear it
+        return () => clearTimeout(timeoutId);
       }
     }
     
-    // Update local comment count
-    setVibeStats(prev => ({
-      ...prev,
-      commentsCount: prev.commentsCount + 1
-    }));
+    // Always refresh vibe stats when toggling comments
+    refreshVibeStats();
   };
   
-  // Handle like updates from the VibeLikeButton component
+  // Fix the addCommentWrapper function to use the hook's addComment directly
+  const addCommentWrapper = async (comment: VibeComment, replaceId?: string) => {
+    try {
+      if (addComment && typeof addComment === 'function') {
+        if (replaceId) {
+          // If there's an ID for replacement, pass this parameter to the hook
+          await addComment(comment, replaceId);
+        } else {
+          // Add a new comment through the hook
+          await addComment(comment);
+        }
+      }
+      
+      // Update local comment count
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: safeNumberConversion(prev.commentsCount) + 1
+      }));
+      
+      // Ensure we have the latest comments
+      if (!commentsLoading) {
+        fetchComments();
+      }
+    } catch (error) {
+      console.error('[VIBE-CARD] Error in addCommentWrapper:', error);
+    }
+  };
+  
+  // Add formatNumber function for consistent number display
+  const formatNumber = (num: number | string | undefined): string => {
+    if (num === undefined || num === null) return '0';
+    
+    const parsedNum = typeof num === 'string' ? parseInt(num, 10) : num;
+    
+    if (isNaN(parsedNum)) return '0';
+    
+    if (parsedNum >= 1000000) {
+      return Math.floor(parsedNum / 1000000) + 'M+';
+    } else if (parsedNum >= 1000) {
+      return Math.floor(parsedNum / 1000) + 'k+';
+    } else if (parsedNum >= 100) {
+      return '100+';
+    } else {
+      return String(parsedNum);
+    }
+  };
+
+  // Обновляем вызов handleLikeUpdate
   const handleLikeUpdate = (newCount: number, isLiked: boolean) => {
     // Update only the local stats
     setVibeStats(prev => ({
@@ -411,6 +484,23 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
+  // Вспомогательная функция для безопасного преобразования значений
+  const safeNumberConversion = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return parseInt(value, 10) || 0;
+    return 0;
+  };
+
+  // Добавляем эффект для обновления счетчика комментариев при изменении списка комментариев
+  useEffect(() => {
+    if (commentsList && commentsList.length > 0) {
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: commentsList.length
+      }));
+    }
+  }, [commentsList]);
+
   // Replace the refreshVibeStats function with a simpler version that only updates this card
   const refreshVibeStats = async () => {
     if (!vibe.id) return;
@@ -439,8 +529,9 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         
         // Handle different formats of stats
         if (Array.isArray(statsObj)) {
-          const newLikesCount = parseInt(statsObj[0], 10) || 0;
-          const newCommentsCount = parseInt(statsObj[1], 10) || 0;
+          // Безопасное преобразование для массивов статистики
+          const newLikesCount = safeNumberConversion(statsObj[0]);
+          const newCommentsCount = safeNumberConversion(statsObj[1]);
           
           // Only update local stats, not global store
           setVibeStats({
@@ -455,8 +546,9 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             console.error('[VIBE-CARD] Error storing like count in localStorage:', error);
           }
         } else if (typeof statsObj === 'object' && statsObj !== null) {
-          const newLikesCount = parseInt(statsObj.total_likes, 10) || 0;
-          const newCommentsCount = parseInt(statsObj.total_comments, 10) || 0;
+          // Безопасное преобразование для объекта статистики
+          const newLikesCount = safeNumberConversion(statsObj.total_likes);
+          const newCommentsCount = safeNumberConversion(statsObj.total_comments);
           
           // Only update local stats, not global store
           setVibeStats({
@@ -477,15 +569,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
-  const handleOpenComments = () => {
-    if (!user) {
-      setIsLoginOpen(true);
-      return;
-    }
-    setShowComments(true);
-    fetchComments();
-  };
-  
+  // Fix the handleSubmitComment function to handle loading state properly
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -501,6 +585,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       // Сохраняем текущий текст комментария и очищаем поле ввода сразу
       const commentToSend = trimmedComment;
       setCommentText('');
+      setIsSubmittingComment(true);
       
       // Создаем оптимистичный комментарий для немедленного отображения
       const optimisticId = `temp-${Date.now()}`;
@@ -511,20 +596,22 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         text: commentToSend,
         created_at: new Date().toISOString(),
         profile: {
-          id: user.id,
+          user_id: user.id,
           name: user.name || 'You',
-          image: user.image || undefined
+          image: user.image || '/images/placeholders/user-placeholder.svg',
+          username: undefined
         },
         isOptimistic: true
       };
       
-      // Добавляем временный комментарий в UI и увеличиваем счетчик - мгновенный отклик
-      addCommentWrapper(optimisticComment);
+      // Directly add comment via the hook to ensure it appears
+      await addComment(optimisticComment);
       
-      // Если комментарии не загружены, показываем их
-      if (!showComments) {
-        setShowComments(true);
-      }
+      // Increase local stats counter - update both the stats object and the comments list
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: safeNumberConversion(prev.commentsCount) + 1
+      }));
       
       // Отправляем комментарий на сервер
       const response = await addVibeComment({ vibe_id: vibe.id, user_id: user.id, text: commentToSend });
@@ -536,14 +623,22 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
 
       // Когда ответ получен, заменяем оптимистичный комментарий настоящим
       if (response && response.data) {
-        // Удаляем оптимистичный комментарий и получаем актуальный список комментариев
-        fetchComments();
+        // Only fetch if we're not already loading
+        if (!commentsLoading) {
+          await fetchComments();
+        }
         
-        // Обновляем счетчик комментариев
+        // Update vibe stats to show correct comment count
         refreshVibeStats();
       }
     } catch (error) {
       console.error('Error adding comment:', error);
+      
+      // Откатываем увеличение счетчика комментариев
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: Math.max(0, safeNumberConversion(prev.commentsCount) - 1)
+      }));
       
       // Показываем уведомление об ошибке
       toast.error(`Failed to add comment. Please try again.`, {
@@ -557,6 +652,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       
       // Восстанавливаем текст комментария в поле ввода
       setCommentText(trimmedComment);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
   
@@ -793,7 +890,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 whileTap={{ scale: 0.98 }}
               >
                 <ChatBubbleLeftIcon className="w-5 h-5 text-white" />
-                <span className="text-sm font-medium text-white">{vibeStats.commentsCount}</span>
+                <span className="text-sm font-medium text-white">{formatNumber(vibeStats.commentsCount)}</span>
               </motion.button>
             </div>
 
@@ -838,7 +935,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     <span className="text-[#20DDBB] text-xl">😊</span>
                     <h3 className="text-white font-semibold text-lg">Comments</h3>
                     <span className="bg-[#20DDBB]/20 text-[#20DDBB] text-xs px-2 py-0.5 rounded-full ml-2">
-                      {vibeStats.commentsCount}
+                      {formatNumber(!commentsLoading && commentsList && commentsList.length ? commentsList.length : vibeStats.commentsCount)}
                     </span>
                   </div>
                   <button 
@@ -855,12 +952,12 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 
                 {/* Список комментариев */}
                 <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 min-h-[200px] md:min-h-[300px] overscroll-contain">
-                  {commentsLoading ? (
+                  {commentsLoading && !commentsLoadTimeout ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="animate-spin h-8 w-8 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
                     </div>
-                  ) : comments && comments.length > 0 ? (
-                    comments.map((comment: any) => (
+                  ) : commentsList && commentsList.length > 0 ? (
+                    commentsList.map((comment: any) => (
                       <div key={comment.id} className={`bg-[#1A1A2E]/80 p-3 rounded-xl border ${comment.isOptimistic ? 'border-[#20DDBB]/30 bg-gradient-to-r from-[#20DDBB]/5 to-[#0F9E8E]/5' : 'border-white/5'}`}>
                         <div className="flex items-start gap-3">
                           <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
@@ -917,6 +1014,20 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         </div>
                       </div>
                     ))
+                  ) : commentsLoadTimeout && commentsLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <div className="text-[#20DDBB] text-3xl mb-2">⚠️</div>
+                      <p>Comments couldn't be loaded.</p>
+                      <button 
+                        onClick={() => {
+                          setCommentsLoadTimeout(false);
+                          fetchComments();
+                        }}
+                        className="mt-3 px-4 py-2 bg-[#20DDBB]/20 text-[#20DDBB] rounded-full text-sm hover:bg-[#20DDBB]/30 transition-colors"
+                      >
+                        Try again
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <div className="text-[#20DDBB] text-3xl mb-2">😊</div>

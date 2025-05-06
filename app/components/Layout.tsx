@@ -53,8 +53,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   return (
     <div className="flex flex-col min-h-screen bg-[#131524]">
-      {/* Header */}
-      <header className="bg-[#1A1C2E]/90 backdrop-blur-sm border-b border-purple-900/10 sticky top-0 z-30">
+      {/* Header with purple/indigo background */}
+      <header className="bg-[#1A1C2E]/90 backdrop-blur-lg border-b border-purple-900/10 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             <Image 

@@ -105,12 +105,12 @@ const BannerSlider = () => {
           setBanners([
             {
               $id: 'default',
-              image_url: '/images/placeholders/news-placeholder.svg',
-              title: 'Welcome to Our News Section',
-              subtitle: 'Stay updated with the latest trends and announcements',
-              description: 'Discover exciting updates and news from our team',
-              link_url: '#',
-              action_text: 'Explore',
+              image_url: '/images/Banner-news.png',
+              title: 'Experience the next evolution of Sacral Track',
+              subtitle: 'Music marketplace / social network for artists and music lovers',
+              description: "Experience the next evolution in music streaming with SACRAL TRACK's comprehensive platform update, designed to create deeper connections between artists and listeners through innovative features and enhanced functionality.",
+              link_url: '/news/latest-update',
+              action_text: 'Read More',
               position: 0
             }
           ]);
@@ -124,12 +124,12 @@ const BannerSlider = () => {
       setBanners([
         {
           $id: 'default',
-          image_url: '/images/placeholders/news-placeholder.svg',
-          title: 'Welcome to Our News Section',
-          subtitle: 'Stay updated with the latest trends and announcements',
-          description: 'Discover exciting updates and news from our team',
-          link_url: '#',
-          action_text: 'Explore',
+          image_url: '/images/Banner-news.png',
+          title: 'Experience the next evolution of Sacral Track',
+          subtitle: 'Music marketplace / social network for artists and music lovers',
+          description: "Experience the next evolution in music streaming with SACRAL TRACK's comprehensive platform update, designed to create deeper connections between artists and listeners through innovative features and enhanced functionality.",
+          link_url: '/news/latest-update',
+          action_text: 'Read More',
           position: 0
         }
       ]);

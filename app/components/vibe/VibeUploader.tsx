@@ -239,7 +239,7 @@ const MoodChip: React.FC<{
     }}
     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
       selected
-        ? 'bg-primary/20 text-primary border border-primary/50'
+        ? 'bg-primary/20 text-white border border-primary/50'
         : 'bg-white/10 text-white/70 border border-white/10 hover:bg-white/15'
     }`}
   >

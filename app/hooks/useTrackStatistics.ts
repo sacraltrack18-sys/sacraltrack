@@ -66,7 +66,6 @@ const useTrackStatistics = (trackId?: string) => {
             last_played: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            geographic_data: {},
             device_types: {}
           }
         );

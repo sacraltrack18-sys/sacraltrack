@@ -116,23 +116,21 @@ const PostLikes = ({ post }: PostLikesProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-[#24183d]/60 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden 
-                      shadow-[0_4px_20px_rgba(0,0,0,0.2)] transition-all duration-300
-                      hover:shadow-[0_6px_24px_rgba(32,221,187,0.12)] hover:border-[#20DDBB]/30"
+            className="bg-[#24183d]/80 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden 
+                      shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300
+                      hover:shadow-[0_8px_32px_rgba(32,221,187,0.15)] hover:border-[#20DDBB]/20"
         >
-            <div className="p-4 flex items-center justify-between border-b border-white/10">
+            <div className="p-4 flex items-center justify-between border-b border-white/5">
                 <div className="flex items-center gap-3">
                     <Link href={`/profile/${post.user_id}`}>
-                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                            <motion.img
-                                whileHover={{ scale: 1.05 }}
-                                className="w-full h-full object-cover ring-2 ring-white/10 
-                                         hover:ring-[#20DDBB]/50 transition-all duration-300"
-                                src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
-                                alt={post.profile.name}
-                                onError={() => setAvatarError(true)}
-                            />
-                        </div>
+                        <motion.img
+                            whileHover={{ scale: 1.05 }}
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-white/10 
+                                     hover:ring-[#20DDBB]/50 transition-all duration-300"
+                            src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
+                            alt={post.profile.name}
+                            onError={() => setAvatarError(true)}
+                        />
                     </Link>
                     <div>
                         <Link href={`/profile/${post.user_id}`} 
@@ -151,7 +149,8 @@ const PostLikes = ({ post }: PostLikesProps) => {
             >
                 <div 
                     onClick={handlePlay}
-                    className="w-full aspect-square bg-cover bg-center relative overflow-hidden cursor-pointer group transition-all duration-300"
+                    className="w-full aspect-square bg-cover bg-center relative overflow-hidden cursor-pointer
+                             group transition-all duration-300"
                     style={{ 
                         backgroundImage: imageError ? 
                             'linear-gradient(45deg, #2E2469, #351E43)' : 
@@ -173,12 +172,13 @@ const PostLikes = ({ post }: PostLikesProps) => {
                             </div>
                         </div>
                     ) : (
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-sm">
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+                                      transition-opacity duration-300 flex items-center justify-center">
                             <motion.div
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ duration: 0.2 }}
-                                className="bg-[#20DDBB]/30 backdrop-blur-md p-4 rounded-full"
+                                className="bg-[#20DDBB]/20 backdrop-blur-sm p-4 rounded-full"
                             >
                                 {isCurrentTrack && isPlaying ? (
                                     <motion.div 
@@ -198,7 +198,7 @@ const PostLikes = ({ post }: PostLikesProps) => {
                 </div>
             </motion.div>
 
-            <div className="px-4 py-2 border-t border-white/10">
+            <div className="px-4 py-2 border-t border-white/5">
                 <AudioPlayer 
                     m3u8Url={m3u8Url}
                     isPlaying={isCurrentTrack && isPlaying}
@@ -216,11 +216,10 @@ const PostLikes = ({ post }: PostLikesProps) => {
                     onPause={() => {
                         stopAllPlayback();
                     }}
-                    hideCurrentTime={true}
                 />
             </div>
 
-            <div className="px-4 py-3 flex justify-between items-center border-t border-white/10">
+            <div className="px-4 py-3 flex justify-between items-center border-t border-white/5">
                 <div className="flex items-center space-x-4">
                     <PostMainLikes post={formattedPost} />
                     
@@ -245,27 +244,6 @@ const PostLikes = ({ post }: PostLikesProps) => {
                     })}
                 </div>
             </div>
-
-            {/* Кастомный стиль вывода времени трека - без первой части (00:00) */}
-            <style jsx global>{`
-                /* Скрываем первую часть времени трека (00:00) и оставляем только общую длительность */
-                .audio-player-time {
-                    position: relative;
-                }
-                
-                /* Делаем текст до косой черты прозрачным */
-                .audio-player-time {
-                    color: transparent;
-                }
-                
-                /* Но возвращаем видимость для части после "/" */
-                .audio-player-time::after {
-                    content: attr(data-after);
-                    position: absolute;
-                    right: 0;
-                    color: rgba(255, 255, 255, 0.8);
-                }
-            `}</style>
         </motion.div>
     );
 };
