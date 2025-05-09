@@ -137,6 +137,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [cropper, setCropper] = useState<any>(null);
   const [imageUploaded, setImageUploaded] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
   
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -225,22 +226,66 @@ const EnhancedEditProfileOverlay: React.FC = () => {
   };
   
   // Handle cropping image
-  const handleCrop = () => {
+  const handleCrop = async () => {
     if (cropper && file) {
       const canvas = cropper.getCanvas();
       if (canvas) {
-        canvas.toBlob((blob: Blob) => {
-          if (blob) {
-            const croppedFile = new File([blob], file.name, { type: file.type });
-            setFile(croppedFile);
-            setImagePreview(URL.createObjectURL(croppedFile));
-            setImageUploaded(true);
-            
-            toast.custom(() => (
-              <SuccessToast message="Image cropped successfully" />
-            ), { duration: 3000 });
-          }
-        });
+        try {
+          setIsSavingImage(true);
+          
+          canvas.toBlob(async (blob: Blob) => {
+            if (blob) {
+              const croppedFile = new File([blob], file.name, { type: file.type });
+              setFile(croppedFile);
+              setImagePreview(URL.createObjectURL(croppedFile));
+              
+              // Immediately save the image if we have a profile
+              if (currentProfile?.$id) {
+                try {
+                  // Start uploading animation
+                  setUploadProgress(0);
+                  const uploadProgressInterval = setInterval(() => {
+                    setUploadProgress(prev => Math.min(prev + 5, 95));
+                  }, 100);
+                  
+                  const dimensions = { left: 0, top: 0, width: 0, height: 0 };
+                  const newImageId = await useChangeUserImage(croppedFile, dimensions, currentProfile.image || '');
+                  
+                  // Upload complete - set to 100%
+                  setUploadProgress(100);
+                  clearInterval(uploadProgressInterval);
+                  
+                  // Update the profile with the new image
+                  await useUpdateProfileImage(currentProfile.$id, newImageId);
+                  
+                  // Refetch the current profile to get the updated data
+                  await setCurrentProfile(currentProfile.$id);
+                  
+                  // Mark as uploaded and show success
+                  setImageUploaded(true);
+                  
+                  toast.custom(() => (
+                    <SuccessToast message="Profile image updated successfully" />
+                  ), { duration: 3000 });
+                } catch (error) {
+                  console.error('Error saving image:', error);
+                  toast.error('Failed to save profile image');
+                }
+              } else {
+                // Just mark as uploaded if we don't have a profile yet
+                setImageUploaded(true);
+                toast.custom(() => (
+                  <SuccessToast message="Image cropped successfully" />
+                ), { duration: 3000 });
+              }
+            }
+            setIsSavingImage(false);
+          });
+        } catch (error) {
+          console.error('Error processing image:', error);
+          toast.error('Failed to process image');
+          setIsSavingImage(false);
+        }
       }
     }
   };
@@ -355,8 +400,8 @@ const EnhancedEditProfileOverlay: React.FC = () => {
       if (currentProfile?.$id) {
         await useUpdateProfile(profileData);
         
-        // Update profile image if changed
-        if (file && imageUploaded) {
+        // Update profile image if changed but not already uploaded
+        if (file && !imageUploaded) {
           setUploadingImage(true);
           
           const dimensions = { left: 0, top: 0, width: 0, height: 0 };
@@ -384,9 +429,9 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         // Close the modal after successful save
         setIsEditProfileOpen(false);
         
-        // Refresh the entire page after a small delay to ensure data is loaded
+        // Fully reload the page after a small delay to ensure data is saved
         setTimeout(() => {
-          router.refresh(); // Refresh the current route
+          window.location.reload();
         }, 300);
       }
     } catch (error: any) {
@@ -444,7 +489,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     <AnimatePresence mode="wait">
       <motion.div
         key="overlay"
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center pt-20 pb-4 px-4 bg-black/60 backdrop-blur-sm"
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
@@ -592,15 +637,45 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                           />
                         </div>
                         
+                        {/* Upload progress bar */}
+                        {isSavingImage && uploadProgress > 0 && (
+                          <div className="mt-3">
+                            <div className="h-1.5 w-full bg-gray-700/50 rounded-full overflow-hidden">
+                              <motion.div 
+                                className="h-full bg-gradient-to-r from-[#20DDBB] to-[#5D59FF]"
+                                initial={{ width: '0%' }}
+                                animate={{ width: `${uploadProgress}%` }}
+                                transition={{ ease: "easeInOut" }}
+                              />
+                            </div>
+                            <div className="text-xs text-[#A6B1D0] mt-1 text-right">
+                              {uploadProgress < 100 ? `Uploading: ${uploadProgress}%` : 'Upload complete!'}
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="flex justify-end mt-2">
                           <motion.button
-                            className="py-2 px-4 bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 hover:from-[#20DDBB]/30 hover:to-[#5D59FF]/30 text-[#20DDBB] rounded-lg transition-all font-medium flex items-center gap-2"
-                            whileHover={{ y: -2, boxShadow: '0 8px 20px rgba(32, 221, 187, 0.15)' }}
-                            whileTap={{ y: 0 }}
+                            className={`py-2 px-4 rounded-lg transition-all font-medium flex items-center gap-2
+                                      ${isSavingImage
+                                        ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 hover:from-[#20DDBB]/30 hover:to-[#5D59FF]/30 text-[#20DDBB]'}`}
+                            whileHover={!isSavingImage ? { y: -2, boxShadow: '0 8px 20px rgba(32, 221, 187, 0.15)' } : {}}
+                            whileTap={!isSavingImage ? { y: 0 } : {}}
                             onClick={handleCrop}
+                            disabled={isSavingImage}
                           >
-                            <IoCheckmarkCircle size={18} />
-                            <span>Apply</span>
+                            {isSavingImage ? (
+                              <>
+                                <div className="w-5 h-5 rounded-full border-2 border-t-[#20DDBB] border-r-[#5D59FF] border-b-[#20DDBB]/30 border-l-[#5D59FF]/30 animate-spin mr-1" />
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <IoCheckmarkCircle size={18} />
+                                <span>Apply</span>
+                              </>
+                            )}
                           </motion.button>
                         </div>
                       </motion.div>
@@ -810,7 +885,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                 >
                   {isLoading ? (
                     <>
-                      <div className="animate-spin h-5 w-5 border-2 border-black/30 border-t-black rounded-full" />
+                      <div className="w-5 h-5 rounded-full border-2 border-t-black border-r-transparent border-b-black/30 border-l-transparent animate-spin" />
                       <span>Saving...</span>
                     </>
                   ) : (

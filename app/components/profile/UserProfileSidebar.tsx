@@ -406,30 +406,26 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             onMouseEnter={() => setHoveredElement('genre')}
             onMouseLeave={() => setHoveredElement(null)}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center gap-2 text-sm text-[#20DDBB] mb-4"
-            >
-              <IoMdMusicalNotes />
-              {getProfileProperty('genre', null) ? (
+            {getProfileProperty('genre', null) && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center gap-2 text-sm text-[#20DDBB] mb-4"
+              >
+                <IoMdMusicalNotes />
                 <span>{getProfileProperty('genre', '')}</span>
-              ) : isOwner ? (
-                <span className="italic text-[#20DDBB]/50 hover:text-[#20DDBB]/70 transition-colors">
-                  Specify your music genre
-                </span>
-              ) : null}
-              {isOwner && hoveredElement === 'genre' && (
-                <motion.span
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                >
-                  <FaEdit size={12} className="text-[#20DDBB] opacity-80" />
-                </motion.span>
-              )}
-            </motion.div>
+                {isOwner && hoveredElement === 'genre' && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                  >
+                    <FaEdit size={12} className="text-[#20DDBB] opacity-80" />
+                  </motion.span>
+                )}
+              </motion.div>
+            )}
           </div>
           
           {/* Joined date - if available */}
