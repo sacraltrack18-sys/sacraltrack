@@ -140,7 +140,7 @@ export default function TermsOfUse() {
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="hidden md:block sticky top-[80px] w-[280px] lg:w-[320px] h-[calc(100vh-80px)] bg-[#1A2338]/90 backdrop-blur-lg border-r border-[#20DDBB]/10 overflow-y-auto custom-scrollbar"
+            className="hidden md:block sticky top-[80px] w-[220px] lg:w-[260px] h-[calc(100vh-80px)] bg-[#1A2338]/90 backdrop-blur-lg border-r border-[#20DDBB]/10 overflow-y-auto custom-scrollbar"
           >
             <div className="p-4 lg:p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -201,7 +201,7 @@ export default function TermsOfUse() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="max-w-3xl mx-auto space-y-10 md:space-y-12 pb-20"
+              className="mx-auto space-y-10 md:space-y-12 pb-20"
             >
               {/* Introduction Section */}
               <TermsSection id="introduction" title="Introduction">
@@ -218,15 +218,7 @@ export default function TermsOfUse() {
                     {/* Remove BETA VERSION section */}
                     {/* Previously beta version notice was here */}
                     
-                    {/* Place buttons side by side */}
-                    <div className="flex flex-col md:flex-row gap-4 z-10">
-                      <a href="/get-started" className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white py-3 px-8 rounded-full font-medium hover:shadow-lg transition-all duration-300">
-                        Get Started
-                      </a>
-                      <a href="/terms" className="bg-[#1A2338]/80 text-white border border-white/20 py-3 px-8 rounded-full font-medium hover:bg-[#1A2338] transition-all duration-300">
-                        Read Terms of Service
-                      </a>
-                    </div>
+                    {/* Buttons removed as requested */}
                   </div>
 
                   <InfoCard icon="🎵" title="Sacral Track Concept">
@@ -267,7 +259,7 @@ export default function TermsOfUse() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                       <div className="space-y-3">
                         <h4 className="text-[#20DDBB] font-medium text-xs md:text-sm">Platform Features:</h4>
                         <CheckList items={[
@@ -483,7 +475,7 @@ export default function TermsOfUse() {
                     is performed at the SMS verification with form e-mail and user name.
                   </p>
                   
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <InfoCard icon="✅" title="Registration Terms">
                       <CheckList items={[
                         'Registration is free and voluntary',
@@ -615,7 +607,7 @@ export default function TermsOfUse() {
                     for the platform.
                   </p>
                   
-                  <div className="grid md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 gap-5">
                     <InfoCard icon="🎵" title="Audio File Requirements">
                       <CheckList items={[
                         'Format: Only WAV files are accepted',
@@ -779,7 +771,7 @@ export default function TermsOfUse() {
                     platform benefits, and revenue opportunities.
                   </p>
 
-                  <div className="grid md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 gap-5">
                     <InfoCard icon="👑" title="Artist Ranking">
                       <p className="text-white/80 mb-4">Artists are ranked based on multiple factors that evaluate popularity and engagement:</p>
                       <div className="space-y-3">
@@ -839,7 +831,7 @@ export default function TermsOfUse() {
                       Ranks are calculated through an algorithm that assigns points to various activities.
                       Higher ranks provide increased benefits:
                     </p>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <h4 className="text-white font-medium mb-2">For Artists:</h4>
                         <ul className="ml-5 space-y-2 text-white/80 list-disc">
@@ -1304,7 +1296,7 @@ export default function TermsOfUse() {
 
                   <div className="p-5 bg-amber-900/30 rounded-xl border border-amber-500/20 mt-4">
                     <h3 className="text-amber-400 font-medium mb-4">Bandwidth and Network Requirements</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <h4 className="text-white font-medium mb-2">For Streaming:</h4>
                         <ul className="ml-5 space-y-2 text-white/80 list-disc">

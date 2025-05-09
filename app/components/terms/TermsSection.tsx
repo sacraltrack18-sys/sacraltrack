@@ -16,8 +16,8 @@ export const TermsSection = ({ id, title, children }: TermsSectionProps) => {
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
     >
-      <h2 className="text-2xl font-bold mb-6 text-[#20DDBB]">{title}</h2>
       <div className="bg-[#1A2338] rounded-2xl p-8 shadow-xl border border-[#20DDBB]/10">
+        <h2 className="text-2xl font-bold mb-6 text-[#20DDBB]">{title}</h2>
         <div className="space-y-6">
           {children}
         </div>
@@ -28,12 +28,14 @@ export const TermsSection = ({ id, title, children }: TermsSectionProps) => {
 
 // Common UI components
 export const InfoCard = ({ icon, title, children }: { icon: string; title?: string; children: React.ReactNode }) => (
-  <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-    <div className="w-10 h-10 rounded-full bg-[#20DDBB]/10 flex items-center justify-center flex-shrink-0">
-      {icon}
+  <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-10 h-10 rounded-full bg-[#20DDBB]/10 flex items-center justify-center flex-shrink-0">
+        {icon}
+      </div>
+      {title && <h3 className="font-medium">{title}</h3>}
     </div>
     <div>
-      {title && <h3 className="font-medium mb-2">{title}</h3>}
       {children}
     </div>
   </div>

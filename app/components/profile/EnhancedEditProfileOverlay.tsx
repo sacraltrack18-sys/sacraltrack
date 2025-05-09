@@ -91,26 +91,6 @@ const roleOptions = [
   { id: 'label', label: 'Label' }
 ];
 
-const genreOptions = [
-  "Ambient", "Bass", "Chillout", "Deep House", "Drum & Bass", 
-  "Dubstep", "EDM", "Electro", "Experimental", "Future Bass",
-  "Hardstyle", "Hip-Hop", "House", "IDM", "Lo-Fi",
-  "Melodic Techno", "Progressive House", "Psy Trance", "Techno", "Trance", "Trap"
-];
-
-// Добавлю группировку жанров по первой букве
-const groupGenresByFirstLetter = () => {
-  const grouped: Record<string, string[]> = {};
-  genreOptions.forEach(genre => {
-    const firstLetter = genre.charAt(0).toUpperCase();
-    if (!grouped[firstLetter]) {
-      grouped[firstLetter] = [];
-    }
-    grouped[firstLetter].push(genre);
-  });
-  return grouped;
-};
-
 // Расширенный тип профиля для внутреннего использования
 interface EnhancedProfile {
   $id: string;
@@ -118,7 +98,6 @@ interface EnhancedProfile {
   name: string;
   image: string;
   bio: string;
-  genre?: string;
   location?: string;
   website?: string;
   role?: string;
@@ -148,7 +127,6 @@ const EnhancedEditProfileOverlay: React.FC = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
-  const [genre, setGenre] = useState('');
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
   const [role, setRole] = useState('');
@@ -169,41 +147,11 @@ const EnhancedEditProfileOverlay: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Состояния для модального окна выбора жанров
-  const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const genreModalRef = useRef<HTMLDivElement>(null);
-  
-  // Группируем жанры
-  const groupedGenres = groupGenresByFirstLetter();
-  
-  // Фильтр жанров на основе поискового запроса
-  const filteredGenres = searchTerm.trim() === '' 
-    ? genreOptions 
-    : genreOptions.filter(g => g.toLowerCase().includes(searchTerm.toLowerCase()));
-  
-  // Обработчик клика вне модального окна
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (genreModalRef.current && !genreModalRef.current.contains(event.target as Node)) {
-        setIsGenreModalOpen(false);
-      }
-    };
-
-    if (isGenreModalOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isGenreModalOpen]);
-  
   // Initialize form state from profile data
   useEffect(() => {
     if (currentProfile) {
       setName(currentProfile.name || '');
       setBio(currentProfile.bio || '');
-      setGenre(currentProfile.genre || '');
       setLocation(currentProfile.location || '');
       setWebsite(currentProfile.website || '');
       setRole(currentProfile.role || '');
@@ -396,7 +344,6 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         user_id: currentProfile?.user_id || contextUser?.user?.id || '',
         name: name.trim(),
         bio: bio.trim(),
-        genre: genre.trim(),
         location: location.trim(),
         website: website.trim(),
         role: role.trim(),
@@ -436,6 +383,11 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         
         // Close the modal after successful save
         setIsEditProfileOpen(false);
+        
+        // Refresh the entire page after a small delay to ensure data is loaded
+        setTimeout(() => {
+          router.refresh(); // Refresh the current route
+        }, 300);
       }
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -708,188 +660,6 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                             {option.label}
                           </motion.button>
                         ))}
-                      </div>
-                    </motion.div>
-                    
-                    {/* Genre field */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <label className="block text-white mb-2 font-medium">Genre</label>
-                      <div className="relative">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setIsGenreModalOpen(true)}
-                            className="bg-[#24183D]/70 text-white/80 hover:text-white hover:bg-[#24183D] px-4 py-2.5 rounded-lg border border-white/10 flex items-center gap-2 transition-all hover:border-[#20DDBB]/30"
-                          >
-                            <IoMdMusicalNotes className="text-[#20DDBB]" />
-                            <span>Choose Genres</span>
-                          </button>
-                          
-                          {genre && (
-                            <div className="bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-black font-medium px-3 py-1.5 rounded-lg shadow-[0_2px_10px_rgba(32,221,187,0.3)] flex items-center gap-1.5">
-                              <IoMdMusicalNotes />
-                              {genre}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Genre selection modal */}
-                        <AnimatePresence>
-                          {isGenreModalOpen && (
-                            <>
-                              <motion.div 
-                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setIsGenreModalOpen(false)}
-                              />
-                              <motion.div
-                                ref={genreModalRef}
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-gradient-to-br from-[#24183D]/95 to-[#1A1E36]/95 rounded-xl shadow-xl border border-white/10 overflow-hidden max-h-[80vh]"
-                                style={{ 
-                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 20px -3px rgba(32, 221, 187, 0.25)"
-                                }}
-                              >
-                                {/* Modal header */}
-                                <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
-                                  <h3 className="text-xl font-bold text-white">Choose Your Genre</h3>
-                                  <button 
-                                    onClick={() => setIsGenreModalOpen(false)}
-                                    className="p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                                  >
-                                    <MdClose className="text-white" size={20} />
-                                  </button>
-                                </div>
-                                
-                                {/* Search input */}
-                                <div className="p-3 border-b border-white/10 sticky top-0 bg-[#2A184B]/70 backdrop-blur-md z-10">
-                                  <div className="relative">
-                                    <input
-                                      type="text"
-                                      placeholder="Search genres..."
-                                      value={searchTerm}
-                                      onChange={(e) => setSearchTerm(e.target.value)}
-                                      className={`w-full pl-9 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg
-                                                text-white placeholder-white/40 outline-none
-                                                focus:border-[#20DDBB]/30 focus:ring-1 focus:ring-[#20DDBB]/20 transition-all`}
-                                    />
-                                    <svg 
-                                      className="w-4 h-4 text-white/40 absolute left-3 top-1/2 transform -translate-y-1/2" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
-                                      stroke="currentColor"
-                                    >
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    {searchTerm && (
-                                      <button
-                                        onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/70"
-                                      >
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                {/* Genre list with enhanced styling */}
-                                <div className="max-h-[400px] overflow-y-auto py-2 custom-scrollbar">
-                                  {filteredGenres.length === 0 ? (
-                                    <div className="px-3 py-6 text-center text-white/40 text-sm">
-                                      No genres found matching "{searchTerm}"
-                                    </div>
-                                  ) : searchTerm.trim() !== '' ? (
-                                    // Search results
-                                    <ul className="py-1">
-                                      {filteredGenres.map((genreName) => (
-                                        <li key={genreName}>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setGenre(genreName);
-                                              setFormTouched(true);
-                                              setIsGenreModalOpen(false);
-                                            }}
-                                            className={`w-full text-left px-4 py-2.5 transition-colors hover:bg-[#20DDBB]/10
-                                                    ${genreName === genre 
-                                                      ? 'text-[#20DDBB] font-medium bg-[#20DDBB]/10' 
-                                                      : 'text-white/80'}`}
-                                          >
-                                            {genreName}
-                                          </button>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    // Grouped genres when not searching
-                                    Object.entries(groupedGenres).map(([letter, groupGenres]) => (
-                                      <div key={letter} className="mb-2">
-                                        <div className="px-4 py-1 text-xs font-semibold text-[#20DDBB]/70 uppercase tracking-wider">
-                                          {letter}
-                                        </div>
-                                        <ul>
-                                          {(groupGenres as string[]).map((genreName) => (
-                                            <li key={genreName}>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setGenre(genreName);
-                                                  setFormTouched(true);
-                                                  setIsGenreModalOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2.5 transition-all
-                                                      hover:bg-gradient-to-r hover:from-[#20DDBB]/10 hover:to-transparent
-                                                      ${genreName === genre 
-                                                          ? 'text-[#20DDBB] font-medium bg-gradient-to-r from-[#20DDBB]/10 to-transparent' 
-                                                          : 'text-white/80'}`}
-                                              >
-                                                {genreName}
-                                              </button>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                                
-                                {/* Quick selection tags */}
-                                <div className="p-3 border-t border-white/10 bg-[#2A184B]/40 backdrop-blur-md">
-                                  <div className="flex flex-wrap gap-2">
-                                    <span className="text-xs text-white/40 pt-1">Popular:</span>
-                                    {['House', 'Techno', 'Lo-Fi', 'Ambient', 'Bass'].map((tag) => (
-                                      <button
-                                        key={tag}
-                                        onClick={() => {
-                                          setGenre(tag);
-                                          setFormTouched(true);
-                                          setIsGenreModalOpen(false);
-                                        }}
-                                        className={`px-3 py-1 text-sm rounded-full transition-all border
-                                              ${genre === tag
-                                                ? 'bg-[#20DDBB] border-[#20DDBB] text-black font-medium'
-                                                : 'bg-white/5 border-white/10 text-white/70 hover:border-[#20DDBB]/30'}`}
-                                      >
-                                        {tag}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
                       </div>
                     </motion.div>
                     
