@@ -254,7 +254,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
             </div>
 
             {/* Top nav with dark background */}
-            <div className="sticky top-0 left-0 right-0 z-20 bg-black/40 backdrop-blur-md border-b border-white/10 flex justify-between items-center px-4 sm:px-6 py-3">
+            <div className="sticky top-0 left-0 right-0 z-20 bg-black/40 backdrop-blur-md border-b border-white/10 flex justify-between items-center px-4 sm:px-6 py-3 -mr-[17px] pr-[calc(17px+1rem)]">
               <div className="flex items-center gap-2">
                 <Image
                   src="/images/T-logo.svg"

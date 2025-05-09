@@ -9,7 +9,8 @@ import {
   FaTelegram, 
   FaWhatsapp, 
   FaEnvelope, 
-  FaLink
+  FaLink,
+  FaVk
 } from 'react-icons/fa';
 import { XMarkIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
@@ -119,16 +120,9 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
     onClose();
   };
 
-  const shareViaInstagram = () => {
-    // Instagram doesn't have a web sharing API, so we notify the user
-    toast.error('Instagram sharing is not available directly. Copy the link and share it manually on Instagram.', {
-      duration: 4000,
-      style: {
-        background: '#333',
-        color: '#fff',
-        borderRadius: '10px'
-      }
-    });
+  const shareViaVK = () => {
+    const url = getVibeUrl();
+    window.open(`https://vk.com/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`Check out this awesome vibe: "${vibeCaption}" on Sacral Track`)}`, '_blank');
     onClose();
   };
 
@@ -206,11 +200,11 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
               <motion.button
                 whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={shareViaInstagram}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-[#833AB4]/10 via-[#FD1D1D]/10 to-[#FCAF45]/10 hover:from-[#833AB4]/20 hover:via-[#FD1D1D]/20 hover:to-[#FCAF45]/20 border border-[#E1306C]/20 transition-all duration-300 group"
+                onClick={shareViaVK}
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#4C75A3]/10 hover:bg-[#4C75A3]/20 border border-[#4C75A3]/20 transition-all duration-300 group"
               >
-                <FaInstagram className="text-[#E1306C] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
-                <span className="text-xs text-gray-300">Instagram</span>
+                <FaVk className="text-[#4C75A3] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
+                <span className="text-xs text-gray-300">VK</span>
               </motion.button>
               
               <motion.button
@@ -224,7 +218,7 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
               </motion.button>
             </div>
             
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               <motion.button
                 whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
@@ -243,16 +237,6 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
               >
                 <FaEnvelope className="text-[#D44638] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
                 <span className="text-xs text-gray-300">Email</span>
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05, y: -3 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCopyLink}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#20DDBB]/10 hover:bg-[#20DDBB]/20 border border-[#20DDBB]/20 transition-all duration-300 group"
-              >
-                <FaLink className="text-[#20DDBB] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
-                <span className="text-xs text-gray-300">{copyLinkText}</span>
               </motion.button>
             </div>
             

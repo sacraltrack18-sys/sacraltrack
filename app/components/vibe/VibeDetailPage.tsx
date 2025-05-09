@@ -203,7 +203,7 @@ const useComments = (vibeId: string, userId?: string) => {
       console.error('Error in addComment:', error);
     }
   }, []);
-  
+
   const deleteComment = useCallback(async (commentId: string) => {
     try {
       setLoading(true);
@@ -257,13 +257,13 @@ const useComments = (vibeId: string, userId?: string) => {
   const addEmojiToComment = useCallback((emoji: string, commentText: string) => {
     return commentText + emoji;
   }, []);
-  
-  return {
-    comments,
-    fetchComments,
-    addComment,
-    deleteComment,
-    addEmojiToComment,
+
+  return { 
+    comments, 
+    fetchComments, 
+    addComment, 
+    deleteComment, 
+    addEmojiToComment, 
     isLoading: loading,
     error,
     totalCount
@@ -630,7 +630,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       if (statsData && typeof statsData.total_comments === 'number') {
         setCommentsCount(statsData.total_comments);
       }
-    } catch (error) {
+          } catch (error) {
       console.error('Error refreshing vibe stats:', error);
     }
   };

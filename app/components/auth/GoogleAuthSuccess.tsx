@@ -105,12 +105,7 @@ export default function GoogleAuthSuccess() {
                             toastIdRef.current = toast.success('Successfully logged in!', {
                                 id: 'auth-success',
                                 icon: '✅',
-                                duration: 5000,
-                                style: {
-                                    background: '#272B43',
-                                    color: '#fff',
-                                    borderLeft: '4px solid #20DDBB'
-                                }
+                                duration: 3000,
                             });
                         }
                         
@@ -120,7 +115,7 @@ export default function GoogleAuthSuccess() {
                         // Redirect to homepage after successful auth - using a shorter delay
                         redirectTimeoutRef.current = setTimeout(() => {
                             router.push('/');
-                        }, 2500);
+                        }, 1500);
                     } else {
                         console.log('No user data returned, retrying...', retryCount + 1, 'of', maxRetries);
                         // If no userData returned but no error thrown, retry auth check
@@ -190,11 +185,6 @@ export default function GoogleAuthSuccess() {
                     toastIdRef.current = toast.error('Authentication error, please try again', {
                         id: 'auth-error-catch',
                         duration: 5000,
-                        style: {
-                            background: '#272B43',
-                            color: '#fff',
-                            borderLeft: '4px solid #EF4444'
-                        }
                     });
                 }
                 
