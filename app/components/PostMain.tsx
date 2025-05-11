@@ -214,7 +214,7 @@ const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300">
                     <LazyImage
                         src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
-                        alt={`${profile.name}'s profile picture`}
+                        alt={`${profile.name} - ${genre} music artist profile picture`}
                         onError={() => setAvatarError(true)}
                         className="w-full h-full object-cover"
                     />
@@ -263,9 +263,9 @@ PlayButton.displayName = 'PlayButton';
 
 // Fallback for when image fails to load
 const PostImageFallback = memo(() => (
-  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]">
+  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]" aria-label="Music cover image placeholder">
     <div className="text-white/60 text-5xl">
-      <HiMusicNote />
+      <HiMusicNote aria-hidden="true" />
     </div>
   </div>
 ));
@@ -396,7 +396,7 @@ const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePla
       >
         <LazyImage
           src={imageError ? '/images/placeholder-music.jpg' : imageUrl}
-          alt="Music cover"
+          alt={post && post.trackname ? `Music track cover for "${post.trackname}" by ${post.profile?.name || 'artist'} - ${post.genre || 'music'} genre` : "Music track cover"}
           onError={() => {}}
           className="w-full aspect-square object-cover"
         />
@@ -1052,14 +1052,39 @@ const PostMain = memo(({ post }: PostMainProps) => {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto shadow-lg shadow-black/20"
+            itemScope
+            itemType="https://schema.org/MusicRecording"
         >
-            {/* Hidden schema.org metadata for SEO */}
+            {/* Enhanced schema.org metadata for SEO */}
             <meta itemProp="name" content={post.trackname} />
             <meta itemProp="byArtist" content={post.profile.name} />
             <meta itemProp="genre" content={post.genre} />
             {post.description && <meta itemProp="description" content={post.description} />}
             <link itemProp="url" href={shareUrl} />
             <meta itemProp="inLanguage" content="en" />
+            <meta itemProp="datePublished" content={post.created_at || new Date().toISOString()} />
+            {imageUrlRef.current && <meta itemProp="image" content={imageUrlRef.current} />}
+            
+            {/* Hidden SEO metadata - only visible to search engines */}
+            <div className="hidden" aria-hidden="true">
+                <h1>{post.trackname} by {post.profile.name}</h1>
+                <p>Listen to {post.trackname} by {post.profile.name}. {post.genre} music.</p>
+                <span itemProp="duration">3:00</span>
+                <div itemProp="potentialAction" itemScope itemType="https://schema.org/ListenAction">
+                    <meta itemProp="target" content={shareUrl} />
+                </div>
+                <meta property="og:title" content={`${post.trackname} by ${post.profile.name}`} />
+                <meta property="og:type" content="music.song" />
+                <meta property="og:url" content={shareUrl} />
+                <meta property="og:image" content={imageUrlRef.current} />
+                <meta property="og:description" content={post.description || `Listen to ${post.trackname} by ${post.profile.name}. ${post.genre} music.`} />
+                <meta property="og:site_name" content="Music Platform" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={`${post.trackname} by ${post.profile.name}`} />
+                <meta name="twitter:description" content={post.description || `Listen to ${post.trackname} by ${post.profile.name}. ${post.genre} music.`} />
+                <meta name="twitter:image" content={imageUrlRef.current} />
+                <meta name="keywords" content={`${post.trackname}, ${post.profile.name}, ${post.genre}, music, track, audio, song`} />
+            </div>
             
             <PostHeader 
                 profile={post.profile}

@@ -744,7 +744,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <Image 
               src={imageError ? '/images/placeholders/default-placeholder.svg' : getVibeImageUrl(vibe.media_url)}
-              alt={vibe.caption || 'Vibe post'}
+              alt={vibe.caption ? `Musical vibe: ${vibe.caption} by ${vibe.profile?.name || 'artist'}` : `Musical vibe shared by ${vibe.profile?.name || 'artist'} on ${new Date(vibe.created_at).toLocaleDateString()}`}
               className={`object-cover w-full h-full transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
               width={500}
               height={650}
@@ -776,7 +776,26 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         id={`vibe-card-${vibe.id}`}
         className="bg-[#1A1A2E] bg-opacity-50 rounded-xl overflow-hidden border border-white/5 group cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(32,221,187,0.15)] hover:border-[#20DDBB]/20"
         onClick={handleCardClick}
+        itemScope
+        itemType="https://schema.org/SocialMediaPosting"
       >
+        {/* Скрытые метаданные для поисковых систем */}
+        <div className="hidden" aria-hidden="true">
+          <h1 itemProp="headline">{vibe.caption || `Musical vibe by ${vibe.profile?.name || 'artist'}`}</h1>
+          <meta itemProp="author" content={vibe.profile?.name || 'Unknown artist'} />
+          <meta itemProp="datePublished" content={vibe.created_at || new Date().toISOString()} />
+          <meta itemProp="image" content={getVibeImageUrl(vibe.media_url)} />
+          <meta itemProp="keywords" content={`music, vibe, ${vibe.profile?.name || 'artist'}, musical moment, social media`} />
+          <meta property="og:title" content={vibe.caption || `Musical vibe by ${vibe.profile?.name || 'artist'}`} />
+          <meta property="og:type" content="article" />
+          <meta property="og:image" content={getVibeImageUrl(vibe.media_url)} />
+          <meta property="og:description" content={vibe.caption || `Check out this musical vibe shared by ${vibe.profile?.name || 'an artist'}`} />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={vibe.caption || `Musical vibe by ${vibe.profile?.name || 'artist'}`} />
+          <meta name="twitter:description" content={vibe.caption || `Check out this musical vibe shared by ${vibe.profile?.name || 'an artist'}`} />
+          <meta name="twitter:image" content={getVibeImageUrl(vibe.media_url)} />
+        </div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -791,7 +810,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-white/10">
                   <Image 
                     src={getProfileImageUrl(vibe.profile?.image || '')} 
-                    alt={vibe.profile?.name || 'User'}
+                    alt={`${vibe.profile?.name || 'Artist'}'s profile picture - Music creator`}
                     className="w-full h-full object-cover"
                     width={40}
                     height={40}
@@ -963,7 +982,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                           <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
                             <Image 
                               src={comment.profile?.image ? getProfileImageUrl(comment.profile.image) : '/images/placeholders/user-placeholder.svg'} 
-                              alt={comment.profile?.name || 'User'}
+                              alt={`${comment.profile?.name || 'Commenter'}'s profile picture - Music enthusiast commenting on vibe`}
                               className="w-full h-full object-cover"
                               width={36}
                               height={36}
@@ -1042,7 +1061,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border border-white/10 flex-shrink-0 bg-gradient-to-br from-[#1E1A36] to-[#2A2151]">
                       <Image 
                         src={user?.image ? getProfileImageUrl(user.image) : '/images/placeholders/user-placeholder.svg'} 
-                        alt={user?.name || 'User'}
+                        alt={`${user?.name || 'Your'} profile picture - Ready to comment on the musical vibe`}
                         className="w-full h-full object-cover"
                         width={36}
                         height={36}

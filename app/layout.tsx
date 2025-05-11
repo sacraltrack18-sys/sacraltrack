@@ -28,6 +28,7 @@ export const metadata: Metadata = {
         ],
         apple: { url: '/apple-touch-icon.png' }
     },
+    keywords: 'music, artist, marketplace, royalties, listen, release, tracks, streaming, pop, rock, hip hop, rap, electronic, EDM, classical, jazz, blues, country, R&B, soul, folk, indie, alternative, metal, punk, reggae, funk, disco, techno, house, ambient, lo-fi, trap, dubstep, trance, drum and bass, instrumental, vocal, beats, producers, musicians, songs, albums, singles, playlists, new music, trending',
     openGraph: {
         title: 'Sacral Track',
         description: 'Sacral Track - music network marketplace for music artists and lovers',
@@ -52,6 +53,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
                 <link rel="icon" href="/favicon.ico" sizes="any" />
                 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+                
+                {/* SEO Keywords - дополнительные ключевые слова для поисковых систем */}
+                <meta name="keywords" content="music marketplace, artist platform, music streaming, music genres, pop, rock, hip hop, rap, electronic, EDM, classical, jazz, blues, country, R&B, soul, folk, indie, alternative, metal, punk, reggae, funk, disco, techno, house, ambient, lo-fi, trap, dubstep, trance, drum and bass, instrumental, vocal, beats, producers, musicians, songs, albums, singles, playlists, new music, underground, independent music, royalties, music community" />
+                
+                {/* Дополнительные метаданные о музыкальных жанрах для структурированных данных */}
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: `
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "MusicDigitalPublicationSeries",
+                        "name": "Sacral Track",
+                        "description": "Music network and marketplace for music artists and lovers",
+                        "url": "https://sacraltrack.space",
+                        "genre": [
+                            "Pop", "Rock", "Hip Hop", "Rap", "Electronic", "EDM", "Classical", 
+                            "Jazz", "Blues", "Country", "R&B", "Soul", "Folk", "Indie", 
+                            "Alternative", "Metal", "Punk", "Reggae", "Funk", "Disco", 
+                            "Techno", "House", "Ambient", "Lo-Fi", "Trap", "Dubstep", 
+                            "Trance", "Drum and Bass", "Instrumental"
+                        ],
+                        "offers": {
+                            "@type": "Offer",
+                            "description": "Access to music streaming and marketplace"
+                        }
+                    }
+                `}} />
                 
                 {/* Preload critical resources */}
                 <link 
