@@ -432,7 +432,7 @@ function SuccessPageContent() {
             transition={{ delay: 0.5, duration: 0.5 }}
             className="text-[#a0a0c0] mb-8 text-center"
           >
-            Your track is now available in your profile under "Downloads".
+            Your track is now available in your profile "Purchases".
           </motion.p>
           
           <motion.div
