@@ -15,6 +15,7 @@ import { useUser } from './context/user';
 import AuthErrorHandler from './components/AuthErrorHandler';
 import { clsx } from 'clsx';
 import { inter } from '@/app/fonts/inter';
+import YandexMetrika from './components/YandexMetrika';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
@@ -73,7 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body className={clsx(inter.variable, 'bg-[#0F1122]')}>
                 <GlobalLoader />
                 <Suspense fallback={<></>}>
-                {/*    <YandexMetrika /> */}
+                    <YandexMetrika />
                 </Suspense>
                 {/*  <Background /> */}
                 
@@ -150,6 +151,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
                     (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
                     ym(101742029, "init", {
+                        defer: true,
                         clickmap: true,
                         trackLinks: true,
                         accurateTrackBounce: true

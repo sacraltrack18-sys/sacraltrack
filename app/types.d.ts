@@ -96,4 +96,11 @@ declare module 'next' {
       [key: string]: string | string[];
     };
   }
+}
+
+// Declare Yandex Metrika global type
+declare global {
+  interface Window {
+    ym?: (counterId: number, eventType: string, url?: string, options?: any) => void;
+  }
 } 
