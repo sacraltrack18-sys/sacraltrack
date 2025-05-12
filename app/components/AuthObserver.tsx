@@ -10,6 +10,11 @@ import { motion } from 'framer-motion';
 import { clearUserCache } from '@/app/utils/cacheUtils';
 import { User } from '@/app/types';
 
+// Track auth check requests to prevent overloading
+const AUTH_CHECK_DEBOUNCE_MS = 5000; // 5 seconds between checks
+let lastAuthCheckTime = 0;
+let pendingAuthCheck = false;
+
 /**
  * AuthObserver component
  * 
@@ -178,28 +183,65 @@ const AuthObserver = () => {
         throttledRefresh();
       };
       
-      // Обработчик события для проверки состояния авторизации
-      // Это событие вызывается из компонентов, когда они получают ошибку 401
+      // Handler for auth state check events
+      // This event is triggered from components when they receive a 401 error
       const handleAuthCheck = () => {
+        // Check for Google auth in progress - skip check if true
+        const isGoogleAuthInProgress = sessionStorage.getItem('googleAuthInProgress') === 'true';
+        if (isGoogleAuthInProgress) {
+          console.log('Google auth in progress, skipping auth check');
+          return;
+        }
+        
+        // Apply global rate limiting to auth checks
+        const now = Date.now();
+        if (now - lastAuthCheckTime < AUTH_CHECK_DEBOUNCE_MS) {
+          // If already have a pending check, don't schedule another one
+          if (pendingAuthCheck) {
+            console.log('Auth check already pending, skipping duplicate request');
+            return;
+          }
+          
+          // If too soon since last check, schedule a delayed check
+          console.log(`Auth check requested too soon (${now - lastAuthCheckTime}ms), scheduling delayed check`);
+          pendingAuthCheck = true;
+          setTimeout(() => {
+            pendingAuthCheck = false;
+            // Only perform the delayed check if there's no Google auth in progress
+            if (sessionStorage.getItem('googleAuthInProgress') !== 'true') {
+              console.log('Running delayed auth check');
+              performAuthCheck();
+            }
+          }, AUTH_CHECK_DEBOUNCE_MS - (now - lastAuthCheckTime));
+          return;
+        }
+        
+        // Proceed with immediate auth check
+        performAuthCheck();
+      };
+      
+      // Helper function to perform the actual auth check
+      const performAuthCheck = () => {
         if (checkUser && !refreshingRef.current) {
           console.log('Checking auth state due to auth check event');
           refreshingRef.current = true;
+          lastAuthCheckTime = Date.now();
           
-          // Проверяем текущего пользователя
+          // Check current user
           if (!user) {
             console.log('User not authorized, need to login');
             
-            // Перенаправляем на страницу логина, если пользователь не авторизован
+            // Redirect to login page if user is not authorized
             if (window.location.pathname !== '/auth/login' && 
                 window.location.pathname !== '/auth/register') {
               router.push('/auth/login');
             }
           }
           
-          // Делаем запрос на обновление состояния пользователя
+          // Make request to update user state
           checkUser();
           
-          // Сбрасываем флаг обновления через некоторое время
+          // Reset refreshing flag after timeout
           setTimeout(() => {
             refreshingRef.current = false;
           }, 1000);
@@ -223,21 +265,39 @@ const AuthObserver = () => {
 
   // Automatically check for user session on initial render
   useEffect(() => {
-    // Check session on component mount only once
+    // Check session only once on mount
     if (checkUser && !hasInitCheckedRef.current) {
       hasInitCheckedRef.current = true;
       console.log('Initial auth check on component mount');
       
-      // Run immediate check - no promise chaining, just call the function
-      checkUser();
+      // Delay the initial check to avoid conflicts with OAuth process
+      setTimeout(() => {
+        // Only perform check if no Google auth is in progress
+        if (typeof window !== 'undefined' && 
+            sessionStorage.getItem('googleAuthInProgress') !== 'true') {
+          console.log('Running initial auth check');
+          refreshingRef.current = true;
+          lastAuthCheckTime = Date.now();
+          
+          checkUser();
+          
+          setTimeout(() => {
+            refreshingRef.current = false;
+          }, 500);
+        } else {
+          console.log('Skipping initial auth check due to Google auth in progress');
+        }
+      }, 500); // Short delay to let any auth processes initialize
       
-      // Additional check after a short delay to catch OAuth redirects
+      // Additional check after a longer delay to catch OAuth redirects
       setTimeout(() => {
         console.log('Running delayed auth check to catch OAuth redirects');
-        if (checkUser && !refreshingRef.current) {
+        if (checkUser && !refreshingRef.current && 
+            sessionStorage.getItem('googleAuthInProgress') !== 'true') {
           refreshingRef.current = true;
+          lastAuthCheckTime = Date.now();
           
-          // Call checkUser without promise chaining
+          // Call checkUser
           checkUser();
           
           // Force router refresh to update all components
@@ -248,17 +308,23 @@ const AuthObserver = () => {
             refreshingRef.current = false;
           }, 500);
         }
-      }, 1000);
+      }, 2000);
     }
     
     // Set up interval for periodic session checks, but with less frequency
     const interval = setInterval(() => {
-      // Only check if we're not currently refreshing
-      if (checkUser && !refreshingRef.current) {
-        // Call checkUser directly, no promise chaining
-        checkUser();
+      // Only check if not refreshing and no Google auth in progress
+      if (checkUser && !refreshingRef.current && 
+          typeof window !== 'undefined' && 
+          sessionStorage.getItem('googleAuthInProgress') !== 'true') {
+        // Only check if enough time has passed since last check
+        const now = Date.now();
+        if (now - lastAuthCheckTime >= AUTH_CHECK_DEBOUNCE_MS) {
+          lastAuthCheckTime = now;
+          checkUser();
+        }
       }
-    }, 120000); // Check every 2 minutes
+    }, 180000); // Check every 3 minutes (reduced from 2 minutes)
     
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps

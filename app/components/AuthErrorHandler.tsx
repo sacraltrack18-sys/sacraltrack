@@ -10,32 +10,58 @@ interface AuthErrorHandlerProps {
 }
 
 /**
- * Глобальная переменная для отслеживания отображаемых уведомлений об аутентификации
- * Предотвращает появление множественных уведомлений одновременно
+ * Global variable to track displayed authentication notifications
+ * Prevents multiple notifications from appearing simultaneously
  */
 const activeAuthToasts = new Set<string>();
 
+// Track API error frequency
+const API_ERROR_WINDOW_MS = 60000; // 1 minute window
+const MAX_ERRORS_PER_WINDOW = 5; // Max errors allowed in window
+const apiErrors: {timestamp: number}[] = [];
+
 /**
- * Компонент для обработки ошибок авторизации
+ * Add an API error occurrence and check if we're over the limit
+ * Returns true if we should show the error, false if suppressed
+ */
+const trackApiError = (): boolean => {
+  const now = Date.now();
+  
+  // Remove errors outside the time window
+  while (apiErrors.length > 0 && now - apiErrors[0].timestamp > API_ERROR_WINDOW_MS) {
+    apiErrors.shift();
+  }
+  
+  // Add current error
+  apiErrors.push({ timestamp: now });
+  
+  // Return true if under limit, false if over limit
+  return apiErrors.length <= MAX_ERRORS_PER_WINDOW;
+};
+
+/**
+ * Component for handling authentication errors
  * 
- * Этот компонент добавляет глобальный обработчик событий для API ошибок
- * и автоматически проверяет состояние авторизации когда возникают ошибки 401
+ * This component adds a global event handler for API errors
+ * and automatically checks authentication state when 401 errors occur
  */
 const AuthErrorHandler: React.FC<AuthErrorHandlerProps> = ({ children }) => {
   const { user, checkUser } = useUser() || {};
   const router = useRouter();
   const lastErrorTime = useRef<number>(0);
-  const errorThrottleDelay = 5000; // 5 секунд между повторными сообщениями об ошибке
+  const errorThrottleDelay = 5000; // 5 seconds between repeated error messages
   const authCheckInProgressRef = useRef<boolean>(false);
+  const originalFetchRef = useRef<typeof window.fetch | null>(null);
+  const originalErrorToastRef = useRef<typeof toast.error | null>(null);
 
   useEffect(() => {
-    // При монтировании очищаем все toast уведомления и сбрасываем отслеживание
+    // Clear all toast notifications and reset tracking on mount
     toast.dismiss();
     activeAuthToasts.clear();
 
-    // Обработчик для проверки состояния авторизации
+    // Handler for checking authentication status
     const checkAuthStatus = () => {
-      // Предотвращаем множественные одновременные проверки
+      // Prevent multiple simultaneous checks
       if (authCheckInProgressRef.current) {
         console.log("Auth check already in progress, skipping");
         return;
@@ -46,14 +72,20 @@ const AuthErrorHandler: React.FC<AuthErrorHandlerProps> = ({ children }) => {
       
       console.log("Checking auth status from AuthErrorHandler");
       
-      // Проверяем, идет ли процесс аутентификации через Google
+      // Check if Google auth is in progress
       const isGoogleAuthInProgress = typeof window !== 'undefined' && 
         window.sessionStorage && 
         window.sessionStorage.getItem('googleAuthInProgress') === 'true';
       
-      // Если идет процесс аутентификации через Google, не выполняем никаких действий
+      // If Google auth is in progress, don't take any action
       if (isGoogleAuthInProgress) {
         console.log("Google auth in progress, skipping error handling");
+        return;
+      }
+      
+      // If we're seeing too many errors in a short time, suppress them temporarily
+      if (!trackApiError()) {
+        console.log("Too many API errors in short time, suppressing auth checks temporarily");
         return;
       }
       
@@ -61,44 +93,44 @@ const AuthErrorHandler: React.FC<AuthErrorHandlerProps> = ({ children }) => {
         checkUser().catch(console.error);
       }
 
-      // Если пользователь не авторизован, перенаправляем на страницу логина
-      // но только если прошло достаточно времени с момента последнего сообщения
+      // If user is not authenticated, redirect to login page
+      // but only if enough time has passed since the last message
       if (!user) {
         const now = Date.now();
         const timeSinceLastError = now - lastErrorTime.current;
         
-        // Проверяем, находимся ли мы на странице, которая требует авторизации
+        // Check if we're on a page that requires authentication
         if (window.location.pathname !== '/auth/login' && 
             window.location.pathname !== '/auth/register' && 
             window.location.pathname !== '/' &&
             !window.location.pathname.startsWith('/auth/')) {
           
-          // Проверяем, не отображается ли уже уведомление об ошибке аутентификации
+          // Check if an authentication error notification is already displayed
           if (activeAuthToasts.has('auth-error-global')) {
             console.log("Auth error toast already displayed, skipping");
             return;
           }
           
-          // Ограничиваем частоту сообщений об ошибках аутентификации
+          // Limit frequency of authentication error messages
           if (timeSinceLastError > errorThrottleDelay) {
             lastErrorTime.current = now;
             
-            // Удаляем все текущие уведомления для избежания перегрузки экрана
+            // Remove all current notifications to avoid screen overload
             toast.dismiss();
             
-            // Добавляем в список активных уведомлений
+            // Add to list of active notifications
             activeAuthToasts.add('auth-error-global');
             
-            // Показываем уведомление
+            // Show notification
             const toastId = toast.error('Authentication required. Please log in.', {
-              id: 'auth-error-global', // Используем уникальный ID для предотвращения дубликатов
+              id: 'auth-error-global', // Use unique ID to prevent duplicates
               duration: 5000,
             });
             
-            // Создаем таймер для автоматического удаления из списка активных
+            // Create timer for automatic removal from active list
             setTimeout(() => {
               activeAuthToasts.delete('auth-error-global');
-            }, 5500); // 5 секунд + запас 500мс
+            }, 5500); // 5 seconds + 500ms buffer
           }
           
           router.push('/auth/login');
@@ -106,74 +138,118 @@ const AuthErrorHandler: React.FC<AuthErrorHandlerProps> = ({ children }) => {
       }
     };
 
-    // Обработчик для запросов fetch, который будет перехватывать ошибки 401
-    const originalFetch = window.fetch;
+    // Store the original fetch to restore it later
+    if (typeof window !== 'undefined' && !originalFetchRef.current) {
+      originalFetchRef.current = window.fetch;
+    }
+
+    // Handler for fetch requests that intercepts 401 errors
     window.fetch = async function(input: RequestInfo | URL, init?: RequestInit) {
       try {
-        const response = await originalFetch(input, init);
+        const response = await (originalFetchRef.current || fetch).apply(window, [input, init]);
         
-        // Проверяем, идет ли процесс аутентификации через Google
+        // Check if Google auth is in progress
         const isGoogleAuthInProgress = typeof window !== 'undefined' && 
           window.sessionStorage && 
           window.sessionStorage.getItem('googleAuthInProgress') === 'true';
         
-        // Если получили ошибку 401 и не идет процесс аутентификации через Google
+        // If 401 error and not during Google auth
         if (response.status === 401 && !isGoogleAuthInProgress) {
-          console.log("Received 401 from API, triggering auth check");
-          const event = new CustomEvent('check_auth_state', {});
-          window.dispatchEvent(event);
+          // If we're seeing too many errors, suppress them temporarily
+          if (trackApiError()) {
+            console.log("Received 401 from API, triggering auth check");
+            const event = new CustomEvent('check_auth_state', {});
+            window.dispatchEvent(event);
+          } else {
+            console.log("Suppressing 401 error due to rate limiting");
+          }
         }
         
         return response;
       } catch (error) {
-        console.error("Fetch error:", error);
+        // Ignore errors during Google auth process
+        const isGoogleAuthInProgress = typeof window !== 'undefined' && 
+          window.sessionStorage && 
+          window.sessionStorage.getItem('googleAuthInProgress') === 'true';
+          
+        if (isGoogleAuthInProgress) {
+          console.log("Suppressing fetch error during Google auth process");
+        } else {
+          // If we're seeing too many errors, suppress some logs
+          if (trackApiError()) {
+            console.error("Fetch error:", error);
+          } else {
+            console.log("Suppressing error log due to rate limiting");
+          }
+        }
         throw error;
       }
     };
 
-    // Патчим toast.error для отслеживания уведомлений об аутентификации
-    const originalErrorToast = toast.error;
+    // Store original toast.error to restore it later
+    if (!originalErrorToastRef.current) {
+      originalErrorToastRef.current = toast.error;
+    }
+
+    // Patch toast.error to track authentication notifications
     toast.error = (message, options) => {
-      // Если сообщение связано с аутентификацией, проверяем не показывается ли уже такое
+      // If message is related to authentication, check if one is already shown
       if (typeof message === 'string' && 
           (message.includes('Authentication') || message.includes('auth'))) {
         
+        // Check if Google auth is in progress - if so, suppress most error toasts
+        const isGoogleAuthInProgress = typeof window !== 'undefined' && 
+          window.sessionStorage && 
+          window.sessionStorage.getItem('googleAuthInProgress') === 'true';
+          
+        if (isGoogleAuthInProgress && !message.includes('Too many authentication attempts')) {
+          console.log("Suppressing auth error toast during Google auth:", message);
+          return 'suppressed';
+        }
+        
         const toastId = options?.id || 'auth-error-' + Date.now();
         
-        // Если уже отображается уведомление с этим ID, не показываем новое
+        // If a notification with this ID is already displayed, don't show a new one
         if (activeAuthToasts.has(toastId)) {
           console.log(`Toast with ID ${toastId} already active, skipping`);
           return toastId as string;
         }
         
-        // Добавляем ID в список активных
+        // Add ID to list of active
         activeAuthToasts.add(toastId);
         
-        // Используем оригинальную функцию без дополнительных опций
-        const id = originalErrorToast(message, options);
+        // Use original function without additional options
+        const id = originalErrorToastRef.current?.(message, options) || '';
         
-        // Создаем таймер для автоматического удаления из списка активных через 5 секунд
+        // Create timer for automatic removal from active list after 5 seconds
         setTimeout(() => {
           activeAuthToasts.delete(toastId);
-        }, (options?.duration || 5000) + 500); // Добавляем запас 500мс
+        }, (options?.duration || 5000) + 500); // Add 500ms buffer
         
         return id;
       }
       
-      // Для обычных сообщений используем оригинальную функцию
-      return originalErrorToast(message, options);
+      // For normal messages use the original function
+      return originalErrorToastRef.current?.(message, options) || '';
     };
 
-    // Слушаем событие проверки авторизации
+    // Listen for authentication check event
     window.addEventListener('check_auth_state', checkAuthStatus);
 
     return () => {
-      // Удаляем обработчики при размонтировании компонента
+      // Remove handlers when component unmounts
       window.removeEventListener('check_auth_state', checkAuthStatus);
-      window.fetch = originalFetch;
-      toast.error = originalErrorToast;
       
-      // Очищаем все уведомления и сбрасываем отслеживание
+      // Restore original functions
+      if (originalFetchRef.current) {
+        window.fetch = originalFetchRef.current;
+      }
+      
+      if (originalErrorToastRef.current) {
+        toast.error = originalErrorToastRef.current;
+      }
+      
+      // Clear all notifications and reset tracking
       toast.dismiss();
       activeAuthToasts.clear();
     };

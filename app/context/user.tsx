@@ -11,6 +11,14 @@ import { clearUserCache } from '../utils/cacheUtils';
 // Custom event for authentication state changes
 export const AUTH_STATE_CHANGE_EVENT = 'auth_state_change';
 
+// Global counters to limit API calls
+let sessionCheckCount = 0;
+let lastSessionCheckTime = 0;
+const MAX_SESSION_CHECKS_PER_MINUTE = 10;
+const SESSION_CHECK_THROTTLE_MS = 60000; // 1 minute
+let concurrentSessionChecks = 0;
+const MAX_CONCURRENT_CHECKS = 2;
+
 // Function to dispatch authentication state change event
 export const dispatchAuthStateChange = (userData: User | null) => {
   // Обновляем временную метку кэша для сброса URL изображений
@@ -35,25 +43,57 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const checkingRef = React.useRef<boolean>(false);
 
   const checkUser = async (): Promise<User | null> => {
-    // Добавляем дебаунсинг с помощью ref переменной
-    if (checkingRef.current) {
-      return null;
+    // Implement global throttling - limit total API calls to Appwrite
+    const now = Date.now();
+    if (now - lastSessionCheckTime < SESSION_CHECK_THROTTLE_MS) {
+      if (sessionCheckCount >= MAX_SESSION_CHECKS_PER_MINUTE) {
+        console.log(`Too many session checks (${sessionCheckCount}) in the past minute, throttling...`);
+        return user || null; // Return current user state instead of checking again
+      }
+    } else {
+      // Reset counter after throttle period
+      sessionCheckCount = 0;
+      lastSessionCheckTime = now;
     }
     
+    // Limit concurrent session checks
+    if (concurrentSessionChecks >= MAX_CONCURRENT_CHECKS) {
+      console.log(`Max concurrent session checks (${MAX_CONCURRENT_CHECKS}) reached, skipping...`);
+      return user || null;
+    }
+    
+    // Add debouncing with ref variable
+    if (checkingRef.current) {
+      return user || null;
+    }
+    
+    // Set flags to prevent duplicate checks
     checkingRef.current = true;
-    setTimeout(() => { checkingRef.current = false }, 1000); // Защита от частых вызовов
+    concurrentSessionChecks++;
+    sessionCheckCount++;
+    
+    // Release lock after timeout
+    setTimeout(() => { 
+      checkingRef.current = false;
+      concurrentSessionChecks = Math.max(0, concurrentSessionChecks - 1);
+    }, 1000);
     
     try {
-      // Проверяем наличие существующей сессии без вызова getSession('current'),
-      // который может вызвать ошибку 401 для гостей
+      // Check for existing session without calling getSession('current')
+      // which can cause a 401 error for guests
       try {
-        // Добавляем проверку флага googleAuthInProgress - если процесс аутентификации через Google еще идет,
-        // не выбрасываем ошибку при ее возникновении
+        // Add googleAuthInProgress flag check
         const isGoogleAuthInProgress = typeof window !== 'undefined' && 
           window.sessionStorage && 
           window.sessionStorage.getItem('googleAuthInProgress') === 'true';
         
-        // Используем account.get() напрямую, что выбросит ошибку если нет сессии
+        // If Google auth is in progress, add additional delay before checking session
+        if (isGoogleAuthInProgress) {
+          console.log('Google auth in progress, delaying session check');
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Use account.get() directly, which will throw an error if no session exists
         const currentUser = await account.get();
         
         if (!currentUser) {
@@ -62,19 +102,19 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           return null;
         }
 
-        // В production только важные логи
+        // In production, only important logs
         if (process.env.NODE_ENV === 'development') {
           console.log('User account:', currentUser);
         }
 
-        // В production только важные логи
+        // In production, only important logs
         if (process.env.NODE_ENV === 'development') {
           console.log('Getting user profile...');
         }
         
         const profile = await useGetProfileByUserId(currentUser.$id);
         
-        // В production только важные логи
+        // In production, only important logs
         if (process.env.NODE_ENV === 'development') {
           console.log('User profile:', profile);
         }
@@ -86,7 +126,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           image: profile?.image 
         };
         
-        // В production только важные логи
+        // In production, only important logs
         if (process.env.NODE_ENV === 'development') {
           console.log('Setting user data:', userData);
         }
@@ -107,14 +147,14 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         return userData;
         
       } catch (error: any) {
-        // Проверяем, идет ли процесс аутентификации через Google
+        // Check if Google auth is in progress
         const isGoogleAuthInProgress = typeof window !== 'undefined' && 
           window.sessionStorage && 
           window.sessionStorage.getItem('googleAuthInProgress') === 'true';
           
-        // Если ошибка 401, пользователь не авторизован - это нормальная ситуация
+        // If error 401, user is not authenticated - this is a normal situation
         if (error?.code === 401 || (error?.message && error?.message.includes('missing scope'))) {
-          // Показываем ошибку в консоли только если НЕ идет процесс авторизации через Google
+          // Show error in console only if NOT during Google auth process
           if (!isGoogleAuthInProgress) {
             console.log('User not authenticated:', error?.message);
           }
@@ -123,14 +163,14 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           return null;
         }
         
-        // Если идет процесс аутентификации через Google, не логируем другие ошибки
-        // чтобы избежать лишних сообщений в консоли
+        // If Google auth is in progress, don't log other errors
+        // to avoid unnecessary console messages
         if (isGoogleAuthInProgress) {
           console.log('Authentication in progress, suppressing error logs');
           return null;
         }
         
-        // Другие ошибки логируем
+        // Log other errors
         console.error('Error checking user authentication:', error);
         setUser(null);
         dispatchAuthStateChange(null);
@@ -141,6 +181,9 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setUser(null);
       dispatchAuthStateChange(null);
       return null;
+    } finally {
+      // Make sure to decrement count on error too
+      concurrentSessionChecks = Math.max(0, concurrentSessionChecks - 1);
     }
   };
 

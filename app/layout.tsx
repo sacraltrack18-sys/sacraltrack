@@ -1,5 +1,12 @@
 import UserProvider from './context/user';
 import AllOverlays from "@/app/components/AllOverlays";
+import disableConsoleLogs from '@/app/utils/disableConsoleLog';
+
+// Disable console logs throughout the application
+if (typeof window !== 'undefined') {
+    disableConsoleLogs();
+}
+
 import './globals.css';
 import { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';

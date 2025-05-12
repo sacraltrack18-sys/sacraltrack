@@ -11,20 +11,89 @@ import { account } from '@/libs/AppWriteClient';
 import toast from 'react-hot-toast';
 import { User } from '@/app/types';
 
+// Global limit for auth attempts across page refreshes
+const AUTH_ATTEMPT_STORAGE_KEY = 'googleAuthAttempts';
+const MAX_GLOBAL_ATTEMPTS = 8; // Maximum attempts allowed in a time window
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
+
+// Track and limit authentication attempts globally
+const trackAuthAttempt = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  
+  try {
+    // Get current attempts data
+    const attemptsData = localStorage.getItem(AUTH_ATTEMPT_STORAGE_KEY);
+    let attempts: {timestamp: number, count: number} = attemptsData ? 
+      JSON.parse(attemptsData) : 
+      { timestamp: Date.now(), count: 0 };
+    
+    // If data is old (outside window), reset it
+    if (Date.now() - attempts.timestamp > ATTEMPT_WINDOW_MS) {
+      attempts = { timestamp: Date.now(), count: 0 };
+    }
+    
+    // Increment attempt count
+    attempts.count++;
+    
+    // Store updated attempts
+    localStorage.setItem(AUTH_ATTEMPT_STORAGE_KEY, JSON.stringify(attempts));
+    
+    // Return true if under limit, false if over limit
+    return attempts.count <= MAX_GLOBAL_ATTEMPTS;
+  } catch (e) {
+    console.error('Error tracking auth attempts:', e);
+    return true; // Default to allowing on error
+  }
+};
+
+// Reset the attempt counter on successful login
+const resetAuthAttempts = () => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(AUTH_ATTEMPT_STORAGE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      count: 0
+    }));
+  } catch (e) {
+    console.error('Error resetting auth attempts:', e);
+  }
+};
+
 export default function GoogleAuthSuccess() {
     const router = useRouter();
     const userContext = useUser();
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
     const [secondsLeft, setSecondsLeft] = useState(3);
-    const maxRetries = 5;
+    const maxRetries = 5; // Cap per-page retries at 5
     const errorShownRef = useRef(false);
     const successShownRef = useRef(false);
     const toastIdRef = useRef<string | null>(null);
     const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const attemptLimitReached = useRef<boolean>(false);
 
     useEffect(() => {
         toast.dismiss();
+        
+        // Check if we've hit the global attempt limit
+        if (!trackAuthAttempt()) {
+          console.error('Global authentication attempt limit reached');
+          attemptLimitReached.current = true;
+          
+          toast.error('Too many authentication attempts. Please try again later.', {
+            id: 'auth-limit-reached',
+            duration: 5000
+          });
+          
+          // Redirect to homepage after a short delay
+          redirectTimeoutRef.current = setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('googleAuthInProgress');
+            }
+            router.push('/');
+          }, 3000);
+        }
         
         return () => {
             toast.dismiss();
@@ -38,13 +107,14 @@ export default function GoogleAuthSuccess() {
     }, []);
 
     useEffect(() => {
+        // Don't proceed if attempt limit reached
+        if (attemptLimitReached.current) return;
+    
         // Clear user cache data for previous user
         clearUserCache();
         
-        // Clear the authentication in progress flag
-        if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('googleAuthInProgress');
-        }
+        // Clear the authentication in progress flag only at the end of the process
+        // We'll keep it set during our checks to prevent errors from being shown
         
         // Countdown timer for UI feedback
         const countdownInterval = setInterval(() => {
@@ -63,32 +133,51 @@ export default function GoogleAuthSuccess() {
                 setCheckingAuth(true);
                 
                 // First check if we have a valid session directly with Appwrite
+                let sessionValid = false;
                 try {
-                    const currentSession = await account.getSession('current');
-                    if (!currentSession) {
-                        throw new Error('No active session found');
+                    // Add delay on each retry attempt to spread out the requests
+                    if (retryCount > 0) {
+                        // Exponential backoff with jitter
+                        const baseDelay = Math.min(1000 * Math.pow(1.5, retryCount), 5000);
+                        const jitter = Math.random() * 500; // Add up to 500ms of random jitter
+                        const delay = baseDelay + jitter;
+                        console.log(`Retry attempt ${retryCount}: Waiting ${delay.toFixed(0)}ms before checking`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
                     }
-                    console.log('Valid session found:', currentSession.$id);
+                    
+                    const currentSession = await account.getSession('current');
+                    if (currentSession) {
+                        sessionValid = true;
+                        console.log('Valid session found:', currentSession.$id);
+                    }
                 } catch (sessionError) {
-                    console.error('Session error:', sessionError);
+                    console.log('Session verification attempt:', retryCount + 1);
                     // If no valid session and we've already retried, go to error state
                     if (retryCount >= maxRetries) {
                         throw new Error('Failed to authenticate after multiple retries');
                     }
-                    // Otherwise retry
+                    // Otherwise retry with exponential backoff (already built into the next attempt)
                     setRetryCount(prev => prev + 1);
-                    setTimeout(updateUserState, 1000);
+                    setTimeout(updateUserState, 500); // Schedule next attempt soon
                     return;
                 }
                 
                 // Check user authentication state using the context
                 if (userContext && userContext.checkUser) {
                     console.log('Checking user authentication after Google OAuth');
+                    
+                    // Add a small delay before checking user to ensure session is fully established
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
                     const userData = await userContext.checkUser();
                     
                     if (userData !== null && userData !== undefined) {
                         const user = userData as User;
                         console.log('User authenticated successfully:', user);
+                        
+                        // Reset auth attempts counter on successful login
+                        resetAuthAttempts();
+                        
                         // Manually trigger auth state change event to ensure UI updates
                         dispatchAuthStateChange(user);
                         
@@ -112,37 +201,25 @@ export default function GoogleAuthSuccess() {
                         setCheckingAuth(false);
                         errorShownRef.current = false;
                         
+                        // Clear the authentication in progress flag now that we're successful
+                        if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('googleAuthInProgress');
+                        }
+                        
                         // Redirect to homepage after successful auth - using a shorter delay
                         redirectTimeoutRef.current = setTimeout(() => {
                             router.push('/');
                         }, 1500);
                     } else {
-                        console.log('No user data returned, retrying...', retryCount + 1, 'of', maxRetries);
-                        // If no userData returned but no error thrown, retry auth check
-                        if (retryCount < maxRetries) {
+                        // If user data is null but session is valid, retry a few times
+                        if (sessionValid && retryCount < maxRetries) {
+                            console.log('Session valid but user data not found, retrying...');
                             setRetryCount(prev => prev + 1);
-                            // Silent retry
-                            setTimeout(updateUserState, 1000); // Retry after 1 second
-                        } else {
-                            setCheckingAuth(false);
-                            console.error('Failed to authenticate after multiple retries');
-                            
-                            if (!errorShownRef.current) {
-                                errorShownRef.current = true;
-                                
-                                toast.dismiss();
-                                
-                                toastIdRef.current = toast.error('Authentication issue, please try again', {
-                                    id: 'auth-error',
-                                    duration: 5000,
-                                });
-                            }
-                            
-                            // Still redirect to homepage after delay
-                            redirectTimeoutRef.current = setTimeout(() => {
-                                router.push('/');
-                            }, 3000);
+                            setTimeout(updateUserState, 1000);
+                            return;
                         }
+                        
+                        throw new Error('Failed to get user data after authentication');
                     }
                 } else {
                     console.error('User context or checkUser function is unavailable');

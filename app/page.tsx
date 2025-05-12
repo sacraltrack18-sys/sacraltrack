@@ -19,6 +19,9 @@ import { PostMainSkeleton } from "./components/PostMain";
 import { ErrorBoundary } from "react-error-boundary";
 import SafeVibeCard from "./components/vibe/SafeVibeCard";
 
+// Import app initialization to disable console logs
+import '@/app/utils/initApp';
+
 // Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
 interface FeedItem {
   type: 'post' | 'vibe';
