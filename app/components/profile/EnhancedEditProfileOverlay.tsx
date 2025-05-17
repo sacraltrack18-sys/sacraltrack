@@ -489,21 +489,21 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     <AnimatePresence mode="wait">
       <motion.div
         key="overlay"
-        className="fixed inset-0 z-50 flex items-center justify-center pt-20 pb-4 px-4 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
         <motion.div
-          className="relative w-full max-w-md overflow-hidden rounded-2xl"
+          className="relative w-full max-w-md my-4 md:my-6 overflow-hidden rounded-2xl"
           variants={modalVariants}
           initial="hidden"
           animate="visible"
           exit="exit"
         >
           {/* Glass card with subtle gradient */}
-          <div className="glass-card bg-gradient-to-br from-[#24183D]/90 to-[#1A1E36]/95 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] backdrop-blur-xl overflow-hidden">
+          <div className="glass-card bg-gradient-to-br from-[#24183D]/90 to-[#1A1E36]/95 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] backdrop-blur-xl overflow-hidden max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="relative p-6 border-b border-white/10 bg-white/5">
               <div className="flex items-center justify-between">
@@ -548,7 +548,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
             </div>
             
             {/* Content area with max height and scrolling */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-grow" style={{ maxHeight: 'calc(65vh - 130px)' }}>
               <AnimatePresence mode="wait">
                 {/* Basic Info Tab */}
                 {activeTab === 'basic' && (
@@ -873,9 +873,11 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                   {error}
                 </motion.div>
               )}
-              
-              {/* Form actions - Remove Cancel button, keep only Save */}
-              <div className="mt-6 flex justify-end">
+            </div>
+            
+            {/* Form actions - Fixed at bottom of modal */}
+            <div className="p-4 border-t border-white/10 bg-[#1A1E36]/80 backdrop-blur-sm sticky bottom-0 left-0 right-0">
+              <div className="flex justify-end">
                 <motion.button
                   className="relative overflow-hidden py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-black font-medium hover:shadow-[0_5px_15px_rgba(32,221,187,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   whileHover={{ scale: 1.03 }}

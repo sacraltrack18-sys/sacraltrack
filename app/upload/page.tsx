@@ -182,6 +182,27 @@ export default function Upload() {
         if (!file) return;
 
         try {
+            console.log('Selected file:', file.name, 'Type:', file.type);
+            
+            // Add better validation for file types that includes checking file extension
+            const isWav = file.type === 'audio/wav' || file.name.toLowerCase().endsWith('.wav');
+            
+            if (!isWav) {
+                toast.error('Please select a WAV file format', {
+                    style: {
+                        border: '1px solid #FF4A4A',
+                        padding: '16px',
+                        color: '#ffffff',
+                        background: 'linear-gradient(to right, #2A184B, #1f1239)',
+                        fontSize: '16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(255, 74, 74, 0.2)'
+                    },
+                    icon: '⚠️'
+                });
+                return;
+            }
+
             // Reset client processed file
             setClientMp3File(null);
             setClientSegments([]);
@@ -190,9 +211,29 @@ export default function Upload() {
             
             // Create audio element for preview
             const audio = new Audio();
-            audio.src = URL.createObjectURL(file);
+            
+            // Use a try/catch specifically for createObjectURL which can fail on some mobile browsers
+            try {
+                audio.src = URL.createObjectURL(file);
+            } catch (urlError) {
+                console.error('Error creating object URL:', urlError);
+                // If createObjectURL fails, still allow the file to be uploaded
+                setFileAudio(file);
+                setTrackname(file.name.replace(/\.[^/.]+$/, ''));
+                setShowAudioProcessor(true);
+                return;
+            }
+            
+            // Add timeout to handle potential mobile issues with metadata loading
+            const metadataTimeout = setTimeout(() => {
+                console.log('Metadata loading timed out, proceeding anyway');
+                setAudioDuration(0); // Set a default duration
+                audioElement.current = audio;
+                setShowAudioProcessor(true);
+            }, 3000); // 3 second timeout
             
             audio.onloadedmetadata = () => {
+                clearTimeout(metadataTimeout);
                 setAudioDuration(audio.duration);
                 audioElement.current = audio;
                 
@@ -207,6 +248,16 @@ export default function Upload() {
                 };
                 
                 // Start client-side processing
+                setShowAudioProcessor(true);
+            };
+            
+            // Add error handling for the audio element
+            audio.onerror = (e) => {
+                clearTimeout(metadataTimeout);
+                console.error('Audio loading error:', e);
+                // Still allow upload even if preview fails
+                setFileAudio(file);
+                setTrackname(file.name.replace(/\.[^/.]+$/, ''));
                 setShowAudioProcessor(true);
             };
 
@@ -1500,14 +1551,17 @@ export default function Upload() {
                                           border border-[#20DDBB]/10 shadow-lg
                                           flex flex-col items-center justify-center
                                           cursor-pointer transition-all duration-300
-                                          hover:bg-[#20DDBB]/5 relative overflow-hidden group"
+                                          hover:bg-[#20DDBB]/5 relative overflow-hidden group
+                                          touch-manipulation tap-highlight-transparent"
                                 whileHover={{ boxShadow: "0 0 25px rgba(32,221,187,0.15)" }}
+                                whileTap={{ scale: 0.98 }}
                             >
                                 <input
                                     type="file"
                                     onChange={handleAudioChange}
-                                    accept="audio/wav"
-                                    className="hidden"
+                                    accept="audio/wav,audio/*"
+                                    className="absolute opacity-0 inset-0 w-full h-full cursor-pointer z-10"
+                                    aria-label="Upload audio track"
                                 />
                                 
                                 {/* Animated background elements */}
