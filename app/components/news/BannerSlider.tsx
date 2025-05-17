@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { database } from '@/libs/AppWriteClient';
 import { Query, Models } from 'appwrite';
-import { getAppwriteImageUrl } from '@/app/utils/appwriteImageUrl'; 
+import { getAppwriteImageUrl, fixAppwriteImageUrl } from '@/app/utils/appwriteImageUrl'; 
 
 // Типы для баннеров
 interface BannerSlide {
@@ -107,7 +107,6 @@ const BannerSlider = () => {
               $id: 'default',
               image_url: '/images/Banner-news.png',
               title: 'Experience the next evolution of Sacral Track',
-              subtitle: 'Music marketplace / social network for artists and music lovers',
               description: "Experience the next evolution in music streaming with SACRAL TRACK's comprehensive platform update, designed to create deeper connections between artists and listeners through innovative features and enhanced functionality.",
               link_url: '/news/latest-update',
               action_text: 'Read More',
@@ -126,7 +125,6 @@ const BannerSlider = () => {
           $id: 'default',
           image_url: '/images/Banner-news.png',
           title: 'Experience the next evolution of Sacral Track',
-          subtitle: 'Music marketplace / social network for artists and music lovers',
           description: "Experience the next evolution in music streaming with SACRAL TRACK's comprehensive platform update, designed to create deeper connections between artists and listeners through innovative features and enhanced functionality.",
           link_url: '/news/latest-update',
           action_text: 'Read More',
@@ -236,7 +234,7 @@ const BannerSlider = () => {
             {banners[currentIndex].image_url && (
               <div className="absolute inset-0 w-full h-full">
                 <Image
-                  src={getAppwriteImageUrl(banners[currentIndex].image_url)}
+                  src={fixAppwriteImageUrl(getAppwriteImageUrl(banners[currentIndex].image_url))}
                   alt={banners[currentIndex].title}
                   fill
                   priority

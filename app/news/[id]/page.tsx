@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import useGetLikes from '@/app/hooks/useGetLikes';
 import { ID } from 'appwrite';
 import Link from 'next/link';
+import { recordFailedImageRequest, fixAppwriteImageUrl } from '@/app/utils/appwriteImageUrl';
 
 export default function NewsDetail() {
     const params = useParams();
@@ -196,8 +197,10 @@ export default function NewsDetail() {
     };
     
     // Handle placeholder image if img_url is missing
-    const imageUrl = news?.img_url || '/images/placeholders/news-placeholder.svg';
     const fallbackImageUrl = '/images/placeholders/news-placeholder.svg';
+    const rawImageUrl = news?.img_url || fallbackImageUrl;
+    // Fix the image URL if it has the problematic format
+    const imageUrl = fixAppwriteImageUrl(rawImageUrl, fallbackImageUrl);
     
     // Format date
     const formattedDate = news?.created 
@@ -272,6 +275,10 @@ export default function NewsDetail() {
                             style={{ objectFit: 'cover' }}
                             className="w-full"
                             onError={(e) => {
+                                // Check if max retries reached
+                                const shouldUseDefaultImage = recordFailedImageRequest(imageUrl);
+                                
+                                // Always use fallback image on error to prevent infinite retries
                                 (e.target as HTMLImageElement).src = fallbackImageUrl;
                             }}
                             priority

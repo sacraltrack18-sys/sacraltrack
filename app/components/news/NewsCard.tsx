@@ -7,6 +7,7 @@ import { database, ID, Query, Permission } from '@/libs/AppWriteClient';
 import { toast } from 'react-hot-toast';
 import useGetNewsLikes from '@/app/hooks/useGetNewsLikes';
 import Link from 'next/link';
+import { recordFailedImageRequest, fixAppwriteImageUrl } from '@/app/utils/appwriteImageUrl';
 
 interface NewsCardProps {
     news: NewsItem;
@@ -38,8 +39,10 @@ const NewsCard: React.FC<NewsCardProps> = ({ news, navigateOnClick = false }) =>
     }) : 'Unknown date';
     
     // Placeholder image if img_url is missing
-    const imageUrl = img_url || '/images/placeholders/news-placeholder.svg';
     const fallbackImageUrl = '/images/placeholders/news-placeholder.svg';
+    const rawImageUrl = img_url || fallbackImageUrl;
+    // Fix the image URL if it has the problematic format
+    const imageUrl = fixAppwriteImageUrl(rawImageUrl, fallbackImageUrl);
     
     // Check if user has liked this news
     React.useEffect(() => {
@@ -261,7 +264,10 @@ const NewsCard: React.FC<NewsCardProps> = ({ news, navigateOnClick = false }) =>
                             style={{ objectFit: 'cover' }}
                             className="transition-transform duration-700 hover:scale-110"
                             onError={(e) => {
-                                // Fallback to placeholder on error
+                                // Check if max retries reached
+                                const shouldUseDefaultImage = recordFailedImageRequest(imageUrl);
+                                
+                                // Always use fallback image on error to prevent infinite retries
                                 (e.target as HTMLImageElement).src = fallbackImageUrl;
                             }}
                             priority
@@ -381,6 +387,10 @@ const NewsCard: React.FC<NewsCardProps> = ({ news, navigateOnClick = false }) =>
                                     style={{ objectFit: 'cover' }}
                                     className="w-full"
                                     onError={(e) => {
+                                        // Check if max retries reached
+                                        const shouldUseDefaultImage = recordFailedImageRequest(imageUrl);
+                                        
+                                        // Always use fallback image on error to prevent infinite retries
                                         (e.target as HTMLImageElement).src = fallbackImageUrl;
                                     }}
                                     priority
