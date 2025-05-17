@@ -27,7 +27,7 @@ import YandexMetrika from './components/YandexMetrika';
 export const metadata: Metadata = {
     title: 'Sacral Track',
     description: 'Sacral Track - music network marketplace for music artists and lovers. Listen to music, release a tracks, withdraw royalties to visa/mastercard.',
-    metadataBase: new URL('https://sacraltrack.store'),
+    metadataBase: new URL('https://sacraltrack.space'),
     icons: {
         icon: [
             { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -38,11 +38,11 @@ export const metadata: Metadata = {
     keywords: 'music, artist, marketplace, royalties, listen, release, tracks, streaming, pop, rock, hip hop, rap, electronic, EDM, classical, jazz, blues, country, R&B, soul, folk, indie, alternative, metal, punk, reggae, funk, disco, techno, house, ambient, lo-fi, trap, dubstep, trance, drum and bass, instrumental, vocal, beats, producers, musicians, songs, albums, singles, playlists, new music, trending',
     openGraph: {
         title: 'Sacral Track',
-        description: 'Sacral Track - music network marketplace for music artists and lovers',
-        url: 'https://sacraltrack.store',
+        description: 'Sacral Track - social network with marketplace for artists and music lovers',
+        url: 'https://sacraltrack.space',
         images: [
             {
-                url: '/images/log.png',
+                url: '/images/sacraltrack.png',
                 width: 800,
                 height: 600,
                 alt: 'Sacral Track',
@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         "@context": "https://schema.org",
                         "@type": "MusicDigitalPublicationSeries",
                         "name": "Sacral Track",
-                        "description": "Music network and marketplace for music artists and lovers",
+                        "description": "Music network and marketplace for artists and music lovers",
                         "url": "https://sacraltrack.space",
                         "genre": [
                             "Pop", "Rock", "Hip Hop", "Rap", "Electronic", "EDM", "Classical", 

@@ -10,7 +10,7 @@ import { useGeneralStore } from "@/app/stores/general";
 import { useUIStore } from '@/app/stores/uiStore';
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl"
 import { IoSettingsOutline } from 'react-icons/io5';
-import { BsPeople, BsHeart, BsVinylFill } from 'react-icons/bs';
+import { BsPeople, BsHeart, BsVinylFill, BsPeopleFill } from 'react-icons/bs';
 import { RiDownloadLine } from 'react-icons/ri';
 import { motion, AnimatePresence } from 'framer-motion';
 import EnhancedEditProfileOverlay from "@/app/components/profile/EnhancedEditProfileOverlay";
@@ -280,49 +280,54 @@ export default function ProfileLayout({ children, params }: { children: React.Re
             className="fixed bottom-0 left-0 right-0 bg-[#24183D]/95 backdrop-blur-xl border-t border-white/5 z-50 shadow-lg fixed-bottom-panel"
         >
             <div className="max-w-screen-xl mx-auto">
-                <div className="flex items-center justify-between p-4">
-                    {/* Профиль пользователя - видимый только на мобильных */}
-                    <div className="flex items-center gap-4">
-                        <motion.div 
-                            whileHover={{ scale: 1.05 }}
-                            className={`relative w-12 h-12 rounded-xl overflow-hidden ring-2 ring-[#20DDBB]/30 
-                                     group transition-all duration-300 hover:ring-[#20DDBB]/50
-                                     shadow-[0_0_15px_rgba(32,221,187,0.15)] md:hidden ${isProfileOwner ? 'cursor-pointer' : ''}`}
-                            onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
-                        >
-                        <img 
-                            src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
-                            alt={currentProfile?.name || 'Profile'} 
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                            />
-                        </motion.div>
-                        <div className="flex flex-col md:hidden">
-                            <motion.h1 
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className={`text-lg font-bold text-white ${isProfileOwner ? 'cursor-pointer hover:text-[#20DDBB] transition-colors' : ''}`}
+                <div className="flex flex-col p-4">
+                    {/* User profile section - visible on both mobile and desktop */}
+                    <div className="flex items-center w-full justify-between mb-3 md:hidden">
+                        {/* Avatar + Username */}
+                        <div className="flex items-center">
+                            <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                className={`relative w-10 h-10 rounded-xl overflow-hidden ring-2 ring-[#20DDBB]/30 
+                                        group transition-all duration-300 hover:ring-[#20DDBB]/50
+                                        shadow-[0_0_15px_rgba(32,221,187,0.15)] ${isProfileOwner ? 'cursor-pointer' : ''}`}
                                 onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
                             >
-                                {currentProfile?.name || 'User Name'}
-                            </motion.h1>
+                                <img 
+                                    src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
+                                    alt={currentProfile?.name || 'Profile'} 
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                />
+                            </motion.div>
                             
-                            {/* Кнопка Edit Profile в полупрозрачном округлом табике под именем пользователя */}
-                            {isProfileOwner && (
-                                <motion.button 
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => setIsEditProfileOpen(true)}
-                                    className="self-start mt-1 px-3 py-1 text-xs font-medium rounded-full 
-                                              bg-white/10 backdrop-blur-sm text-[#20DDBB] border border-[#20DDBB]/20
-                                              hover:bg-[#20DDBB]/20 transition-all duration-300 shadow-[0_0_10px_rgba(32,221,187,0.15)]"
+                            <div className="flex items-center ml-3">
+                                <motion.h1 
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`text-base font-bold text-white truncate max-w-[120px] ${isProfileOwner ? 'cursor-pointer hover:text-[#20DDBB] transition-colors' : ''}`}
+                                    onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
                                 >
-                                    Edit Profile
-                                </motion.button>
-                            )}
+                                    {currentProfile?.name || 'User Name'}
+                                </motion.h1>
+                            </div>
                         </div>
+                        
+                        {/* Edit Profile button */}
+                        {isProfileOwner && (
+                            <motion.button 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setIsEditProfileOpen(true)}
+                                className="px-3 py-1.5 text-sm font-medium rounded-full 
+                                        bg-white/10 backdrop-blur-sm text-[#20DDBB] border border-[#20DDBB]/20
+                                        hover:bg-[#20DDBB]/20 transition-all duration-300 shadow-[0_0_10px_rgba(32,221,187,0.15)]"
+                            >
+                                Edit Profile
+                            </motion.button>
+                        )}
                     </div>
 
-                    <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Navigation Icons - for both desktop and mobile */}
+                    <div className="flex items-center justify-between gap-2 w-full">
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -332,30 +337,18 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowPurchases(false);
                                 setShowVibes(false);
                             }}
-                            className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
+                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
                                 !showFriends && !showLikedTracks && !showPurchases && !showVibes
                                 ? 'text-[#20DDBB] bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 shadow-[0_0_15px_rgba(32,221,187,0.1)]' 
                                 : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-[#20DDBB]/5 hover:to-[#5D59FF]/5 hover:shadow-[0_0_10px_rgba(32,221,187,0.05)]'
                             }`}
                         >
                             <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] shadow-[0_0_10px_rgba(32,221,187,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/50 group-hover:to-[#5D59FF]/50 group-hover:shadow-[0_0_8px_rgba(32,221,187,0.3)]'} transition-all duration-300`}>
-                                <motion.div 
-                                    className="absolute inset-0 rounded-full bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    animate={{ 
-                                        rotate: !showFriends && !showLikedTracks && !showPurchases && !showVibes ? [0, 360] : [0, 0],
-                                    }}
-                                    transition={{ 
-                                        repeat: Infinity, 
-                                        repeatDelay: 3,
-                                        duration: 8,
-                                        ease: "linear"
-                                    }}
-                                />
                                 <BsVinylFill 
                                     className={`w-3.5 h-3.5 transition-all duration-300 ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
                                 />
                             </div>
-                            <span className={`hidden sm:inline font-medium ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] drop-shadow-[0_0_1px_rgba(32,221,187,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#20DDBB]/70 group-hover:to-[#5D59FF]/70'} transition-all duration-300`}>Releases</span>
+                            <span className={`text-[9px] font-medium ${!showFriends && !showLikedTracks && !showPurchases && !showVibes ? 'text-[#20DDBB]' : 'text-gray-400'}`}>Releases</span>
                         </motion.button>
 
                         <motion.button
@@ -367,30 +360,18 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowPurchases(false);
                                 setShowVibes(true);
                             }}
-                            className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
+                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
                                 showVibes
                                 ? 'text-purple-400 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 shadow-[0_0_15px_rgba(168,85,247,0.1)]' 
                                 : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-indigo-500/5 hover:shadow-[0_0_10px_rgba(168,85,247,0.05)]'
                             }`}
                         >
                             <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showVibes ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-purple-500/50 group-hover:to-indigo-500/50 group-hover:shadow-[0_0_8px_rgba(168,85,247,0.3)]'} transition-all duration-300`}>
-                                <motion.div 
-                                    className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    animate={{ 
-                                        scale: showVibes ? [1, 1.2, 1] : [1, 1, 1],
-                                    }}
-                                    transition={{ 
-                                        repeat: Infinity, 
-                                        repeatDelay: 1,
-                                        duration: 1.5,
-                                        ease: "easeInOut"
-                                    }}
-                                />
                                 <MdOutlineMusicNote 
                                     className={`w-4 h-4 transition-all duration-300 ${showVibes ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
                                 />
                             </div>
-                            <span className={`hidden sm:inline font-medium ${showVibes ? 'bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-400 drop-shadow-[0_0_1px_rgba(168,85,247,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400/70 group-hover:to-indigo-400/70'} transition-all duration-300`}>Vibes</span>
+                            <span className={`text-[9px] font-medium ${showVibes ? 'text-purple-400' : 'text-gray-400'}`}>Vibes</span>
                         </motion.button>
 
                         <motion.button
@@ -402,30 +383,18 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowPurchases(false);
                                 setShowVibes(false);
                             }}
-                            className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
+                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
                                 showLikedTracks
                                 ? 'text-pink-400 bg-gradient-to-r from-pink-500/10 to-purple-500/10 shadow-[0_0_15px_rgba(236,72,153,0.1)]' 
                                 : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-pink-500/5 hover:to-purple-500/5 hover:shadow-[0_0_10px_rgba(236,72,153,0.05)]'
                             }`}
                         >
                             <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showLikedTracks ? 'bg-gradient-to-r from-pink-500 to-purple-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-pink-500/50 group-hover:to-purple-500/50 group-hover:shadow-[0_0_8px_rgba(236,72,153,0.3)]'} transition-all duration-300`}>
-                                <motion.div 
-                                    className="absolute inset-0 rounded-full bg-gradient-to-r from-pink-500/30 to-purple-500/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    animate={{ 
-                                        scale: showLikedTracks ? [1, 1.2, 1] : [1, 1, 1],
-                                    }}
-                                    transition={{ 
-                                        repeat: Infinity, 
-                                        repeatDelay: 1,
-                                        duration: 2,
-                                        ease: "easeInOut"
-                                    }}
-                                />
                                 <BsHeart 
                                     className={`w-3.5 h-3.5 transition-all duration-300 ${showLikedTracks ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
                                 />
                             </div>
-                            <span className={`hidden sm:inline font-medium ${showLikedTracks ? 'bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-400 drop-shadow-[0_0_1px_rgba(236,72,153,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-400/70 group-hover:to-purple-400/70'} transition-all duration-300`}>Likes</span>
+                            <span className={`text-[9px] font-medium ${showLikedTracks ? 'text-pink-400' : 'text-gray-400'}`}>Likes</span>
                         </motion.button>
                         
                         <motion.button
@@ -437,67 +406,42 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 setShowPurchases(false);
                                 setShowVibes(false);
                             }}
-                            className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
-                                showFriends 
-                                ? 'text-blue-400 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
-                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-[0_0_10px_rgba(59,130,246,0.05)]'
+                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
+                                showFriends
+                                ? 'text-blue-400 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]' 
+                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-[0_0_10px_rgba(96,165,250,0.05)]'
                             }`}
                         >
-                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showFriends ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-blue-500/50 group-hover:to-cyan-500/50 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.3)]'} transition-all duration-300`}>
-                                <motion.div 
-                                    className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/30 to-cyan-500/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    animate={{ 
-                                        rotate: showFriends ? [0, 360] : [0, 0],
-                                    }}
-                                    transition={{ 
-                                        repeat: Infinity, 
-                                        duration: 10,
-                                        ease: "linear"
-                                    }}
-                                />
-                                <BsPeople 
-                                    className={`w-4 h-4 transition-all duration-300 ${showFriends ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
+                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showFriends ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-blue-500/50 group-hover:to-cyan-500/50 group-hover:shadow-[0_0_8px_rgba(96,165,250,0.3)]'} transition-all duration-300`}>
+                                <BsPeopleFill
+                                    className={`w-3.5 h-3.5 transition-all duration-300 ${showFriends ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
                                 />
                             </div>
-                            <span className={`hidden sm:inline font-medium ${showFriends ? 'bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400 drop-shadow-[0_0_1px_rgba(59,130,246,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400/70 group-hover:to-cyan-400/70'} transition-all duration-300`}>Friends</span>
+                            <span className={`text-[9px] font-medium ${showFriends ? 'text-blue-400' : 'text-gray-400'}`}>Friends</span>
                         </motion.button>
 
-                        {isProfileOwner && (
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => {
-                                    setShowFriends(false);
-                                    setShowLikedTracks(false);
-                                    setShowPurchases(true);
-                                    setShowVibes(false);
-                                }}
-                                className={`group flex items-center gap-2 px-2 sm:px-4 py-2 rounded-xl transition-all duration-300 ${
-                                    showPurchases 
-                                    ? 'text-amber-400 bg-gradient-to-r from-amber-500/10 to-orange-500/10 shadow-[0_0_15px_rgba(245,158,11,0.1)]' 
-                                    : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-amber-500/5 hover:to-orange-500/5 hover:shadow-[0_0_10px_rgba(245,158,11,0.05)]'
-                                }`}
-                            >
-                                <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-amber-500/50 group-hover:to-orange-500/50 group-hover:shadow-[0_0_8px_rgba(245,158,11,0.3)]'} transition-all duration-300`}>
-                                    <motion.div 
-                                        className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                        animate={{ 
-                                            y: showPurchases ? [0, -5, 0] : [0, 0, 0],
-                                        }}
-                                        transition={{ 
-                                            repeat: Infinity, 
-                                            repeatDelay: 2,
-                                            duration: 1.5,
-                                            ease: "easeInOut"
-                                        }}
-                                    />
-                                    <RiDownloadLine 
-                                        className={`w-4 h-4 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
-                                    />
-                                </div>
-                                <span className={`hidden sm:inline font-medium ${showPurchases ? 'bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-400 drop-shadow-[0_0_1px_rgba(245,158,11,0.3)]' : 'group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-amber-400/70 group-hover:to-orange-400/70'} transition-all duration-300`}>Purchases</span>
-                            </motion.button>
-                        )}
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                setShowFriends(false);
+                                setShowLikedTracks(false);
+                                setShowPurchases(true);
+                                setShowVibes(false);
+                            }}
+                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
+                                showPurchases
+                                ? 'text-green-400 bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
+                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 hover:shadow-[0_0_10px_rgba(34,197,94,0.05)]'
+                            }`}
+                        >
+                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-green-500/50 group-hover:to-emerald-500/50 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.3)]'} transition-all duration-300`}>
+                                <RiDownloadLine
+                                    className={`w-3.5 h-3.5 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
+                                />
+                            </div>
+                            <span className={`text-[9px] font-medium ${showPurchases ? 'text-green-400' : 'text-gray-400'}`}>Purchases</span>
+                        </motion.button>
                     </div>
                 </div>
             </div>

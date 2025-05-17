@@ -37,7 +37,7 @@ const modalVariants = {
   visible: { 
     opacity: 1, 
     scale: 1, 
-    y: 0, 
+    y: -20,
     transition: { type: "spring", damping: 25, stiffness: 300 }
   },
   exit: { 
@@ -489,7 +489,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     <AnimatePresence mode="wait">
       <motion.div
         key="overlay"
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
