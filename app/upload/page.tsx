@@ -1684,16 +1684,16 @@ export default function Upload() {
                             <div className="flex items-center">
                                 {isProcessing ? 'Cancel Upload' : 'Release Track'}
                                 {!isProcessing && (
-                                    <span className="ml-2 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">
+                                    <span className="ml-2 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs md:block hidden">
                                         i
                                     </span>
                                 )}
                             </div>
                         </button>
                         
-                        {/* Hover tooltip with validation info */}
+                        {/* Hover tooltip with validation info - hidden on mobile */}
                         <div className="absolute bottom-full right-0 mb-2 w-64 bg-[#2A184B] rounded-lg shadow-lg 
-                                      p-4 text-sm text-white/80 opacity-0 group-hover:opacity-100 transition-opacity 
+                                      p-4 text-sm text-white/80 opacity-0 hidden md:block group-hover:opacity-100 transition-opacity 
                                       pointer-events-none transform translate-y-2 group-hover:translate-y-0 z-50
                                       border border-[#20DDBB]/20 before:content-[''] before:absolute before:top-full 
                                       before:right-4 before:border-l-[8px] before:border-l-transparent 

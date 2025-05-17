@@ -29,7 +29,7 @@ import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 import { usePlayerContext } from '@/app/context/playerContext';
 
 const PostUserSkeleton = () => (
-  <div className="relative bg-[#24183D] rounded-xl w-[450px] mb-4 overflow-hidden">
+  <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4 overflow-hidden">
     <div className="p-4 border-b border-white/10">
       <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -591,7 +591,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="relative bg-[#24183D] rounded-xl w-[450px] mb-4">
+        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -600,17 +600,17 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
           >
             <div className="flex items-center justify-between">
               <Link href={`/profile/${post.user_id}`}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <img 
                     src={useCreateBucketUrl(post?.profile?.image) || '/images/placeholders/user-placeholder.svg'}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
                   />
                   <div>
                     <div>
-                      <p className="font-semibold text-white hover:text-[#20DDBB] transition-colors">
+                      <p className="text-sm sm:text-base font-semibold text-white hover:text-[#20DDBB] transition-colors truncate max-w-[140px] sm:max-w-[200px]">
                         {post?.profile?.name}
                       </p>
-                      <p className="text-sm text-gray-400">{post?.trackname}</p>
+                      <p className="text-xs sm:text-sm text-gray-400 truncate max-w-[140px] sm:max-w-[200px]">{post?.trackname}</p>
                     </div>
                   </div>
                 </div>
@@ -625,11 +625,11 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                       onClick={() => setShowStats(!showStats)}
                       className={`p-2 rounded-full transition-colors ${
                         showStats 
-                          ? 'text-[#20DDBB]'
-                          : 'text-white/80 hover:text-[#20DDBB]'
+                          ? 'text-[#20DDBB] bg-[#20DDBB]/10'
+                          : 'text-white/80 hover:text-[#20DDBB] bg-white/5 hover:bg-white/10'
                       }`}
                     >
-                      <FaChartLine size={20} />
+                      <FaChartLine size={isMobile ? 18 : 20} />
                     </motion.button>
 
                     <div className="relative">
@@ -637,9 +637,9 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="p-2 text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                        className="p-2 text-zinc-400 hover:text-white transition-colors rounded-full bg-white/5 hover:bg-white/10"
                       >
-                        <BsThreeDotsVertical size={20} />
+                        <BsThreeDotsVertical size={isMobile ? 18 : 20} />
                       </motion.button>
 
                       <AnimatePresence>
@@ -751,14 +751,14 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                     type="button"
                   >
                     <div className={`
-                      w-14 h-14 rounded-full border border-white/40 backdrop-blur-[2px] flex items-center justify-center
+                      w-16 h-16 rounded-full border border-white/60 backdrop-blur-[2px] flex items-center justify-center
                       transform transition-all duration-300 
-                      ${isPlaying ? 'scale-90 bg-[#20DDBB]/10 border-[#20DDBB]/40' : 'scale-100 bg-black/10'}
+                      ${isPlaying ? 'scale-90 bg-[#20DDBB]/20 border-[#20DDBB]/40' : 'scale-100 bg-black/20'}
                     `}>
                       {isPlaying ? (
-                        <FaPause className="text-white/90 text-lg" aria-hidden="true" />
+                        <FaPause className="text-white text-xl" aria-hidden="true" />
                       ) : (
-                        <FaPlay className="text-white/90 text-lg ml-1" aria-hidden="true" />
+                        <FaPlay className="text-white text-xl ml-1" aria-hidden="true" />
                       )}
                     </div>
                   </button>
@@ -771,13 +771,13 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="absolute top-4 right-4 flex flex-col gap-2 items-end"
+                  className="absolute top-2 sm:top-4 right-2 sm:right-4 flex flex-col gap-1 sm:gap-2 items-end z-10"
                 >
-                  <div className="flex items-center gap-1 bg-gradient-to-r from-amber-200 to-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-medium backdrop-blur-sm">
-                    <AiFillStar className="w-3 h-3" />
-                    <span>Release • {formatReleaseDate(post?.created_at)}</span>
+                  <div className="flex items-center gap-1 bg-gradient-to-r from-amber-200 to-yellow-400 text-black text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium backdrop-blur-sm">
+                    <AiFillStar className="w-2.5 sm:w-3 h-2.5 sm:h-3" />
+                    <span className="truncate max-w-[120px] sm:max-w-none">Release • {formatReleaseDate(post?.created_at)}</span>
                   </div>
-                  <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm text-white/80 px-2 py-0.5 rounded-full text-xs">
+                  <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm text-white/80 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs">
                     <span>Street music</span>
                   </div>
                 </motion.div>
@@ -935,9 +935,9 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="flex items-center justify-between mt-4 pt-4 border-t border-white/10"
+              className="flex items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10"
             >
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 sm:gap-6">
                 <PostMainLikes post={post} />
               </div>
 
@@ -946,9 +946,9 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleDownload}
-                  className="text-white/80 hover:text-[#20DDBB] transition-colors"
+                  className="p-1.5 sm:p-0 rounded-full bg-white/5 sm:bg-transparent text-white/80 hover:text-[#20DDBB] transition-colors"
                 >
-                  <BsDownload size={20} />
+                  <BsDownload size={18} className="sm:w-5 sm:h-5" />
                 </motion.button>
               )}
             </motion.div>

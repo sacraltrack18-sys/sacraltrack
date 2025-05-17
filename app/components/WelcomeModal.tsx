@@ -105,7 +105,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
     },
     {
       title: "Music Marketplace",
-      description: "Release your own tracks! Buy and sell music directly with transparent pricing and artist royalties, supporting creators directly.",
+      description: "Release your own tracks! Buy and sell your music, and withdraw your royalties anytime.",
       icon: "💽"
     },
     {
@@ -297,7 +297,7 @@ const WelcomeModal = ({ isVisible: propIsVisible, onClose, hideFirstVisitCheck =
                   Welcome to <span className="bg-gradient-to-r from-[#20DDBB] to-[#8B5CF6] text-transparent bg-clip-text">Sacral Track</span>
                 </h2>
                 <p className="mt-2 sm:mt-3 text-white/70 text-xs sm:text-sm md:text-base text-center max-w-xl mx-auto">
-                  Music Platform / Social Network for artists and music listeners with high-quality audio and royalty distribution.
+                  Music Platform / Social Network for artists and music listeners.
                 </p>
               </div>
 
