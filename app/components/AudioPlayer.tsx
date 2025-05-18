@@ -1115,7 +1115,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     />
                 </div>
                 <div className="text-white/80 text-sm font-medium min-w-[45px] text-right">
-                    {formatTime(currentTime)}{duration ? ` / ${formatTime(duration)}` : ''}
+                    {formatTime(currentTime)}
                 </div>
             </div>
 
