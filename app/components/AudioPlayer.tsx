@@ -391,20 +391,27 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     const hlsConfig = {
                         enableWorker: true,
                         lowLatencyMode: false, // Отключаем режим низкой задержки для аудио
-                        maxBufferSize: 5 * 1000 * 1000, // Уменьшаем размер буфера для аудио (5MB)
-                        maxBufferLength: 20, // Уменьшаем длину буфера
+                        maxBufferSize: 10 * 1000 * 1000, // Увеличиваем размер буфера для аудио (10MB)
+                        maxBufferLength: 30, // Увеличиваем длину буфера для предзагрузки большего числа сегментов
                         liveSyncDurationCount: 3, // Оптимальное значение для аудио
-                        maxMaxBufferLength: 30,
-                        fragLoadingTimeOut: 15000, // Уменьшаем таймаут для аудио-фрагментов
+                        maxMaxBufferLength: 60, // Увеличиваем максимальную длину буфера
+                        fragLoadingTimeOut: 15000, // Таймаут для аудио-фрагментов
                         manifestLoadingTimeOut: 10000,
                         levelLoadingTimeOut: 10000,
                         startLevel: -1, // Автоматический выбор качества
-                        // Add these settings to improve stability, especially on mobile
-                        abrEwmaDefaultEstimate: 500000, // Default bandwidth estimate (500kbps)
-                        testBandwidth: false, // Disable bandwidth testing to prevent instability
-                        fragLoadingMaxRetry: 4, // More retries for fragment loading
-                        manifestLoadingMaxRetry: 4, // More retries for manifest loading
-                        levelLoadingMaxRetry: 4 // More retries for level loading
+                        // Улучшенные настройки для предотвращения прерываний
+                        abrEwmaDefaultEstimate: 1000000, // Увеличиваем оценку пропускной способности (1Mbps)
+                        testBandwidth: false, // Отключаем тестирование пропускной способности
+                        fragLoadingMaxRetry: 6, // Больше попыток для загрузки фрагментов
+                        manifestLoadingMaxRetry: 6, // Больше попыток для загрузки манифеста
+                        levelLoadingMaxRetry: 6, // Больше попыток для загрузки уровней
+                        // Устанавливаем параметры для агрессивной предзагрузки сегментов
+                        backBufferLength: 30, // Сохраняем больше данных в буфере позади текущей позиции
+                        appendErrorMaxRetry: 5, // Больше попыток при ошибках добавления в буфер
+                        nudgeMaxRetry: 5, // Больше попыток "подталкивания" при застревании
+                        // Настройки для более плавного переключения между сегментами
+                        highBufferWatchdogPeriod: 5, // Сокращаем период проверки высокого буфера
+                        nudgeOffset: 0.1, // Небольшое смещение при "подталкивании"
                     };
 
                     try {
@@ -600,6 +607,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 } else {
                     // Non-fatal error, just log it
                     console.warn('Non-fatal HLS error:', data);
+                }
+            });
+
+            // Добавляем слушатель для буферизации будущих сегментов
+            hls.on(Hls.Events.FRAG_LOADED, function(event, data) {
+                // При успешной загрузке сегмента, проверяем текущую позицию воспроизведения
+                if (audioRef.current && data.frag) {
+                    const currentTime = audioRef.current.currentTime;
+                    const fragEndTime = data.frag.start + data.frag.duration;
+                    
+                    // Если загружен последний сегмент, инициируем загрузку следующего
+                    // даже если у нас уже достаточно буфера
+                    if (fragEndTime - currentTime < 10) {
+                        console.log('Упреждающая загрузка следующего сегмента');
+                        // Это даст сигнал HLS.js, что нужно продолжать загрузку
+                        // даже если текущий буфер достаточно большой
+                        hls.trigger(Hls.Events.BUFFER_EOS, {}); // Добавляем пустой объект в качестве данных
+                    }
                 }
             });
         };
@@ -845,15 +870,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 const hlsConfig = {
                     enableWorker: true,
                     lowLatencyMode: false,
-                    maxBufferSize: 2 * 1000 * 1000, // Уменьшаем для предзагрузки (2MB)
-                    maxBufferLength: 5, // Только первые несколько секунд 
-                    maxMaxBufferLength: 10,
+                    maxBufferSize: 5 * 1000 * 1000, // Увеличиваем для предзагрузки (5MB)
+                    maxBufferLength: 10, // Увеличиваем буфер для более стабильного переключения 
+                    maxMaxBufferLength: 20, // Увеличиваем максимальный буфер
                     startLevel: -1,
-                    abrEwmaDefaultEstimate: 500000, 
+                    abrEwmaDefaultEstimate: 1000000, // Увеличиваем оценку пропускной способности
                     testBandwidth: false,
-                    fragLoadingMaxRetry: 2,
-                    manifestLoadingMaxRetry: 2,
-                    levelLoadingMaxRetry: 2
+                    fragLoadingMaxRetry: 4, // Больше попыток для загрузки фрагментов
+                    manifestLoadingMaxRetry: 4,
+                    levelLoadingMaxRetry: 4,
+                    // Добавляем настройки для более плавного воспроизведения
+                    backBufferLength: 10, // Сохраняем больше данных в буфере позади текущей позиции
                 };
                 
                 const hls = new Hls(hlsConfig);

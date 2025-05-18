@@ -209,9 +209,9 @@ LazyImage.displayName = 'LazyImage';
 
 const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text, genre }: PostHeaderProps) => (
     <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link href={`/profile/${profile.user_id}`} aria-label={`Visit ${profile.name}'s profile`}>
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300">
+                <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300 flex-shrink-0">
                     <LazyImage
                         src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
                         alt={`${profile.name} - ${genre} music artist profile picture`}
@@ -220,18 +220,20 @@ const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text
                     />
                 </div>
             </Link>
-            <div>
-                <Link href={`/profile/${profile.user_id}`} className="text-white font-medium hover:underline hover:text-[#20DDBB] transition-colors">
+            <div className="min-w-0 flex-1">
+                <Link href={`/profile/${profile.user_id}`} className="text-white font-medium hover:underline hover:text-[#20DDBB] transition-colors line-clamp-1">
                     {profile.name}
                 </Link>
-                <div className="flex items-center gap-2">
-                    <p className="text-[#818BAC] text-sm">{text}</p>
-                    <HiMusicNote className="text-[#20DDBB] text-xs" aria-hidden="true" />
+                <div className="flex items-center gap-1.5 w-full">
+                    <p className="text-[#818BAC] text-sm truncate max-w-[180px]" title={text}>{text}</p>
+                    <HiMusicNote className="text-[#20DDBB] text-xs flex-shrink-0" aria-hidden="true" />
                 </div>
             </div>
         </div>
-        <div className="flex items-center gap-2">
-            <span className="text-[#20DDBB] text-xs px-3 py-1 bg-[#20DDBB]/10 rounded-full uppercase font-medium">{genre}</span>
+        <div className="flex-shrink-0 ml-2">
+            <span className="text-[#20DDBB] text-[10px] px-2.5 py-1 bg-[#20DDBB]/10 rounded-full uppercase font-medium tracking-wider whitespace-nowrap max-w-[110px] truncate block" title={genre}>
+                {genre}
+            </span>
         </div>
     </div>
 ));
@@ -1124,20 +1126,18 @@ const PostMain = memo(({ post }: PostMainProps) => {
             </div>
 
             <div className="px-4 py-3 flex justify-between items-center w-full">
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 flex-shrink-0">
                     <PostMainLikes post={post} />
-                    
-                    {/* Счетчик прослушиваний - Удален отсюда, так как перенесен в StatsCounter */}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 ml-auto">
                     {!isPurchased ? (
                         <motion.button 
                             onClick={handlePurchase}
                             disabled={isProcessingPayment}
-                            className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white px-6 py-2.5 rounded-xl font-medium 
+                            className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-medium 
                                       shadow-lg shadow-[#20DDBB]/20 hover:shadow-xl hover:shadow-[#20DDBB]/30 
-                                      transition-all duration-300 flex items-center gap-2"
+                                      transition-all duration-300 flex items-center gap-2 text-sm"
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             aria-label={`Buy track ${post.trackname} for $2`}
@@ -1145,7 +1145,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
                             <span className="font-semibold">Buy</span>
                             {isProcessingPayment && (
                                 <motion.div
-                                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                                    className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full"
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                 />
@@ -1153,12 +1153,12 @@ const PostMain = memo(({ post }: PostMainProps) => {
                         </motion.button>
                     ) : (
                         <motion.button 
-                            className="bg-gradient-to-r from-[#20DDBB]/20 to-[#018CFD]/20 text-[#20DDBB] px-6 py-2.5 
-                                      rounded-xl font-medium border border-[#20DDBB]/30 flex items-center gap-2"
+                            className="bg-gradient-to-r from-[#20DDBB]/20 to-[#018CFD]/20 text-[#20DDBB] px-4 sm:px-6 py-2 sm:py-2.5 
+                                      rounded-xl font-medium border border-[#20DDBB]/30 flex items-center gap-2 text-sm"
                             whileHover={{ scale: 1.01 }}
                             aria-label="Track already purchased"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                             <span className="font-semibold">Purchased</span>
@@ -1166,7 +1166,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
                     )}
                     <motion.button 
                         onClick={handleShare}
-                        className="relative p-3 rounded-full bg-white/5 hover:bg-[#2E2469]/50 group overflow-hidden
+                        className="relative p-2.5 rounded-full bg-white/5 hover:bg-[#2E2469]/50 group overflow-hidden
                                   transition-all duration-300"
                         whileHover={{ 
                             scale: 1.08,
@@ -1174,7 +1174,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
                         whileTap={{ scale: 0.92 }}
                         aria-label={`Share track ${post.trackname}`}
                     >
-                        <ShareIcon className="w-[24px] h-[24px] text-pink-400 transition-all duration-300 relative z-10
+                        <ShareIcon className="w-5 h-5 sm:w-[24px] sm:h-[24px] text-pink-400 transition-all duration-300 relative z-10
                                              group-hover:text-white group-hover:scale-110" />
                         
                         {/* Animated background effect on hover */}
