@@ -47,9 +47,10 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
     fetchNotifications();
   }, [isOpen, userContext?.user?.id, getUserNotifications]);
 
-  // Lock body scroll when notifications are open
+  // Lock body scroll when notifications are open only on mobile
   useEffect(() => {
-    if (isOpen) {
+    const isMobile = window.innerWidth < 640; // sm breakpoint is 640px
+    if (isOpen && isMobile) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -108,7 +109,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="fixed sm:absolute top-[60px] sm:top-12 right-0 sm:right-0 w-full sm:w-[350px] md:w-96 max-w-full h-[calc(100vh-60px)] sm:h-auto bg-[#272B43] sm:rounded-xl shadow-xl border border-[#3f2d63] z-50"
+        className="fixed sm:absolute top-[60px] sm:top-12 right-0 sm:right-4 w-full sm:w-[350px] md:w-96 max-w-full h-[calc(100vh-60px)] sm:h-auto bg-[#272B43] sm:rounded-xl shadow-xl border border-[#3f2d63] z-50"
       >
         <div className="p-3 sm:p-4 border-b border-[#3f2d63]">
           <div className="flex justify-between items-center mb-3 sm:mb-4">

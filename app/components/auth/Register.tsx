@@ -72,9 +72,15 @@ export default function Register() {
         try {
             setLoading(true);
             
-            // Detect iOS device
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+            // Enhanced mobile browser detection
+            const userAgent = navigator.userAgent;
+            const isMobileSafari = /iPhone|iPad|iPod/.test(userAgent) && /AppleWebKit/.test(userAgent) && !userAgent.includes('CriOS');
+            const isMobileFirefox = /Android/.test(userAgent) && /Firefox/.test(userAgent);
+            const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
+            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && /AppleWebKit/.test(userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const needsEnhancedAuth = isIOS || isMobileSafari || isMobileFirefox || isDesktopSafari; // Apply enhanced flow to these browsers
             
             // Check for existing Google auth in progress and clear it if it exists
             if (typeof window !== 'undefined') {
@@ -92,6 +98,16 @@ export default function Register() {
                 // Set an expiration timestamp - to prevent stale state
                 const expiryTime = Date.now() + (5 * 60 * 1000); // 5 minutes
                 sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
+                
+                // Store browser information for debugging
+                sessionStorage.setItem('authBrowserInfo', JSON.stringify({
+                    isMobileSafari,
+                    isMobileFirefox,
+                    isMobileChrome,
+                    isDesktopSafari,
+                    isIOS,
+                    userAgent: userAgent.substring(0, 200) // Store partial UA to avoid large storage
+                }));
             }
             
             // Проверяем наличие необходимых переменных окружения
@@ -146,42 +162,32 @@ export default function Register() {
             // Add a short delay to ensure toast is displayed before redirect
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Special handling for iOS devices
-            if (isIOS) {
-                console.log('iOS device detected, using enhanced OAuth flow for registration');
+            // Special handling for mobile browsers that need enhanced auth
+            if (needsEnhancedAuth) {
+                console.log('Mobile browser detected, using enhanced OAuth flow for registration');
                 
                 try {
-                    // First attempt with the standard Appwrite method
-                    await account.createOAuth2Session(
-                        'google',
-                        successUrl,
-                        failureUrl
-                    );
+                    // Construct the OAuth URL manually for more reliable mobile browser handling
+                    const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
+                    const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
                     
-                    // If the above doesn't redirect (which it should), use direct location as fallback
-                    // This provides a fallback in case there's an issue with the Appwrite redirect
-                    setTimeout(() => {
-                        console.log('Appwrite OAuth redirect didn\'t happen, using fallback for iOS');
-                        
-                        // Construct the OAuth URL manually
-                        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
-                        const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
-                        
-                        const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
-                                        `project=${projectId}&` +
-                                        `success=${encodeURIComponent(successUrl)}&` +
-                                        `failure=${encodeURIComponent(failureUrl)}`;
-                        
-                        // Navigate directly to the OAuth URL
-                        window.location.href = oauthUrl;
-                    }, 1000); // Short timeout to see if Appwrite redirects first
+                    const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
+                                    `project=${projectId}&` +
+                                    `success=${encodeURIComponent(successUrl)}&` +
+                                    `failure=${encodeURIComponent(failureUrl)}`;
+                    
+                    // Navigate directly to the OAuth URL
+                    window.location.href = oauthUrl;
+                    
+                    // No need for the appwrite call on these browsers since we're using direct URL navigation
                 } catch (error) {
-                    console.error('Error starting OAuth session on iOS:', error);
+                    console.error('Error starting OAuth session on mobile browser:', error);
                     
                     // Clear the Google auth in progress flag
                     if (typeof window !== 'undefined') {
                         sessionStorage.removeItem('googleAuthInProgress');
                         sessionStorage.removeItem('googleAuthExpiryTime');
+                        sessionStorage.removeItem('authBrowserInfo');
                     }
                     
                     toast.error('Failed to start authentication. Please try again with email registration.', {
@@ -196,7 +202,7 @@ export default function Register() {
                     setLoading(false);
                 }
             } else {
-                // Standard flow for non-iOS devices
+                // Standard flow for desktop browsers
                 try {
                     // Создаем OAuth сессию - после этого произойдет редирект
                     await account.createOAuth2Session(
@@ -214,6 +220,7 @@ export default function Register() {
                     if (typeof window !== 'undefined') {
                         sessionStorage.removeItem('googleAuthInProgress');
                         sessionStorage.removeItem('googleAuthExpiryTime');
+                        sessionStorage.removeItem('authBrowserInfo');
                     }
                     
                     // More specific error handling
@@ -250,6 +257,7 @@ export default function Register() {
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
                 sessionStorage.removeItem('googleAuthExpiryTime');
+                sessionStorage.removeItem('authBrowserInfo');
             }
             
             // More specific error handling

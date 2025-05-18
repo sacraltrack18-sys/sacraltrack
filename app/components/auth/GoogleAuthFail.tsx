@@ -16,9 +16,21 @@ export default function GoogleAuthFail() {
         // Clear user cache data on failed authentication
         clearUserCache();
         
-        // Clear any Google auth in progress flag
+        // Clear all Google auth related flags
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem('googleAuthInProgress');
+            sessionStorage.removeItem('googleAuthExpiryTime');
+            sessionStorage.removeItem('authBrowserInfo');
+            
+            // Log browser info for debugging if available
+            try {
+                const storedBrowserInfo = sessionStorage.getItem('authBrowserInfo');
+                if (storedBrowserInfo) {
+                    console.log('Authentication failed with browser:', JSON.parse(storedBrowserInfo));
+                }
+            } catch (error) {
+                console.error('Error parsing stored browser info:', error);
+            }
         }
         
         // Show toast notification

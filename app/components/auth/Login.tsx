@@ -53,17 +53,38 @@ export default function Login() {
         try {
             setLoading(true);
             
-            // Detect iOS device
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+            // Enhanced mobile browser detection
+            const userAgent = navigator.userAgent;
+            const isMobileSafari = /iPhone|iPad|iPod/.test(userAgent) && /AppleWebKit/.test(userAgent) && !userAgent.includes('CriOS');
+            const isMobileFirefox = /Android/.test(userAgent) && /Firefox/.test(userAgent);
+            const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
+            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && /AppleWebKit/.test(userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const needsEnhancedAuth = isIOS || isMobileSafari || isMobileFirefox || isDesktopSafari; // Apply enhanced flow to these browsers
             
             // Set a flag in sessionStorage to prevent showing errors during redirect
             if (typeof window !== 'undefined') {
+                // Clear any existing flags first
+                sessionStorage.removeItem('googleAuthInProgress');
+                sessionStorage.removeItem('googleAuthExpiryTime');
+                
+                // Set fresh flags
                 sessionStorage.setItem('googleAuthInProgress', 'true');
                 
                 // Set a timestamp to auto-clear the flag after 5 minutes
                 const expiryTime = Date.now() + (5 * 60 * 1000);
                 sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
+                
+                // Store browser information for debugging
+                sessionStorage.setItem('authBrowserInfo', JSON.stringify({
+                    isMobileSafari,
+                    isMobileFirefox,
+                    isMobileChrome,
+                    isDesktopSafari,
+                    isIOS,
+                    userAgent: userAgent.substring(0, 200) // Store partial UA to avoid large storage
+                }));
             }
             
             // Use environment variables for URLs or fallback to localhost
@@ -99,38 +120,27 @@ export default function Login() {
                 duration: 3000
             });
 
-            // Special handling for iOS devices
-            if (isIOS) {
-                console.log('iOS device detected, using enhanced OAuth flow');
+            // Special handling for mobile browsers that need enhanced auth
+            if (needsEnhancedAuth) {
+                console.log('Mobile browser detected, using enhanced OAuth flow');
                 
-                // For iOS devices, we need to ensure cookies are properly handled
-                // and sometimes window.location works better than the Appwrite method
+                // Use a more reliable direct URL approach for mobile browsers
                 try {
-                    // First attempt to directly create the OAuth session with Appwrite
-                    await account.createOAuth2Session(
-                        'google',
-                        successUrl,
-                        failureUrl
-                    );
+                    // Construct the OAuth URL manually
+                    const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
+                    const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
                     
-                    // If the above doesn't redirect (which it should), use direct location as fallback
-                    // This provides a fallback in case there's an issue with the Appwrite redirect
-                    setTimeout(() => {
-                        console.log('Appwrite OAuth redirect didn\'t happen, using fallback');
-                        // Get the OAuth URL from Appwrite
-                        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
-                        const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
-                        
-                        const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
-                                        `project=${projectId}&` +
-                                        `success=${encodeURIComponent(successUrl)}&` +
-                                        `failure=${encodeURIComponent(failureUrl)}`;
-                                        
-                        // Navigate to the OAuth URL
-                        window.location.href = oauthUrl;
-                    }, 1000); // Short timeout to see if Appwrite redirects first
+                    const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
+                                    `project=${projectId}&` +
+                                    `success=${encodeURIComponent(successUrl)}&` +
+                                    `failure=${encodeURIComponent(failureUrl)}`;
+                    
+                    // Navigate directly to the OAuth URL
+                    window.location.href = oauthUrl;
+                    
+                    // No need for the appwrite call on these browsers since we're using direct URL navigation
                 } catch (error) {
-                    console.error('Error starting OAuth session on iOS:', error);
+                    console.error('Error starting OAuth session on mobile browser:', error);
                     toast.error('Failed to start authentication. Please try again.');
                     setLoading(false);
                     
@@ -138,10 +148,11 @@ export default function Login() {
                     if (typeof window !== 'undefined') {
                         sessionStorage.removeItem('googleAuthInProgress');
                         sessionStorage.removeItem('googleAuthExpiryTime');
+                        sessionStorage.removeItem('authBrowserInfo');
                     }
                 }
             } else {
-                // Non-iOS devices use the standard flow
+                // Desktop and other browsers use the standard flow
                 try {
                     // Create OAuth session with Google provider
                     await account.createOAuth2Session(
@@ -158,6 +169,7 @@ export default function Login() {
                     if (typeof window !== 'undefined') {
                         sessionStorage.removeItem('googleAuthInProgress');
                         sessionStorage.removeItem('googleAuthExpiryTime');
+                        sessionStorage.removeItem('authBrowserInfo');
                     }
                 }
             }
@@ -185,6 +197,7 @@ export default function Login() {
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
                 sessionStorage.removeItem('googleAuthExpiryTime');
+                sessionStorage.removeItem('authBrowserInfo');
             }
         }
     }

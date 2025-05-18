@@ -73,9 +73,29 @@ export default function GoogleAuthSuccess() {
     const toastIdRef = useRef<string | null>(null);
     const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const attemptLimitReached = useRef<boolean>(false);
+    const [browserInfo, setBrowserInfo] = useState<any>(null);
+    const isMobileRef = useRef<boolean>(false);
 
     useEffect(() => {
         toast.dismiss();
+        
+        // Retrieve browser info if available
+        if (typeof window !== 'undefined') {
+            try {
+                const storedBrowserInfo = sessionStorage.getItem('authBrowserInfo');
+                if (storedBrowserInfo) {
+                    const parsedInfo = JSON.parse(storedBrowserInfo);
+                    setBrowserInfo(parsedInfo);
+                    
+                    // Check if this is a mobile browser that needs special handling
+                    isMobileRef.current = parsedInfo.isIOS || parsedInfo.isMobileSafari || parsedInfo.isMobileFirefox || parsedInfo.isDesktopSafari;
+                    console.log('Retrieved browser info:', parsedInfo);
+                    console.log('Is browser requiring special handling:', isMobileRef.current);
+                }
+            } catch (error) {
+                console.error('Error parsing stored browser info:', error);
+            }
+        }
         
         // Всегда очищаем флаги аутентификации при любом сценарии завершения
         clearAllAuthFlags();
@@ -144,6 +164,12 @@ export default function GoogleAuthSuccess() {
                         await new Promise(resolve => setTimeout(resolve, delay));
                     }
                     
+                    // For mobile browsers, add additional delay to ensure cookies are properly set
+                    if (isMobileRef.current && retryCount === 0) {
+                        console.log('Mobile browser detected, adding additional initial delay');
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                    }
+                    
                     const currentSession = await account.getSession('current');
                     if (currentSession) {
                         sessionValid = true;
@@ -151,6 +177,23 @@ export default function GoogleAuthSuccess() {
                     }
                 } catch (sessionError) {
                     console.log('Session verification attempt:', retryCount + 1);
+                    console.log('Session error:', sessionError);
+                    
+                    // For mobile browsers, try alternative approach to get session if needed
+                    if (isMobileRef.current && retryCount >= 1) {
+                        try {
+                            console.log('Trying alternative session approach for mobile browser');
+                            // Try getting the current account instead
+                            const currentAccount = await account.get();
+                            if (currentAccount && currentAccount.$id) {
+                                console.log('Account found through alternative method:', currentAccount.$id);
+                                sessionValid = true;
+                            }
+                        } catch (altError) {
+                            console.log('Alternative session check also failed:', altError);
+                        }
+                    }
+                    
                     // If no valid session and we've already retried, go to error state
                     if (retryCount >= maxRetries) {
                         throw new Error('Failed to authenticate after multiple retries');
@@ -166,7 +209,9 @@ export default function GoogleAuthSuccess() {
                     console.log('Checking user authentication after Google OAuth');
                     
                     // Add a small delay before checking user to ensure session is fully established
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Use a longer delay for mobile browsers
+                    const userCheckDelay = isMobileRef.current ? 1500 : 500;
+                    await new Promise(resolve => setTimeout(resolve, userCheckDelay));
                     
                     const userData = await userContext.checkUser();
                     
@@ -202,6 +247,11 @@ export default function GoogleAuthSuccess() {
                         
                         // Clear the authentication in progress flag now that we're successful
                         clearAllAuthFlags();
+                        
+                        // Clear browser info from session storage
+                        if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('authBrowserInfo');
+                        }
                         
                         // Redirect to homepage after successful auth - using a shorter delay
                         redirectTimeoutRef.current = setTimeout(() => {
