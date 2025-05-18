@@ -72,6 +72,10 @@ export default function Register() {
         try {
             setLoading(true);
             
+            // Detect iOS device
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
             // Check for existing Google auth in progress and clear it if it exists
             if (typeof window !== 'undefined') {
                 // If there's a stale flag, clear it first
@@ -85,13 +89,9 @@ export default function Register() {
                 // Set a new flag
                 sessionStorage.setItem('googleAuthInProgress', 'true');
                 
-                // Set an expiration timeout - clear the flag after 5 minutes to prevent stale state
-                setTimeout(() => {
-                    if (sessionStorage.getItem('googleAuthInProgress')) {
-                        console.log('Clearing stale googleAuthInProgress flag (timeout)');
-                        sessionStorage.removeItem('googleAuthInProgress');
-                    }
-                }, 5 * 60 * 1000); // 5 minutes
+                // Set an expiration timestamp - to prevent stale state
+                const expiryTime = Date.now() + (5 * 60 * 1000); // 5 minutes
+                sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
             }
             
             // Проверяем наличие необходимых переменных окружения
@@ -146,21 +146,110 @@ export default function Register() {
             // Add a short delay to ensure toast is displayed before redirect
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Создаем OAuth сессию - после этого произойдет редирект
-            await account.createOAuth2Session(
-                'google',
-                successUrl,
-                failureUrl
-            );
-            
-            // This code should not execute due to redirect, but keep it as a fallback
-            console.log('OAuth2 session created, redirect should have occurred');
+            // Special handling for iOS devices
+            if (isIOS) {
+                console.log('iOS device detected, using enhanced OAuth flow for registration');
+                
+                try {
+                    // First attempt with the standard Appwrite method
+                    await account.createOAuth2Session(
+                        'google',
+                        successUrl,
+                        failureUrl
+                    );
+                    
+                    // If the above doesn't redirect (which it should), use direct location as fallback
+                    // This provides a fallback in case there's an issue with the Appwrite redirect
+                    setTimeout(() => {
+                        console.log('Appwrite OAuth redirect didn\'t happen, using fallback for iOS');
+                        
+                        // Construct the OAuth URL manually
+                        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
+                        const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
+                        
+                        const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
+                                        `project=${projectId}&` +
+                                        `success=${encodeURIComponent(successUrl)}&` +
+                                        `failure=${encodeURIComponent(failureUrl)}`;
+                        
+                        // Navigate directly to the OAuth URL
+                        window.location.href = oauthUrl;
+                    }, 1000); // Short timeout to see if Appwrite redirects first
+                } catch (error) {
+                    console.error('Error starting OAuth session on iOS:', error);
+                    
+                    // Clear the Google auth in progress flag
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('googleAuthInProgress');
+                        sessionStorage.removeItem('googleAuthExpiryTime');
+                    }
+                    
+                    toast.error('Failed to start authentication. Please try again with email registration.', {
+                        duration: 5000,
+                        style: {
+                            background: '#272B43',
+                            color: '#fff',
+                            borderLeft: '4px solid #EF4444'
+                        }
+                    });
+                    
+                    setLoading(false);
+                }
+            } else {
+                // Standard flow for non-iOS devices
+                try {
+                    // Создаем OAuth сессию - после этого произойдет редирект
+                    await account.createOAuth2Session(
+                        'google',
+                        successUrl,
+                        failureUrl
+                    );
+                    
+                    // This code should not execute due to redirect, but keep it as a fallback
+                    console.log('OAuth2 session created, redirect should have occurred');
+                } catch (error) {
+                    console.error('Google registration error:', error);
+                    
+                    // Clear the Google auth in progress flag
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('googleAuthInProgress');
+                        sessionStorage.removeItem('googleAuthExpiryTime');
+                    }
+                    
+                    // More specific error handling
+                    let errorMessage = 'Failed to start Google authentication. Please try again later.';
+                    
+                    if (error.code === 400) {
+                        errorMessage = 'Invalid OAuth configuration. Please contact support.';
+                    } else if (error.code === 401) {
+                        errorMessage = 'Authentication failed. Please try again.';
+                    } else if (error.code === 429) {
+                        errorMessage = 'Too many requests. Please wait a few minutes before trying again.';
+                    } else if (error.code === 503) {
+                        errorMessage = 'Google authentication service is temporarily unavailable. Please try again later.';
+                    } else if (error.message && error.message.includes('network')) {
+                        errorMessage = 'Network error. Please check your internet connection and try again.';
+                    }
+                    
+                    toast.error(errorMessage, {
+                        duration: 5000,
+                        style: {
+                            background: '#272B43',
+                            color: '#fff',
+                            borderLeft: '4px solid #EF4444'
+                        }
+                    });
+                    
+                    setLoading(false);
+                }
+            }
         } catch (error) {
             console.error('Google registration error:', error);
             
             // Clear the Google auth in progress flag
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
+                sessionStorage.removeItem('googleAuthExpiryTime');
             }
             
             // More specific error handling

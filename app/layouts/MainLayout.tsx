@@ -130,7 +130,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     damping: 20,
                     duration: 0.5 
                 }}
-                className="md:hidden fixed bottom-0 left-0 right-0 z-[99998] bg-[#0F1225]/50 backdrop-blur-xl px-4 py-3 pb-4 border-t border-white/5 shadow-lg fixed-bottom-panel"
+                className="md:hidden fixed bottom-0 left-0 right-0 z-[99998] bg-[#0F1225]/50 backdrop-blur-xl px-4 py-2 pb-2 border-t border-white/5 shadow-lg fixed-bottom-panel"
             >
                 <ContentFilter />
             </motion.div>
@@ -146,7 +146,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     y: -5,
                     boxShadow: '0 10px 25px rgba(32, 221, 187, 0.3)'
                 }}
-                className="fixed md:bottom-5 md:left-5 md:w-20 md:h-20 bottom-[80px] left-4 w-16 h-16 bg-gradient-to-r from-[#20DDBB]/80 to-[#018CFD]/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center cursor-pointer border border-[#20DDBB]/30 shadow-lg z-[99999] transition-all duration-300 group"
+                className="fixed md:bottom-5 md:left-5 md:w-20 md:h-20 bottom-[65px] left-4 w-16 h-16 bg-gradient-to-r from-[#20DDBB]/80 to-[#018CFD]/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center cursor-pointer border border-[#20DDBB]/30 shadow-lg z-[99999] transition-all duration-300 group"
             >   
                 <div className="flex flex-col items-center">
                     <FaInfoCircle className="w-4 h-4 md:w-5 md:h-5 mb-1 drop-shadow-md" />

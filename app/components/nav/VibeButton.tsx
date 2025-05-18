@@ -36,8 +36,8 @@ const VibeButton = ({ onOpenVibeUploader }: VibeButtonProps) => {
     onOpenVibeUploader();
   };
 
-  // Updated baseButtonClass with reduced margins and padding for mobile
-  const baseButtonClass = "relative flex h-9 md:h-10 items-center justify-center rounded-full md:rounded-2xl px-2 md:px-4 group transition-all duration-300 mr-2 md:mr-4 cursor-pointer";
+  // Updated baseButtonClass with increased height for mobile and adjusted padding
+  const baseButtonClass = "relative flex flex-col sm:flex-row h-[42px] sm:h-9 md:h-10 items-center justify-center rounded-full md:rounded-2xl px-3 sm:px-2 md:px-4 group transition-all duration-300 mr-2 md:mr-4 cursor-pointer";
   const baseIconClass = "z-10 flex h-4 md:h-5 w-4 md:w-5 items-center justify-center";
   const baseStarsClass = "h-4 w-4 md:h-5 md:w-5 text-purple-400 group-hover:text-blue-400 transition-all duration-500";
 
@@ -90,7 +90,7 @@ const VibeButton = ({ onOpenVibeUploader }: VibeButtonProps) => {
       </div>
       
       <motion.span 
-        className="ml-1 md:ml-1.5 text-white font-semibold text-xs md:text-sm tracking-wider"
+        className="sm:ml-1 md:ml-1.5 text-white font-semibold text-[10px] sm:text-xs md:text-sm tracking-wider mt-0.5 sm:mt-0"
         animate={{
           x: isHovered ? 2 : 0,
           color: isHovered ? "#a78bfa" : "#ffffff"

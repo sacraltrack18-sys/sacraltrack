@@ -388,7 +388,7 @@ const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps)
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center py-3 px-5 transition-all duration-300 relative ${
+      className={`flex flex-col items-center justify-center py-2 px-5 transition-all duration-300 relative ${
         active
           ? 'text-white'
           : 'text-gray-400 hover:text-white/70'
@@ -397,7 +397,7 @@ const MobileTabButton = ({ active, onClick, icon, label }: MobileTabButtonProps)
       <div className={active ? 'text-white' : 'text-gray-400'}>
         {icon}
       </div>
-      <span className="text-[9px] font-medium mt-1">{label}</span>
+      <span className="text-[9px] font-medium mt-0.5">{label}</span>
       
       {active && (
         <motion.div

@@ -10,6 +10,7 @@ import { useUser, dispatchAuthStateChange } from '@/app/context/user';
 import { account } from '@/libs/AppWriteClient';
 import toast from 'react-hot-toast';
 import { User } from '@/app/types';
+import { clearAllAuthFlags } from '@/app/utils/authCleanup';
 
 // Global limit for auth attempts across page refreshes
 const AUTH_ATTEMPT_STORAGE_KEY = 'googleAuthAttempts';
@@ -76,6 +77,9 @@ export default function GoogleAuthSuccess() {
     useEffect(() => {
         toast.dismiss();
         
+        // Всегда очищаем флаги аутентификации при любом сценарии завершения
+        clearAllAuthFlags();
+        
         // Check if we've hit the global attempt limit
         if (!trackAuthAttempt()) {
           console.error('Global authentication attempt limit reached');
@@ -88,18 +92,13 @@ export default function GoogleAuthSuccess() {
           
           // Redirect to homepage after a short delay
           redirectTimeoutRef.current = setTimeout(() => {
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('googleAuthInProgress');
-            }
             router.push('/');
           }, 3000);
         }
         
         return () => {
             toast.dismiss();
-            if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('googleAuthInProgress');
-            }
+            clearAllAuthFlags(); // Очищаем при размонтировании
             if (redirectTimeoutRef.current) {
                 clearTimeout(redirectTimeoutRef.current);
             }
@@ -202,9 +201,7 @@ export default function GoogleAuthSuccess() {
                         errorShownRef.current = false;
                         
                         // Clear the authentication in progress flag now that we're successful
-                        if (typeof window !== 'undefined') {
-                            sessionStorage.removeItem('googleAuthInProgress');
-                        }
+                        clearAllAuthFlags();
                         
                         // Redirect to homepage after successful auth - using a shorter delay
                         redirectTimeoutRef.current = setTimeout(() => {
@@ -277,6 +274,7 @@ export default function GoogleAuthSuccess() {
         
         return () => {
             clearInterval(countdownInterval);
+            clearAllAuthFlags(); // Ensure flags are cleared
         };
         
     }, [router, userContext, retryCount]);

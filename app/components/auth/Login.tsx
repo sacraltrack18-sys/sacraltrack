@@ -53,9 +53,17 @@ export default function Login() {
         try {
             setLoading(true);
             
+            // Detect iOS device
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
             // Set a flag in sessionStorage to prevent showing errors during redirect
             if (typeof window !== 'undefined') {
                 sessionStorage.setItem('googleAuthInProgress', 'true');
+                
+                // Set a timestamp to auto-clear the flag after 5 minutes
+                const expiryTime = Date.now() + (5 * 60 * 1000);
+                sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
             }
             
             // Use environment variables for URLs or fallback to localhost
@@ -91,12 +99,68 @@ export default function Login() {
                 duration: 3000
             });
 
-            // Create OAuth session with Google provider
-            await account.createOAuth2Session(
-                'google',
-                successUrl,
-                failureUrl
-            );
+            // Special handling for iOS devices
+            if (isIOS) {
+                console.log('iOS device detected, using enhanced OAuth flow');
+                
+                // For iOS devices, we need to ensure cookies are properly handled
+                // and sometimes window.location works better than the Appwrite method
+                try {
+                    // First attempt to directly create the OAuth session with Appwrite
+                    await account.createOAuth2Session(
+                        'google',
+                        successUrl,
+                        failureUrl
+                    );
+                    
+                    // If the above doesn't redirect (which it should), use direct location as fallback
+                    // This provides a fallback in case there's an issue with the Appwrite redirect
+                    setTimeout(() => {
+                        console.log('Appwrite OAuth redirect didn\'t happen, using fallback');
+                        // Get the OAuth URL from Appwrite
+                        const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
+                        const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
+                        
+                        const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
+                                        `project=${projectId}&` +
+                                        `success=${encodeURIComponent(successUrl)}&` +
+                                        `failure=${encodeURIComponent(failureUrl)}`;
+                                        
+                        // Navigate to the OAuth URL
+                        window.location.href = oauthUrl;
+                    }, 1000); // Short timeout to see if Appwrite redirects first
+                } catch (error) {
+                    console.error('Error starting OAuth session on iOS:', error);
+                    toast.error('Failed to start authentication. Please try again.');
+                    setLoading(false);
+                    
+                    // Clear the authentication progress flag
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('googleAuthInProgress');
+                        sessionStorage.removeItem('googleAuthExpiryTime');
+                    }
+                }
+            } else {
+                // Non-iOS devices use the standard flow
+                try {
+                    // Create OAuth session with Google provider
+                    await account.createOAuth2Session(
+                        'google',
+                        successUrl,
+                        failureUrl
+                    );
+                } catch (error) {
+                    console.error('Google login error:', error);
+                    toast.error('Failed to start authentication. Please try again.');
+                    setLoading(false);
+                    
+                    // Clear the authentication progress flag
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('googleAuthInProgress');
+                        sessionStorage.removeItem('googleAuthExpiryTime');
+                    }
+                }
+            }
         } catch (error) {
             console.error('Google login error:', error);
             
@@ -120,6 +184,7 @@ export default function Login() {
             // Clear the authentication in progress flag if there was an error
             if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('googleAuthInProgress');
+                sessionStorage.removeItem('googleAuthExpiryTime');
             }
         }
     }

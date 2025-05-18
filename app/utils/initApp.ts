@@ -6,6 +6,8 @@
  */
 
 import disableConsoleLogs from './disableConsoleLog';
+import { setupAuthCleanupTimer, checkAndClearAuthFlags } from './authCleanup';
+import { isIOS, optimizeStorageForIOS } from './deviceDetection';
 
 /**
  * Initialize the application with various configurations
@@ -15,6 +17,18 @@ export const initializeApp = () => {
   if (typeof window !== 'undefined') {
     // Disable console logs
     disableConsoleLogs();
+    
+    // Setup auth cleanup mechanism to prevent "stuck" authentication states
+    setupAuthCleanupTimer();
+    
+    // Immediately check for and clear any stale auth flags
+    checkAndClearAuthFlags();
+    
+    // Apply optimizations for iOS devices
+    if (isIOS()) {
+      console.log('iOS device detected, applying special optimizations');
+      optimizeStorageForIOS();
+    }
     
     // Add any other initialization logic here
     // For example:
