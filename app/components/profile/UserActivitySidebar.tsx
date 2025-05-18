@@ -427,6 +427,24 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         {vibes?.length || 0}
                                     </div>
                                 </div>
+                                
+                                {/* User Purchases - показываем только владельцу профиля */}
+                                {isOwner && (
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                                                <FaShoppingCart className="text-green-400 w-4 h-4" />
+                                            </div>
+                                            <span className="text-white/80">Purchases</span>
+                                        </div>
+                                        <div 
+                                            className="text-white font-semibold cursor-pointer hover:text-green-400 transition-colors"
+                                            onClick={onShowPurchases}
+                                        >
+                                            View
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

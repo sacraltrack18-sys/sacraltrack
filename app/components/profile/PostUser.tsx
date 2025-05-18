@@ -27,6 +27,7 @@ import { HiMusicNote } from 'react-icons/hi';
 import { database, ID } from '@/libs/AppWriteClient';
 import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 import { usePlayerContext } from '@/app/context/playerContext';
+import { useEditContext } from "@/app/context/editContext";
 
 const PostUserSkeleton = () => (
   <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4 overflow-hidden">
@@ -402,6 +403,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const { isEditMode, setIsEditMode } = useEditContext();
 
   const { statistics, isLoading: statsLoading, fetchStatistics } = useTrackStatistics(post?.id);
   const { recordInteraction, getUserDeviceInfo, getGeographicInfo } = useTrackInteraction();
@@ -580,6 +582,19 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
     router.push(`/profile/${params.userId}`);
   };
 
+  // Update the function that opens the edit popup
+  const handleOpenEditPopup = () => {
+    setShowEditPopup(true);
+    setIsDropdownOpen(false);
+    setIsEditMode(true); // Set edit mode to true, which will trigger bottom panel animation
+  };
+
+  // Update the edit popup close handler
+  const handleCloseEditPopup = () => {
+    setShowEditPopup(false);
+    setIsEditMode(false); // Set edit mode to false, which will restore bottom panel
+  };
+
   if (isLoading) {
     return <PostUserSkeleton />;
   }
@@ -661,10 +676,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                             >
                               <motion.button
                                 whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
-                                onClick={() => {
-                                  setShowEditPopup(true);
-                                  setIsDropdownOpen(false);
-                                }}
+                                onClick={handleOpenEditPopup}
                                 className="w-full px-4 py-3 text-left text-sm text-white/90 hover:text-white flex items-center space-x-2 transition-colors"
                               >
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -958,10 +970,10 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
         <EditTrackPopup
           postData={post}
           isOpen={showEditPopup}
-          onClose={() => setShowEditPopup(false)}
+          onClose={handleCloseEditPopup}
           onUpdate={(updatedData) => {
             console.log("Updated Data:", updatedData);
-            setShowEditPopup(false);
+            handleCloseEditPopup();
           }}
         />
       </motion.div>

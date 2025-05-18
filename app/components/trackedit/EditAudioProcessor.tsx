@@ -87,7 +87,7 @@ const EditAudioProcessor = ({ audioFile, trackId, onProcessed, onError }: EditAu
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-lg">
+    <div className="fixed inset-0 flex items-center justify-center z-[9999999] bg-black/60 backdrop-blur-lg">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -139,7 +139,7 @@ const EditAudioProcessor = ({ audioFile, trackId, onProcessed, onError }: EditAu
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md rounded-2xl z-20"
+            className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md rounded-2xl z-[9999999]"
           >
             <motion.div 
               initial={{ y: 20, opacity: 0 }}

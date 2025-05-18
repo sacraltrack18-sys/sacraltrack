@@ -28,6 +28,7 @@ import UserActivitySidebar from "@/app/components/profile/UserActivitySidebar";
 import { useVibeStore } from '@/app/stores/vibeStore';
 import { MdOutlineMusicNote } from 'react-icons/md';
 import UserVibes from "@/app/components/profile/UserVibes";
+import { useEditContext } from "@/app/context/editContext";
 
 export default function ProfileLayout({ children, params }: { children: React.ReactNode, params: { params: { id: string } } }) {
     const profileId = params.params.id;
@@ -43,6 +44,22 @@ export default function ProfileLayout({ children, params }: { children: React.Re
     const [showVibes, setShowVibes] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const { fetchVibesByUser } = useVibeStore();
+    const { isEditMode } = useEditContext();
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Check for mobile view
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+        };
+    }, []);
 
     // Проверяем, является ли текущий пользователь владельцем профиля
     const isProfileOwner = contextUser?.user?.id === currentProfile?.user_id;
@@ -103,14 +120,20 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 
     const switchToTab = (tab: 'friends' | 'purchases' | 'likes' | 'vibes' | 'main') => {
         setShowFriends(tab === 'friends');
-        setShowPurchases(tab === 'purchases');
+        setShowPurchases(tab === 'purchases' && isProfileOwner);
         setShowLikedTracks(tab === 'likes');
         setShowVibes(tab === 'vibes');
         
         // Обновляем URL с параметром tab
         const url = new URL(window.location.href);
         if (tab !== 'main') {
-            url.searchParams.set('tab', tab);
+            // Не добавляем параметр tab=purchases если пользователь не владелец профиля
+            if (tab === 'purchases' && !isProfileOwner) {
+                // В этом случае просто возвращаемся на основную вкладку
+                url.searchParams.delete('tab');
+            } else {
+                url.searchParams.set('tab', tab);
+            }
         } else {
             url.searchParams.delete('tab');
         }
@@ -270,14 +293,17 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 
         <motion.div 
             initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ 
-                type: "spring", 
-                stiffness: 260, 
-                damping: 20,
-                duration: 0.5 
+            animate={{ 
+                y: isEditMode && isMobile ? 120 : 0, 
+                opacity: isEditMode && isMobile ? 0 : 1,
+                transition: {
+                    type: "spring", 
+                    stiffness: 260, 
+                    damping: 20,
+                    duration: 0.5
+                }
             }}
-            className="fixed bottom-0 left-0 right-0 bg-[#24183D]/95 backdrop-blur-xl border-t border-white/5 z-50 shadow-lg fixed-bottom-panel"
+            className="fixed bottom-0 left-0 right-0 bg-[#24183D]/95 backdrop-blur-xl border-t border-white/5 z-40 shadow-lg fixed-bottom-panel"
         >
             <div className="max-w-screen-xl mx-auto">
                 <div className="flex flex-col p-4">
@@ -317,11 +343,13 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setIsEditProfileOpen(true)}
-                                className="px-3 py-1.5 text-sm font-medium rounded-full 
-                                        bg-white/10 backdrop-blur-sm text-[#20DDBB] border border-[#20DDBB]/20
-                                        hover:bg-[#20DDBB]/20 transition-all duration-300 shadow-[0_0_10px_rgba(32,221,187,0.15)]"
+                                className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 text-[#20DDBB] hover:bg-[#20DDBB]/20 transition-all duration-300"
+                                aria-label="Edit Profile"
                             >
-                                Edit Profile
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
                             </motion.button>
                         )}
                     </div>
@@ -420,28 +448,30 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                             <span className={`text-[9px] font-medium ${showFriends ? 'text-blue-400' : 'text-gray-400'}`}>Friends</span>
                         </motion.button>
 
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                setShowFriends(false);
-                                setShowLikedTracks(false);
-                                setShowPurchases(true);
-                                setShowVibes(false);
-                            }}
-                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
-                                showPurchases
-                                ? 'text-green-400 bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
-                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 hover:shadow-[0_0_10px_rgba(34,197,94,0.05)]'
-                            }`}
-                        >
-                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-green-500/50 group-hover:to-emerald-500/50 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.3)]'} transition-all duration-300`}>
-                                <RiDownloadLine
-                                    className={`w-3.5 h-3.5 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
-                                />
-                            </div>
-                            <span className={`text-[9px] font-medium ${showPurchases ? 'text-green-400' : 'text-gray-400'}`}>Purchases</span>
-                        </motion.button>
+                        {isProfileOwner && (
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                    setShowFriends(false);
+                                    setShowLikedTracks(false);
+                                    setShowPurchases(true);
+                                    setShowVibes(false);
+                                }}
+                                className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
+                                    showPurchases
+                                    ? 'text-green-400 bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
+                                    : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 hover:shadow-[0_0_10px_rgba(34,197,94,0.05)]'
+                                }`}
+                            >
+                                <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-green-500/50 group-hover:to-emerald-500/50 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.3)]'} transition-all duration-300`}>
+                                    <RiDownloadLine
+                                        className={`w-3.5 h-3.5 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
+                                    />
+                                </div>
+                                <span className={`text-[9px] font-medium ${showPurchases ? 'text-green-400' : 'text-gray-400'}`}>Purchases</span>
+                            </motion.button>
+                        )}
                     </div>
                 </div>
             </div>

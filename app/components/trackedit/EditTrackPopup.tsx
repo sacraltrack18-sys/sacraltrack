@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,7 @@ import { useCreatePost } from '@/app/hooks/useCreatePost';
 import { useUpdateTrack } from '@/app/hooks/useUpdateTrack';
 import { useClientUpdateTrack } from '@/app/hooks/useClientUpdateTrack';
 import EditAudioProcessor from './EditAudioProcessor';
+import { useEditContext } from '@/app/context/editContext';
 
 // Utility function to ensure document ID is valid
 const getValidDocumentId = (data: any): string => {
@@ -91,6 +92,7 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
   const createPostHook = useCreatePost();
   const { updateTrack } = useUpdateTrack();
   const { updateTrack: clientUpdateTrack, isProcessing: isClientProcessing, processingStage: clientProcessingStage, processingProgress: clientProcessingProgress } = useClientUpdateTrack();
+  const { setIsEditMode } = useEditContext();
   
   // Get document ID using the utility function
   const documentId = getValidDocumentId(postData);
@@ -130,6 +132,9 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
 
   // Modal ref for click outside functionality
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Additional state for mobile detection
+  const [isMobile, setIsMobile] = useState(false);
 
   // Initialize form with existing data
   useEffect(() => {
@@ -187,6 +192,19 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
     };
   }, [isOpen, onClose, isProcessing]);
 
+  // Manage edit mode for bottom panel animation
+  useEffect(() => {
+    if (isOpen) {
+      setIsEditMode(true);
+    }
+    
+    return () => {
+      if (isOpen) {
+        setIsEditMode(false);
+      }
+    };
+  }, [isOpen, setIsEditMode]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -195,6 +213,20 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
       }
     };
   }, [uploadController]);
+
+  // Check for mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Audio player functions
   const handleAudioPlay = async () => {
@@ -644,184 +676,248 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
     }
   };
 
+  // Handle success modal close
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    setIsEditMode(false); // Ensure bottom panel animation is restored
+    router.refresh();
+  };
+
+  // Update the onClose handler
+  const handleClose = () => {
+    if (isProcessing) return;
+    
+    setIsEditMode(false); // Ensure bottom panel animation is restored
+    onClose();
+  };
+
   return (
     <>
     <AnimatePresence>
       {isOpen && (
         <motion.div
-            className="fixed inset-0 z-50 overflow-y-auto"
+            className="fixed inset-0 z-[999999] overflow-y-auto bg-black/80 backdrop-blur-md touch-none flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="flex min-h-screen items-center justify-center px-4 py-8">
-          <motion.div
-            ref={modalRef}
-                className="relative bg-gradient-to-br from-[#2A184B] to-[#1f1239] rounded-2xl shadow-xl border border-[#20DDBB]/20 w-full max-w-4xl"
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                transition={{ duration: 0.4, type: 'spring' }}
+            <div 
+              className="flex items-center justify-center w-full p-0 sm:p-4 md:p-8" 
+              style={{ paddingTop: '70px', paddingBottom: '70px' }}
+            >
+              <motion.div
+                ref={modalRef}
+                className="relative bg-gradient-to-br from-[#2A184B] to-[#1f1239] rounded-xl sm:rounded-2xl shadow-xl border border-[#20DDBB]/20 w-full sm:max-w-4xl overflow-hidden shadow-[0_0_30px_rgba(32,221,187,0.2)] my-auto"
+                style={{ maxHeight: 'calc(100vh - 160px)' }}
+                initial={isMobile ? { y: "100%", opacity: 1 } : { scale: 0.9, y: 20, opacity: 0 }}
+                animate={isMobile ? { y: 0, opacity: 1 } : { scale: 1, y: 0, opacity: 1 }}
+                exit={isMobile ? { y: "100%", opacity: 1 } : { scale: 0.95, y: -10, opacity: 0 }}
+                transition={{ 
+                  duration: 0.4, 
+                  type: 'spring', 
+                  damping: 25, 
+                  stiffness: 300 
+                }}
               >
+                {/* Handle bar for mobile swipe gestures */}
+                {isMobile && (
+                  <div className="absolute top-2 left-0 right-0 flex justify-center">
+                    <div className="w-12 h-1 bg-white/20 rounded-full"></div>
+                  </div>
+                )}
+                
                 {/* Modal content */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
-                Edit Track
-              </h2>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
-                className="p-2 text-white/60 hover:text-white transition-colors rounded-full hover:bg-white/10"
-                disabled={isProcessing}
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </motion.button>
-            </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Left column - Audio upload and player */}
-                <div className="space-y-6">
-                  {fileAudio ? (
-                    <div className="w-full rounded-2xl 
-                                  bg-gradient-to-br from-[#2A184B] to-[#1f1239]
-                                  border border-white/5 shadow-lg
-                                  flex flex-col justify-end overflow-hidden
-                                  aspect-square">
-                      <AudioPlayer
-                        fileAudio={fileAudio}
-                        trackname={trackname}
-                        isAudioPlaying={isAudioPlaying}
-                        audioProgress={audioProgress}
-                        audioDuration={audioDuration}
-                        audioElement={audioElement.current}
-                        handleAudioPlay={handleAudioPlay}
-                        handleProgressBarClick={handleProgressBarClick}
-                        clearAudio={clearAudio}
-                      />
-                    </div>
-                  ) : (
-                    <motion.label 
-                      className="w-full aspect-square rounded-2xl 
-                                bg-gradient-to-br from-[#2A184B] to-[#1f1239]
-                                border border-white/10 shadow-lg
-                                flex flex-col items-center justify-center
-                                cursor-pointer transition-all duration-300
-                                hover:bg-white/5 relative overflow-hidden group"
-                      whileHover={{ boxShadow: "0 0 25px rgba(32,221,187,0.15)" }}
-                    >
-                      <input
-                        type="file"
-                        onChange={handleAudioChange}
-                        accept="audio/wav"
-                        className="hidden"
-                      />
-                      
-                      {/* Animated background elements */}
-                      <div className="absolute inset-0 opacity-20">
-                        <motion.div 
-                          className="absolute h-60 w-60 rounded-full bg-gradient-to-r from-[#20DDBB]/40 to-[#018CFD]/40 blur-2xl"
-                          animate={{ 
-                            x: ['-50%', '150%'],
-                            y: ['-50%', '150%'],
-                          }} 
-                          transition={{ 
-                            duration: 15,
-                            repeat: Infinity,
-                            repeatType: 'reverse'
-                          }}
-                        />
-                      </div>
-                      
-                      <div className="text-center p-6 z-10">
-                        <motion.div 
-                          className="w-20 h-20 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#018CFD]/20 
-                                    flex items-center justify-center mx-auto mb-6"
-                          whileHover={{ scale: 1.1, backgroundColor: 'rgba(32,221,187,0.3)' }}
-                        >
-                          <svg className="w-10 h-10 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                          </svg>
-                        </motion.div>
-                        <p className="text-[#20DDBB] text-lg font-medium mb-2">Change audio track</p>
-                        <p className="text-white/60 text-sm mb-6">WAV format, up to 12 minutes</p>
-                    </div>
-                      
-                      {/* Shimmer effect on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer opacity-0 group-hover:opacity-100" />
-                    </motion.label>
-                  )}
-
-                  {/* Track name input and Artist name */}
-                  <div className="grid grid-cols-1 gap-4 mt-6">
-                    <div>
-                  <input
-                        type="text"
-                        id="trackname"
-                        value={trackname}
-                        onChange={(e) => setTrackname(e.target.value)}
-                        placeholder="Track name"
-                        className="w-full px-4 py-3 rounded-xl bg-[#2A184B]/50 border border-[#20DDBB]/10
-                                text-white placeholder-white/40 outline-none
-                                focus:border-[#20DDBB]/30 focus:ring-1 focus:ring-[#20DDBB]/20 transition-all"
-                      />
-                    </div>
-                </div>
+                <div className={`sticky top-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 bg-[#2A184B]/95 backdrop-blur-md z-[999999] ${isMobile ? 'mt-3' : ''}`}>
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
+                    Edit Track
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleClose}
+                    className="p-2 text-white/60 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                    disabled={isProcessing}
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </motion.button>
                 </div>
 
-                {/* Right column - Image upload and genre selection */}
-                    <div className="space-y-6">
-                  <ImageUploader
-                    fileImage={fileImage}
-                    imagePreview={imagePreview}
-                    handleImageChange={handleImageChange}
-                    clearImage={clearImage}
-                  />
+                <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-[#20DDBB]/20 scrollbar-track-transparent" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                  <div className="p-4 sm:p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+                      {/* Left column - Audio upload and player */}
+                      <div className="space-y-4 sm:space-y-6">
+                        {fileAudio ? (
+                          <div className="w-full rounded-xl sm:rounded-2xl 
+                                        bg-gradient-to-br from-[#2A184B] to-[#1f1239]
+                                        border border-white/5 shadow-lg
+                                        flex flex-col justify-end overflow-hidden
+                                        aspect-square">
+                              <AudioPlayer
+                                fileAudio={fileAudio}
+                                trackname={trackname}
+                                isAudioPlaying={isAudioPlaying}
+                                audioProgress={audioProgress}
+                                audioDuration={audioDuration}
+                                audioElement={audioElement.current}
+                                handleAudioPlay={handleAudioPlay}
+                                handleProgressBarClick={handleProgressBarClick}
+                                clearAudio={clearAudio}
+                              />
+                            </div>
+                          ) : (
+                            <motion.label 
+                              className="w-full aspect-square rounded-xl sm:rounded-2xl
+                                        bg-gradient-to-br from-[#2A184B] to-[#1f1239]
+                                        border border-white/10 shadow-lg
+                                        flex flex-col items-center justify-center
+                                        cursor-pointer transition-all duration-300
+                                        hover:bg-white/5 relative overflow-hidden group"
+                              whileHover={{ boxShadow: "0 0 25px rgba(32,221,187,0.15)" }}
+                            >
+                              <input
+                                type="file"
+                                onChange={handleAudioChange}
+                                accept="audio/wav"
+                                className="hidden"
+                              />
+                              
+                              {/* Animated background elements */}
+                              <div className="absolute inset-0 opacity-20">
+                                <motion.div 
+                                  className="absolute h-60 w-60 rounded-full bg-gradient-to-r from-[#20DDBB]/40 to-[#018CFD]/40 blur-2xl"
+                                  animate={{ 
+                                    x: ['-50%', '150%'],
+                                    y: ['-50%', '150%'],
+                                  }} 
+                                  transition={{ 
+                                    duration: 15,
+                                    repeat: Infinity,
+                                    repeatType: 'reverse'
+                                  }}
+                                />
+                              </div>
+                              
+                              <div className="text-center p-4 sm:p-6 z-10">
+                                <motion.div 
+                                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#018CFD]/20 
+                                            flex items-center justify-center mx-auto mb-4 sm:mb-6"
+                                  whileHover={{ scale: 1.1, backgroundColor: 'rgba(32,221,187,0.3)' }}
+                                >
+                                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                  </svg>
+                                </motion.div>
+                                <p className="text-[#20DDBB] text-base sm:text-lg font-medium mb-1 sm:mb-2">Change audio track</p>
+                                <p className="text-white/60 text-xs sm:text-sm mb-4 sm:mb-6">WAV format, up to 12 minutes</p>
+                            </div>
+                              
+                              {/* Shimmer effect on hover */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer opacity-0 group-hover:opacity-100" />
+                            </motion.label>
+                          )}
 
-                  {/* GenreSelector without any title */}
-                  <GenreSelector
-                    genre={genre}
-                    setGenre={setGenre}
-                  />
+                          {/* Track name input and Artist name */}
+                          <div className="grid grid-cols-1 gap-4 mt-4 sm:mt-6">
+                            <div>
+                          <input
+                                type="text"
+                                id="trackname"
+                                value={trackname}
+                                onChange={(e) => setTrackname(e.target.value)}
+                                placeholder="Track name"
+                                className="w-full px-4 py-3 rounded-xl bg-[#2A184B]/50 border border-[#20DDBB]/10
+                                        text-white placeholder-white/40 outline-none
+                                        focus:border-[#20DDBB]/30 focus:ring-1 focus:ring-[#20DDBB]/20 transition-all"
+                              />
+                            </div>
                         </div>
-                    </div>
+                      </div>
 
-              {/* Update button */}
-              <div className="mt-12 flex justify-end">
-                <div className="flex space-x-4">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={onClose}
-                className="px-6 py-3 rounded-xl text-white hover:bg-white/10 transition-colors"
-                disabled={isProcessing}
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </motion.button>
-              <motion.button
+                      {/* Right column - Image upload and genre selection */}
+                          <div className="space-y-4 sm:space-y-6">
+                        <ImageUploader
+                          fileImage={fileImage}
+                          imagePreview={imagePreview}
+                          handleImageChange={handleImageChange}
+                          clearImage={clearImage}
+                        />
+
+                        {/* GenreSelector without any title */}
+                        <GenreSelector
+                          genre={genre}
+                          setGenre={setGenre}
+                        />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Fixed bottom action bar with buttons */}
+              <div className="sticky bottom-0 left-0 right-0 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#2A184B]/95 to-[#1f1239]/95 backdrop-blur-md border-t border-white/10 shadow-lg shadow-[#20DDBB]/5 flex justify-end z-[999999]">
+                <div className="flex space-x-3 sm:space-x-4">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleClose}
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-white bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-2"
+                    disabled={isProcessing}
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span className="text-sm sm:text-base">Cancel</span>
+                  </motion.button>
+                  <motion.button
                     onClick={isProcessing ? handleCancelUpload : handleSubmit}
                     disabled={(!trackname || !genre) && !isProcessing}
-                    className={`px-10 py-4 rounded-xl font-medium text-lg
-                            transition-all duration-300 transform
+                    className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-medium text-sm sm:text-base
+                            transition-all duration-300 transform flex items-center gap-2 shadow-lg
                             ${(!trackname || !genre) && !isProcessing
                                 ? 'bg-white/5 text-white/40 cursor-not-allowed'
                                 : isProcessing 
                                   ? 'bg-gradient-to-r from-[#0047AB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#018CFD]/20'
                                   : 'bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-[#20DDBB]/20'
                             }`}
+                    animate={trackname && genre && !isProcessing ? {
+                      boxShadow: ['0 0 0 rgba(32,221,187,0.3)', '0 0 15px rgba(32,221,187,0.6)', '0 0 0 rgba(32,221,187,0.3)'],
+                    } : undefined}
+                    transition={{
+                      boxShadow: {
+                        duration: 2,
+                        repeat: trackname && genre && !isProcessing ? Infinity : 0,
+                        repeatType: 'loop'
+                      },
+                      scale: {
+                        type: 'spring',
+                        damping: 25,
+                        stiffness: 300
+                      }
+                    }}
                   >
-                    {isProcessing ? 'Cancel Update' : 'Update Track'}
-              </motion.button>
+                    {isProcessing ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Cancel Update</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
-            </div>
 
                 {/* Processing indicator overlay */}
                 <AnimatePresence>
@@ -854,7 +950,7 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
       <AnimatePresence>
         {showSuccessModal && updatedTrackDetails && (
           <motion.div
-            className="fixed inset-0 z-60 flex items-center justify-center bg-black/80"
+            className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -877,10 +973,7 @@ const EditTrackPopup = ({ postData, isOpen, onClose, onUpdate }: EditTrackPopupP
               
               <div className="flex justify-center">
                 <button
-                  onClick={() => {
-                    setShowSuccessModal(false);
-                    router.refresh(); // Refresh the page to see the updated track
-                  }}
+                  onClick={handleSuccessModalClose}
                   className="px-6 py-3 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow"
                 >
                   Refresh to update release

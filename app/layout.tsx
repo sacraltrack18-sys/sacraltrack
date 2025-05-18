@@ -1,6 +1,7 @@
 import UserProvider from './context/user';
 import AllOverlays from "@/app/components/AllOverlays";
 import disableConsoleLogs from '@/app/utils/disableConsoleLog';
+import { EditProvider } from './context/editContext';
 
 // Disable console logs throughout the application
 if (typeof window !== 'undefined') {
@@ -132,43 +133,45 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <UserProvider>
                         <OnboardingProvider>
                             <ShareVibeProvider appName="Sacral Track">
-                                <AuthErrorHandler>
-                                    <Toaster
-                                        position="top-center"
-                                        containerStyle={{
-                                            zIndex: 10000000
-                                        }}
-                                        toastOptions={{
-                                            duration: 3000,
-                                            style: {
-                                                background: '#272B43',
-                                                color: '#fff',
+                                <EditProvider>
+                                    <AuthErrorHandler>
+                                        <Toaster
+                                            position="top-center"
+                                            containerStyle={{
                                                 zIndex: 10000000
-                                            },
-                                            // Custom success/error styles
-                                            success: {
-                                                iconTheme: {
-                                                    primary: '#8B5CF6',
-                                                    secondary: '#FFFAEE',
+                                            }}
+                                            toastOptions={{
+                                                duration: 3000,
+                                                style: {
+                                                    background: '#272B43',
+                                                    color: '#fff',
+                                                    zIndex: 10000000
                                                 },
-                                            },
-                                            error: {
-                                                iconTheme: {
-                                                    primary: '#EF4444',
-                                                    secondary: '#FFFAEE',
+                                                // Custom success/error styles
+                                                success: {
+                                                    iconTheme: {
+                                                        primary: '#8B5CF6',
+                                                        secondary: '#FFFAEE',
+                                                    },
                                                 },
-                                            },
-                                        }}
-                                    />
-                                    <AllOverlays />
-                                    {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
-                                    {typeof window !== 'undefined' && (
-                                      <div suppressHydrationWarning>
-                                        <ClientWelcomeModal />
-                                      </div>
-                                    )}
-                                    {children}
-                                </AuthErrorHandler>
+                                                error: {
+                                                    iconTheme: {
+                                                        primary: '#EF4444',
+                                                        secondary: '#FFFAEE',
+                                                    },
+                                                },
+                                            }}
+                                        />
+                                        <AllOverlays />
+                                        {/* CALL Оборачиваем ClientWelcomeModal в client-only обертку с error boundary */}
+                                        {typeof window !== 'undefined' && (
+                                          <div suppressHydrationWarning>
+                                            <ClientWelcomeModal />
+                                          </div>
+                                        )}
+                                        {children}
+                                    </AuthErrorHandler>
+                                </EditProvider>
                             </ShareVibeProvider>
                         </OnboardingProvider>
                     </UserProvider>
