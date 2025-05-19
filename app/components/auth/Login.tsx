@@ -58,7 +58,13 @@ export default function Login() {
             const isMobileSafari = /iPhone|iPad|iPod/.test(userAgent) && /AppleWebKit/.test(userAgent) && !userAgent.includes('CriOS');
             const isMobileFirefox = /Android/.test(userAgent) && /Firefox/.test(userAgent);
             const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
-            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && /AppleWebKit/.test(userAgent);
+            
+            // More accurate Safari detection
+            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && 
+                                    /AppleWebKit/.test(userAgent) &&
+                                    !userAgent.includes('Chrome') &&
+                                    !userAgent.includes('Chromium');
+                                    
             const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             const needsEnhancedAuth = isIOS || isMobileSafari || isMobileFirefox || isDesktopSafari; // Apply enhanced flow to these browsers

@@ -170,10 +170,61 @@ export default function GoogleAuthSuccess() {
                         await new Promise(resolve => setTimeout(resolve, 1500));
                     }
                     
-                    const currentSession = await account.getSession('current');
-                    if (currentSession) {
-                        sessionValid = true;
-                        console.log('Valid session found:', currentSession.$id);
+                    // Add special Safari handling with additional delay
+                    if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
+                        console.log('Safari browser detected, adding extended delay for cookie processing');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                    
+                    let currentSession;
+                    try {
+                        currentSession = await account.getSession('current');
+                        if (currentSession) {
+                            sessionValid = true;
+                            console.log('Valid session found:', currentSession.$id);
+                        }
+                    } catch (getSessionError) {
+                        console.log('Initial session check failed:', getSessionError);
+                        
+                        // For Safari browsers, try an alternative approach by getting account first
+                        if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
+                            try {
+                                console.log('Safari detected, trying alternative account approach first');
+                                const accountData = await account.get();
+                                if (accountData && accountData.$id) {
+                                    console.log('Account found for Safari:', accountData.$id);
+                                    sessionValid = true;
+                                    
+                                    // Since we found an account, let's try to create a fresh session if needed
+                                    try {
+                                        // Try to recreate a session just to ensure it's valid
+                                        const currentSessions = await account.listSessions();
+                                        if (currentSessions.total === 0) {
+                                            console.log('No sessions found for Safari, although account exists');
+                                        } else {
+                                            console.log('Sessions found for Safari:', currentSessions.total);
+                                            currentSession = currentSessions.sessions[0];
+                                        }
+                                    } catch (sessionsError) {
+                                        console.log('Error listing sessions:', sessionsError);
+                                    }
+                                }
+                            } catch (accountError) {
+                                console.log('Safari account approach failed:', accountError);
+                            }
+                        }
+                    }
+                    
+                    // If we still don't have a valid session and we're using Safari, try a workaround
+                    if (!sessionValid && browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
+                        console.log('Session still not valid for Safari, attempting advanced workaround');
+                        
+                        // For Safari, we'll consider a special fallback where we proceed even without
+                        // direct verification of the session if we're on retry 2 or higher
+                        if (retryCount >= 2) {
+                            console.log('Safari special fallback: proceeding with authentication attempt regardless of session');
+                            sessionValid = true; // Force session valid to proceed with user check
+                        }
                     }
                 } catch (sessionError) {
                     console.log('Session verification attempt:', retryCount + 1);
@@ -212,6 +263,12 @@ export default function GoogleAuthSuccess() {
                     // Use a longer delay for mobile browsers
                     const userCheckDelay = isMobileRef.current ? 1500 : 500;
                     await new Promise(resolve => setTimeout(resolve, userCheckDelay));
+                    
+                    // Special Safari handling for user data retrieval
+                    if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) && retryCount >= 1) {
+                        console.log('Using extended delay for Safari user retrieval');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
                     
                     const userData = await userContext.checkUser();
                     
@@ -291,6 +348,26 @@ export default function GoogleAuthSuccess() {
             } catch (error) {
                 console.error('Error updating user state after Google OAuth:', error);
                 
+                // For Safari, we might need to try a more direct approach as a last resort
+                if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) && retryCount >= maxRetries - 1) {
+                    console.log('Safari final attempt: trying direct redirect to homepage');
+                    try {
+                        // Save a flag indicating authentication was attempted but might not be complete
+                        if (typeof window !== 'undefined') {
+                            localStorage.setItem('safariAuthAttempted', 'true');
+                            localStorage.setItem('safariAuthTimestamp', Date.now().toString());
+                        }
+                        
+                        // Redirect to homepage - the user might actually be authenticated but we can't verify
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                        return;
+                    } catch (directError) {
+                        console.error('Safari direct redirect failed:', directError);
+                    }
+                }
+                
                 // If we still have retries left, try again silently without showing error
                 if (retryCount < maxRetries) {
                     setRetryCount(prev => prev + 1);
@@ -306,16 +383,43 @@ export default function GoogleAuthSuccess() {
                     
                     toast.dismiss();
                     
-                    toastIdRef.current = toast.error('Authentication error, please try again', {
+                    // Customize error message for Safari
+                    const errorMessage = browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)
+                        ? 'Safari authentication error. Try using Chrome or Firefox instead.'
+                        : 'Authentication error, please try again';
+                    
+                    toastIdRef.current = toast.error(errorMessage, {
                         id: 'auth-error-catch',
                         duration: 5000,
                     });
+                    
+                    // For Safari, show additional help toast
+                    if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
+                        setTimeout(() => {
+                            toast((t) => (
+                                <div className="flex flex-col gap-2">
+                                    <span>Safari has stricter cookie settings that may affect login.</span>
+                                    <button
+                                        onClick={() => {
+                                            window.location.href = '/';
+                                            toast.dismiss(t.id);
+                                        }}
+                                        className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            ), {
+                                duration: 8000,
+                                style: {
+                                    background: '#272B43',
+                                    color: '#fff',
+                                    borderLeft: '4px solid #20DDBB'
+                                }
+                            });
+                        }, 1000);
+                    }
                 }
-                
-                // Still redirect even if there's an error
-                redirectTimeoutRef.current = setTimeout(() => {
-                    router.push('/');
-                }, 3000);
             }
         };
         
