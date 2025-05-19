@@ -128,23 +128,40 @@ export default function Login() {
 
             // Special handling for mobile browsers that need enhanced auth
             if (needsEnhancedAuth) {
-                console.log('Mobile browser detected, using enhanced OAuth flow');
+                console.log('Browser requiring enhanced auth detected, using direct OAuth flow');
                 
-                // Use a more reliable direct URL approach for mobile browsers
+                // Use a more reliable direct URL approach for problematic browsers
                 try {
-                    // Construct the OAuth URL manually
+                    // Construct the OAuth URL manually with specific parameters for better cookie handling
                     const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
                     const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
                     
+                    // Force the session cookie to be set with SameSite=None and Secure
+                    // This helps with cross-site cookies in Safari and Firefox
+                    const cookieParams = 'cookieSameSite=none&cookieSecure=true';
+                    
+                    // Add browser-specific parameters
+                    const browserParams = isDesktopSafari || isMobileSafari ? 
+                                          '&forceRedirect=true&useQueryForSuccessUrl=true' : '';
+                    
+                    // Construct full OAuth URL with all parameters
                     const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
                                     `project=${projectId}&` +
                                     `success=${encodeURIComponent(successUrl)}&` +
-                                    `failure=${encodeURIComponent(failureUrl)}`;
+                                    `failure=${encodeURIComponent(failureUrl)}&` +
+                                    `${cookieParams}${browserParams}`;
+                    
+                    console.log('Using enhanced OAuth URL with explicit cookie parameters');
+                    
+                    // For Safari, clear any existing cookies that might interfere
+                    if (isDesktopSafari || isMobileSafari) {
+                        console.log('Safari browser detected, applying additional fixes');
+                        localStorage.setItem('authRedirectAttempt', Date.now().toString());
+                    }
                     
                     // Navigate directly to the OAuth URL
                     window.location.href = oauthUrl;
                     
-                    // No need for the appwrite call on these browsers since we're using direct URL navigation
                 } catch (error) {
                     console.error('Error starting OAuth session on mobile browser:', error);
                     toast.error('Failed to start authentication. Please try again.');

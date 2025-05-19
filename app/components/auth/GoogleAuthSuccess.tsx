@@ -174,14 +174,40 @@ export default function GoogleAuthSuccess() {
                     if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
                         console.log('Safari browser detected, adding extended delay for cookie processing');
                         await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // For Safari, check if we have a redirect attempt in localStorage
+                        const authRedirectAttempt = localStorage.getItem('authRedirectAttempt');
+                        if (authRedirectAttempt) {
+                            console.log('Safari auth redirect attempt found from:', new Date(parseInt(authRedirectAttempt)));
+                            localStorage.removeItem('authRedirectAttempt'); // Clear it after using
+                        }
                     }
                     
                     let currentSession;
                     try {
-                        currentSession = await account.getSession('current');
-                        if (currentSession) {
-                            sessionValid = true;
-                            console.log('Valid session found:', currentSession.$id);
+                        // For Firefox specifically, add additional parameters to getSession call
+                        if (browserInfo && browserInfo.isMobileFirefox) {
+                            console.log('Firefox browser detected, using alternative session approach');
+                            
+                            // Try to get account info first since Firefox might have issues with session cookies
+                            try {
+                                const accountData = await account.get();
+                                if (accountData && accountData.$id) {
+                                    console.log('Account found for Firefox via account.get():', accountData.$id);
+                                    sessionValid = true;
+                                }
+                            } catch (accountError) {
+                                console.log('Firefox account get failed, trying session:', accountError);
+                            }
+                        }
+                        
+                        // Always try the standard session approach as a backup
+                        if (!sessionValid) {
+                            currentSession = await account.getSession('current');
+                            if (currentSession) {
+                                sessionValid = true;
+                                console.log('Valid session found:', currentSession.$id);
+                            }
                         }
                     } catch (getSessionError) {
                         console.log('Initial session check failed:', getSessionError);
@@ -350,21 +376,44 @@ export default function GoogleAuthSuccess() {
                 
                 // For Safari, we might need to try a more direct approach as a last resort
                 if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) && retryCount >= maxRetries - 1) {
-                    console.log('Safari final attempt: trying direct redirect to homepage');
+                    console.log('Safari final attempt: trying direct approach');
                     try {
-                        // Save a flag indicating authentication was attempted but might not be complete
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem('safariAuthAttempted', 'true');
-                            localStorage.setItem('safariAuthTimestamp', Date.now().toString());
-                        }
+                        // Try a direct API call to verify authentication
+                        const fallbackResponse = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_URL}/account`, {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Appwrite-Project': process.env.NEXT_PUBLIC_ENDPOINT || '',
+                            }
+                        });
                         
-                        // Redirect to homepage - the user might actually be authenticated but we can't verify
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 2000);
-                        return;
+                        if (fallbackResponse.ok) {
+                            const accountData = await fallbackResponse.json();
+                            console.log('Safari fallback API call succeeded:', accountData);
+                            
+                            // If we got a successful response, we're likely authenticated
+                            // Save a flag indicating authentication was successful
+                            if (typeof window !== 'undefined') {
+                                localStorage.setItem('safariAuthSuccessful', 'true');
+                                localStorage.setItem('safariAuthTimestamp', Date.now().toString());
+                            }
+                            
+                            // Try to refresh the page as a last resort - this sometimes helps with Safari
+                            toast.success('Almost there! Finalizing your login...', {
+                                duration: 2000
+                            });
+                            
+                            // Redirect to homepage with a special parameter
+                            setTimeout(() => {
+                                window.location.href = '/?auth=safari-success';
+                            }, 1500);
+                            return;
+                        } else {
+                            console.error('Safari fallback API call failed');
+                        }
                     } catch (directError) {
-                        console.error('Safari direct redirect failed:', directError);
+                        console.error('Safari direct API call failed:', directError);
                     }
                 }
                 
