@@ -790,7 +790,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                     <span className="truncate max-w-[120px] sm:max-w-none">Release • {formatReleaseDate(post?.created_at)}</span>
                   </div>
                   <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm text-white/80 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs">
-                    <span>Street music</span>
+                    <span>{post?.genre || 'Unknown genre'}</span>
                   </div>
                 </motion.div>
 
