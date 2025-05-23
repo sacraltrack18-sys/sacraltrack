@@ -75,6 +75,8 @@ export default function GoogleAuthSuccess() {
     const attemptLimitReached = useRef<boolean>(false);
     const [browserInfo, setBrowserInfo] = useState<any>(null);
     const isMobileRef = useRef<boolean>(false);
+    const [isFirefox, setIsFirefox] = useState(false);
+    const [isPrivate, setIsPrivate] = useState(false);
 
     useEffect(() => {
         toast.dismiss();
@@ -89,11 +91,11 @@ export default function GoogleAuthSuccess() {
                     
                     // Check if this is a mobile browser that needs special handling
                     isMobileRef.current = parsedInfo.isIOS || parsedInfo.isMobileSafari || parsedInfo.isMobileFirefox || parsedInfo.isDesktopSafari;
-                    console.log('Retrieved browser info:', parsedInfo);
-                    console.log('Is browser requiring special handling:', isMobileRef.current);
+                    console.log('[GoogleAuthSuccess] Retrieved browser info:', parsedInfo);
+                    console.log('[GoogleAuthSuccess] Is browser requiring special handling:', isMobileRef.current);
                 }
             } catch (error) {
-                console.error('Error parsing stored browser info:', error);
+                console.error('[GoogleAuthSuccess] Error parsing stored browser info:', error);
             }
         }
         
@@ -102,7 +104,7 @@ export default function GoogleAuthSuccess() {
         
         // Check if we've hit the global attempt limit
         if (!trackAuthAttempt()) {
-          console.error('Global authentication attempt limit reached');
+          console.error('[GoogleAuthSuccess] Global authentication attempt limit reached');
           attemptLimitReached.current = true;
           
           toast.error('Too many authentication attempts. Please try again later.', {
@@ -114,6 +116,27 @@ export default function GoogleAuthSuccess() {
           redirectTimeoutRef.current = setTimeout(() => {
             router.push('/');
           }, 3000);
+        }
+        
+        // Detect Firefox
+        if (typeof window !== 'undefined') {
+            const ua = navigator.userAgent.toLowerCase();
+            setIsFirefox(ua.includes('firefox'));
+            // Try to detect Private Browsing (best effort)
+            if ((window as any).mozInnerScreenX !== undefined) {
+                // Firefox-specific API
+                try {
+                    window.indexedDB.open('test').onerror = function(e: any) {
+                        setIsPrivate(true);
+                    };
+                } catch {
+                    setIsPrivate(true);
+                }
+            }
+            // Log cookies for diagnostics
+            setTimeout(() => {
+                console.log('[GoogleAuthSuccess] document.cookie:', document.cookie);
+            }, 1000);
         }
         
         return () => {
@@ -160,25 +183,25 @@ export default function GoogleAuthSuccess() {
                         const baseDelay = Math.min(1000 * Math.pow(1.5, retryCount), 5000);
                         const jitter = Math.random() * 500; // Add up to 500ms of random jitter
                         const delay = baseDelay + jitter;
-                        console.log(`Retry attempt ${retryCount}: Waiting ${delay.toFixed(0)}ms before checking`);
+                        console.log(`[GoogleAuthSuccess] Retry attempt ${retryCount}: Waiting ${delay.toFixed(0)}ms before checking`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                     }
                     
                     // For mobile browsers, add additional delay to ensure cookies are properly set
                     if (isMobileRef.current && retryCount === 0) {
-                        console.log('Mobile browser detected, adding additional initial delay');
+                        console.log('[GoogleAuthSuccess] Mobile browser detected, adding additional initial delay');
                         await new Promise(resolve => setTimeout(resolve, 1500));
                     }
                     
                     // Add special Safari handling with additional delay
                     if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
-                        console.log('Safari browser detected, adding extended delay for cookie processing');
+                        console.log('[GoogleAuthSuccess] Safari browser detected, adding extended delay for cookie processing');
                         await new Promise(resolve => setTimeout(resolve, 2000));
                         
                         // For Safari, check if we have a redirect attempt in localStorage
                         const authRedirectAttempt = localStorage.getItem('authRedirectAttempt');
                         if (authRedirectAttempt) {
-                            console.log('Safari auth redirect attempt found from:', new Date(parseInt(authRedirectAttempt)));
+                            console.log('[GoogleAuthSuccess] Safari auth redirect attempt found from:', new Date(parseInt(authRedirectAttempt)));
                             localStorage.removeItem('authRedirectAttempt'); // Clear it after using
                         }
                     }
@@ -187,17 +210,17 @@ export default function GoogleAuthSuccess() {
                     try {
                         // For Firefox specifically, add additional parameters to getSession call
                         if (browserInfo && browserInfo.isMobileFirefox) {
-                            console.log('Firefox browser detected, using alternative session approach');
+                            console.log('[GoogleAuthSuccess] Firefox browser detected, using alternative session approach');
                             
                             // Try to get account info first since Firefox might have issues with session cookies
                             try {
                                 const accountData = await account.get();
                                 if (accountData && accountData.$id) {
-                                    console.log('Account found for Firefox via account.get():', accountData.$id);
+                                    console.log('[GoogleAuthSuccess] Account found for Firefox via account.get():', accountData.$id);
                                     sessionValid = true;
                                 }
                             } catch (accountError) {
-                                console.log('Firefox account get failed, trying session:', accountError);
+                                console.log('[GoogleAuthSuccess] Firefox account get failed, trying session:', accountError);
                             }
                         }
                         
@@ -206,19 +229,19 @@ export default function GoogleAuthSuccess() {
                             currentSession = await account.getSession('current');
                             if (currentSession) {
                                 sessionValid = true;
-                                console.log('Valid session found:', currentSession.$id);
+                                console.log('[GoogleAuthSuccess] Valid session found:', currentSession.$id);
                             }
                         }
                     } catch (getSessionError) {
-                        console.log('Initial session check failed:', getSessionError);
+                        console.log('[GoogleAuthSuccess] Initial session check failed:', getSessionError);
                         
                         // For Safari browsers, try an alternative approach by getting account first
                         if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
                             try {
-                                console.log('Safari detected, trying alternative account approach first');
+                                console.log('[GoogleAuthSuccess] Safari detected, trying alternative account approach first');
                                 const accountData = await account.get();
                                 if (accountData && accountData.$id) {
-                                    console.log('Account found for Safari:', accountData.$id);
+                                    console.log('[GoogleAuthSuccess] Account found for Safari:', accountData.$id);
                                     sessionValid = true;
                                     
                                     // Since we found an account, let's try to create a fresh session if needed
@@ -226,48 +249,48 @@ export default function GoogleAuthSuccess() {
                                         // Try to recreate a session just to ensure it's valid
                                         const currentSessions = await account.listSessions();
                                         if (currentSessions.total === 0) {
-                                            console.log('No sessions found for Safari, although account exists');
+                                            console.log('[GoogleAuthSuccess] No sessions found for Safari, although account exists');
                                         } else {
-                                            console.log('Sessions found for Safari:', currentSessions.total);
+                                            console.log('[GoogleAuthSuccess] Sessions found for Safari:', currentSessions.total);
                                             currentSession = currentSessions.sessions[0];
                                         }
                                     } catch (sessionsError) {
-                                        console.log('Error listing sessions:', sessionsError);
+                                        console.log('[GoogleAuthSuccess] Error listing sessions:', sessionsError);
                                     }
                                 }
                             } catch (accountError) {
-                                console.log('Safari account approach failed:', accountError);
+                                console.log('[GoogleAuthSuccess] Safari account approach failed:', accountError);
                             }
                         }
                     }
                     
                     // If we still don't have a valid session and we're using Safari, try a workaround
                     if (!sessionValid && browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari)) {
-                        console.log('Session still not valid for Safari, attempting advanced workaround');
+                        console.log('[GoogleAuthSuccess] Session still not valid for Safari, attempting advanced workaround');
                         
                         // For Safari, we'll consider a special fallback where we proceed even without
                         // direct verification of the session if we're on retry 2 or higher
                         if (retryCount >= 2) {
-                            console.log('Safari special fallback: proceeding with authentication attempt regardless of session');
+                            console.log('[GoogleAuthSuccess] Safari special fallback: proceeding with authentication attempt regardless of session');
                             sessionValid = true; // Force session valid to proceed with user check
                         }
                     }
                 } catch (sessionError) {
-                    console.log('Session verification attempt:', retryCount + 1);
-                    console.log('Session error:', sessionError);
+                    console.log('[GoogleAuthSuccess] Session verification attempt:', retryCount + 1);
+                    console.log('[GoogleAuthSuccess] Session error:', sessionError);
                     
                     // For mobile browsers, try alternative approach to get session if needed
                     if (isMobileRef.current && retryCount >= 1) {
                         try {
-                            console.log('Trying alternative session approach for mobile browser');
+                            console.log('[GoogleAuthSuccess] Trying alternative session approach for mobile browser');
                             // Try getting the current account instead
                             const currentAccount = await account.get();
                             if (currentAccount && currentAccount.$id) {
-                                console.log('Account found through alternative method:', currentAccount.$id);
+                                console.log('[GoogleAuthSuccess] Account found through alternative method:', currentAccount.$id);
                                 sessionValid = true;
                             }
                         } catch (altError) {
-                            console.log('Alternative session check also failed:', altError);
+                            console.log('[GoogleAuthSuccess] Alternative session check also failed:', altError);
                         }
                     }
                     
@@ -283,7 +306,7 @@ export default function GoogleAuthSuccess() {
                 
                 // Check user authentication state using the context
                 if (userContext && userContext.checkUser) {
-                    console.log('Checking user authentication after Google OAuth');
+                    console.log('[GoogleAuthSuccess] Checking user authentication after Google OAuth');
                     
                     // Add a small delay before checking user to ensure session is fully established
                     // Use a longer delay for mobile browsers
@@ -292,7 +315,7 @@ export default function GoogleAuthSuccess() {
                     
                     // Special Safari handling for user data retrieval
                     if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) && retryCount >= 1) {
-                        console.log('Using extended delay for Safari user retrieval');
+                        console.log('[GoogleAuthSuccess] Using extended delay for Safari user retrieval');
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
                     
@@ -300,7 +323,7 @@ export default function GoogleAuthSuccess() {
                     
                     if (userData !== null && userData !== undefined) {
                         const user = userData as User;
-                        console.log('User authenticated successfully:', user);
+                        console.log('[GoogleAuthSuccess] User authenticated successfully:', user);
                         
                         // Reset auth attempts counter on successful login
                         resetAuthAttempts();
@@ -343,7 +366,7 @@ export default function GoogleAuthSuccess() {
                     } else {
                         // If user data is null but session is valid, retry a few times
                         if (sessionValid && retryCount < maxRetries) {
-                            console.log('Session valid but user data not found, retrying...');
+                            console.log('[GoogleAuthSuccess] Session valid but user data not found, retrying...');
                             setRetryCount(prev => prev + 1);
                             setTimeout(updateUserState, 1000);
                             return;
@@ -352,7 +375,7 @@ export default function GoogleAuthSuccess() {
                         throw new Error('Failed to get user data after authentication');
                     }
                 } else {
-                    console.error('User context or checkUser function is unavailable');
+                    console.error('[GoogleAuthSuccess] User context or checkUser function is unavailable');
                     setCheckingAuth(false);
                     
                     if (!errorShownRef.current) {
@@ -372,11 +395,11 @@ export default function GoogleAuthSuccess() {
                     }, 3000);
                 }
             } catch (error) {
-                console.error('Error updating user state after Google OAuth:', error);
+                console.error('[GoogleAuthSuccess] Error updating user state after Google OAuth:', error);
                 
                 // For Safari, we might need to try a more direct approach as a last resort
                 if (browserInfo && (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) && retryCount >= maxRetries - 1) {
-                    console.log('Safari final attempt: trying direct approach');
+                    console.log('[GoogleAuthSuccess] Safari final attempt: trying direct approach');
                     try {
                         // Try a direct API call to verify authentication
                         const fallbackResponse = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_URL}/account`, {
@@ -390,7 +413,7 @@ export default function GoogleAuthSuccess() {
                         
                         if (fallbackResponse.ok) {
                             const accountData = await fallbackResponse.json();
-                            console.log('Safari fallback API call succeeded:', accountData);
+                            console.log('[GoogleAuthSuccess] Safari fallback API call succeeded:', accountData);
                             
                             // If we got a successful response, we're likely authenticated
                             // Save a flag indicating authentication was successful
@@ -410,17 +433,17 @@ export default function GoogleAuthSuccess() {
                             }, 1500);
                             return;
                         } else {
-                            console.error('Safari fallback API call failed');
+                            console.error('[GoogleAuthSuccess] Safari fallback API call failed');
                         }
                     } catch (directError) {
-                        console.error('Safari direct API call failed:', directError);
+                        console.error('[GoogleAuthSuccess] Safari direct API call failed:', directError);
                     }
                 }
                 
                 // If we still have retries left, try again silently without showing error
                 if (retryCount < maxRetries) {
                     setRetryCount(prev => prev + 1);
-                    console.log('Retrying authentication after error...', retryCount + 1, 'of', maxRetries);
+                    console.log('[GoogleAuthSuccess] Retrying authentication after error...', retryCount + 1, 'of', maxRetries);
                     setTimeout(updateUserState, 1000);
                     return;
                 }
@@ -486,6 +509,14 @@ export default function GoogleAuthSuccess() {
         router.push('/');
     };
 
+    const handleTryAgain = () => {
+        clearAllAuthFlags();
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('authBrowserInfo');
+        }
+        router.push('/auth/login');
+    };
+
     return (
         <div className="fixed inset-0 bg-[#1E1F2E] flex items-center justify-center p-4">
             <motion.div
@@ -509,6 +540,18 @@ export default function GoogleAuthSuccess() {
                     />
 
                     <div className="relative bg-[#14151F]/80 rounded-3xl p-8 backdrop-blur-xl border-2 border-[#20DDBB]/20">
+                        {/* Firefox warning */}
+                        {isFirefox && (
+                            <div className="mb-4 p-3 bg-yellow-900/60 border-l-4 border-yellow-400 rounded text-yellow-200 text-sm">
+                                <b>Notice for Firefox users:</b><br/>
+                                Google login may not work in Firefox Private Browsing or with strict privacy settings.<br/>
+                                {isPrivate ? (
+                                    <span><b>It looks like you are in Private Browsing mode.</b><br/>Please try normal mode or use Chrome/Safari for best results.</span>
+                                ) : (
+                                    <span>If you experience issues, try normal mode or another browser.</span>
+                                )}
+                            </div>
+                        )}
                         <motion.div
                             className="flex justify-center mb-6"
                             initial={{ scale: 0 }}
@@ -585,6 +628,22 @@ export default function GoogleAuthSuccess() {
                                     </p>
                                 </div>
                             </motion.div>
+                        )}
+
+                        {errorShownRef.current && !checkingAuth && (
+                            <div className="mt-8 text-center">
+                                <div className="text-red-500 font-bold mb-2">Не удалось завершить вход через Google</div>
+                                <div className="text-[#818BAC] mb-4">
+                                    Мы не смогли подтвердить вашу авторизацию. Это может быть связано с особенностями браузера или настройками cookie.<br/>
+                                    Попробуйте снова или используйте другой браузер.
+                                </div>
+                                <button
+                                    onClick={handleTryAgain}
+                                    className="py-2 px-6 bg-gradient-to-r from-[#20DDBB] to-[#8A2BE2] rounded-xl text-white font-medium hover:opacity-90 transition-opacity"
+                                >
+                                    Попробовать снова
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

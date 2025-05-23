@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
 import { toast } from "react-hot-toast";
 import { clearUserCache } from '@/app/utils/cacheUtils';
+import { detectBrowser, needsEnhancedAuth, buildGoogleOAuthUrl } from './googleOAuthUtils';
+import { clearAllAuthFlags } from '@/app/utils/authCleanup';
 
 const backgroundAnimation = {
     initial: { backgroundPosition: "0% 50%" },
@@ -66,96 +68,41 @@ export default function Register() {
     }
 
     const handleGoogleRegister = async () => {
-        // Prevent multiple click attempts
         if (loading) return;
-        
         try {
             setLoading(true);
-            
-            // Enhanced mobile browser detection
-            const userAgent = navigator.userAgent;
-            const isMobileSafari = /iPhone|iPad|iPod/.test(userAgent) && /AppleWebKit/.test(userAgent) && !userAgent.includes('CriOS');
-            const isMobileFirefox = /Android/.test(userAgent) && /Firefox/.test(userAgent);
-            const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
-            
-            // More accurate Safari detection
-            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && 
-                                    /AppleWebKit/.test(userAgent) &&
-                                    !userAgent.includes('Chrome') &&
-                                    !userAgent.includes('Chromium');
-                                    
-            const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
-                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            const needsEnhancedAuth = isIOS || isMobileSafari || isMobileFirefox || isDesktopSafari; // Apply enhanced flow to these browsers
-            
-            // Check for existing Google auth in progress and clear it if it exists
+            const browserInfo = detectBrowser();
+            const enhanced = needsEnhancedAuth(browserInfo);
             if (typeof window !== 'undefined') {
-                // If there's a stale flag, clear it first
-                if (sessionStorage.getItem('googleAuthInProgress')) {
-                    console.log('Clearing existing googleAuthInProgress flag');
-                    sessionStorage.removeItem('googleAuthInProgress');
-                    // Brief pause to ensure browser state is updated
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                
-                // Set a new flag
+                clearAllAuthFlags();
                 sessionStorage.setItem('googleAuthInProgress', 'true');
-                
-                // Set an expiration timestamp - to prevent stale state
-                const expiryTime = Date.now() + (5 * 60 * 1000); // 5 minutes
+                const expiryTime = Date.now() + (5 * 60 * 1000);
                 sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
-                
-                // Store browser information for debugging
-                sessionStorage.setItem('authBrowserInfo', JSON.stringify({
-                    isMobileSafari,
-                    isMobileFirefox,
-                    isMobileChrome,
-                    isDesktopSafari,
-                    isIOS,
-                    userAgent: userAgent.substring(0, 200) // Store partial UA to avoid large storage
-                }));
+                sessionStorage.setItem('authBrowserInfo', JSON.stringify(browserInfo));
+                console.log('[GoogleRegister] Browser info:', browserInfo);
             }
-            
-            // Проверяем наличие необходимых переменных окружения
             if (!process.env.NEXT_PUBLIC_APP_URL) {
                 throw new Error('APP_URL configuration is missing');
             }
-            
             if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
                 throw new Error('APPWRITE_URL configuration is missing');
             }
-
-            // Закрываем форму регистрации перед редиректом
             setIsRegisterOpen(false);
-
-            // Double-check that we're properly clearing any existing session
             try {
-                console.log('Checking for existing session to clean up');
+                console.log('[GoogleRegister] Checking for existing session to clean up');
                 const session = await account.getSession('current');
                 if (session) {
-                    console.log('Found existing session, deleting it');
+                    console.log('[GoogleRegister] Found existing session, deleting it');
                     await account.deleteSession('current');
-                    // Brief pause to ensure session is cleared
                     await new Promise(resolve => setTimeout(resolve, 200));
                 }
             } catch (sessionError) {
-                // If there's no session or we can't access it, that's fine
-                console.log('No existing session found or no access to check');
+                console.log('[GoogleRegister] No existing session found or no access to check');
             }
-
-            // Формируем URL для перенаправления - ensure they're properly encoded
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '');
             const successUrl = encodeURI(`${baseUrl}/auth/google/success`);
             const failureUrl = encodeURI(`${baseUrl}/auth/google/fail`);
-
-            console.log('Starting OAuth2 session with Google');
-            console.log('Success URL:', successUrl);
-            console.log('Failure URL:', failureUrl);
-            
-            // Clear any existing toast notifications
             toast.dismiss();
-            
-            // Show a toast indicating redirection
             toast.success('Redirecting to Google login...', {
                 duration: 3000,
                 style: {
@@ -164,55 +111,27 @@ export default function Register() {
                     borderLeft: '4px solid #20DDBB'
                 }
             });
-            
-            // Add a short delay to ensure toast is displayed before redirect
             await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Special handling for mobile browsers that need enhanced auth
-            if (needsEnhancedAuth) {
-                console.log('Browser requiring enhanced auth detected, using direct OAuth flow for registration');
-                
+            if (enhanced) {
                 try {
-                    // Construct the OAuth URL manually with specific parameters for better cookie handling
                     const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
                     const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
-                    
-                    // Force the session cookie to be set with SameSite=None and Secure
-                    // This helps with cross-site cookies in Safari and Firefox
-                    const cookieParams = 'cookieSameSite=none&cookieSecure=true';
-                    
-                    // Add browser-specific parameters
-                    const browserParams = isDesktopSafari || isMobileSafari ? 
-                                         '&forceRedirect=true&useQueryForSuccessUrl=true' : '';
-                    
-                    // Construct full OAuth URL with all parameters
-                    const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
-                                    `project=${projectId}&` +
-                                    `success=${encodeURIComponent(successUrl)}&` +
-                                    `failure=${encodeURIComponent(failureUrl)}&` +
-                                    `${cookieParams}${browserParams}`;
-                    
-                    console.log('Using enhanced OAuth URL with explicit cookie parameters for registration');
-                    
-                    // For Safari, clear any existing cookies that might interfere
-                    if (isDesktopSafari || isMobileSafari) {
-                        console.log('Safari browser detected, applying additional fixes');
+                    const oauthUrl = buildGoogleOAuthUrl({
+                        appwriteEndpoint,
+                        projectId,
+                        successUrl,
+                        failureUrl,
+                        browserInfo
+                    });
+                    if (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) {
                         localStorage.setItem('authRedirectAttempt', Date.now().toString());
+                        console.log('[GoogleRegister] Safari detected, set authRedirectAttempt');
                     }
-                    
-                    // Navigate directly to the OAuth URL
+                    console.log('[GoogleRegister] Using enhanced OAuth URL:', oauthUrl);
                     window.location.href = oauthUrl;
-                    
                 } catch (error) {
-                    console.error('Error starting OAuth session on mobile browser:', error);
-                    
-                    // Clear the Google auth in progress flag
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('googleAuthInProgress');
-                        sessionStorage.removeItem('googleAuthExpiryTime');
-                        sessionStorage.removeItem('authBrowserInfo');
-                    }
-                    
+                    console.error('[GoogleRegister] Error starting OAuth session on mobile browser:', error);
+                    clearAllAuthFlags();
                     toast.error('Failed to start authentication. Please try again with email registration.', {
                         duration: 5000,
                         style: {
@@ -221,34 +140,20 @@ export default function Register() {
                             borderLeft: '4px solid #EF4444'
                         }
                     });
-                    
                     setLoading(false);
                 }
             } else {
-                // Standard flow for desktop browsers
                 try {
-                    // Создаем OAuth сессию - после этого произойдет редирект
                     await account.createOAuth2Session(
                         'google',
                         successUrl,
                         failureUrl
                     );
-                    
-                    // This code should not execute due to redirect, but keep it as a fallback
-                    console.log('OAuth2 session created, redirect should have occurred');
+                    console.log('[GoogleRegister] OAuth2 session created, redirect should have occurred');
                 } catch (error) {
-                    console.error('Google registration error:', error);
-                    
-                    // Clear the Google auth in progress flag
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('googleAuthInProgress');
-                        sessionStorage.removeItem('googleAuthExpiryTime');
-                        sessionStorage.removeItem('authBrowserInfo');
-                    }
-                    
-                    // More specific error handling
+                    console.error('[GoogleRegister] Google registration error:', error);
+                    clearAllAuthFlags();
                     let errorMessage = 'Failed to start Google authentication. Please try again later.';
-                    
                     if (error.code === 400) {
                         errorMessage = 'Invalid OAuth configuration. Please contact support.';
                     } else if (error.code === 401) {
@@ -260,7 +165,6 @@ export default function Register() {
                     } else if (error.message && error.message.includes('network')) {
                         errorMessage = 'Network error. Please check your internet connection and try again.';
                     }
-                    
                     toast.error(errorMessage, {
                         duration: 5000,
                         style: {
@@ -269,23 +173,13 @@ export default function Register() {
                             borderLeft: '4px solid #EF4444'
                         }
                     });
-                    
                     setLoading(false);
                 }
             }
         } catch (error) {
-            console.error('Google registration error:', error);
-            
-            // Clear the Google auth in progress flag
-            if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('googleAuthInProgress');
-                sessionStorage.removeItem('googleAuthExpiryTime');
-                sessionStorage.removeItem('authBrowserInfo');
-            }
-            
-            // More specific error handling
+            console.error('[GoogleRegister] Google registration error:', error);
+            clearAllAuthFlags();
             let errorMessage = 'Failed to start Google authentication. Please try again later.';
-            
             if (error.code === 400) {
                 errorMessage = 'Invalid OAuth configuration. Please contact support.';
             } else if (error.code === 401) {
@@ -297,7 +191,6 @@ export default function Register() {
             } else if (error.message && error.message.includes('network')) {
                 errorMessage = 'Network error. Please check your internet connection and try again.';
             }
-            
             toast.error(errorMessage, {
                 duration: 5000,
                 style: {
@@ -306,32 +199,9 @@ export default function Register() {
                     borderLeft: '4px solid #EF4444'
                 }
             });
-            
-            // Suggest email registration instead
-            toast((t) => (
-                <div className="flex items-center gap-4">
-                    <span>Try regular email registration instead</span>
-                    <button
-                        onClick={() => {
-                            toast.dismiss(t.id);
-                        }}
-                        className="px-4 py-2 bg-[#20DDBB] rounded-lg text-white hover:bg-[#1CB99A] transition-colors"
-                    >
-                        Continue
-                    </button>
-                </div>
-            ), {
-                duration: 8000,
-                style: {
-                    background: '#272B43',
-                    color: '#fff', 
-                    borderLeft: '4px solid #20DDBB'
-                }
-            });
-            
             setLoading(false);
         }
-    }
+    };
 
     const register = async () => {
         let isError = validate();

@@ -10,6 +10,8 @@ import { BsMusicNoteBeamed } from "react-icons/bs";
 import { motion, AnimatePresence } from "framer-motion";
 import { account } from '@/libs/AppWriteClient';
 import { toast } from "react-hot-toast";
+import { detectBrowser, needsEnhancedAuth, buildGoogleOAuthUrl } from './googleOAuthUtils';
+import { clearAllAuthFlags } from '@/app/utils/authCleanup';
 
 export default function Login() {
     const { setIsLoginOpen, setIsRegisterOpen } = useGeneralStore();
@@ -47,181 +49,84 @@ export default function Login() {
     }
 
     const handleGoogleLogin = async () => {
-        // Prevent multiple click attempts
         if (loading) return;
-        
         try {
             setLoading(true);
-            
-            // Enhanced mobile browser detection
-            const userAgent = navigator.userAgent;
-            const isMobileSafari = /iPhone|iPad|iPod/.test(userAgent) && /AppleWebKit/.test(userAgent) && !userAgent.includes('CriOS');
-            const isMobileFirefox = /Android/.test(userAgent) && /Firefox/.test(userAgent);
-            const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
-            
-            // More accurate Safari detection
-            const isDesktopSafari = /^((?!chrome|android).)*safari/i.test(userAgent) && 
-                                    /AppleWebKit/.test(userAgent) &&
-                                    !userAgent.includes('Chrome') &&
-                                    !userAgent.includes('Chromium');
-                                    
-            const isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
-                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            const needsEnhancedAuth = isIOS || isMobileSafari || isMobileFirefox || isDesktopSafari; // Apply enhanced flow to these browsers
-            
-            // Set a flag in sessionStorage to prevent showing errors during redirect
+            const browserInfo = detectBrowser();
+            const enhanced = needsEnhancedAuth(browserInfo);
             if (typeof window !== 'undefined') {
-                // Clear any existing flags first
-                sessionStorage.removeItem('googleAuthInProgress');
-                sessionStorage.removeItem('googleAuthExpiryTime');
-                
-                // Set fresh flags
+                clearAllAuthFlags();
                 sessionStorage.setItem('googleAuthInProgress', 'true');
-                
-                // Set a timestamp to auto-clear the flag after 5 minutes
                 const expiryTime = Date.now() + (5 * 60 * 1000);
                 sessionStorage.setItem('googleAuthExpiryTime', expiryTime.toString());
-                
-                // Store browser information for debugging
-                sessionStorage.setItem('authBrowserInfo', JSON.stringify({
-                    isMobileSafari,
-                    isMobileFirefox,
-                    isMobileChrome,
-                    isDesktopSafari,
-                    isIOS,
-                    userAgent: userAgent.substring(0, 200) // Store partial UA to avoid large storage
-                }));
+                sessionStorage.setItem('authBrowserInfo', JSON.stringify(browserInfo));
+                console.log('[GoogleLogin] Browser info:', browserInfo);
             }
-            
-            // Use environment variables for URLs or fallback to localhost
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
             const successUrl = `${appUrl}/auth/google/success`;
             const failureUrl = `${appUrl}/fail`;
-
-            // Check if Appwrite endpoint is configured
             if (!process.env.NEXT_PUBLIC_APPWRITE_URL) {
                 toast.error('Authentication service configuration is missing. Please contact support.');
                 throw new Error('Appwrite configuration is missing');
             }
-
-            // Close login form before OAuth redirection
             setIsLoginOpen(false);
-
-            // Check for existing session
             try {
                 const session = await account.getSession('current');
                 if (session) {
-                    console.log('Existing session found, redirecting to homepage');
+                    console.log('[GoogleLogin] Existing session found, redirecting to homepage');
                     window.location.href = '/';
                     return;
                 }
             } catch (sessionError) {
-                // No session exists, proceed with OAuth
-                console.log('No existing session found, proceeding with OAuth');
+                console.log('[GoogleLogin] No existing session found, proceeding with OAuth');
             }
-
-            // Show toast notification that we're redirecting to Google
             toast.loading('Redirecting to Google login...', {
                 id: 'google-redirect',
                 duration: 3000
             });
-
-            // Special handling for mobile browsers that need enhanced auth
-            if (needsEnhancedAuth) {
-                console.log('Browser requiring enhanced auth detected, using direct OAuth flow');
-                
-                // Use a more reliable direct URL approach for problematic browsers
+            if (enhanced) {
                 try {
-                    // Construct the OAuth URL manually with specific parameters for better cookie handling
                     const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_URL || 'https://cloud.appwrite.io/v1';
                     const projectId = process.env.NEXT_PUBLIC_ENDPOINT || '';
-                    
-                    // Force the session cookie to be set with SameSite=None and Secure
-                    // This helps with cross-site cookies in Safari and Firefox
-                    const cookieParams = 'cookieSameSite=none&cookieSecure=true';
-                    
-                    // Add browser-specific parameters
-                    const browserParams = isDesktopSafari || isMobileSafari ? 
-                                          '&forceRedirect=true&useQueryForSuccessUrl=true' : '';
-                    
-                    // Construct full OAuth URL with all parameters
-                    const oauthUrl = `${appwriteEndpoint}/account/sessions/oauth2/google?` + 
-                                    `project=${projectId}&` +
-                                    `success=${encodeURIComponent(successUrl)}&` +
-                                    `failure=${encodeURIComponent(failureUrl)}&` +
-                                    `${cookieParams}${browserParams}`;
-                    
-                    console.log('Using enhanced OAuth URL with explicit cookie parameters');
-                    
-                    // For Safari, clear any existing cookies that might interfere
-                    if (isDesktopSafari || isMobileSafari) {
-                        console.log('Safari browser detected, applying additional fixes');
+                    const oauthUrl = buildGoogleOAuthUrl({
+                        appwriteEndpoint,
+                        projectId,
+                        successUrl,
+                        failureUrl,
+                        browserInfo
+                    });
+                    if (browserInfo.isDesktopSafari || browserInfo.isMobileSafari) {
                         localStorage.setItem('authRedirectAttempt', Date.now().toString());
+                        console.log('[GoogleLogin] Safari detected, set authRedirectAttempt');
                     }
-                    
-                    // Navigate directly to the OAuth URL
+                    console.log('[GoogleLogin] Using enhanced OAuth URL:', oauthUrl);
                     window.location.href = oauthUrl;
-                    
                 } catch (error) {
-                    console.error('Error starting OAuth session on mobile browser:', error);
+                    console.error('[GoogleLogin] Error starting OAuth session on mobile browser:', error);
                     toast.error('Failed to start authentication. Please try again.');
                     setLoading(false);
-                    
-                    // Clear the authentication progress flag
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('googleAuthInProgress');
-                        sessionStorage.removeItem('googleAuthExpiryTime');
-                        sessionStorage.removeItem('authBrowserInfo');
-                    }
+                    clearAllAuthFlags();
                 }
             } else {
-                // Desktop and other browsers use the standard flow
                 try {
-                    // Create OAuth session with Google provider
                     await account.createOAuth2Session(
                         'google',
                         successUrl,
                         failureUrl
                     );
                 } catch (error) {
-                    console.error('Google login error:', error);
+                    console.error('[GoogleLogin] Google login error:', error);
                     toast.error('Failed to start authentication. Please try again.');
                     setLoading(false);
-                    
-                    // Clear the authentication progress flag
-                    if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('googleAuthInProgress');
-                        sessionStorage.removeItem('googleAuthExpiryTime');
-                        sessionStorage.removeItem('authBrowserInfo');
-                    }
+                    clearAllAuthFlags();
                 }
             }
         } catch (error) {
-            console.error('Google login error:', error);
-            
-            // Only show errors if user hasn't been redirected yet
-            if (typeof window !== 'undefined' && !sessionStorage.getItem('googleAuthInProgress')) {
-                toast.dismiss('google-redirect');
-                
-                if (error.code === 400) {
-                    toast.error('Authentication configuration error. Please try again later or contact support.');
-                } else if (error.code === 401) {
-                    toast.error('Authentication error. Please try again.');
-                } else if (error.code === 429) {
-                    toast.error('Too many login attempts. Please wait a few minutes and try again.');
-                } else {
-                    toast.error('Failed to login with Google. Please try again later.');
-                }
-            }
-            
+            console.error('[GoogleLogin] Google login error:', error);
+            toast.dismiss('google-redirect');
+            toast.error('Failed to login with Google. Please try again later.');
             setLoading(false);
-            
-            // Clear the authentication in progress flag if there was an error
-            if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('googleAuthInProgress');
-                sessionStorage.removeItem('googleAuthExpiryTime');
-                sessionStorage.removeItem('authBrowserInfo');
-            }
+            clearAllAuthFlags();
         }
     }
 
