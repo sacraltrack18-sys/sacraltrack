@@ -5,6 +5,7 @@ import Hls from 'hls.js';
 import useCreateBucketUrl from '../hooks/useCreateBucketUrl';
 import { BsFillPlayFill, BsFillPauseFill } from 'react-icons/bs';
 import { motion } from 'framer-motion';
+import toast, { Toaster } from 'react-hot-toast';
 
 interface AudioPlayerProps {
     m3u8Url: string;
@@ -46,6 +47,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const manifestBlobRef = useRef<string | null>(null);
     const lastUpdateRef = useRef<number>(0);
     const isVisibleRef = useRef<boolean>(false);
+    const lastKnownTimeRef = useRef<number>(0); // Ref to store playback position on pause
 
     // Флаг, указывающий, была ли выполнена предзагрузка для текущего URL
     const [isPreloaded, setIsPreloaded] = useState(false);
@@ -148,7 +150,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     
                     return content;
                 } else {
-                    throw new Error('Invalid M3U8 format');
+                    // If fetch fails after retries, show a toast error
+                    errorToast('Could not load audio manifest.');
+                    setError('Could not load audio. Please try again.'); // Keep internal error state for component display
+                    return null;
                 }
             } catch (err) {
                 // Don't retry on AbortError as it was intentional
@@ -158,6 +163,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 }
                 
                 if (attempt === maxRetries - 1) {
+                    console.error('Failed to fetch M3U8 after multiple retries:', err);
+                    errorToast('Could not load audio. Please try again.'); // Show toast after max retries
                     setError('Could not load audio. Please try again.');
                     return null;
                 }
@@ -222,48 +229,28 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }, []);
 
     // Detect iOS devices
-    const isIOS = useCallback(() => {
+    const isIOS = () => {
         return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    }, []);
+    };
 
-    // Special setup for iOS devices
-    useEffect(() => {
+    // Надежный unlock audio для iOS
+    const unlockAudio = () => {
         const audio = audioRef.current;
         if (!audio) return;
-        
-        // iOS Safari requires these settings to work properly
         if (isIOS()) {
-            // Set these properties for better iOS compatibility
-            audio.preload = 'metadata';
-            audio.autoplay = false;
-            
-            // iOS Safari requires these event listeners to enable audio playback
-            const unlockAudio = () => {
-                if (audio.paused) {
-                    // Play and immediately pause to unlock
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            audio.pause();
-                            // Reset the time to ensure clean playback
-                            audio.currentTime = 0;
-                        }).catch(err => {
-                            console.warn('Audio unlock failed:', err);
-                        });
-                    }
+            // Play and immediately pause to unlock
+            if (audio.paused) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(() => {});
                 }
-            };
-            
-            // These events can unlock audio on iOS
-            const events = ['touchstart', 'touchend', 'click'];
-            events.forEach(event => document.body.addEventListener(event, unlockAudio, { once: true }));
-            
-            return () => {
-                events.forEach(event => document.body.removeEventListener(event, unlockAudio));
-            };
+            }
         }
-    }, [isIOS]);
+    };
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -278,9 +265,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         const setupHls = async () => {
             try {
-                if (isCurrentlyLoading) return;
+                if (isCurrentlyLoading) return; // Prevent concurrent setups
                 isCurrentlyLoading = true;
-                
+
                 setIsLoading(true);
                 setLoadProgress(0.1); // Начальный прогресс
                 
@@ -363,14 +350,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                             playPromise.catch(error => {
                                                 if (error.name === 'NotAllowedError') {
                                                     console.warn('Autoplay prevented by browser policy');
+                                                    // On iOS, a failed play attempt due to policy might need a manual retry prompt
                                                 } else {
                                                     console.error('Error playing audio:', error);
+                                                    // If play fails for other reasons, call onPause to sync UI
+                                                    onPause();
                                                 }
                                             });
                                         }
                                     }
                                 } catch (e) {
                                     console.error('Error during play attempt:', e);
+                                    onPause(); // Ensure UI sync on exception
                                 }
                             }
                             
@@ -393,11 +384,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         lowLatencyMode: false, // Отключаем режим низкой задержки для аудио
                         maxBufferSize: 10 * 1000 * 1000, // Увеличиваем размер буфера для аудио (10MB)
                         maxBufferLength: 30, // Увеличиваем длину буфера для предзагрузки большего числа сегментов
-                        liveSyncDurationCount: 3, // Оптимальное значение для аудио
-                        maxMaxBufferLength: 60, // Увеличиваем максимальную длину буфера
-                        fragLoadingTimeOut: 15000, // Таймаут для аудио-фрагментов
-                        manifestLoadingTimeOut: 10000,
-                        levelLoadingTimeOut: 10000,
+                        liveSyncDuration: 15, // Try keeping up to 15 seconds of content loaded ahead
+                        liveMaxLatencyDuration: 20, // Allow up to 20 seconds of latency before seeking
+                        fragLoadingTimeOut: 20000, // Increased from 15s
+                        manifestLoadingTimeOut: 15000, // Increased from 10s
+                        levelLoadingTimeOut: 15000, // Increased from 10s
                         startLevel: -1, // Автоматический выбор качества
                         // Улучшенные настройки для предотвращения прерываний
                         abrEwmaDefaultEstimate: 1000000, // Увеличиваем оценку пропускной способности (1Mbps)
@@ -412,6 +403,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         // Настройки для более плавного переключения между сегментами
                         highBufferWatchdogPeriod: 5, // Сокращаем период проверки высокого буфера
                         nudgeOffset: 0.1, // Небольшое смещение при "подталкивании"
+                        // Дополнительные настройки для стабильности:
+                        maxBufferHysteresis: 2, // Уменьшаем гистерезис буфера для более активной загрузки
+                        maxLoadingDelay: 4, // Максимальная задержка перед загрузкой нового фрагмента
+                        autoStartLoad: true, // Автоматически начинать загрузку сегментов после парсинга манифеста
+                        // Add aggressive ABR settings (even for audio, can influence segment loading)
+                        abrEwmaFetchAndParseFragKbps: 1000, // Estimate fragment load/parse speed
+                        abrBandwidthFactor: 0.8, // Use 80% of estimated bandwidth
+                        abrBandwidthUpFactor: 0.2, // Be more aggressive in increasing bandwidth estimate
                     };
 
                     try {
@@ -452,14 +451,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                                         // Handle autoplay restrictions
                                                         if (error.name === 'NotAllowedError') {
                                                             console.warn('Autoplay prevented by browser policy');
+                                                            // On iOS, a failed play attempt due to policy might need a manual retry prompt
                                                         } else {
                                                             console.error('Error playing audio:', error);
+                                                            // If play fails for other reasons, call onPause to sync UI
+                                                            onPause();
                                                         }
                                                     });
                                                 }
                                             }
                                         } catch (e) {
                                             console.error('Error during play attempt:', e);
+                                            onPause(); // Ensure UI sync on exception
                                         }
                                     }, playDelay);
                                 } else {
@@ -471,14 +474,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                                 playPromise.catch(error => {
                                                     if (error.name === 'NotAllowedError') {
                                                         console.warn('Autoplay prevented by browser policy');
+                                                        // On iOS, a failed play attempt due to policy might need a manual retry prompt
                                                     } else {
                                                         console.error('Error playing audio:', error);
+                                                        // If play fails for other reasons, call onPause to sync UI
+                                                        onPause();
                                                     }
                                                 });
                                             }
                                         }
                                     } catch (e) {
                                         console.error('Error during play attempt:', e);
+                                        onPause(); // Ensure UI sync on exception
                                     }
                                 }
                             }
@@ -490,10 +497,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                 isCurrentlyLoading = false;
                                 setLoadProgress(1.0);
                                 console.warn('Manifest parsing timeout - continuing anyway');
+                                // Even if timeout, try to sync play state if needed
+                                if (isPlaying && audio.paused) { // Check if supposed to be playing
+                                     console.log('Attempting to play after manifest parsing timeout');
+                                     audio.play().catch(e => console.error('Play failed after timeout:', e));
+                                }
                             }
                         }, 5000);
                     } catch (hlsError) {
                         console.error('Error setting up HLS:', hlsError);
+                        errorToast('Failed to initialize audio player.');
                         setError('Failed to initialize audio player.');
                         setIsLoading(false);
                         isCurrentlyLoading = false;
@@ -520,11 +533,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                             if (playPromise !== undefined) {
                                                 playPromise.catch(error => {
                                                     console.error('Error playing audio:', error);
+                                                    // If play fails, ensure the UI state is updated
+                                                    onPause(); // Ensure UI sync on failure
                                                 });
                                             }
                                         }
                                     } catch (e) {
                                         console.error('Error during play attempt:', e);
+                                        onPause(); // Ensure UI sync on exception
                                     }
                                 }, playDelay);
                             } else {
@@ -535,11 +551,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                         if (playPromise !== undefined) {
                                             playPromise.catch(error => {
                                                 console.error('Error playing audio:', error);
+                                                onPause(); // Ensure UI sync on failure
                                             });
                                         }
                                     }
                                 } catch (e) {
                                     console.error('Error during play attempt:', e);
+                                    onPause(); // Ensure UI sync on exception
                                 }
                             }
                         }
@@ -569,6 +587,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             
             // Add more error recovery handlers
             hls.on(Hls.Events.ERROR, function(event, data) {
+                console.error('HLS Error Event:', event, data); // Log detailed HLS error
                 if (data.fatal) {
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
@@ -582,11 +601,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
                             console.warn('HLS media error detected, trying to recover...');
+                            // Attempt recovery for media errors, and explicitly try to load
                             hls.recoverMediaError();
+                            if (hls && !audio.paused && !audio.ended) {
+                                try {
+                                    // Explicitly try to resume load for any media error, especially stalled
+                                    hls.startLoad();
+                                    console.log('startLoad() called in response to fatal MEDIA_ERROR');
+                                } catch (e) {
+                                    console.error('Error calling startLoad() on fatal media error:', e);
+                                }
+                            }
                             break;
                         default:
                             // Cannot recover, so try to destroy and recreate
                             console.error('Fatal HLS error:', data);
+                            errorToast('Fatal audio playback error. Trying to restart.'); // Show toast for fatal errors
                             if (isMounted) {
                                 try {
                                     hls.destroy();
@@ -599,14 +629,28 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                     }, 1000);
                                 } catch (err) {
                                     console.error('Error during HLS recovery:', err);
-                                    setError('Playback error. Please try again.');
+                                    setError('Playback error. Please try again.'); // Set internal error state
                                 }
                             }
                             break;
                     }
                 } else {
-                    // Non-fatal error, just log it
+                    // Non-fatal error, just log it and potentially attempt recovery if it's a stalling issue
                     console.warn('Non-fatal HLS error:', data);
+                    // If it's a non-fatal media error (like stalling), attempt to nudge loading
+                    if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { // Check for any non-fatal media error
+                         console.warn('Non-fatal media error, attempting recovery/loading...');
+                         if (hls && !audio.paused && !audio.ended) {
+                             try {
+                                 hls.startLoad(); // Explicitly try to resume load
+                                 console.log('startLoad() called in response to non-fatal MEDIA_ERROR (likely stalled)'); // More specific log
+                             } catch (e) {
+                                 console.error('Error calling startLoad() on non-fatal media error:', e);
+                             }
+                         }
+                    }
+                    // Optionally show non-fatal errors as less intrusive toasts
+                    // errorToast('Audio warning: ' + (data.details || '');
                 }
             });
 
@@ -629,7 +673,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             });
         };
 
-        setupHls();
+        setupHls(); // Call setupHls when m3u8Url changes
 
         return () => {
             isMounted = false;
@@ -679,8 +723,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
-        
-        // Add a debounce to prevent rapid play/pause calls
+
+        // Use a debounce to prevent rapid play/pause calls
         const playPauseDebounce = setTimeout(() => {
             if (isPlaying) {
                 // Only try to play if the audio is actually paused
@@ -688,20 +732,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     try {
                         // Add an additional check for readiness
                         if (audio.readyState >= 2) {
+                            console.log('Attempting to play from current time...');
+
+                            // Restore time if paused previously, but not on initial play (time is 0)
+                            if (lastKnownTimeRef.current > 0 && audio.currentTime !== lastKnownTimeRef.current) {
+                                console.log(`Restoring playback to: ${lastKnownTimeRef.current}`);
+                                audio.currentTime = lastKnownTimeRef.current;
+                                // Reset saved time after restoring to avoid always jumping back
+                                // lastKnownTimeRef.current = 0; // Optional: reset if each play should start fresh after seeking/pause
+                            }
+
                             const playPromise = audio.play();
                             if (playPromise !== undefined) {
                                 playPromise.catch(error => {
                                     console.error('Error playing audio:', error);
-                                    // If play fails, ensure the UI state is updated
-                                    if (error.name !== 'AbortError') {
-                                        onPause();
+                                    // Do not call onPause for NotAllowedError to keep play button active
+                                    if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+                                         onPause();
                                     }
                                 });
                             }
                         } else {
                             // If not ready yet, wait a bit more
                             console.log('Audio not ready yet, waiting...');
-                            // Set a visual indication that we're still loading
+                            // Set a visual indication that we's still loading
                             setIsLoading(true);
                             
                             // Set up a one-time event listener for when it becomes ready
@@ -711,7 +765,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                     if (playPromise !== undefined) {
                                         playPromise.catch(error => {
                                             console.error('Error playing audio after canplay:', error);
-                                            if (error.name !== 'AbortError') {
+                                            // Do not call onPause for NotAllowedError
+                                            if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
                                                 onPause();
                                             }
                                         });
@@ -733,13 +788,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 try {
                     // Pause only if it's actually playing to avoid unnecessary events
                     if (!audio.paused) {
+                        console.log('Pausing audio element.');
                         audio.pause();
+                        // The 'pause' event listener will save the current time
                     }
                 } catch (error) {
                     console.warn('Error pausing audio:', error);
                 }
             }
-        }, 100); // 100ms debounce 
+        }, 100); // 100ms debounce
         
         return () => {
             clearTimeout(playPauseDebounce);
@@ -758,14 +815,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         const handleError = (e: Event) => {
             // Check if it's an AbortError, which can be ignored
             const error = e as ErrorEvent;
-            if (error && error.message && error.message.includes('AbortError')) {
-                console.log('Audio play interrupted by new load request (normal behavior)');
-                return; // Don't show error UI for AbortError
+            // Also check if the error is a NotAllowedError which is common on iOS autoplay restrictions
+            if (error && error.message && (error.message.includes('AbortError') || error.message.includes('NotAllowedError'))) {
+                console.log('Audio play interrupted or blocked by browser policy (normal behavior)');
+                // Do NOT show an error message for AbortError or NotAllowedError
+                // Do NOT call onPause() here for NotAllowedError to allow the user to retry play
+                return;
             }
             
-            console.error('AudioPlayer: Error:', e);
-            setError('Audio playback error');
-            onPause();
+            console.error('AudioPlayer: Error:', e); // Log the specific error
+            errorToast('Audio playback error.'); // Show a generic toast for unexpected errors
+            setError('Audio playback error'); // Set internal error state for component display
+            onPause(); // Call onPause for actual playback errors
         };
 
         const handleWaiting = () => {
@@ -777,20 +838,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             setError(null);
         };
 
-        // Добавление всех обработчиков событий
+        // Add event listener for 'pause' event to save current time
+        const handlePauseEvent = () => {
+            if (audio.currentTime > 0) { // Only save if playback started
+                lastKnownTimeRef.current = audio.currentTime;
+                console.log(`Playback paused, saving time: ${lastKnownTimeRef.current}`);
+            }
+        };
+
+        // Add all event listeners
         audio.addEventListener('ended', handleEnded);
         audio.addEventListener('error', handleError);
         audio.addEventListener('waiting', handleWaiting);
         audio.addEventListener('playing', handlePlaying);
+        audio.addEventListener('pause', handlePauseEvent); // Listen for actual pause event
         audio.addEventListener('timeupdate', handleTimeUpdate);
         audio.addEventListener('loadedmetadata', handleLoadedMetadata);
 
         return () => {
-            // Удаление всех обработчиков при размонтировании
+            // Remove all handlers on unmount
             audio.removeEventListener('ended', handleEnded);
             audio.removeEventListener('error', handleError);
             audio.removeEventListener('waiting', handleWaiting);
             audio.removeEventListener('playing', handlePlaying);
+            audio.removeEventListener('pause', handlePauseEvent); // Remove pause listener
             audio.removeEventListener('timeupdate', handleTimeUpdate);
             audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
         };
@@ -881,6 +952,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     levelLoadingMaxRetry: 4,
                     // Добавляем настройки для более плавного воспроизведения
                     backBufferLength: 10, // Сохраняем больше данных в буфере позади текущей позиции
+                    // Add aggressive ABR settings (even for audio, can influence segment loading)
+                    abrEwmaFetchAndParseFragKbps: 1000, // Estimate fragment load/parse speed
+                    abrBandwidthFactor: 0.8, // Use 80% of estimated bandwidth
+                    abrBandwidthUpFactor: 0.2, // Be more aggressive in increasing bandwidth estimate
                 };
                 
                 const hls = new Hls(hlsConfig);
@@ -1065,9 +1140,70 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         };
     }, [m3u8Url]);
 
+    // --- AGGRESSIVE SEGMENT PRELOAD & BUFFER WATCHDOG ---
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        // Only run watchdog if not stalled (HLS.js >= 0.10) and audio is playing
+        // Checking HLS.js version or relying on isPlaying and buffer state might be needed
+        // For now, keep it simple and let BUFFER_STALLED handle the explicit nudge.
+        // The existing logic below already triggers load based on low buffer.
+
+        if (hlsRef.current && audioRef.current && isPlaying) {
+            interval = setInterval(() => {
+                const audio = audioRef.current;
+                const hls = hlsRef.current;
+                if (!audio || !hls || audio.paused || audio.ended) return; // Ensure audio is playing
+
+                let bufferedEnd = 0;
+                if (audio.buffered.length > 0) {
+                    bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+                }
+                const currentTime = audio.currentTime;
+                const timeLeft = bufferedEnd - currentTime;
+
+                // Log buffer state
+                console.log(`HLS Buffer Watchdog: Buffer: ${timeLeft.toFixed(2)}s left at ${currentTime.toFixed(2)}s`);
+
+                // If time left in buffer is low, proactively trigger load
+                // Increased threshold for extremely aggressive loading
+                if (timeLeft < 30) { // Increased significantly
+                     console.log('HLS Buffer Watchdog: Buffer low (<30s), triggering proactive load...');
+                    try {
+                        hls.startLoad();
+                         console.log('HLS Buffer Watchdog: startLoad() called (low buffer)');
+                    } catch (e) {
+                        console.error('HLS Buffer Watchdog: Error triggering startLoad (low buffer):', e);
+                    }
+                }
+                // If buffer is critically low, ensure loading is active
+                if (timeLeft < 15) { // Increased significantly
+                      console.log('HLS Buffer Watchdog: Buffer critically low (<15s), ensuring load is active...');
+                     try {
+                        hls.startLoad();
+                         console.log('HLS Buffer Watchdog: startLoad() called (critically low buffer)');
+                     } catch (e) {
+                        console.error('HLS Buffer Watchdog: Error triggering startLoad (critical buffer):', e);
+                     }
+                }
+
+            }, 100); // Check buffer extremely frequently (every 0.1 seconds)
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isPlaying]); // Depend on isPlaying to start/stop watchdog
+
+    // Исправление: всегда делаем unlockAudio при onPlay на iOS
+    useEffect(() => {
+        if (isPlaying) {
+            unlockAudio();
+        }
+    }, [isPlaying, unlockAudio]);
+
     // Улучшенный интерфейс с индикатором буферизации и элементами прогрессбара
     return (
         <div className="flex items-center gap-4 w-full p-3">
+            <Toaster />
             <motion.button
                 onClick={isPlaying ? onPause : onPlay}
                 className="text-white hover:text-[#20DDBB] transition-colors"
@@ -1135,3 +1271,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
     );
 };
+
+// Helper function for toast notification
+const errorToast = (message: string) => toast.error(message, {
+    style: {
+        background: 'rgba(46, 36, 105, 0.9)',
+        color: '#fff',
+        borderLeft: '4px solid #ff5e5b',
+        padding: '10px', // Reduced padding
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)', // Adjusted shadow
+        fontSize: '12px', // Reduced font size
+    },
+    icon: '❌',
+    duration: 3000, // Shorter duration
+});

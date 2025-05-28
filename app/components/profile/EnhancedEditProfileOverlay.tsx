@@ -88,7 +88,9 @@ const roleOptions = [
   { id: 'dj', label: 'DJ' },
   { id: 'vocalist', label: 'Vocalist' },
   { id: 'listener', label: 'Listener' },
-  { id: 'label', label: 'Label' }
+  { id: 'label', label: 'Label' },
+  { id: 'influencer', label: 'Influencer' },
+  { id: 'promoter', label: 'Promoter' }
 ];
 
 // Расширенный тип профиля для внутреннего использования
@@ -489,66 +491,50 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     <AnimatePresence mode="wait">
       <motion.div
         key="overlay"
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+        className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] p-[10px] bg-black/60 backdrop-blur-sm overflow-y-auto"
         variants={overlayVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
       >
         <motion.div
-          className="relative w-full max-w-md my-4 md:my-6 overflow-hidden rounded-2xl"
+          className="relative w-full max-w-md flex flex-col justify-between my-0 overflow-hidden rounded-2xl"
           variants={modalVariants}
           initial="hidden"
           animate="visible"
           exit="exit"
+          style={{ maxHeight: '90vh' }}
         >
           {/* Glass card with subtle gradient */}
-          <div className="glass-card bg-gradient-to-br from-[#24183D]/90 to-[#1A1E36]/95 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] backdrop-blur-xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="glass-card bg-gradient-to-br from-[#24183D]/90 to-[#1A1E36]/95 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] backdrop-blur-xl overflow-hidden h-full flex flex-col p-[5px]" style={{ boxSizing: 'border-box' }}>
             {/* Header */}
-            <div className="relative p-6 border-b border-white/10 bg-white/5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
-                  Edit Profile
-                </h2>
-                <motion.button
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleClose}
-                >
-                  <MdClose className="text-white" size={20} />
-                </motion.button>
-              </div>
-              
-              {/* Tabs */}
-              <div className="flex mt-4 border-b border-white/10">
+            <div className="relative flex items-center justify-between px-[5px] pt-[5px] pb-0" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
+              <div className="flex items-center gap-2">
+                {/* Tabs as glass buttons */}
                 {['basic', 'social'].map((tab) => (
                   <motion.button
                     key={tab}
-                    className={`px-5 py-2 font-medium transition-all ${
-                      activeTab === tab 
-                        ? 'text-[#20DDBB] border-b-2 border-[#20DDBB] relative'
-                        : 'text-white/70 hover:text-white border-b-2 border-transparent'
-                    }`}
+                    className={`px-4 py-2 mx-1 rounded-xl font-semibold text-base transition-all backdrop-blur-md bg-white/10 hover:bg-white/20 border-none shadow-lg ${activeTab === tab ? 'ring-2 ring-white/60 text-white' : 'text-white/70'}`}
+                    style={{ boxShadow: '0 2px 16px 0 rgba(255,255,255,0.08)' }}
                     onClick={() => setActiveTab(tab)}
                     whileHover={{ y: -2 }}
                     whileTap={{ y: 0 }}
                   >
                     {tab === 'basic' ? 'Profile' : 'Social Links'}
-                    {activeTab === tab && (
-                      <motion.span
-                        className="absolute inset-0 bg-[#20DDBB]/10 rounded-t-lg -z-10"
-                        layoutId="activeTab"
-                        initial={false}
-                      />
-                    )}
                   </motion.button>
                 ))}
               </div>
+              <motion.button
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleClose}
+              >
+                <MdClose className="text-white" size={20} />
+              </motion.button>
             </div>
-            
-            {/* Content area with max height and scrolling */}
-            <div className="p-6 overflow-y-auto flex-grow" style={{ maxHeight: 'calc(65vh - 130px)' }}>
+            {/* Content area */}
+            <div className="flex-grow overflow-y-auto p-[5px]" style={{ maxHeight: 'calc(100vh - 170px)' }}>
               <AnimatePresence mode="wait">
                 {/* Basic Info Tab */}
                 {activeTab === 'basic' && (
@@ -667,7 +653,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                           >
                             {isSavingImage ? (
                               <>
-                                <div className="w-5 h-5 rounded-full border-2 border-t-[#20DDBB] border-r-[#5D59FF] border-b-[#20DDBB]/30 border-l-[#5D59FF]/30 animate-spin mr-1" />
+                                <div className="w-5 h-5 rounded-full border-2 border-t-white border-r-transparent border-b-white/30 border-l-transparent animate-spin mr-1" />
                                 <span>Saving...</span>
                               </>
                             ) : (
@@ -698,7 +684,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                           setFormTouched(true);
                         }}
                         className="w-full bg-[#24183D]/70 text-white rounded-xl p-3 border border-white/10 focus:border-[#20DDBB] outline-none transition-all focus:shadow-[0_0_15px_rgba(32,221,187,0.15)]"
-                        placeholder="Your name"
+                        placeholder="Your username"
                       />
                     </motion.div>
                     
@@ -716,7 +702,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                             type="button"
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
                               role === option.label
-                                ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-black shadow-[0_2px_10px_rgba(32,221,187,0.3)]'
+                                ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white shadow-[0_2px_10px_rgba(32,221,187,0.3)]'
                                 : 'bg-[#24183D]/70 text-white/80 hover:text-white hover:bg-[#24183D] border border-white/10'
                             }`}
                             onClick={() => {
@@ -732,6 +718,8 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                             {option.id === 'vocalist' && <FaMicrophone className="text-[#20DDBB]" />}
                             {option.id === 'listener' && <FaHeadphones className="text-[#20DDBB]" />}
                             {option.id === 'label' && <BsTag className="text-[#20DDBB]" />}
+                            {option.id === 'influencer' && <HiOutlineSparkles className="text-[#20DDBB]" />}
+                            {option.id === 'promoter' && <FaMicrophone className="text-[#20DDBB]" />}
                             {option.label}
                           </motion.button>
                         ))}
@@ -876,35 +864,26 @@ const EnhancedEditProfileOverlay: React.FC = () => {
             </div>
             
             {/* Form actions - Fixed at bottom of modal */}
-            <div className="p-4 border-t border-white/10 bg-[#1A1E36]/80 backdrop-blur-sm sticky bottom-0 left-0 right-0">
-              <div className="flex justify-end">
-                <motion.button
-                  className="relative overflow-hidden py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-black font-medium hover:shadow-[0_5px_15px_rgba(32,221,187,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSave}
-                  disabled={isLoading || uploadingImage}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 rounded-full border-2 border-t-black border-r-transparent border-b-black/30 border-l-transparent animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Save Profile</span>
-                      <HiOutlineSparkles className="text-black/70" />
-                    </>
-                  )}
-                  
-                  {/* Button hover effect */}
-                  <motion.div
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#5D59FF]/80 to-[#20DDBB]/80 opacity-0 hover:opacity-100 transition-opacity"
-                    initial={false}
-                    whileHover={{ opacity: 1 }}
-                  />
-                </motion.button>
-              </div>
+            <div className="p-[5px] pt-2 flex justify-end bg-transparent border-none">
+              <motion.button
+                className="relative overflow-hidden py-3 px-8 rounded-xl bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-200 flex items-center gap-2 border-none"
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSave}
+                disabled={isLoading || uploadingImage}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 rounded-full border-2 border-t-white border-r-transparent border-b-white/30 border-l-transparent animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Save Profile</span>
+                    <HiOutlineSparkles className="text-white/80" />
+                  </>
+                )}
+              </motion.button>
             </div>
           </div>
         </motion.div>

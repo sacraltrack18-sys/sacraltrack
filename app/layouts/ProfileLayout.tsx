@@ -29,8 +29,9 @@ import { useVibeStore } from '@/app/stores/vibeStore';
 import { MdOutlineMusicNote } from 'react-icons/md';
 import UserVibes from "@/app/components/profile/UserVibes";
 import { useEditContext } from "@/app/context/editContext";
+import { FaUserPlus, FaUserCheck, FaUserMinus, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
 
-export default function ProfileLayout({ children, params }: { children: React.ReactNode, params: { params: { id: string } } }) {
+export default function ProfileLayout({ children, params, isFriend, pendingRequest, isLoading, onFriendAction }: { children: React.ReactNode, params: { params: { id: string } }, isFriend?: boolean, pendingRequest?: any, isLoading?: boolean, onFriendAction?: (action?: 'accept' | 'reject' | 'reset') => void }) {
     const profileId = params.params.id;
     
     const pathname = usePathname()
@@ -42,7 +43,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
     const { postsByUser } = usePostStore();
     const [showFriends, setShowFriends] = useState(false);
     const [showVibes, setShowVibes] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isProfileLoading, setProfileLoading] = useState(true);
     const { fetchVibesByUser } = useVibeStore();
     const { isEditMode } = useEditContext();
     const [isMobile, setIsMobile] = useState(false);
@@ -106,13 +107,13 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 
     // Обновляем проверку наличия релизов, используя реальные данные
     useEffect(() => {
-        setIsLoading(true);
+        setProfileLoading(true);
         const timer = setTimeout(() => {
             // Проверяем наличие релизов у пользователя на основе данных из postsByUser
             const hasReleases = postsByUser && postsByUser.length > 0;
             setHasUserReleases(hasReleases);
             console.log(`[ProfileLayout] User ${profileId} has releases: ${hasReleases} (count: ${postsByUser?.length || 0})`);
-            setIsLoading(false);
+            setProfileLoading(false);
         }, 600); // Сокращаем время ожидания
         
         return () => clearTimeout(timer);
@@ -146,7 +147,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto px-4 md:px-8 smooth-scroll-container content-with-top-nav">
+		<div className="w-full mx-auto px-4 md:px-8 box-border max-w-full overflow-x-hidden smooth-scroll-container content-with-top-nav">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -245,7 +246,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    {isLoading ? (
+                                    {isProfileLoading ? (
                                         <div className="flex justify-center items-center min-h-[300px]">
                                             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#20DDBB]"></div>
                                         </div>
@@ -264,7 +265,7 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                     </div>
                     
                     {/* Right sidebar with user activity */}
-                    {currentProfile && (
+                    {currentProfile && isProfileOwner && (
                         <div className="hidden lg:block w-[300px] flex-shrink-0">
                             <UserActivitySidebar 
                                 userId={currentProfile.user_id} 
@@ -343,8 +344,9 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setIsEditProfileOpen(true)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 text-[#20DDBB] hover:bg-[#20DDBB]/20 transition-all duration-300"
+                                className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 text-[#20DDBB] hover:bg-[#20DDBB]/20 transition-all duration-300 ml-0"
                                 aria-label="Edit Profile"
+                                style={{ marginLeft: !isProfileOwner && isMobile ? '0' : '0' }}
                             >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -425,28 +427,101 @@ export default function ProfileLayout({ children, params }: { children: React.Re
                             <span className={`text-[9px] font-medium ${showLikedTracks ? 'text-pink-400' : 'text-gray-400'}`}>Likes</span>
                         </motion.button>
                         
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                setShowFriends(true);
-                                setShowLikedTracks(false);
-                                setShowPurchases(false);
-                                setShowVibes(false);
-                            }}
-                            className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
-                                showFriends
-                                ? 'text-blue-400 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]' 
-                                : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-[0_0_10px_rgba(96,165,250,0.05)]'
-                            }`}
-                        >
-                            <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showFriends ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-blue-500/50 group-hover:to-cyan-500/50 group-hover:shadow-[0_0_8px_rgba(96,165,250,0.3)]'} transition-all duration-300`}>
-                                <BsPeopleFill
-                                    className={`w-3.5 h-3.5 transition-all duration-300 ${showFriends ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
-                                />
-                            </div>
-                            <span className={`text-[9px] font-medium ${showFriends ? 'text-blue-400' : 'text-gray-400'}`}>Friends</span>
-                        </motion.button>
+                        <div className="relative flex flex-1 flex-col items-center justify-center">
+                            {/* Super Stylish Friend Button above Friends */}
+                            {!isProfileOwner && isMobile && onFriendAction && (
+                                <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                                    {/* Friend (Remove) */}
+                                    {isFriend && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => onFriendAction('reject')}
+                                            disabled={isProfileLoading}
+                                            className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-400/30 backdrop-blur-lg border border-pink-400/40 shadow-xl text-pink-100 hover:bg-pink-500/40 hover:text-white transition-all duration-300"
+                                            aria-label="Remove Friend"
+                                        >
+                                            <FaUserMinus className="w-5 h-5" />
+                                        </motion.button>
+                                    )}
+                                    {/* Pending (you sent) */}
+                                    {!isFriend && pendingRequest && pendingRequest.user_id === contextUser?.user?.id && pendingRequest.id && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => onFriendAction('reset')}
+                                            disabled={isProfileLoading}
+                                            className="w-10 h-10 rounded-full flex items-center justify-center bg-cyan-400/30 backdrop-blur-lg border border-cyan-400/40 shadow-xl text-cyan-100 hover:bg-cyan-500/40 hover:text-white transition-all duration-300"
+                                            aria-label="Cancel Request"
+                                        >
+                                            <FaClock className="w-5 h-5" />
+                                        </motion.button>
+                                    )}
+                                    {/* Incoming Request (they sent) */}
+                                    {!isFriend && pendingRequest && pendingRequest.user_id !== contextUser?.user?.id && pendingRequest.id && (
+                                        <>
+                                            <motion.button
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => onFriendAction('accept')}
+                                                disabled={isProfileLoading}
+                                                className="w-10 h-10 rounded-full flex items-center justify-center bg-green-400/30 backdrop-blur-lg border border-green-400/40 shadow-xl text-green-100 hover:bg-green-500/40 hover:text-white transition-all duration-300"
+                                                aria-label="Accept Request"
+                                            >
+                                                <FaCheck className="w-5 h-5" />
+                                            </motion.button>
+                                            <motion.button
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => onFriendAction('reject')}
+                                                disabled={isProfileLoading}
+                                                className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-400/30 backdrop-blur-lg border border-pink-400/40 shadow-xl text-pink-100 hover:bg-pink-500/40 hover:text-white transition-all duration-300"
+                                                aria-label="Decline Request"
+                                            >
+                                                <FaTimes className="w-5 h-5" />
+                                            </motion.button>
+                                        </>
+                                    )}
+                                    {/* Add Friend */}
+                                    {!isFriend && !pendingRequest && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => onFriendAction('accept')}
+                                            disabled={isProfileLoading}
+                                            className="w-10 h-10 rounded-full flex items-center justify-center bg-green-400/30 backdrop-blur-lg border border-green-400/40 shadow-xl text-green-100 hover:bg-green-500/40 hover:text-white transition-all duration-300"
+                                            aria-label="Add Friend"
+                                        >
+                                            <FaUserPlus className="w-5 h-5" />
+                                        </motion.button>
+                                    )}
+                                </div>
+                            )}
+                            {/* Friends button */}
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                    setShowFriends(true);
+                                    setShowLikedTracks(false);
+                                    setShowPurchases(false);
+                                    setShowVibes(false);
+                                }}
+                                className={`group flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 flex-1 ${
+                                    showFriends
+                                    ? 'text-blue-400 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]'
+                                    : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-[0_0_10px_rgba(96,165,250,0.05)]'
+                                }`}
+                                style={{ position: 'relative' }}
+                            >
+                                <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showFriends ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-blue-500/50 group-hover:to-cyan-500/50 group-hover:shadow-[0_0_8px_rgba(96,165,250,0.3)]'} transition-all duration-300`}>
+                                    <BsPeopleFill
+                                        className={`w-3.5 h-3.5 transition-all duration-300 ${showFriends ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}
+                                    />
+                                </div>
+                                <span className={`text-[9px] font-medium ${showFriends ? 'text-blue-400' : 'text-gray-400'}`}>Friends</span>
+                            </motion.button>
+                        </div>
 
                         {isProfileOwner && (
                             <motion.button

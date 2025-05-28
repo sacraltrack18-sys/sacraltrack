@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import { IoMdMusicalNotes } from 'react-icons/io';
-import { BsLink45Deg, BsGlobe } from 'react-icons/bs';
+import { BsLink45Deg, BsGlobe, BsPersonPlus, BsPersonCheck, BsPersonX } from 'react-icons/bs';
+import { useUser } from "@/app/context/user";
+import { useFriendStore } from "@/app/stores/friendStore";
+import { toast } from "react-hot-toast";
 
 interface UserProfileCardProps {
   profile: {
@@ -22,6 +25,41 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ profile, compact = fa
     ? useCreateBucketUrl(profile.image)
     : '/images/placeholders/user-placeholder.svg';
 
+  // Друзья/запросы
+  const contextUser = useUser();
+  const { friends, pendingRequests, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend } = useFriendStore();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const isFriend = friends.some(friend => friend.friend_id === profile.user_id);
+  const pendingRequest = pendingRequests.find(
+    req => req.friend_id === profile.user_id || req.user_id === profile.user_id
+  );
+
+  const handleFriendAction = async () => {
+    if (!contextUser?.user) {
+      toast.error("Please log in to add friends");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      if (isFriend) {
+        await removeFriend(profile.user_id);
+      } else if (pendingRequest) {
+        if (pendingRequest.user_id === contextUser.user.id) {
+          await rejectFriendRequest(pendingRequest.id);
+        } else {
+          await acceptFriendRequest(pendingRequest.id);
+        }
+      } else {
+        await sendFriendRequest(contextUser.user.id, profile.user_id);
+      }
+    } catch (error) {
+      toast.error('Failed to process friend request');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,11 +71,43 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ profile, compact = fa
     >
       <Link href={`/profile/${profile.user_id}`}>
         <div className="relative overflow-hidden group cursor-pointer">
+          {/* Кнопка добавить в друзья */}
+          {contextUser?.user?.id !== profile.user_id && (
+            <motion.button
+              onClick={handleFriendAction}
+              disabled={isLoading}
+              whileHover={{ scale: 1.12, boxShadow: '0 0 0 6px #5D59FF44' }}
+              whileTap={{ scale: 0.97 }}
+              className={`
+                absolute top-3 right-3 z-30 w-9 h-9 flex items-center justify-center rounded-full
+                bg-gradient-to-r from-blue-400/70 to-pink-500/70
+                border border-white/30 shadow-lg
+                backdrop-blur-md
+                text-white transition-all
+                ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}
+              `}
+              style={{
+                minWidth: 36,
+                minHeight: 36,
+                boxShadow: '0 2px 12px 0 #5D59FF33',
+              }}
+              title={isFriend ? "Удалить из друзей" : pendingRequest ? "Отменить запрос" : "Добавить в друзья"}
+            >
+              {isLoading ? (
+                <span className="animate-spin">⟳</span>
+              ) : isFriend ? (
+                <BsPersonCheck className="text-xl" />
+              ) : pendingRequest ? (
+                <BsPersonX className="text-xl" />
+              ) : (
+                <BsPersonPlus className="text-xl" />
+              )}
+            </motion.button>
+          )}
           <motion.div
             className="absolute inset-0 bg-gradient-to-b from-[#20DDBB]/0 to-[#20DDBB]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
             whileHover={{ opacity: 1 }}
           />
-          
           <motion.img
             src={profileImageUrl}
             alt={profile?.name || 'Profile'}
@@ -45,7 +115,6 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ profile, compact = fa
             initial={{ scale: 1 }}
             whileHover={{ scale: 1.05 }}
           />
-          
           <motion.div 
             initial={{ opacity: 0, y: 5 }}
             whileHover={{ opacity: 1, y: 0 }}

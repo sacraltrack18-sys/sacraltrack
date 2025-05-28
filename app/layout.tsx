@@ -1,11 +1,12 @@
 import UserProvider from './context/user';
 import AllOverlays from "@/app/components/AllOverlays";
-import disableConsoleLogs from '@/app/utils/disableConsoleLog';
+// import disableConsoleLogs from '@/app/utils/disableConsoleLog';
+// disableConsoleLogs();
 import { EditProvider } from './context/editContext';
 
 // Disable console logs throughout the application
 if (typeof window !== 'undefined') {
-    disableConsoleLogs();
+    // disableConsoleLogs();
 }
 
 import './globals.css';

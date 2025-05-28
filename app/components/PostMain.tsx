@@ -889,13 +889,9 @@ const PostMain = memo(({ post }: PostMainProps) => {
             } else {
                 // Если на паузе, запускаем
                 togglePlayPause();
-                
-                // Обновляем статистику только при начале воспроизведения
                 if (statsCounterRef.current) {
                     statsCounterRef.current.updateStatistics();
                 }
-                
-                // Записываем воспроизведение в статистику
                 incrementPlayCount();
             }
         } else {
@@ -905,17 +901,12 @@ const PostMain = memo(({ post }: PostMainProps) => {
                 stopAllPlayback();
             }
             setCurrentAudioId(post.id);
-            setTimeout(() => {
-                togglePlayPause();
-                
-                // Обновляем статистику только при начале воспроизведения
-                if (statsCounterRef.current) {
-                    statsCounterRef.current.updateStatistics();
-                }
-                
-                // Записываем воспроизведение в статистику
-                incrementPlayCount();
-            }, 50);
+            // Сразу запускаем воспроизведение без задержки
+            togglePlayPause();
+            if (statsCounterRef.current) {
+                statsCounterRef.current.updateStatistics();
+            }
+            incrementPlayCount();
         }
     }, [post.id, currentAudioId, globalIsPlaying, togglePlayPause, stopAllPlayback, setCurrentAudioId, incrementPlayCount]);
 

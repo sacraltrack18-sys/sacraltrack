@@ -632,16 +632,17 @@ export default function GoogleAuthSuccess() {
 
                         {errorShownRef.current && !checkingAuth && (
                             <div className="mt-8 text-center">
-                                <div className="text-red-500 font-bold mb-2">Не удалось завершить вход через Google</div>
+                                <div className="text-red-500 font-bold mb-2">Google Sign-In Failed</div>
                                 <div className="text-[#818BAC] mb-4">
-                                    Мы не смогли подтвердить вашу авторизацию. Это может быть связано с особенностями браузера или настройками cookie.<br/>
-                                    Попробуйте снова или используйте другой браузер.
+                                    We couldn't verify your authentication.<br/>
+                                    This may be due to your browser or cookie settings.<br/>
+                                    <span className="block mt-2">If you're using Safari on iPhone, try disabling "Prevent Cross-Site Tracking" in Settings &gt; Safari, or use Chrome for best results.</span>
                                 </div>
                                 <button
                                     onClick={handleTryAgain}
                                     className="py-2 px-6 bg-gradient-to-r from-[#20DDBB] to-[#8A2BE2] rounded-xl text-white font-medium hover:opacity-90 transition-opacity"
                                 >
-                                    Попробовать снова
+                                    Try Again
                                 </button>
                             </div>
                         )}

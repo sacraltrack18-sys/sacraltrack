@@ -27,6 +27,7 @@ interface EnhancedUserProfileCardProps {
 
 const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profile }) => {
   const contextUser = useUser();
+  console.log('EnhancedUserProfileCard MOUNTED', { profile, contextUser });
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,62 +125,6 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
     setRank({ name: rankName, color, score: totalScore });
   }, [friendsList.length, tracks, likes]);
 
-  const getFriendActionButton = () => {
-    if (contextUser?.user?.id === profile.user_id) return null;
-
-    const buttonClasses = "absolute top-2 right-2 p-2 rounded-xl transition-all duration-200 flex items-center gap-2";
-    const iconClasses = "text-xl";
-
-    if (isLoading) {
-      return (
-        <div className={`${buttonClasses} bg-[#2E2469] cursor-not-allowed`}>
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className={`${iconClasses} text-[#20DDBB]`}
-          >
-            ⟳
-          </motion.div>
-        </div>
-      );
-    }
-
-    if (isFriend) {
-      return (
-        <button
-          onClick={handleFriendAction}
-          className={`${buttonClasses} bg-[#2E2469] hover:bg-[#1f1847] group`}
-          title="Remove friend"
-        >
-          <BsPersonCheck className={`${iconClasses} text-[#20DDBB] group-hover:scale-110 transition-transform`} />
-        </button>
-      );
-    }
-
-    if (pendingRequest) {
-      const isPending = pendingRequest.user_id === contextUser?.user?.id;
-      return (
-        <button
-          onClick={handleFriendAction}
-          className={`${buttonClasses} bg-[#2E2469] hover:bg-[#1f1847] group`}
-          title={isPending ? "Cancel request" : "Accept request"}
-        >
-          <BsPersonX className={`${iconClasses} text-yellow-400 group-hover:scale-110 transition-transform`} />
-        </button>
-      );
-    }
-
-    return (
-      <button
-        onClick={handleFriendAction}
-        className={`${buttonClasses} bg-[#2E2469] hover:bg-[#1f1847] group`}
-        title="Add friend"
-      >
-        <BsPersonPlus className={`${iconClasses} text-white group-hover:scale-110 transition-transform`} />
-      </button>
-    );
-  };
-
   return (
     <motion.div
       className="relative w-full h-[350px] rounded-2xl overflow-hidden bg-[#1E2136] shadow-lg hover:shadow-2xl transition-all duration-300"
@@ -195,31 +140,67 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
     >
       <Link href={`/profile/${profile.user_id}`}>
         <div className="relative w-full h-[200px] overflow-hidden">
-          {/* Добавляем рейтинг на изображение профиля */}
-          <motion.div 
-            className="absolute top-3 left-3 z-20 glass-rating px-2 py-1 rounded-full flex items-center gap-1"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
+          {/* Рейтинг и кнопка добавить в друзья */}
+          <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
             <motion.div 
-              className={`h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color} text-xs font-bold`}
-              animate={{ 
-                scale: [1, 1.1, 1],
-              }}
-              transition={{ 
-                duration: 1.5, 
-                repeat: Infinity, 
-                repeatType: "reverse"
-              }}
+              className="glass-rating px-2 py-1 rounded-full flex items-center gap-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
             >
-              {rank.score}
+              <motion.div 
+                className={`h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color} text-xs font-bold`}
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity, 
+                  repeatType: "reverse"
+                }}
+              >
+                {rank.score}
+              </motion.div>
+              <span className="text-white text-xs font-bold">
+                {rank.name}
+              </span>
             </motion.div>
-            <span className="text-white text-xs font-bold">
-              {rank.name}
-            </span>
-          </motion.div>
-          
+            {(() => { console.log('contextUser', contextUser, 'profile', profile, 'isFriend', isFriend, 'pendingRequest', pendingRequest); return null; })()}
+            {/* Кнопка добавить в друзья — временно всегда показываем для теста */}
+            {true && (
+              <motion.button
+                onClick={handleFriendAction}
+                disabled={isLoading}
+                whileHover={{ scale: 1.12, boxShadow: '0 0 0 6px #5D59FF44' }}
+                whileTap={{ scale: 0.97 }}
+                className={`
+                  w-9 h-9 flex items-center justify-center rounded-full
+                  bg-gradient-to-r from-blue-400/70 to-pink-500/70
+                  border border-white/30 shadow-lg
+                  backdrop-blur-md
+                  text-white transition-all
+                  ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}
+                `}
+                style={{
+                  minWidth: 36,
+                  minHeight: 36,
+                  boxShadow: '0 2px 12px 0 #5D59FF33',
+                }}
+                title={isFriend ? "Удалить из друзей" : pendingRequest ? "Отменить запрос" : "Добавить в друзья"}
+              >
+                {isLoading ? (
+                  <span className="animate-spin">⟳</span>
+                ) : isFriend ? (
+                  <BsPersonCheck className="text-xl" />
+                ) : pendingRequest ? (
+                  <BsPersonX className="text-xl" />
+                ) : (
+                  <BsPersonPlus className="text-xl" />
+                )}
+              </motion.button>
+            )}
+          </div>
+          {/* Добавляем рейтинг на изображение профиля */}
           <motion.img
             src={imageError ? '/images/placeholders/user-placeholder.svg' : userProfileImageUrl}
             alt={profile.name}
@@ -246,11 +227,11 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
         </div>
       </Link>
 
-      {getFriendActionButton()}
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-xl font-semibold text-white truncate">{profile.name}</h3>
+      </div>
 
       <div className="p-4">
-        <h3 className="text-xl font-semibold text-white mb-2 truncate">{profile.name}</h3>
-        
         <div className="flex items-center justify-between text-[#818BAC] text-sm mb-3">
           <div className="flex items-center gap-2">
             <span className="text-[#20DDBB]">Label</span>

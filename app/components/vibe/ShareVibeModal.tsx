@@ -176,7 +176,7 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
             </div>
             
             {/* Social share options */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               <motion.button
                 whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
@@ -215,28 +215,6 @@ const ShareVibeModal: React.FC<ShareVibeModalProps> = ({
               >
                 <FaTelegram className="text-[#0088cc] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
                 <span className="text-xs text-gray-300">Telegram</span>
-              </motion.button>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <motion.button
-                whileHover={{ scale: 1.05, y: -3 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={shareViaWhatsapp}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/20 transition-all duration-300 group"
-              >
-                <FaWhatsapp className="text-[#25D366] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
-                <span className="text-xs text-gray-300">WhatsApp</span>
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05, y: -3 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={shareViaEmail}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#D44638]/10 hover:bg-[#D44638]/20 border border-[#D44638]/20 transition-all duration-300 group"
-              >
-                <FaEnvelope className="text-[#D44638] text-xl mb-1.5 group-hover:scale-110 transition-transform" />
-                <span className="text-xs text-gray-300">Email</span>
               </motion.button>
             </div>
             
