@@ -6,6 +6,7 @@ import useCreateBucketUrl from '../hooks/useCreateBucketUrl';
 import { BsFillPlayFill, BsFillPauseFill } from 'react-icons/bs';
 import { motion } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
+import moment from 'moment';
 
 interface AudioPlayerProps {
     m3u8Url: string;
@@ -1199,6 +1200,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             unlockAudio();
         }
     }, [isPlaying, unlockAudio]);
+
+    // Handle seeking
+    const handleSeek = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        if (audioRef.current) {
+            const seekTime = parseFloat(event.target.value);
+            audioRef.current.currentTime = seekTime;
+            setCurrentTime(seekTime);
+        }
+    }, []);
 
     // Улучшенный интерфейс с индикатором буферизации и элементами прогрессбара
     return (

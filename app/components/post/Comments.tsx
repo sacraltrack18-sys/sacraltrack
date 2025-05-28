@@ -115,9 +115,8 @@ export default function Comments({ params }: CommentsCompTypes) {
     return (
         <div className="relative flex flex-col h-full">
             {/* Comments Header */}
-            <div className="sticky top-0 z-10 bg-[#24183D] border-b border-[#2E2469] p-4">
+            <div className="sticky top-0 z-10 bg-[#24183D] p-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <IoMusicalNotes className="text-[#20DDBB]" />
                     Comments
                 </h2>
             </div>
@@ -128,7 +127,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                 className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#2E2469] scrollbar-track-transparent"
                 style={{ maxHeight: 'calc(80vh - 180px)' }}
             >
-                <div className="p-4 space-y-4">
+                <div className="p-[5px] sm:p-4 space-y-4">
                     {postComments.map((comment) => (
                         <div key={comment.id} className="flex gap-3 group animate-fadeIn">
                             <Link href={`/profile/${comment.profile.user_id}`}>
@@ -139,7 +138,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                                 />
                             </Link>
                             <div className="flex-1">
-                                <div className="bg-[#2E2469] rounded-2xl p-3 transition-all hover:bg-[#352B5A]">
+                                <div className="bg-[#282040] rounded-2xl p-3 transition-all hover:bg-[#352B5A]">
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-center gap-2">
                                             <Link 
@@ -188,9 +187,9 @@ export default function Comments({ params }: CommentsCompTypes) {
             </div>
 
             {/* Comment Input */}
-            <div className="sticky bottom-0 bg-[#24183D] border-t border-[#2E2469] p-4">
+            <div className="sticky bottom-0 bg-[#24183D] px-[5px] sm:px-4 py-4">
                 {replyTo && (
-                    <div className="flex items-center justify-between mb-2 px-3 py-2 bg-[#2E2469] rounded-lg animate-fadeIn">
+                    <div className="flex items-center justify-between mb-2 px-3 py-2 bg-[#282040] rounded-lg animate-fadeIn">
                         <span className="text-sm text-[#818BAC] flex items-center gap-2">
                             <BsReply className="text-[#20DDBB]" />
                             Replying to <span className="text-[#20DDBB]">@{replyTo.name}</span>
@@ -204,7 +203,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                     </div>
                 )}
                 <div 
-                    className={`flex items-center gap-3 bg-[#2E2469] rounded-2xl p-3 transition-all ${
+                    className={`flex items-center gap-3 bg-[#282040] rounded-2xl p-3 transition-all w-full ${
                         inputFocused ? 'ring-2 ring-[#20DDBB]' : ''
                     }`}
                 >

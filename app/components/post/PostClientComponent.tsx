@@ -45,10 +45,10 @@ const PostImageFallback = () => (
 )
 
 const StatsCard = ({ icon, value, label }: { icon: React.ReactNode, value: string | number, label: string }) => (
-    <div className="flex items-center gap-2 glass-effect rounded-xl px-3 py-2 hover-lift">
+    <div className="flex items-center gap-1 glass-effect rounded-lg px-2 py-1 hover-lift">
         <div className="animate-glow">{icon}</div>
-        <span className="text-white font-medium">{value}</span>
-        <span className="gradient-text text-sm">{label}</span>
+        <span className="text-white font-medium text-sm">{value}</span>
+        <span className="gradient-text text-xs">{label}</span>
     </div>
 )
 
@@ -96,7 +96,7 @@ export default function PostClientComponent() {
     return (
         <div className="min-h-screen bg-[#1A1A2E]">
             <TopNav params={{ id: userId }} />
-            <div className="max-w-[1200px] mx-auto content-with-top-nav px-5 py-6">
+            <div className="max-w-full sm:max-w-[1200px] mx-auto content-with-top-nav px-[5px] sm:px-5 py-6">
                 {/* Track Section */}
                 <div className="bg-[#24183D] rounded-2xl overflow-hidden shadow-xl relative animate-scaleIn">
                     {/* Track Header */}
@@ -129,7 +129,7 @@ export default function PostClientComponent() {
                             <ClientOnly>
                                 {postById && (
                                     <div className="space-y-6 animate-fadeInUp">
-                                        <h1 className="text-4xl md:text-5xl font-bold gradient-text 
+                                        <h1 className="text-3xl md:text-5xl font-bold gradient-text 
                                                      drop-shadow-lg tracking-tight animate-floatY">
                                             {postById.trackname}
                                         </h1>
@@ -138,7 +138,7 @@ export default function PostClientComponent() {
                                                 href={`/profile/${postById.profile.user_id}`}
                                                 className="flex items-center gap-3 glass-effect
                                                          hover:text-[#20DDBB] transition-all 
-                                                         rounded-full px-5 py-2.5 group hover-lift"
+                                                         rounded-full px-4 py-2 group hover-lift"
                                             >
                                                 <img 
                                                     src={useCreateBucketUrl(postById.profile.image)}
@@ -146,21 +146,21 @@ export default function PostClientComponent() {
                                                     className="w-10 h-10 rounded-full ring-2 ring-[#20DDBB] 
                                                              group-hover:ring-white transition-all animate-glow"
                                                 />
-                                                <span className="text-white text-lg font-medium">
+                                                <span className="text-white text-base font-medium">
                                                     {postById.profile.name}
                                                 </span>
                                             </Link>
-                                            <div className="flex items-center gap-2 px-5 py-2.5 
+                                            <div className="flex items-center gap-1 px-3 py-1 
                                                           glass-effect rounded-full hover-lift">
-                                                <span className="gradient-text">Released:</span>
-                                                <span className="text-white">
+                                                <span className="gradient-text text-xs">Released:</span>
+                                                <span className="text-sm text-white">
                                                     {moment(postById.created_at).format('MMMM D, YYYY')}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 px-5 py-2.5 
+                                            <div className="flex items-center gap-1 px-3 py-1 
                                                           glass-effect rounded-full hover-lift">
-                                                <span className="gradient-text">Genre:</span>
-                                                <span className="text-white">{postById.genre}</span>
+                                                <span className="gradient-text text-xs">Genre:</span>
+                                                <span className="text-sm text-white">{postById.genre}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -173,9 +173,9 @@ export default function PostClientComponent() {
                     <div className="relative z-20 -mt-8 animate-fadeInUp animation-delay-200">
                         <ClientOnly>
                             {m3u8Url && (
-                                <div className="px-8 mb-6">
-                                    <div className="bg-white-600 p-3 rounded-md shadow border flex gap-4 mt-3">
-                                        <div className="w-1/3">
+                                <div className="px-[5px] mb-6">
+                                    <div className="bg-[#1A1A2E] p-3 rounded-md shadow border border-[#2E2469]/30 flex items-center gap-4 mt-3">
+                                        <div className="flex-grow">
                                             <AudioPlayer
                                                 m3u8Url={m3u8Url}
                                                 isPlaying={isPlaying}
@@ -190,30 +190,25 @@ export default function PostClientComponent() {
                     </div>
 
                     {/* Stats Section */}
-                    <div className="px-8 py-6 flex flex-wrap gap-4 animate-fadeInUp animation-delay-200 border-t border-[#2E2469]/30">
+                    <div className="px-[5px] sm:px-8 py-6 flex flex-wrap gap-4 animate-fadeInUp animation-delay-200 sm:border-t border-[#2E2469]/30">
                         <StatsCard 
-                            icon={<FaHeart className="text-[#FF69B4]" size={24} />}
+                            icon={<FaHeart className="text-[#FF69B4]" size={20} />}
                             value={likesByPost.length}
                             label="Likes"
                         />
                         <StatsCard 
-                            icon={<FaMusic className="text-[#20DDBB]" size={24} />}
+                            icon={<FaMusic className="text-[#20DDBB]" size={20} />}
                             value={postById?.price || '1.99'}
                             label="USD"
-                        />
-                        <StatsCard 
-                            icon={<IoMusicalNotes className="text-[#FFD700]" size={24} />}
-                            value={postById?.genre || 'Music'}
-                            label="Genre"
                         />
                     </div>
 
                     {/* Comments Section */}
-                    <div className="border-t border-[#2E2469]/30">
+                    <div className="sm:border-t border-[#2E2469]/30">
                         <div className="bg-[#24183D] rounded-b-2xl animate-fadeInUp animation-delay-200">
                             <ClientOnly>
                                 {postById && postId && (
-                                    <div className="p-8">
+                                    <div className="p-[5px] sm:p-8">
                                         <Comments params={{ userId, postId }}/>
                                     </div>
                                 )}

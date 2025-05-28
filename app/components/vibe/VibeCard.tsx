@@ -254,6 +254,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   // Refresh vibe stats on component mount
   useEffect(() => {
     if (vibe.id) {
+      console.log(`[VIBE-CARD] useEffect triggered for vibe ID: ${vibe.id}`);
       refreshVibeStats();
     }
   }, [vibe.id]);
@@ -506,6 +507,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     if (!vibe.id) return;
     
     try {
+      console.log(`[VIBE-CARD] Refreshing stats for vibe ID: ${vibe.id}`);
       const vibeDoc = await database.getDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
@@ -730,6 +732,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     switch(vibeType) {
       case 'photo':
       default:
+        // Conditionally render the image section if vibe.media_url exists
+        if (!vibe.media_url) return null;
         return (
           <div className="relative aspect-[4/5] rounded-xl overflow-hidden group">
             {isLoading && (
@@ -880,15 +884,27 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           </div>
 
           {/* Vibe content */}
-          <div className="mb-4">
-            {renderVibeContent()}
-          </div>
+          {renderVibeContent()}
           
           {/* Caption с музыкальными нотами */}
           {vibe.caption && (
-            <div className="mt-3 text-gray-300 text-sm relative">
+            <div className="mt-3 flex items-start justify-between text-gray-300 text-sm relative">
               <div className="absolute -left-1 top-0 h-full w-0.5 bg-gradient-to-b from-purple-500/30 to-transparent rounded-full"></div>
-              <p className="pl-3">{vibe.caption}</p>
+              <p className="pl-3 flex-1 mr-2">{vibe.caption}</p>
+              {/* Mood Glass Tag */}
+              {vibe.mood && (
+                <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 text-white"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(32,221,187,0.15) 0%, rgba(1,140,253,0.15) 100%)',
+                    backdropFilter: 'blur(10px) saturate(1.8)',
+                    WebkitBackdropFilter: 'blur(10px) saturate(1.8)',
+                    border: '1px solid rgba(32,221,187,0.2)',
+                    color: '#20DDBB',
+                  }}
+                >
+                  {vibe.mood}
+                </div>
+              )}
             </div>
           )}
           
