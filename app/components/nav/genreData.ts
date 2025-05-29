@@ -19,16 +19,17 @@ export const genres: Genre[] = [
   { id: "genre-12", name: "Deep House" },
   { id: "genre-13", name: "Tech House" },
   { id: "genre-14", name: "Progressive House" },
-  { id: "genre-15", name: "Melodic House & Techno" },
+  { id: "genre-15", name: "Melodic House" },
   { id: "genre-16", name: "Future House" },
   { id: "genre-17", name: "Bass House" },
   { id: "genre-18", name: "Afro House" },
+  { id: "genre-new-1", name: "Organic House" },
   
   // Techno
   { id: "genre-19", name: "Peak Time / Driving Techno" },
   { id: "genre-20", name: "Melodic Techno" },
   { id: "genre-21", name: "Deep Techno" },
-  { id: "genre-22", name: "Minimal / Deep Tech" },
+  { id: "genre-22", name: "Minimal" },
   { id: "genre-23", name: "Deep / Hypnotic Techno" },
   { id: "genre-24", name: "Techno" },
   { id: "genre-25", name: "Techno (Peak Time / Driving)" },
@@ -53,6 +54,7 @@ export const genres: Genre[] = [
   { id: "genre-41", name: "Bass / Club" },
   { id: "genre-42", name: "Bass Music" },
   { id: "genre-43", name: "UK Garage / Bassline" },
+  { id: "genre-new-2", name: "Neurofunk" },
   
   // Breaks
   { id: "genre-44", name: "Breaks" },
@@ -90,7 +92,6 @@ export const genres: Genre[] = [
   { id: "genre-67", name: "Afro / Tribal" },
   
   // Minimal / Deep Tech
-  { id: "genre-68", name: "Minimal" },
   { id: "genre-69", name: "Deep Tech" },
   { id: "genre-78", name: "Lo-Fi" },
   { id: "genre-79", name: "House" }

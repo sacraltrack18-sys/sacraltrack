@@ -25,16 +25,17 @@ const genres = [
     "Deep House",
     "Tech House",
     "Progressive House",
-    "Melodic House & Techno",
+    "Melodic House",
     "Future House",
     "Bass House",
     "Afro House",
+    "Organic House",
     
     // Techno
     "Peak Time / Driving Techno",
     "Melodic Techno",
     "Deep Techno",
-    "Minimal / Deep Tech",
+    "Minimal",
     "Deep / Hypnotic Techno",
     "Techno",
     "Techno (Peak Time / Driving)",
@@ -59,6 +60,7 @@ const genres = [
     "Bass / Club",
     "Bass Music",
     "UK Garage / Bassline",
+    "Neurofunk",
     
     // Breaks
     "Breaks",
@@ -96,7 +98,6 @@ const genres = [
     "Afro / Tribal",
     
     // Minimal
-    "Minimal",
     "Deep Tech",
     "Lo-Fi",
     "House"
