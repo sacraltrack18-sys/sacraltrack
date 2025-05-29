@@ -19,24 +19,6 @@ const TabTypes = {
 
 type TabType = typeof TabTypes[keyof typeof TabTypes];
 
-// Компонент кнопки таба для рейтинга
-const RatingTabButton: React.FC<{
-    active: boolean;
-    onClick: () => void;
-    label: string;
-}> = ({ active, onClick, label }) => (
-    <button
-        onClick={onClick}
-        className={`px-3 py-1.5 text-xs font-medium transition-all ${
-            active
-                ? 'text-white bg-gradient-to-r from-purple-500/30 to-indigo-500/30 rounded-full border border-purple-500/30 shadow-md'
-                : 'text-white/60 hover:text-white hover:bg-white/5 rounded-full'
-        }`}
-    >
-        {label}
-    </button>
-);
-
 // Определение интерфейса для пользователя в рейтинге
 interface RankedUser {
     id: string;  // ID профиля
@@ -58,9 +40,6 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
     const [users, setUsers] = useState<RankedUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
-    const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
-    const { currentProfile } = useProfileStore();
-    const { friends } = useFriendsStore();
 
     const handleImageError = (userId: string) => {
         setImageErrors(prev => ({
@@ -129,13 +108,8 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                 );
                 
                 if (userProfiles && userProfiles.documents) {
-                    // Сначала отфильтруем наш профиль
-                    const filteredProfiles = userProfiles.documents.filter(profile => 
-                        !currentProfile || profile.user_id !== currentProfile.user_id
-                    );
-                    
                     // Затем обработаем оставшиеся профили
-                    const rankedUsers: RankedUser[] = filteredProfiles.map((profile: any) => {
+                    const rankedUsers: RankedUser[] = userProfiles.documents.map((profile: any) => {
                         // Расчет счета
                         const score = calculateUserScore(profile, userFriendsResponses?.documents);
                         
@@ -169,7 +143,7 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
         };
         
         fetchUsers();
-    }, [externalUsers, currentProfile, friends, activeTab]); // Добавлен activeTab в зависимости
+    }, [externalUsers]);
     
     // Расчет счета пользователя на основе различных метрик
     const calculateUserScore = (profile: any, userFriends: any[] = []) => {
@@ -270,25 +244,6 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
     
     return (
         <div className="bg-gradient-to-br from-[#212746]/50 to-[#171c36]/50 rounded-xl p-4 border border-indigo-500/10 shadow-inner">
-            {/* Заголовок и переключатель */}
-            <div className="mb-4">
-                {/* Стильный переключатель */}
-                <div className="flex justify-center">
-                    <div className="inline-flex bg-gradient-to-r from-purple-900/20 to-indigo-900/20 p-1 rounded-full">
-                        <RatingTabButton 
-                            active={activeTab === TabTypes.USERS} 
-                            onClick={() => setActiveTab(TabTypes.USERS)}
-                            label="Users"
-                        />
-                        <RatingTabButton 
-                            active={activeTab === TabTypes.ARTISTS} 
-                            onClick={() => setActiveTab(TabTypes.ARTISTS)}
-                            label="Artists"
-                        />
-                    </div>
-                </div>
-            </div>
-            
             {isLoading ? (
                 <div className="space-y-3">
                     {renderSkeletonLoaders()}
@@ -311,8 +266,6 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                             <Link 
                                 href={`/profile/${user.user_id}`}
                                 onClick={(e) => {
-                                    // Если есть функция onUserClick, предотвращаем стандартную навигацию
-                                    // и используем переданную функцию
                                     if (onUserClick) {
                                         e.preventDefault();
                                         onUserClick(user.user_id);
@@ -324,8 +277,7 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                                 {index < 3 && (
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-white/5 -z-10"></div>
                                 )}
-                                
-                                {/* Аватар с бордером в зависимости от рейтинга */}
+                                {/* Аватар */}
                                 <div className="relative">
                                     <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
                                     <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
@@ -338,8 +290,6 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                                             onError={() => handleImageError(user.user_id)}
                                         />
                                     </div>
-                                    
-                                    {/* Музыкальная иконка для пользователей в топ-3 */}
                                     {index < 3 && (
                                         <div className="absolute -bottom-1 -left-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full w-5 h-5 flex items-center justify-center border border-white/20 text-[8px]">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-white">
@@ -348,23 +298,19 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                                         </div>
                                     )}
                                 </div>
-                                
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
-                                        <p className="text-white font-medium truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-colors">
+                                        <span className="text-white font-semibold text-sm truncate max-w-[140px] min-w-0 group relative" title={user.name}>
                                             {user.name}
-                                        </p>
-                                        
+                                        </span>
                                         {/* Рейтинг в виде звезд */}
                                         {user.score > 0 && getRatingStars(Math.min(5, user.score / 100))}
                                     </div>
-                                    
                                     <div className="flex items-center text-xs text-gray-400 mt-0.5">
                                         {/* Ранг */}
                                         <span className={`${user.color}`}>{user.rank}</span>
                                     </div>
                                 </div>
-                                
                                 {/* Ранговый значок */}
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${getRankGradient(index)} text-white shadow-md group-hover:scale-110 transition-transform border border-white/20`}>
                                     {getRankIcon(index)}

@@ -10,7 +10,7 @@ import { BellIcon } from '@heroicons/react/24/outline';
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const { getUserNotifications, unreadCount } = useNotifications();
+  const { getUserNotifications, unreadCount, markAllAsRead } = useNotifications();
   const userContext = useUser();
   const isLoggedIn = !!userContext?.user;
 
@@ -115,7 +115,15 @@ const NotificationBell = () => {
         {isLoggedIn && isOpen && (
           <NotificationCenter
             isOpen={isOpen}
-            onClose={() => setIsOpen(false)}
+            onClose={() => {
+              setIsOpen(false);
+              // Call a function to mark all notifications as read
+              // Assuming useNotifications hook provides a markAllAsRead function
+              // Replace with actual function name if different
+              if (userContext?.user?.id) {
+                markAllAsRead(userContext.user.id);
+              }
+            }}
           />
         )}
       </AnimatePresence>

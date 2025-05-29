@@ -173,6 +173,23 @@ export const useUserRating = () => {
             lastUpdated: new Date().toISOString()
           }
         );
+        // Также обновляем профиль пользователя для отображения рейтинга на карточке
+        const userProfiles = await database.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+          [Query.equal('user_id', userId)]
+        );
+        if (userProfiles.documents.length > 0) {
+          await database.updateDocument(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+            userProfiles.documents[0].$id,
+            {
+              average_rating: averageRating,
+              total_ratings: totalRatings
+            }
+          );
+        }
       } else {
         // Создаем новую статистику
         await database.createDocument(
@@ -189,6 +206,23 @@ export const useUserRating = () => {
             lastUpdated: new Date().toISOString()
           }
         );
+        // Также обновляем профиль пользователя для отображения рейтинга на карточке
+        const userProfiles = await database.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+          [Query.equal('user_id', userId)]
+        );
+        if (userProfiles.documents.length > 0) {
+          await database.updateDocument(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+            userProfiles.documents[0].$id,
+            {
+              average_rating: averageRating,
+              total_ratings: totalRatings
+            }
+          );
+        }
       }
     } catch (error) {
       console.error('Error updating user stats:', error);

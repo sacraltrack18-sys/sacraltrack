@@ -187,84 +187,99 @@ export default function Comments({ params }: CommentsCompTypes) {
             </div>
 
             {/* Comment Input */}
-            <div className="sticky bottom-0 bg-[#24183D] px-[5px] sm:px-4 py-4">
-                {replyTo && (
-                    <div className="flex items-center justify-between mb-2 px-3 py-2 bg-[#282040] rounded-lg animate-fadeIn">
-                        <span className="text-sm text-[#818BAC] flex items-center gap-2">
-                            <BsReply className="text-[#20DDBB]" />
-                            Replying to <span className="text-[#20DDBB]">@{replyTo.name}</span>
-                        </span>
-                        <button 
-                            onClick={() => setReplyTo(null)}
-                            className="text-[#818BAC] hover:text-white transition-colors p-1 rounded-full hover:bg-[#2E2469]/50"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                )}
-                <div 
-                    className={`flex items-center gap-3 bg-[#282040] rounded-2xl p-3 transition-all w-full ${
-                        inputFocused ? 'ring-2 ring-[#20DDBB]' : ''
-                    }`}
-                >
-                    {userContext?.user?.id && (
-                        <img 
-                            className="w-8 h-8 rounded-full object-cover"
-                            src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholders/user-placeholder.svg'}
-                            alt="Your profile"
-                        />
+            {userContext?.user ? (
+                <div className="sticky bottom-0 bg-[#24183D] px-[5px] sm:px-4 py-4">
+                    {replyTo && (
+                        <div className="flex items-center justify-between mb-2 px-3 py-2 bg-[#282040] rounded-lg animate-fadeIn">
+                            <span className="text-sm text-[#818BAC] flex items-center gap-2">
+                                <BsReply className="text-[#20DDBB]" />
+                                Replying to <span className="text-[#20DDBB]">@{replyTo.name}</span>
+                            </span>
+                            <button 
+                                onClick={() => setReplyTo(null)}
+                                className="text-[#818BAC] hover:text-white transition-colors p-1 rounded-full hover:bg-[#2E2469]/50"
+                            >
+                                ✕
+                            </button>
+                        </div>
                     )}
-                    <div className="flex-1 relative">
-                        <input 
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            onFocus={() => setInputFocused(true)}
-                            onBlur={() => setInputFocused(false)}
-                            placeholder={replyTo ? `Reply to @${replyTo.name}...` : "Add a comment..."}
-                            className="w-full bg-transparent text-white placeholder-gray-400 outline-none text-sm pr-10"
-                        />
-                        <button
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#20DDBB] transition-colors"
-                        >
-                            <BsEmojiSmile size={18} />
-                        </button>
-                        
-                        {/* Emoji Picker */}
-                        {showEmojiPicker && (
-                            <div className="absolute bottom-full right-0 mb-2 bg-[#2E2469] rounded-xl p-2 shadow-xl animate-fadeIn">
-                                <div className="flex gap-2">
-                                    {musicEmojis.map((emoji, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => addEmoji(emoji.text)}
-                                            className="p-2 hover:bg-[#352B5A] rounded-lg transition-colors"
-                                        >
-                                            {emoji.icon}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={addComment}
-                        disabled={isSubmitting || !comment.trim()}
-                        className={`p-2 rounded-xl transition-all ${
-                            isSubmitting || !comment.trim()
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-[#20DDBB] hover:bg-[#20DDBB] hover:text-black'
+                    <div 
+                        className={`flex items-center gap-3 bg-[#282040] rounded-2xl p-3 transition-all w-full ${
+                            inputFocused ? 'ring-2 ring-[#20DDBB]' : ''
                         }`}
                     >
-                        {isSubmitting ? (
-                            <BiLoaderCircle className="animate-spin" size={20} />
-                        ) : (
-                            <IoSendSharp size={20} />
+                        {userContext?.user?.id && (
+                            <img 
+                                className="w-8 h-8 rounded-full object-cover"
+                                src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholders/user-placeholder.svg'}
+                                alt="Your profile"
+                            />
                         )}
-                    </button>
+                        <div className="flex-1 relative">
+                            <input 
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                onKeyDown={handleKeyPress}
+                                onFocus={() => setInputFocused(true)}
+                                onBlur={() => setInputFocused(false)}
+                                placeholder={replyTo ? `Reply to @${replyTo.name}...` : "Add a comment..."}
+                                className="w-full bg-transparent text-white placeholder-gray-400 outline-none text-sm pr-10"
+                            />
+                            <button
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#20DDBB] transition-colors"
+                            >
+                                <BsEmojiSmile size={18} />
+                            </button>
+                            
+                            {/* Emoji Picker */}
+                            {showEmojiPicker && (
+                                <div className="absolute bottom-full right-0 mb-2 bg-[#2E2469] rounded-xl p-2 shadow-xl animate-fadeIn">
+                                    <div className="flex gap-2">
+                                        {musicEmojis.map((emoji, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => addEmoji(emoji.text)}
+                                                className="p-2 hover:bg-[#352B5A] rounded-lg transition-colors"
+                                            >
+                                                {emoji.icon}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={addComment}
+                            disabled={isSubmitting || !comment.trim()}
+                            className={`p-2 rounded-xl transition-all ${
+                                isSubmitting || !comment.trim()
+                                    ? 'text-gray-400 cursor-not-allowed'
+                                    : 'text-[#20DDBB] hover:bg-[#20DDBB] hover:text-black'
+                            }`}
+                        >
+                            {isSubmitting ? (
+                                <BiLoaderCircle className="animate-spin" size={20} />
+                            ) : (
+                                <IoSendSharp size={20} />
+                            )}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="sticky bottom-0 bg-[#24183D] px-[5px] sm:px-4 py-4 text-center">
+                    <div className="bg-[#282040] rounded-2xl p-4 border border-[#2E2469] flex flex-col items-center gap-3">
+                        <p className="text-white font-semibold">Join the conversation!</p>
+                        <p className="text-sm text-[#818BAC]">Log in or sign up to leave a comment.</p>
+                        <button 
+                            onClick={() => setIsLoginOpen(true)}
+                            className="mt-2 px-6 py-2 bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 text-white rounded-full font-bold text-sm hover:shadow-[0_0_10px_rgba(32,221,187,0.3)] transition-all"
+                        >
+                            Login or Sign Up
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -30,6 +30,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { FaTrophy, FaStar, FaMedal, FaCrown } from 'react-icons/fa';
 import PeopleLayout from '@/app/layouts/PeopleLayout';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
+import { useMediaQuery } from 'react-responsive';
 
 // Модифицируем наш хук для ГАРАНТИРОВАННОГО перехода
 function useSafeNavigation() {
@@ -523,6 +524,8 @@ export default function People() {
     const [filterBy, setFilterBy] = useState('all');
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
+    const [showRanking, setShowRanking] = useState(false);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
     
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
@@ -961,11 +964,10 @@ export default function People() {
             const collectionId = activeTab === TabTypes.ARTISTS 
                 ? process.env.NEXT_PUBLIC_COLLECTION_ID_ARTIST_PROFILE! 
                 : process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!;
-                
-            // Сортировка тоже может отличаться
-            const sortField = activeTab === TabTypes.ARTISTS ? 'stats.artistScore' : 'stats.averageRating';
-                
-            // Здесь мы делаем запрос на получение топ-пользователей с сортировкой по рейтингу
+            
+            // Сортируем по average_rating (строка в базе)
+            const sortField = 'average_rating';
+            
             const response = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 collectionId,
@@ -984,11 +986,11 @@ export default function People() {
                 image: doc.image,
                 bio: doc.bio || '',
                 stats: {
-                    totalLikes: typeof doc.stats?.totalLikes === 'string' ? parseInt(doc.stats.totalLikes, 10) : (doc.stats?.totalLikes || 0),
-                    totalFollowers: typeof doc.stats?.totalFollowers === 'string' ? parseInt(doc.stats.totalFollowers, 10) : (doc.stats?.totalFollowers || 0),
-                    averageRating: typeof doc.stats?.averageRating === 'string' ? parseFloat(doc.stats.averageRating) : (doc.stats?.averageRating || 0),
-                    totalRatings: typeof doc.stats?.totalRatings === 'string' ? parseInt(doc.stats.totalRatings, 10) : (doc.stats?.totalRatings || 0),
-                    artistScore: typeof doc.stats?.artistScore === 'string' ? parseFloat(doc.stats.artistScore) : (doc.stats?.artistScore || 0)
+                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : (doc.total_likes || 0),
+                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : (doc.total_followers || 0),
+                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : (doc.average_rating || 0),
+                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : (doc.total_ratings || 0),
+                    artistScore: typeof doc.artistScore === 'string' ? parseFloat(doc.artistScore) : (doc.artistScore || 0)
                 }
             }));
             
@@ -1073,7 +1075,7 @@ export default function People() {
 
     return (
         <PeopleLayout>
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 py-8 pt-20 lg:pt-8">
                 {error && (
                     <motion.div 
                         initial={{ opacity: 0, y: -20 }}
@@ -1115,10 +1117,10 @@ export default function People() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.1 }}
-                            className="mb-6"
+                            className="mb-6 sticky top-0 z-40 bg-gradient-to-r from-[#252840]/90 to-[#1E2136]/90 shadow-md rounded-b-xl px-2 py-2"
                         >
                             <div className="flex flex-wrap items-center gap-4">
-                                {/* Поисковая строка - улучшена обработка ввода */}
+                                {/* Поисковая строка и фильтры */}
                                 <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 min-w-[250px]">
                                     <div className="relative flex-1">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1307,18 +1309,16 @@ export default function People() {
                         )}
                     </div>
                     
-                    {/* Боковая панель с топ пользователями */}
-                    <div className="lg:col-span-1">
+                    {/* Боковая панель с топ пользователями (только на десктопе, sticky) */}
+                    <div className="lg:col-span-1 hidden lg:block">
                         <motion.div 
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.5, delay: 0.2 }}
-                            className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5"
+                            className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5 sticky top-24"
                         >
                             <div className="mb-4">
                                 <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
-                                
-                                {/* Стилизованный переключатель под заголовком */}
                                 <div className="flex justify-center mb-4">
                                     <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
                                         <button
@@ -1343,10 +1343,8 @@ export default function People() {
                                         </button>
                                     </div>
                                 </div>
-                                
-                                {/* Заменяем на прямую навигацию */}
                                 {topRankedUsers.length > 0 ? (
-                                    <TopRankingUsersWithDirectNavigation users={topRankedUsers} />
+                                    <TopRankingUsers users={topRankedUsers} />
                                 ) : (
                                     <div className="text-center py-4 text-gray-400">
                                         No users found
@@ -1356,6 +1354,39 @@ export default function People() {
                         </motion.div>
                     </div>
                 </div>
+            </div>
+            {/* Мобильная Top Ranked панель (фиксированная снизу) */}
+            <div className="fixed bottom-0 left-0 w-full z-50 block lg:hidden">
+                <div
+                    className="mx-auto max-w-md bg-gradient-to-r from-[#252840] to-[#1E2136] rounded-t-2xl shadow-2xl p-3 flex items-center justify-between cursor-pointer"
+                    onClick={() => setShowRanking(true)}
+                >
+                    <span className="font-bold text-white text-lg flex items-center gap-2">
+                        <FaCrown className="text-yellow-400" /> Top Ranked
+                    </span>
+                    <span className="text-[#20DDBB] font-semibold">View</span>
+                </div>
+                {/* Выпадающий рейтинг */}
+                <AnimatePresence>
+                    {showRanking && (
+                        <motion.div
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            className="fixed inset-0 z-50 bg-black/60 flex flex-col"
+                            onClick={() => setShowRanking(false)}
+                        >
+                            <div
+                                className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-t-2xl p-6 max-w-md mx-auto mt-auto"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
+                                <TopRankingUsers users={topRankedUsers} />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </PeopleLayout>
     );
