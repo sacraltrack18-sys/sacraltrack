@@ -69,6 +69,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         if (audioRef.current) {
             setDuration(audioRef.current.duration);
             setIsLoading(false);
+            // Восстанавливаем позицию после loadedmetadata
+            if (lastKnownTimeRef.current > 0) {
+                audioRef.current.currentTime = lastKnownTimeRef.current;
+                console.log('[AudioPlayer] Восстановлено время после loadedmetadata:', lastKnownTimeRef.current);
+            }
         }
     }, []);
 
@@ -182,42 +187,45 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const createManifest = useCallback((content: string) => {
         const lines = content.split('\n');
         const metadata = extractMetadataFromManifest(content);
-        
-        // Определяем заголовки манифеста
         let manifest = '#EXTM3U\n#EXT-X-VERSION:3\n';
         manifest += `#EXT-X-TARGETDURATION:${metadata.targetDuration}\n`;
         manifest += '#EXT-X-MEDIA-SEQUENCE:0\n';
         manifest += `#EXT-X-ALLOW-CACHE:${metadata.allowCache ? 'YES' : 'NO'}\n`;
-        
-        // Обработка сегментов
+        let segmentCount = 0;
+        let endlistLine = -1;
+        let segmentLines: string[] = [];
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
             if (line.startsWith('#EXTINF')) {
                 manifest += line + '\n';
-                
-                // Следующая строка должна содержать идентификатор сегмента
                 if (i + 1 < lines.length && !lines[i + 1].startsWith('#')) {
                     const segmentId = lines[i + 1].trim();
                     const segmentUrl = createSegmentUrl(segmentId);
                     manifest += segmentUrl + '\n';
-                    i++; // Пропускаем строку с идентификатором, т.к. мы её уже обработали
+                    segmentCount++;
+                    segmentLines.push(segmentUrl);
+                    i++;
                 }
             } else if (!line.startsWith('#') && line.trim()) {
-                // Это одиночный идентификатор сегмента без EXTINF
                 const segmentUrl = createSegmentUrl(line);
                 manifest += segmentUrl + '\n';
+                segmentCount++;
+                segmentLines.push(segmentUrl);
             } else if (line.startsWith('#')) {
-                // Любые другие директивы сохраняем как есть
                 manifest += line + '\n';
+                if (line.startsWith('#EXT-X-ENDLIST')) {
+                    endlistLine = i;
             }
         }
-        
-        // Добавляем завершение плейлиста, если его нет
+        }
         if (!content.includes('#EXT-X-ENDLIST')) {
             manifest += '#EXT-X-ENDLIST\n';
         }
-        
+        // Логируем результат
+        console.log('[AudioPlayer] Итоговый manifest:', manifest);
+        console.log('[AudioPlayer] Количество сегментов:', segmentCount);
+        console.log('[AudioPlayer] Позиция #EXT-X-ENDLIST:', endlistLine);
+        console.log('[AudioPlayer] Сегменты:', segmentLines);
         return manifest;
     }, [createSegmentUrl, extractMetadataFromManifest]);
 
@@ -246,7 +254,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
                         audio.pause();
-                        audio.currentTime = 0;
                     }).catch(() => {});
                 }
             }
@@ -382,36 +389,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     // Оптимизированная конфигурация HLS для аудио
                     const hlsConfig = {
                         enableWorker: true,
-                        lowLatencyMode: false, // Отключаем режим низкой задержки для аудио
-                        maxBufferSize: 10 * 1000 * 1000, // Увеличиваем размер буфера для аудио (10MB)
-                        maxBufferLength: 30, // Увеличиваем длину буфера для предзагрузки большего числа сегментов
-                        liveSyncDuration: 15, // Try keeping up to 15 seconds of content loaded ahead
-                        liveMaxLatencyDuration: 20, // Allow up to 20 seconds of latency before seeking
-                        fragLoadingTimeOut: 20000, // Increased from 15s
-                        manifestLoadingTimeOut: 15000, // Increased from 10s
-                        levelLoadingTimeOut: 15000, // Increased from 10s
-                        startLevel: -1, // Автоматический выбор качества
-                        // Улучшенные настройки для предотвращения прерываний
-                        abrEwmaDefaultEstimate: 1000000, // Увеличиваем оценку пропускной способности (1Mbps)
-                        testBandwidth: false, // Отключаем тестирование пропускной способности
-                        fragLoadingMaxRetry: 6, // Больше попыток для загрузки фрагментов
-                        manifestLoadingMaxRetry: 6, // Больше попыток для загрузки манифеста
-                        levelLoadingMaxRetry: 6, // Больше попыток для загрузки уровней
-                        // Устанавливаем параметры для агрессивной предзагрузки сегментов
-                        backBufferLength: 30, // Сохраняем больше данных в буфере позади текущей позиции
-                        appendErrorMaxRetry: 5, // Больше попыток при ошибках добавления в буфер
-                        nudgeMaxRetry: 5, // Больше попыток "подталкивания" при застревании
-                        // Настройки для более плавного переключения между сегментами
-                        highBufferWatchdogPeriod: 5, // Сокращаем период проверки высокого буфера
-                        nudgeOffset: 0.1, // Небольшое смещение при "подталкивании"
-                        // Дополнительные настройки для стабильности:
-                        maxBufferHysteresis: 2, // Уменьшаем гистерезис буфера для более активной загрузки
-                        maxLoadingDelay: 4, // Максимальная задержка перед загрузкой нового фрагмента
-                        autoStartLoad: true, // Автоматически начинать загрузку сегментов после парсинга манифеста
-                        // Add aggressive ABR settings (even for audio, can influence segment loading)
-                        abrEwmaFetchAndParseFragKbps: 1000, // Estimate fragment load/parse speed
-                        abrBandwidthFactor: 0.8, // Use 80% of estimated bandwidth
-                        abrBandwidthUpFactor: 0.2, // Be more aggressive in increasing bandwidth estimate
+                        lowLatencyMode: false,
+                        maxBufferSize: 0,
+                        maxBufferLength: 300,
+                        maxMaxBufferLength: 600,
+                        maxBufferHole: 0.1,
+                        startLevel: -1,
+                        manifestLoadingTimeOut: 20000,
+                        manifestLoadingMaxRetry: 8,
+                        manifestLoadingRetryDelay: 500,
+                        levelLoadingTimeOut: 20000,
+                        levelLoadingMaxRetry: 8,
+                        levelLoadingRetryDelay: 500,
+                        fragLoadingTimeOut: 20000,
+                        fragLoadingMaxRetry: 8,
+                        fragLoadingRetryDelay: 500,
+                        startFragPrefetch: true,
+                        testBandwidth: true,
+                        progressive: true,
+                        abrEwmaDefaultEstimate: 1000000,
+                        abrBandwidthFactor: 0.95,
+                        abrBandwidthUpFactor: 0.7,
+                        backBufferLength: 300,
+                        appendErrorMaxRetry: 5
                     };
 
                     try {
@@ -424,6 +424,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         hls.loadSource(manifestUrl);
                         hls.attachMedia(audio);
                         setLoadProgress(0.8);
+                        // Восстанавливаем позицию после attachMedia
+                        if (lastKnownTimeRef.current > 0) {
+                            audio.currentTime = lastKnownTimeRef.current;
+                            console.log('[AudioPlayer] Восстановлено время после attachMedia:', lastKnownTimeRef.current);
+                        }
                         
                         // Add a flag to track if manifest is parsed
                         let manifestParsed = false;
@@ -432,18 +437,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                             manifestParsed = true;
                             setLoadProgress(1.0);
                             isCurrentlyLoading = false;
-                            
+                            // Восстанавливаем позицию после MANIFEST_PARSED
+                            if (lastKnownTimeRef.current > 0) {
+                                audio.currentTime = lastKnownTimeRef.current;
+                                console.log('[AudioPlayer] Восстановлено время после MANIFEST_PARSED:', lastKnownTimeRef.current);
+                            }
                             // Если трек был предзагружен, мы можем начать воспроизведение мгновенно
                             // без дополнительной задержки
                             const playDelay = skipManifestLoading ? 0 : 300;
-                            
                             // Add a small delay before attempting to play if not using preloaded content
                             // This helps avoid the "play() request was interrupted" error
                             if (isPlaying && isMounted) {
                                 if (playDelay > 0) {
                                     setTimeout(() => {
                                         if (!isMounted) return;
-                                        
                                         try {
                                             if (audio.paused) {
                                                 const playPromise = audio.play();
@@ -588,70 +595,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             
             // Add more error recovery handlers
             hls.on(Hls.Events.ERROR, function(event, data) {
-                console.error('HLS Error Event:', event, data); // Log detailed HLS error
+                console.log('HLS Error:', data);
                 if (data.fatal) {
-                    switch(data.type) {
+                    switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            console.warn('HLS network error detected, trying to recover...');
-                            // Handle network errors with a delay to prevent rapid retries
-                            setTimeout(() => {
-                                if (isMounted && hls) {
+                            console.log('Фатальная ошибка сети, пытаемся восстановить');
                                     hls.startLoad();
-                                }
-                            }, 1000);
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.warn('HLS media error detected, trying to recover...');
-                            // Attempt recovery for media errors, and explicitly try to load
+                            console.log('Фатальная ошибка медиа, пытаемся восстановить');
                             hls.recoverMediaError();
-                            if (hls && !audio.paused && !audio.ended) {
-                                try {
-                                    // Explicitly try to resume load for any media error, especially stalled
-                                    hls.startLoad();
-                                    console.log('startLoad() called in response to fatal MEDIA_ERROR');
-                                } catch (e) {
-                                    console.error('Error calling startLoad() on fatal media error:', e);
-                                }
-                            }
                             break;
                         default:
-                            // Cannot recover, so try to destroy and recreate
-                            console.error('Fatal HLS error:', data);
-                            errorToast('Fatal audio playback error. Trying to restart.'); // Show toast for fatal errors
-                            if (isMounted) {
-                                try {
-                                    hls.destroy();
+                            console.log('Фатальная ошибка, перезапускаем плеер');
+                            if (hlsRef.current) {
+                                hlsRef.current.destroy();
                                     hlsRef.current = null;
-                                    // Only attempt recreation if still mounted
-                                    setTimeout(() => {
-                                        if (isMounted) {
                                             setupHls();
                                         }
-                                    }, 1000);
-                                } catch (err) {
-                                    console.error('Error during HLS recovery:', err);
-                                    setError('Playback error. Please try again.'); // Set internal error state
-                                }
-                            }
                             break;
                     }
-                } else {
-                    // Non-fatal error, just log it and potentially attempt recovery if it's a stalling issue
-                    console.warn('Non-fatal HLS error:', data);
-                    // If it's a non-fatal media error (like stalling), attempt to nudge loading
-                    if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { // Check for any non-fatal media error
-                         console.warn('Non-fatal media error, attempting recovery/loading...');
-                         if (hls && !audio.paused && !audio.ended) {
-                             try {
-                                 hls.startLoad(); // Explicitly try to resume load
-                                 console.log('startLoad() called in response to non-fatal MEDIA_ERROR (likely stalled)'); // More specific log
-                             } catch (e) {
-                                 console.error('Error calling startLoad() on non-fatal media error:', e);
-                             }
-                         }
-                    }
-                    // Optionally show non-fatal errors as less intrusive toasts
-                    // errorToast('Audio warning: ' + (data.details || '');
                 }
             });
 
@@ -659,17 +622,38 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             hls.on(Hls.Events.FRAG_LOADED, function(event, data) {
                 // При успешной загрузке сегмента, проверяем текущую позицию воспроизведения
                 if (audioRef.current && data.frag) {
-                    const currentTime = audioRef.current.currentTime;
-                    const fragEndTime = data.frag.start + data.frag.duration;
-                    
-                    // Если загружен последний сегмент, инициируем загрузку следующего
-                    // даже если у нас уже достаточно буфера
-                    if (fragEndTime - currentTime < 10) {
-                        console.log('Упреждающая загрузка следующего сегмента');
-                        // Это даст сигнал HLS.js, что нужно продолжать загрузку
-                        // даже если текущий буфер достаточно большой
-                        hls.trigger(Hls.Events.BUFFER_EOS, {}); // Добавляем пустой объект в качестве данных
+                    const audio = audioRef.current;
+                    const currentTime = audio.currentTime;
+                    let bufferedEnd = 0;
+                    if (audio.buffered.length > 0) {
+                        bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
                     }
+                    const timeLeft = bufferedEnd - currentTime;
+                    // Если буфер мал, инициируем загрузку
+                    if (timeLeft < 30) {
+                        try {
+                            hls.startLoad();
+                             } catch (e) {
+                            console.warn('Ошибка при вызове startLoad в FRAG_LOADED:', e);
+                        }
+                    }
+                }
+            });
+
+            // Мониторим состояние буфера
+            hls.on(Hls.Events.BUFFER_APPENDED, () => {
+                if (audioRef.current && !audioRef.current.paused) {
+                    const audio = audioRef.current;
+                    const currentTime = audio.currentTime;
+                    let bufferedEnd = 0;
+                    
+                    for (let i = 0; i < audio.buffered.length; i++) {
+                        if (audio.buffered.end(i) > bufferedEnd) {
+                            bufferedEnd = audio.buffered.end(i);
+                        }
+                    }
+                    
+                    console.log('Текущий буфер:', bufferedEnd - currentTime, 'секунд');
                 }
             });
         };
@@ -720,64 +704,135 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         };
     }, [m3u8Url, createManifest, fetchM3U8Content, handleBufferProgress, isPlaying]);
 
+    // Добавляем новый эффект для отслеживания паузы
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handlePause = () => {
+            // Сохраняем позицию при любой паузе
+            if (audio.currentTime > 0) {
+                lastKnownTimeRef.current = audio.currentTime;
+                console.log('Сохранена позиция при паузе:', lastKnownTimeRef.current);
+            }
+        };
+
+        const handlePlay = () => {
+            // Восстанавливаем позицию при любом воспроизведении
+            if (lastKnownTimeRef.current > 0) {
+                audio.currentTime = lastKnownTimeRef.current;
+                console.log('Восстановлена позиция при воспроизведении:', lastKnownTimeRef.current);
+            }
+        };
+
+        audio.addEventListener('pause', handlePause);
+        audio.addEventListener('play', handlePlay);
+
+        return () => {
+            audio.removeEventListener('pause', handlePause);
+            audio.removeEventListener('play', handlePlay);
+        };
+    }, []);
+
+    // Модифицируем эффект play/pause
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const playPauseDebounce = setTimeout(async () => {
+            if (isPlaying) {
+                try {
+                    if (audio.paused) {
+                        // Принудительно восстанавливаем позицию перед воспроизведением
+                        if (lastKnownTimeRef.current > 0) {
+                            console.log('Восстанавливаем позицию перед play:', lastKnownTimeRef.current);
+                            audio.currentTime = lastKnownTimeRef.current;
+                            
+                            // Ждем, пока позиция действительно установится
+                            await new Promise(resolve => {
+                                const checkTime = () => {
+                                    if (Math.abs(audio.currentTime - lastKnownTimeRef.current) < 0.1) {
+                                        resolve(true);
+                                    } else {
+                                audio.currentTime = lastKnownTimeRef.current;
+                                        setTimeout(checkTime, 10);
+                                    }
+                                };
+                                checkTime();
+                            });
+                        }
+
+                        // Теперь запускаем воспроизведение
+                            const playPromise = audio.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(error => {
+                                console.error('Ошибка воспроизведения:', error);
+                                    if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+                                         onPause();
+                                    }
+                                });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Ошибка при воспроизведении:', error);
+                    onPause();
+                            }
+                        } else {
+                if (!audio.paused) {
+                    // Сохраняем позицию перед паузой
+                    lastKnownTimeRef.current = audio.currentTime;
+                    console.log('Сохраняем позицию перед pause:', lastKnownTimeRef.current);
+                    audio.pause();
+                }
+            }
+        }, 100);
+
+        return () => clearTimeout(playPauseDebounce);
+    }, [isPlaying, onPause]);
+
+    // Добавляем обработчик для seeked события
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleSeeked = () => {
+            // Обновляем сохраненную позицию при перемотке
+            lastKnownTimeRef.current = audio.currentTime;
+            console.log('Обновлена позиция после перемотки:', lastKnownTimeRef.current);
+        };
+
+        audio.addEventListener('seeked', handleSeeked);
+
+        return () => {
+            audio.removeEventListener('seeked', handleSeeked);
+        };
+    }, []);
+
     // Эффект для обработки изменений состояния проигрывания (play/pause)
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
 
-        // Use a debounce to prevent rapid play/pause calls
         const playPauseDebounce = setTimeout(() => {
-            if (isPlaying) {
-                // Only try to play if the audio is actually paused
+                                if (isPlaying) {
                 if (audio.paused) {
                     try {
-                        // Add an additional check for readiness
                         if (audio.readyState >= 2) {
-                            console.log('Attempting to play from current time...');
-
-                            // Restore time if paused previously, but not on initial play (time is 0)
-                            if (lastKnownTimeRef.current > 0 && audio.currentTime !== lastKnownTimeRef.current) {
-                                console.log(`Restoring playback to: ${lastKnownTimeRef.current}`);
+                            // Always restore position before playing
+                            if (lastKnownTimeRef.current > 0) {
+                                console.log('Restoring to position:', lastKnownTimeRef.current);
                                 audio.currentTime = lastKnownTimeRef.current;
-                                // Reset saved time after restoring to avoid always jumping back
-                                // lastKnownTimeRef.current = 0; // Optional: reset if each play should start fresh after seeking/pause
                             }
-
-                            const playPromise = audio.play();
-                            if (playPromise !== undefined) {
-                                playPromise.catch(error => {
-                                    console.error('Error playing audio:', error);
-                                    // Do not call onPause for NotAllowedError to keep play button active
-                                    if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-                                         onPause();
-                                    }
-                                });
-                            }
-                        } else {
-                            // If not ready yet, wait a bit more
-                            console.log('Audio not ready yet, waiting...');
-                            // Set a visual indication that we's still loading
-                            setIsLoading(true);
                             
-                            // Set up a one-time event listener for when it becomes ready
-                            const onCanPlay = () => {
-                                if (isPlaying) {
                                     const playPromise = audio.play();
                                     if (playPromise !== undefined) {
                                         playPromise.catch(error => {
-                                            console.error('Error playing audio after canplay:', error);
-                                            // Do not call onPause for NotAllowedError
+                                    console.error('Error playing audio:', error);
                                             if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
                                                 onPause();
                                             }
                                         });
                                     }
-                                }
-                                setIsLoading(false);
-                                audio.removeEventListener('canplay', onCanPlay);
-                            };
-                            
-                            audio.addEventListener('canplay', onCanPlay, { once: true });
                         }
                     } catch (error) {
                         console.error('Exception during play:', error);
@@ -785,23 +840,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     }
                 }
             } else {
-                // When pausing, ensure any pending play operations are complete
-                try {
-                    // Pause only if it's actually playing to avoid unnecessary events
                     if (!audio.paused) {
-                        console.log('Pausing audio element.');
+                    // Always save position before pausing
+                    lastKnownTimeRef.current = audio.currentTime;
+                    console.log('Saving position:', lastKnownTimeRef.current);
                         audio.pause();
-                        // The 'pause' event listener will save the current time
                     }
-                } catch (error) {
-                    console.warn('Error pausing audio:', error);
                 }
-            }
-        }, 100); // 100ms debounce
+        }, 100);
         
-        return () => {
-            clearTimeout(playPauseDebounce);
-        };
+        return () => clearTimeout(playPauseDebounce);
     }, [isPlaying, onPause]);
 
     // Обработка событий аудио с улучшенной логикой
@@ -810,6 +858,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         if (!audio) return;
 
         const handleEnded = () => {
+            lastKnownTimeRef.current = 0; // Сброс позиции при окончании трека
             onPause();
         };
 
@@ -841,10 +890,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         // Add event listener for 'pause' event to save current time
         const handlePauseEvent = () => {
-            if (audio.currentTime > 0) { // Only save if playback started
                 lastKnownTimeRef.current = audio.currentTime;
                 console.log(`Playback paused, saving time: ${lastKnownTimeRef.current}`);
-            }
         };
 
         // Add all event listeners
@@ -883,39 +930,42 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             const bounds = e.currentTarget.getBoundingClientRect();
             const percent = (e.clientX - bounds.left) / bounds.width;
             const newTime = percent * duration;
-            
-            // Проверяем, буферизован ли запрашиваемый сегмент
-            if (audioRef.current.buffered.length > 0) {
-                let isBuffered = false;
-                
-                for (let i = 0; i < audioRef.current.buffered.length; i++) {
-                    const start = audioRef.current.buffered.start(i);
-                    const end = audioRef.current.buffered.end(i);
-                    
-                    if (newTime >= start && newTime <= end) {
-                        isBuffered = true;
-                        break;
+            audioRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
+            // Если используется HLS, явно инициируем загрузку сегмента
+            if (hlsRef.current) {
+                try {
+                    hlsRef.current.startLoad();
+                } catch (e) {
+                    console.warn('Ошибка при вызове startLoad после seek:', e);
+                }
+            }
+            // Если должен играть — инициируем play
+            if (isPlaying) {
+                const audio = audioRef.current;
+                if (audio.readyState >= 2) {
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            // Не сбрасываем UI, просто лог
+                            console.warn('Ошибка play() после seek:', err);
+                        });
                     }
-                }
-                
-                if (isBuffered) {
-                    audioRef.current.currentTime = newTime;
                 } else {
-                    // Если сегмент не буферизован, показываем индикатор загрузки
-                    setIsLoading(true);
-                    // Устанавливаем время с небольшой задержкой
-                    setTimeout(() => {
-                        if (audioRef.current) {
-                            audioRef.current.currentTime = newTime;
+                    // Если не готово — ждем canplay и только тогда play
+                    const onCanPlay = () => {
+                        if (isPlaying) {
+                            audio.play().catch(err => {
+                                console.warn('Ошибка play() после seek/canplay:', err);
+                            });
                         }
-                    }, 100);
+                        audio.removeEventListener('canplay', onCanPlay);
+                    };
+                    audio.addEventListener('canplay', onCanPlay, { once: true });
                 }
-            } else {
-                // Если информация о буфере недоступна, просто устанавливаем время
-                audioRef.current.currentTime = newTime;
             }
         }
-    }, [duration, isLoading]);
+    }, [duration, isLoading, isPlaying]);
 
     // Функция для предзагрузки HLS-плейлиста и первого сегмента
     const preloadHlsContent = useCallback(async (url: string) => {
@@ -1141,58 +1191,73 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         };
     }, [m3u8Url]);
 
-    // --- AGGRESSIVE SEGMENT PRELOAD & BUFFER WATCHDOG ---
+    // Добавляем агрессивный мониторинг буфера
     useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
-        // Only run watchdog if not stalled (HLS.js >= 0.10) and audio is playing
-        // Checking HLS.js version or relying on isPlaying and buffer state might be needed
-        // For now, keep it simple and let BUFFER_STALLED handle the explicit nudge.
-        // The existing logic below already triggers load based on low buffer.
+        if (!audioRef.current || !hlsRef.current || !isPlaying) return;
 
-        if (hlsRef.current && audioRef.current && isPlaying) {
-            interval = setInterval(() => {
                 const audio = audioRef.current;
                 const hls = hlsRef.current;
-                if (!audio || !hls || audio.paused || audio.ended) return; // Ensure audio is playing
+        let bufferCheckInterval: NodeJS.Timeout;
 
+        const checkAndLoadBuffer = () => {
+            if (!audio || !hls) return;
+
+            try {
+                if (!audio.paused) {
+                    const currentTime = audio.currentTime;
                 let bufferedEnd = 0;
-                if (audio.buffered.length > 0) {
-                    bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
-                }
-                const currentTime = audio.currentTime;
-                const timeLeft = bufferedEnd - currentTime;
+                    
+                    // Находим текущий буферизованный диапазон
+                    for (let i = 0; i < audio.buffered.length; i++) {
+                        const start = audio.buffered.start(i);
+                        const end = audio.buffered.end(i);
+                        if (currentTime >= start && currentTime <= end) {
+                            bufferedEnd = end;
+                            break;
+                        }
+                    }
 
-                // Log buffer state
-                console.log(`HLS Buffer Watchdog: Buffer: ${timeLeft.toFixed(2)}s left at ${currentTime.toFixed(2)}s`);
+                    const timeBuffered = bufferedEnd - currentTime;
+                    console.log('Буферизовано секунд:', timeBuffered);
 
-                // If time left in buffer is low, proactively trigger load
-                // Increased threshold for extremely aggressive loading
-                if (timeLeft < 30) { // Increased significantly
-                     console.log('HLS Buffer Watchdog: Buffer low (<30s), triggering proactive load...');
-                    try {
+                    // Если буфер меньше 60 секунд, запускаем загрузку
+                    if (timeBuffered < 60) {
+                        console.log('Запуск дополнительной загрузки');
                         hls.startLoad();
-                         console.log('HLS Buffer Watchdog: startLoad() called (low buffer)');
-                    } catch (e) {
-                        console.error('HLS Buffer Watchdog: Error triggering startLoad (low buffer):', e);
                     }
                 }
-                // If buffer is critically low, ensure loading is active
-                if (timeLeft < 15) { // Increased significantly
-                      console.log('HLS Buffer Watchdog: Buffer critically low (<15s), ensuring load is active...');
-                     try {
-                        hls.startLoad();
-                         console.log('HLS Buffer Watchdog: startLoad() called (critically low buffer)');
-                     } catch (e) {
-                        console.error('HLS Buffer Watchdog: Error triggering startLoad (critical buffer):', e);
-                     }
-                }
-
-            }, 100); // Check buffer extremely frequently (every 0.1 seconds)
-        }
-        return () => {
-            if (interval) clearInterval(interval);
+            } catch (error) {
+                console.warn('Ошибка проверки буфера:', error);
+            }
         };
-    }, [isPlaying]); // Depend on isPlaying to start/stop watchdog
+
+        // Запускаем проверку буфера каждую секунду
+        bufferCheckInterval = setInterval(checkAndLoadBuffer, 1000);
+
+        // Добавляем обработчики событий HLS
+        const onFragLoaded = () => {
+            checkAndLoadBuffer();
+        };
+
+        const onFragBuffered = () => {
+            checkAndLoadBuffer();
+        };
+
+        hls.on(Hls.Events.FRAG_LOADED, onFragLoaded);
+        hls.on(Hls.Events.FRAG_BUFFERED, onFragBuffered);
+
+        // Принудительно запускаем загрузку при старте
+        hls.startLoad();
+        checkAndLoadBuffer();
+
+        return () => {
+            clearInterval(bufferCheckInterval);
+            if (hls) {
+                hls.off(Hls.Events.FRAG_LOADED, onFragLoaded);
+                hls.off(Hls.Events.FRAG_BUFFERED, onFragBuffered);
+            }
+        };
+    }, [isPlaying]);
 
     // Исправление: всегда делаем unlockAudio при onPlay на iOS
     useEffect(() => {
