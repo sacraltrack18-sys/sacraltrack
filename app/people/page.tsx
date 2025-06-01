@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFriendsStore } from '@/app/stores/friends';
 import { useProfileStore } from '@/app/stores/profile';
@@ -10,6 +10,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import TopRankingUsers from '@/app/components/profile/TopRankingUsers';
 import Banner from '@/app/components/ads/Banner';
+import dynamic from 'next/dynamic';
+import styles from './styles.module.css';
 import { 
   StarIcon, 
   UserPlusIcon, 
@@ -31,6 +33,22 @@ import { FaTrophy, FaStar, FaMedal, FaCrown } from 'react-icons/fa';
 import PeopleLayout from '@/app/layouts/PeopleLayout';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
 import { useMediaQuery } from 'react-responsive';
+import { useInView } from 'react-intersection-observer';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import UserCardSkeleton from '@/app/components/skeletons/UserCardSkeleton';
+
+// Динамический импорт иконок
+const StarIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.StarIcon));
+const UserPlusIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.UserPlusIcon));
+const UserMinusIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.UserMinusIcon));
+const MagnifyingGlassIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.MagnifyingGlassIcon));
+const AdjustmentsHorizontalIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.AdjustmentsHorizontalIcon));
+const ArrowUpIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.ArrowUpIcon));
+const ArrowDownIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.ArrowDownIcon));
+const XMarkIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.XMarkIcon));
+const ChevronDownIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.ChevronDownIcon));
+const UsersIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.UsersIcon));
+const HeartIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.HeartIcon));
 
 // Модифицируем наш хук для ГАРАНТИРОВАННОГО перехода
 function useSafeNavigation() {
@@ -79,24 +97,24 @@ const RatingStars: React.FC<{ rating: number }> = ({ rating }) => {
   return (
     <div className="flex items-center">
       {[...Array(fullStars)].map((_, i) => (
-        <StarIcon key={`full-${i}`} className="w-3 h-3 text-yellow-400" />
+        <StarIconDynamic key={`full-${i}`} className="w-3 h-3 text-yellow-400" />
       ))}
       {hasHalfStar && (
         <div className="relative w-3 h-3 overflow-hidden">
-          <StarIcon className="absolute w-3 h-3 text-gray-400" />
+          <StarIconDynamic className="absolute w-3 h-3 text-gray-400" />
           <div className="absolute top-0 left-0 w-1/2 h-full overflow-hidden">
-            <StarIcon className="absolute w-3 h-3 text-yellow-400" />
+            <StarIconDynamic className="absolute w-3 h-3 text-yellow-400" />
           </div>
         </div>
       )}
       {[...Array(emptyStars)].map((_, i) => (
-        <StarIcon key={`empty-${i}`} className="w-3 h-3 text-gray-400" />
+        <StarIconDynamic key={`empty-${i}`} className="w-3 h-3 text-gray-400" />
       ))}
     </div>
   );
 };
 
-// Все компоненты и функции из PeoplePage.tsx
+// Fix the UserCardProps interface
 interface UserCardProps {
     user: {
         $id: string;
@@ -105,7 +123,6 @@ interface UserCardProps {
         username?: string;
         image: string;
         bio: string;
-        // Add direct field properties to match database schema
         total_followers?: string | number;
         total_likes?: string | number;
         average_rating?: string | number;
@@ -121,101 +138,6 @@ interface UserCardProps {
     onAddFriend: (userId: string) => void;
     onRemoveFriend: (userId: string) => void;
     onRateUser: (userId: string, rating: number) => void;
-}
-
-// Component skeleton for user cards
-function UserCardSkeleton() {
-  return (
-        <div className="bg-gradient-to-br from-gray-900/80 via-gray-800/70 to-gray-900/80 rounded-2xl overflow-hidden border border-white/5 shadow-xl relative group hover:shadow-2xl transition-all duration-500 h-[340px]">
-            {/* Animated techno/underground music background */}
-            <div className="absolute inset-0 overflow-hidden opacity-20">
-                {/* Animated waveform */}
-                <div className="absolute top-0 left-0 right-0 flex justify-around h-16">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                        <motion.div
-                            key={i} 
-                            className="w-1 bg-gradient-to-t from-[#20DDBB] to-[#5D59FF] rounded-full"
-                            animate={{ 
-                                height: [10, 15 + Math.random() * 30, 10],
-                            }}
-                            transition={{ 
-                                duration: 1.5 + Math.random() * 2,
-                                repeat: Infinity,
-                                repeatType: "mirror",
-                                ease: "easeInOut"
-                            }}
-                        />
-                    ))}
-                </div>
-      
-                {/* Vinyl record animation */}
-                <motion.div 
-                    className="absolute top-[30%] left-[10%] w-24 h-24 rounded-full border-2 border-[#5D59FF]/30"
-                    animate={{ rotate: 360 }}
-                    transition={{ 
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "linear"
-                    }}
-                >
-                    <div className="absolute inset-[30%] rounded-full border border-[#20DDBB]/30"></div>
-                    <div className="absolute inset-[45%] rounded-full bg-[#5D59FF]/30"></div>
-                </motion.div>
-                
-                {/* Music notes */}
-                <motion.div 
-                    className="absolute bottom-[20%] right-[15%] text-5xl text-[#20DDBB]/30"
-                    animate={{ y: [-10, 10, -10], rotate: [0, 10, 0] }}
-                    transition={{ 
-                        duration: 5,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                    ♪
-                </motion.div>
-                <motion.div 
-                    className="absolute top-[60%] right-[30%] text-4xl text-[#5D59FF]/30"
-                    animate={{ y: [5, -5, 5], rotate: [0, -5, 0] }}
-                    transition={{ 
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                    ♫
-                </motion.div>
-            </div>
-    
-            {/* Content skeleton */}
-            <div className="p-6 h-full flex flex-col relative z-10">
-                <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 animate-pulse"></div>
-                    <div className="flex-1">
-                        <div className="h-5 w-3/4 bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 rounded animate-pulse mb-2"></div>
-                        <div className="h-4 w-1/2 bg-gradient-to-r from-[#5D59FF]/10 to-[#20DDBB]/10 rounded animate-pulse"></div>
-                    </div>
-                </div>
-      
-                <div className="space-y-3 mb-6">
-                    <div className="h-3 bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 rounded animate-pulse"></div>
-                    <div className="h-3 bg-gradient-to-r from-[#5D59FF]/10 to-[#20DDBB]/10 rounded animate-pulse w-11/12"></div>
-                    <div className="h-3 bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 rounded animate-pulse w-3/4"></div>
-                </div>
-      
-                <div className="flex justify-between items-center mt-auto pt-4 border-t border-white/5">
-                    <div className="flex space-x-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 animate-pulse"></div>
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#5D59FF]/20 to-[#20DDBB]/20 animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <div className="h-4 w-16 bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 rounded animate-pulse"></div>
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#5D59FF]/10 to-[#20DDBB]/10 animate-pulse"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
 }
 
 // Компонент UserCard - сделаем всю карточку кликабельной и упростим навигацию
@@ -337,7 +259,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
     
     return (
         <motion.div
-            className="rounded-2xl overflow-hidden shadow-xl h-[380px] relative group backdrop-blur-sm cursor-pointer"
+            className={`group ${styles.userCard}`}
             whileHover={{ y: -5, transition: { duration: 0.2 } }}
             initial={false}
             transition={{ 
@@ -358,11 +280,11 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                     className="object-cover"
                     onError={() => setImageError(true)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60" />
+                <div className={styles.cardBackground} />
             </div>
             
-            {/* Glass overlay to make it more stylish */}
-            <div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 to-purple-900/20 backdrop-blur-[2px] opacity-40 group-hover:opacity-60 transition-opacity" />
+            {/* Glass overlay */}
+            <div className={`${styles.cardGlass} group-hover:opacity-60`} />
             
             {/* User rank badge */}
             <div className="absolute top-3 left-3 z-10">
@@ -384,7 +306,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             onMouseLeave={() => setHoverRating(0)}
                             className="p-1 focus:outline-none"
                         >
-                            <StarIcon 
+                            <StarIconDynamic 
                                 className={`w-4 h-4 ${
                                     (hoverRating > 0 ? star <= hoverRating : (star <= numericRating || star <= rating)) 
                                         ? 'text-yellow-400' 
@@ -396,7 +318,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                 </div>
                 <div className="mt-1 bg-black/30 backdrop-blur-md rounded-full px-2 py-0.5 text-center border border-white/10 shadow-lg">
                     <div className="flex items-center gap-1">
-                        <StarIcon className="w-3 h-3 text-yellow-400" />
+                        <StarIconDynamic className="w-3 h-3 text-yellow-400" />
                         <span className="text-xs font-medium text-white/90">
                             {hoverRating > 0 ? hoverRating.toFixed(1) : numericRating.toFixed(1)}
                         </span>
@@ -416,15 +338,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                     
                     <div className="flex items-center gap-4 mt-3 text-white/80 text-sm">
                         <div className="flex items-center">
-                            <UsersIcon className="w-4 h-4 mr-1 text-purple-400" />
+                            <UsersIconDynamic className="w-4 h-4 mr-1 text-purple-400" />
                             {totalFollowers}
                         </div>
                         <div className="flex items-center">
-                            <HeartIcon className="w-4 h-4 mr-1 text-pink-400" />
+                            <HeartIconDynamic className="w-4 h-4 mr-1 text-pink-400" />
                             {totalLikes}
                         </div>
                         <div className="flex items-center">
-                            <StarIcon className="w-4 h-4 mr-1 text-yellow-400" />
+                            <StarIconDynamic className="w-4 h-4 mr-1 text-yellow-400" />
                             {totalRatings}
                         </div>
                     </div>
@@ -448,7 +370,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                             : 'bg-gradient-to-r from-cyan-600/40 to-teal-600/40 hover:from-cyan-600/60 hover:to-teal-600/60 text-white'
                     }`}
                 >
-                    {isFriend ? <UserMinusIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                    {isFriend ? <UserMinusIconDynamic className="w-5 h-5" /> : <UserPlusIconDynamic className="w-5 h-5" />}
                 </motion.button>
             </div>
         </motion.div>
@@ -480,7 +402,7 @@ const FilterDropdown = ({
             >
                 <span className="text-purple-300">{label}:</span>
                 <span className="font-medium">{options.find(opt => opt.value === value)?.label}</span>
-                <ChevronDownIcon className="w-4 h-4 text-purple-300" />
+                <ChevronDownIconDynamic className="w-4 h-4 text-purple-300" />
             </button>
             
             {isOpen && (
@@ -509,6 +431,50 @@ const FilterDropdown = ({
     );
 };
 
+// Добавляем компонент загрузки для иконок
+const IconLoading = () => (
+  <div className="animate-pulse w-5 h-5 bg-gray-300/20 rounded-full"></div>
+);
+
+// Обновляем использование иконок, добавляя Suspense
+const IconWithFallback = ({ Icon }: { Icon: any }) => (
+  <Suspense fallback={<IconLoading />}>
+    <Icon className="w-5 h-5" />
+  </Suspense>
+);
+
+// Constants for optimization
+const INITIAL_PAGE_SIZE = 6;
+const LOAD_MORE_SIZE = 6;
+const SCROLL_THRESHOLD = 0.5;
+
+// Add cache utility
+const useProfilesCache = () => {
+    const cacheRef = useRef(new Map());
+    
+    const setCache = useCallback((key: string, data: any) => {
+        cacheRef.current.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    }, []);
+    
+    const getCache = useCallback((key: string) => {
+        const cached = cacheRef.current.get(key);
+        if (!cached) return null;
+        
+        // Cache expires after 5 minutes
+        if (Date.now() - cached.timestamp > 5 * 60 * 1000) {
+            cacheRef.current.delete(key);
+            return null;
+        }
+        
+        return cached.data;
+    }, []);
+    
+    return { setCache, getCache };
+};
+
 export default function People() {
     const [profiles, setProfiles] = useState<any[]>([]);
     const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
@@ -526,6 +492,16 @@ export default function People() {
     const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
     const [showRanking, setShowRanking] = useState(false);
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+    const [isIconsLoaded, setIconsLoaded] = useState(false);
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [visibleProfiles, setVisibleProfiles] = useState<any[]>([]);
+    const { ref: loadMoreRef, inView } = useInView({
+        threshold: SCROLL_THRESHOLD,
+        triggerOnce: false
+    });
+    const { setCache, getCache } = useProfilesCache();
+    const parentRef = useRef<HTMLDivElement>(null);
+    const allProfilesRef = useRef<any[]>([]);
     
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
@@ -533,6 +509,144 @@ export default function People() {
     const pathname = usePathname();
     const { navigateTo } = useSafeNavigation();
     
+    // Virtualized list setup
+    const rowVirtualizer = useVirtualizer({
+        count: visibleProfiles.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 380, // Height of each card
+        overscan: 5
+    });
+
+    // Optimized load users function
+    const loadUsers = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            
+            // Try to get from cache first
+            const cached = getCache('initial_profiles');
+            if (cached) {
+                console.log("[DEBUG] Using cached profiles");
+                setProfiles(cached);
+                setFilteredProfiles(cached);
+                setVisibleProfiles(cached.slice(0, INITIAL_PAGE_SIZE));
+                setIsLoading(false);
+                return;
+            }
+            
+            const response = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                [Query.limit(50)] // Load more initially but show less
+            );
+            
+            const loadedProfiles = response.documents.map(doc => ({
+                $id: doc.$id,
+                user_id: doc.user_id,
+                name: doc.name || 'Unknown User',
+                username: doc.username,
+                image: doc.image,
+                bio: doc.bio || '',
+                total_likes: doc.total_likes || '0',
+                total_followers: doc.total_followers || '0',
+                average_rating: doc.average_rating || '0',
+                total_ratings: doc.total_ratings || '0',
+                stats: {
+                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : 0,
+                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : 0,
+                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : 0,
+                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : 0
+                }
+            }));
+            
+            setCache('initial_profiles', loadedProfiles);
+            setProfiles(loadedProfiles);
+            setFilteredProfiles(loadedProfiles);
+            setVisibleProfiles(loadedProfiles.slice(0, INITIAL_PAGE_SIZE));
+            allProfilesRef.current = loadedProfiles;
+        } catch (error) {
+            console.error('[ERROR] Error loading users:', error);
+            setError('Failed to load users. Please try again later.');
+            
+            if (profiles.length > 0) {
+                setFilteredProfiles(profiles);
+                setVisibleProfiles(profiles.slice(0, INITIAL_PAGE_SIZE));
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [setCache, getCache]);
+
+    // Load more profiles when scrolling
+    const loadMoreProfiles = useCallback(() => {
+        if (isLoadingMore || !hasMoreProfiles) return;
+        
+        const currentLength = visibleProfiles.length;
+        const nextProfiles = filteredProfiles.slice(
+            currentLength,
+            currentLength + LOAD_MORE_SIZE
+        );
+        
+        if (nextProfiles.length > 0) {
+            setVisibleProfiles(prev => [...prev, ...nextProfiles]);
+        } else {
+            setHasMoreProfiles(false);
+        }
+    }, [filteredProfiles, visibleProfiles.length, isLoadingMore, hasMoreProfiles]);
+
+    // Watch for scroll and load more
+    useEffect(() => {
+        if (inView && !isLoading) {
+            loadMoreProfiles();
+        }
+    }, [inView, isLoading, loadMoreProfiles]);
+
+    // Optimized search function with debounce
+    const debouncedSearch = useCallback(
+        debounce((text: string) => {
+            if (!text.trim()) {
+                setFilteredProfiles(profiles);
+                setVisibleProfiles(profiles.slice(0, INITIAL_PAGE_SIZE));
+                return;
+            }
+
+            const searchTerms = text.trim().toLowerCase().split(/\s+/);
+            const results = profiles.filter(profile => {
+                if (!profile) return false;
+                
+                const name = (profile.name || '').toLowerCase();
+                const username = (profile.username || '').toLowerCase();
+                const bio = (profile.bio || '').toLowerCase();
+                
+                return searchTerms.every(term => 
+                    name.includes(term) || 
+                    username.includes(term) || 
+                    bio.includes(term)
+                );
+            });
+            
+            setFilteredProfiles(results);
+            setVisibleProfiles(results.slice(0, INITIAL_PAGE_SIZE));
+        }, 300),
+        [profiles]
+    );
+
+    // Update visible profiles when filters change
+    useEffect(() => {
+        setVisibleProfiles(filteredProfiles.slice(0, INITIAL_PAGE_SIZE));
+    }, [sortBy, sortDirection, filterBy]);
+
+    // Handle search input
+    const handleSearchInput = (text: string) => {
+        setSearchQuery(text);
+        debouncedSearch(text);
+    };
+
+    // Handle search form submission
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        debouncedSearch(searchQuery);
+    };
+
     // Добавим useEffect для отслеживания состояния навигации
     useEffect(() => {
         // Логирование при монтировании компонента
@@ -566,96 +680,6 @@ export default function People() {
     // Toggle sort direction
     const toggleSortDirection = () => {
         setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    };
-    
-    // Загрузка пользователей
-    const loadUsers = async () => {
-        try {
-            setIsLoading(true);
-            console.log("[DEBUG] Loading users...");
-            
-            const response = await database.listDocuments(
-                process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                [Query.limit(20)]
-            );
-            
-            console.log(`[DEBUG] Loaded ${response.documents.length} users from the database`);
-            
-            const loadedProfiles = response.documents.map(doc => ({
-                $id: doc.$id,
-                user_id: doc.user_id,
-                name: doc.name || 'Unknown User',
-                username: doc.username,
-                image: doc.image,
-                bio: doc.bio || '',
-                // Map fields directly from the database with correct names
-                total_likes: doc.total_likes || '0',
-                total_followers: doc.total_followers || '0',
-                average_rating: doc.average_rating || '0',
-                total_ratings: doc.total_ratings || '0',
-                // Keep stats for backward compatibility
-                stats: {
-                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : 0,
-                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : 0,
-                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : 0,
-                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : 0
-                }
-            }));
-            
-            console.log("[DEBUG] Profiles processed and ready for display");
-            setProfiles(loadedProfiles);
-            setFilteredProfiles(loadedProfiles);
-        } catch (error) {
-            console.error('[ERROR] Error loading users:', error);
-            setError('Failed to load users. Please try again later.');
-            
-            // В случае ошибки, пытаемся использовать кэшированные данные, если они есть
-            if (profiles.length > 0) {
-                console.log("[DEBUG] Using cached profiles due to loading error");
-                setFilteredProfiles(profiles);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    // Improved search function for better filtering
-    const handleSearchInput = (text: string) => {
-        setSearchQuery(text);
-        
-        // Even if empty, still need to show unfiltered results
-        if (!text.trim()) {
-            setFilteredProfiles(profiles);
-            return;
-        }
-        
-        // Normalize search term and split into words for better matching
-        const searchTerms = text.trim().toLowerCase().split(/\s+/);
-        
-        // Filter profiles based on search terms - using more exact matching
-        const results = profiles.filter(profile => {
-            if (!profile) return false;
-            
-            const name = (profile.name || '').toLowerCase();
-            const username = (profile.username || '').toLowerCase();
-            const bio = (profile.bio || '').toLowerCase();
-            
-            // Check if ALL search terms match any field for stricter filtering
-            return searchTerms.every(term => 
-                name.includes(term) || 
-                username.includes(term) || 
-                bio.includes(term)
-            );
-        });
-        
-        setFilteredProfiles(results);
-    };
-    
-    // Handle form submission for search
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        handleSearchInput(searchQuery);
     };
     
     // Проверяем, является ли пользователь другом или есть ли отправленный запрос
@@ -848,110 +872,6 @@ export default function People() {
         }
     };
     
-    // Загрузка дополнительных профилей
-    const loadMoreProfiles = async () => {
-        try {
-            setIsLoadingMore(true);
-            const nextPage = page + 1;
-            
-            const response = await database.listDocuments(
-                process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                [
-                    Query.limit(20),
-                    Query.offset((nextPage - 1) * 20)
-                ]
-            );
-            
-            const newProfiles = response.documents.map(doc => ({
-                $id: doc.$id,
-                user_id: doc.user_id,
-                name: doc.name || 'Unknown User',
-                username: doc.username,
-                image: doc.image,
-                bio: doc.bio || '',
-                // Map fields directly from the database with correct names
-                total_likes: doc.total_likes || '0',
-                total_followers: doc.total_followers || '0',
-                average_rating: doc.average_rating || '0',
-                total_ratings: doc.total_ratings || '0',
-                // Keep stats for backward compatibility
-                stats: {
-                    totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : 0,
-                    totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : 0,
-                    averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : 0,
-                    totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : 0
-                }
-            }));
-            
-            if (newProfiles.length === 0) {
-                setHasMoreProfiles(false);
-            } else {
-                setPage(nextPage);
-                setProfiles(prevProfiles => [...prevProfiles, ...newProfiles]);
-                sortAndFilterProfiles([...profiles, ...newProfiles]);
-            }
-        } catch (error) {
-            console.error('Error loading more profiles:', error);
-            toast.error('Failed to load more profiles');
-        } finally {
-            setIsLoadingMore(false);
-        }
-    };
-    
-    // Сортировка и фильтрация профилей
-    const sortAndFilterProfiles = useMemo(() => {
-        return (profilesToFilter = profiles) => {
-            let result = [...profilesToFilter];
-            
-            // Фильтрация
-            if (filterBy === 'friends') {
-                result = result.filter(profile => isFriend(profile.user_id));
-            } else if (filterBy === 'new') {
-                // Предполагаем, что в профиле есть поле createdAt
-                result = result.sort((a, b) => 
-                    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-                );
-            }
-            
-            // Сортировка
-            if (sortBy === 'name') {
-                result.sort((a, b) => {
-                    const nameA = a.name.toLowerCase();
-                    const nameB = b.name.toLowerCase();
-                    return sortDirection === 'asc' 
-                        ? nameA.localeCompare(nameB) 
-                        : nameB.localeCompare(nameA);
-                });
-            } else if (sortBy === 'rating') {
-                result.sort((a, b) => {
-                    // Use either the direct field or fallback to stats.averageRating
-                    const ratingA = parseFloat(a.average_rating as string) || a.stats.averageRating || 0;
-                    const ratingB = parseFloat(b.average_rating as string) || b.stats.averageRating || 0;
-                    return sortDirection === 'asc' 
-                        ? ratingA - ratingB 
-                        : ratingB - ratingA;
-                });
-            } else if (sortBy === 'followers') {
-                result.sort((a, b) => {
-                    // Use either the direct field or fallback to stats.totalFollowers
-                    const followersA = parseInt(a.total_followers as string) || a.stats.totalFollowers || 0;
-                    const followersB = parseInt(b.total_followers as string) || b.stats.totalFollowers || 0;
-                    return sortDirection === 'asc' 
-                        ? followersA - followersB 
-                        : followersB - followersA;
-                });
-            }
-            
-            setFilteredProfiles(result);
-        };
-    }, [profiles, sortBy, sortDirection, filterBy, isFriend]);
-    
-    // Обновление отображаемых профилей при изменении фильтров
-    useEffect(() => {
-        sortAndFilterProfiles();
-    }, [sortAndFilterProfiles]);
-    
     // Загрузка новых рейтингов при смене таба
     useEffect(() => {
         loadTopUsers();
@@ -1057,301 +977,294 @@ export default function People() {
         }
     };
 
-    // Фикс для "Load More" кнопки
-    const handleLoadMore = (e: React.MouseEvent) => {
-        e.preventDefault();
-        loadMoreProfiles();
-    };
-
-    // Патчим хуки эффектов для убеждения, что мы видим отфильтрованные профили
+    // Handle hydration
     useEffect(() => {
-        if (profiles.length > 0 && searchQuery.trim()) {
-            // Если у нас уже есть профили и поисковый запрос - применяем фильтр снова
-            // Это полезно при первичной загрузке или при изменении фильтров
-            console.log("[DEBUG] Re-applying search filter after profiles update");
-            handleSearchInput(searchQuery);
-        }
-    }, [profiles]);
+        setIsHydrated(true);
+    }, []);
+
+    // Handle icons loading
+    useEffect(() => {
+        Promise.all([
+            import('@heroicons/react/24/solid'),
+            // Add other dynamic imports here
+        ]).then(() => {
+            setIconsLoaded(true);
+        });
+    }, []);
+
+    // Initial loading state
+    if (!isHydrated || !isIconsLoaded) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.pageContent}>
+                    <div className={`${styles.loadingPulse} space-y-4`}>
+                        <div className="h-12 bg-white/5 rounded-lg w-full max-w-md"></div>
+                        <div className={styles.grid}>
+                            {[...Array(6)].map((_, i) => (
+                                <div key={i} className={styles.loadingCard}></div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <PeopleLayout>
-            <div className="container mx-auto px-4 py-8 pt-20 lg:pt-8">
-                {error && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-red-500/10 border border-red-500/30 text-red-200 px-4 py-3 rounded-lg mb-6"
-                    >
-                        {error}
-                    </motion.div>
-                )}
-                
-                {/* Верхний баннер */}
-                <div className="mb-6 w-full flex justify-center">
-                    <div className="overflow-hidden rounded-xl">
-                        <Banner 
-                            adKey="C6AILKQE" 
-                            adHeight={90} 
-                            adWidth={728} 
-                            adFormat="iframe"
-                        />
-                    </div>
-                </div>
-                
-                {/* Второй баннер */}
-                <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
-                    <div className="flex-1 overflow-hidden rounded-xl">
-                        <Banner 
-                            adKey="C6AIL5QE" 
-                            adHeight={250} 
-                            adWidth={970} 
-                            adFormat="iframe"
-                        />
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    <div className="lg:col-span-3">
-                        {/* Упрощенный блок фильтров без фоновой панели */}
+            <div className={styles.container}>
+                <div className={styles.pageContent}>
+                    {error && (
                         <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.1 }}
-                            className="mb-6 sticky top-0 z-40 bg-gradient-to-r from-[#252840]/90 to-[#1E2136]/90 shadow-md rounded-b-xl px-2 py-2"
+                            className="bg-red-500/10 border border-red-500/30 text-red-200 px-4 py-3 rounded-lg mb-6"
                         >
-                            <div className="flex flex-wrap items-center gap-4">
-                                {/* Поисковая строка и фильтры */}
-                                <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 min-w-[250px]">
-                                    <div className="relative flex-1">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <MagnifyingGlassIcon className="h-5 w-5 text-[#20DDBB]" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder="Search people..."
-                                            value={searchQuery}
-                                            onChange={(e) => handleSearchInput(e.target.value)}
-                                            className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
-                                        />
-                                        {isSearching && (
-                                            <div className="absolute inset-y-0 right-3 flex items-center">
-                                                <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <motion.button
-                                        whileHover={{ scale: 1.03 }}
-                                        whileTap={{ scale: 0.97 }}
-                                        type="submit"
-                                        className="bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-medium py-2.5 px-6 rounded-xl hover:shadow-lg hover:shadow-[#20DDBB]/20 transition-all duration-300"
-                                    >
-                                        Search
-                                    </motion.button>
-                                </form>
-                                
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <FilterDropdown 
-                                        options={[
-                                            { value: 'name', label: 'Name' },
-                                            { value: 'rating', label: 'Rating' },
-                                            { value: 'followers', label: 'Followers' }
-                                        ]}
-                                        value={sortBy}
-                                        onChange={setSortBy}
-                                        label="Sort by"
-                                    />
-                                    
-                                    <FilterDropdown 
-                                        options={[
-                                            { value: 'all', label: 'All' },
-                                            { value: 'friends', label: 'Friends' },
-                                            { value: 'new', label: 'New users' }
-                                        ]}
-                                        value={filterBy}
-                                        onChange={setFilterBy}
-                                        label="Show"
-                                    />
-                                    
-                                    <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={toggleSortDirection}
-                                        className="flex items-center gap-1 bg-white/10 hover:bg-white/15 p-2.5 rounded-lg text-white border border-white/10 transition-all duration-200 shadow-sm"
-                                    >
-                                        {sortDirection === 'asc' ? <ArrowUpIcon className="h-5 w-5" /> : <ArrowDownIcon className="h-5 w-5" />}
-                                    </motion.button>
-                                </div>
-                            </div>
-                            
-                            {/* Индикатор текущего поиска */}
-                            {searchQuery.trim() && (
-                                <div className="mt-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-gray-400">
-                                            Search results for: 
-                                        </span>
-                                        <span className="bg-[#20DDBB]/10 text-[#20DDBB] px-2 py-1 rounded-md font-medium">
-                                            {searchQuery}
-                                        </span>
-                                        <span className="text-gray-400">
-                                            ({filteredProfiles.length} {filteredProfiles.length === 1 ? 'result' : 'results'})
-                                        </span>
-                                    </div>
-                                    
-                                    <button
-                                        onClick={() => handleSearchInput('')}
-                                        className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"
-                                    >
-                                        <XMarkIcon className="h-4 w-4" />
-                                        Clear
-                                    </button>
-                                </div>
-                            )}
+                            {error}
                         </motion.div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {isLoading ? (
-                                Array.from({ length: 6 }).map((_, index) => (
-                                    <motion.div
-                                        key={index}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        <UserCardSkeleton />
-                                    </motion.div>
-                                ))
-                            ) : filteredProfiles.length > 0 ? (
-                                filteredProfiles.map((profile, index) => (
-                                    <motion.div
-                                        key={profile.$id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ 
-                                            duration: 0.3,
-                                            delay: Math.min(index * 0.02, 0.3)
-                                        }}
-                                    >
-                                        <MemoizedUserCard
-                                            user={profile}
-                                            isFriend={isFriend(profile.user_id)}
-                                            onAddFriend={handleAddFriend}
-                                            onRemoveFriend={handleRemoveFriend}
-                                            onRateUser={handleRateUser}
-                                        />
-                                    </motion.div>
-                                ))
-                            ) :
-                                <motion.div 
-                                    className="col-span-full flex flex-col items-center justify-center p-12 text-center"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.5 }}
-                                >
-                                    <div className="text-gray-400 mb-4 text-6xl">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                    <p className="text-white text-xl mb-4">
-                                        {searchQuery.trim() ? 
-                                            `No results found for "${searchQuery}"` : 
-                                            "No users found"}
-                                    </p>
-                                    {searchQuery.trim() ? (
-                                        <div className="mb-4">
-                                            <p className="text-gray-400 mb-2">Try different search terms or check spelling</p>
-                                            <button
-                                                onClick={() => handleSearchInput('')}
-                                                className="px-4 py-2 bg-[#20DDBB]/20 text-[#20DDBB] rounded-lg hover:bg-[#20DDBB]/30 transition-colors"
-                                            >
-                                                Clear search
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-400 max-w-md">Try changing your filters to find people to connect with.</p>
-                                    )}
-                                </motion.div>
-                            }
+                    )}
+                    
+                    {/* Верхний баннер */}
+                    <div className="mb-6 w-full flex justify-center">
+                        <div className="overflow-hidden rounded-xl">
+                            <Banner 
+                                adKey="C6AILKQE" 
+                                adHeight={90} 
+                                adWidth={728} 
+                                adFormat="iframe"
+                            />
                         </div>
-                        
-                        {/* Кнопка "Загрузить еще" - оптимизирована */}
-                        {hasMoreProfiles && !isLoading && filteredProfiles.length > 0 && (
-                            <motion.div 
-                                className="mt-10 flex justify-center"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={handleLoadMore}
-                                    disabled={isLoadingMore}
-                                    className="py-2.5 px-8 rounded-xl backdrop-blur-sm bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 border border-white/10 text-white hover:bg-white/10 transition-all duration-300 shadow-md flex items-center space-x-2"
-                                >
-                                    {isLoadingMore ? (
-                                        <>
-                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                            </svg>
-                                            <span>Loading...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Load More</span>
-                                            <ArrowDownIcon className="h-4 w-4" />
-                                        </>
-                                    )}
-                                </motion.button>
-                            </motion.div>
-                        )}
                     </div>
                     
-                    {/* Боковая панель с топ пользователями (только на десктопе, sticky) */}
-                    <div className="lg:col-span-1 hidden lg:block">
-                        <motion.div 
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                            className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5 sticky top-24"
-                        >
-                            <div className="mb-4">
-                                <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
-                                <div className="flex justify-center mb-4">
-                                    <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
-                                        <button
-                                            onClick={() => setActiveTab(TabTypes.USERS)}
-                                            className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                                activeTab === TabTypes.USERS
-                                                ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
-                                                : 'text-white/60 hover:text-white'
-                                            }`}
+                    {/* Второй баннер */}
+                    <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
+                        <div className="flex-1 overflow-hidden rounded-xl">
+                            <Banner 
+                                adKey="C6AIL5QE" 
+                                adHeight={250} 
+                                adWidth={970} 
+                                adFormat="iframe"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
+                        <div className="lg:col-span-3">
+                            {/* Упрощенный блок фильтров без фоновой панели */}
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                                className="mb-6 sticky top-0 z-40 bg-gradient-to-r from-[#252840]/90 to-[#1E2136]/90 shadow-md rounded-b-xl px-2 py-2"
+                            >
+                                <div className="flex flex-wrap items-center gap-4">
+                                    {/* Поисковая строка и фильтры */}
+                                    <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 min-w-[250px]">
+                                        <div className="relative flex-1">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <MagnifyingGlassIconDynamic className="h-5 w-5 text-[#20DDBB]" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Search people..."
+                                                value={searchQuery}
+                                                onChange={(e) => handleSearchInput(e.target.value)}
+                                                className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
+                                            />
+                                            {isSearching && (
+                                                <div className="absolute inset-y-0 right-3 flex items-center">
+                                                    <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <motion.button
+                                            whileHover={{ scale: 1.03 }}
+                                            whileTap={{ scale: 0.97 }}
+                                            type="submit"
+                                            className="bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-medium py-2.5 px-6 rounded-xl hover:shadow-lg hover:shadow-[#20DDBB]/20 transition-all duration-300"
                                         >
-                                            Users
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab(TabTypes.ARTISTS)}
-                                            className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                                activeTab === TabTypes.ARTISTS
-                                                ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
-                                                : 'text-white/60 hover:text-white'
-                                            }`}
+                                            Search
+                                        </motion.button>
+                                    </form>
+                                    
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <FilterDropdown 
+                                            options={[
+                                                { value: 'name', label: 'Name' },
+                                                { value: 'rating', label: 'Rating' },
+                                                { value: 'followers', label: 'Followers' }
+                                            ]}
+                                            value={sortBy}
+                                            onChange={setSortBy}
+                                            label="Sort by"
+                                        />
+                                        
+                                        <FilterDropdown 
+                                            options={[
+                                                { value: 'all', label: 'All' },
+                                                { value: 'friends', label: 'Friends' },
+                                                { value: 'new', label: 'New users' }
+                                            ]}
+                                            value={filterBy}
+                                            onChange={setFilterBy}
+                                            label="Show"
+                                        />
+                                        
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={toggleSortDirection}
+                                            className="flex items-center gap-1 bg-white/10 hover:bg-white/15 p-2.5 rounded-lg text-white border border-white/10 transition-all duration-200 shadow-sm"
                                         >
-                                            Artists
-                                        </button>
+                                            {sortDirection === 'asc' ? <ArrowUpIconDynamic className="h-5 w-5" /> : <ArrowDownIconDynamic className="h-5 w-5" />}
+                                        </motion.button>
                                     </div>
                                 </div>
-                                {topRankedUsers.length > 0 ? (
-                                    <TopRankingUsers users={topRankedUsers} />
+                                
+                                {/* Индикатор текущего поиска */}
+                                {searchQuery.trim() && (
+                                    <div className="mt-4 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-gray-400">
+                                                Search results for: 
+                                            </span>
+                                            <span className="bg-[#20DDBB]/10 text-[#20DDBB] px-2 py-1 rounded-md font-medium">
+                                                {searchQuery}
+                                            </span>
+                                            <span className="text-gray-400">
+                                                ({filteredProfiles.length} {filteredProfiles.length === 1 ? 'result' : 'results'})
+                                            </span>
+                                        </div>
+                                        
+                                        <button
+                                            onClick={() => handleSearchInput('')}
+                                            className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"
+                                        >
+                                            <XMarkIconDynamic className="h-4 w-4" />
+                                            Clear
+                                        </button>
+                                    </div>
+                                )}
+                            </motion.div>
+                            
+                            <div 
+                                ref={parentRef}
+                                className={styles.gridContainer}
+                                style={{
+                                    height: 'calc(100vh - 200px)',
+                                    overflow: 'auto',
+                                    scrollBehavior: 'smooth'
+                                }}
+                            >
+                                {isLoading ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                                        {Array.from({ length: INITIAL_PAGE_SIZE }).map((_, index) => (
+                                            <motion.div
+                                                key={index}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ duration: 0.3, delay: index * 0.1 }}
+                                            >
+                                                <UserCardSkeleton />
+                                            </motion.div>
+                                        ))}
+                                    </div>
                                 ) : (
-                                    <div className="text-center py-4 text-gray-400">
-                                        No users found
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                                        {visibleProfiles.map((profile, index) => (
+                                            <motion.div
+                                                key={profile.$id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3, delay: index * 0.1 }}
+                                            >
+                                                <MemoizedUserCard
+                                                    user={profile}
+                                                    isFriend={isFriend(profile.user_id)}
+                                                    onAddFriend={handleAddFriend}
+                                                    onRemoveFriend={handleRemoveFriend}
+                                                    onRateUser={handleRateUser}
+                                                />
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                {/* Intersection Observer target */}
+                                {!isLoading && hasMoreProfiles && (
+                                    <div 
+                                        ref={loadMoreRef} 
+                                        className="h-20 w-full flex items-center justify-center"
+                                    >
+                                        <div className="animate-bounce">
+                                            <svg 
+                                                className="w-6 h-6 text-[#20DDBB]" 
+                                                fill="none" 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth="2" 
+                                                viewBox="0 0 24 24" 
+                                                stroke="currentColor"
+                                            >
+                                                <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Loading indicator */}
+                                {isLoadingMore && (
+                                    <div className="h-20 w-full flex items-center justify-center">
+                                        <div className="animate-spin h-8 w-8 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
                                     </div>
                                 )}
                             </div>
-                        </motion.div>
+                        </div>
+                        
+                        {/* Боковая панель с топ пользователями (только на десктопе, sticky) */}
+                        <div className="lg:col-span-1 hidden lg:block">
+                            <motion.div 
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                                className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5 sticky top-24"
+                            >
+                                <div className="mb-4">
+                                    <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
+                                    <div className="flex justify-center mb-4">
+                                        <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
+                                            <button
+                                                onClick={() => setActiveTab(TabTypes.USERS)}
+                                                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                                                    activeTab === TabTypes.USERS
+                                                    ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
+                                                    : 'text-white/60 hover:text-white'
+                                                }`}
+                                            >
+                                                Users
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveTab(TabTypes.ARTISTS)}
+                                                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                                                    activeTab === TabTypes.ARTISTS
+                                                    ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
+                                                    : 'text-white/60 hover:text-white'
+                                                }`}
+                                            >
+                                                Artists
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {topRankedUsers.length > 0 ? (
+                                        <TopRankingUsers users={topRankedUsers} />
+                                    ) : (
+                                        <div className="text-center py-4 text-gray-400">
+                                            No users found
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1392,7 +1305,25 @@ export default function People() {
     );
 }
 
-// Ультра-простая версия списка топовых пользователей с прямой навигацией
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout;
+    
+    return function executedFunction(...args: Parameters<T>) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Fix the TopRankingUsersWithDirectNavigation component
 const TopRankingUsersWithDirectNavigation = ({ users }: { users: any[] }) => {
     // Дебаг для отслеживания проблем
     useEffect(() => {
@@ -1420,7 +1351,6 @@ const TopRankingUsersWithDirectNavigation = ({ users }: { users: any[] }) => {
                         className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10 cursor-pointer"
                         onClick={() => {
                             console.log(`[DEBUG] Direct navigation to: ${profileUrl}`);
-                            // Простой прямой переход без отмены событий
                             window.location.href = profileUrl;
                         }}
                     >

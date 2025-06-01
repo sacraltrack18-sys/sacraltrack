@@ -1,0 +1,148 @@
+/* Base styles */
+.container {
+  @apply min-h-screen bg-gradient-to-br from-[#1E1A36] to-[#2A2151];
+}
+
+.pageContent {
+  @apply container mx-auto px-4 py-8 pt-20 lg:pt-8;
+}
+
+/* Grid container */
+.gridContainer {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0.5rem;
+}
+
+/* Small mobile devices (320px and up) */
+@media (min-width: 320px) {
+  .gridContainer {
+    max-width: 100%;
+    padding: 0.25rem;
+  }
+}
+
+/* Medium mobile devices (480px and up) */
+@media (min-width: 480px) {
+  .gridContainer {
+    max-width: 90%;
+  }
+}
+
+/* Tablets (768px and up) */
+@media (min-width: 768px) {
+  .gridContainer {
+    max-width: 85%;
+    padding: 0.5rem;
+  }
+}
+
+/* Large tablets and small desktops (1024px and up) */
+@media (min-width: 1024px) {
+  .gridContainer {
+    max-width: 80%;
+  }
+}
+
+/* Desktops (1280px and up) */
+@media (min-width: 1280px) {
+  .gridContainer {
+    max-width: 1200px;
+  }
+}
+
+/* Card styles with improved responsiveness */
+.userCard {
+  @apply rounded-2xl overflow-hidden shadow-xl relative backdrop-blur-sm cursor-pointer;
+  aspect-ratio: 3/4;
+  height: auto;
+  min-height: 360px;
+  max-height: 480px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Mobile optimization for cards */
+@media (max-width: 480px) {
+  .userCard {
+    min-height: 320px;
+    max-height: 400px;
+  }
+}
+
+.userCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px -15px rgba(32, 221, 187, 0.2);
+}
+
+.cardBackground {
+  @apply absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60;
+}
+
+.cardGlass {
+  @apply absolute inset-0 bg-gradient-to-b from-blue-900/10 to-purple-900/20 backdrop-blur-[2px] opacity-40 transition-opacity;
+}
+
+/* Loading animation */
+.loadingPulse {
+  @apply animate-pulse;
+}
+
+.loadingCard {
+  aspect-ratio: 3/4;
+  @apply rounded-2xl bg-white/5;
+  min-height: 360px;
+}
+
+@media (max-width: 480px) {
+  .loadingCard {
+    min-height: 320px;
+  }
+}
+
+/* Icon styles */
+.icon {
+  @apply w-5 h-5;
+}
+
+.iconSmall {
+  @apply w-4 h-4;
+}
+
+/* Button styles */
+.button {
+  @apply px-4 py-2 rounded-lg transition-all duration-200;
+}
+
+.buttonPrimary {
+  @apply bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white;
+}
+
+.buttonSecondary {
+  @apply bg-white/10 text-white hover:bg-white/20;
+}
+
+/* Search bar */
+.searchBar {
+  @apply w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md;
+}
+
+/* Filter styles */
+.filterContainer {
+  @apply sticky top-0 z-40 bg-gradient-to-r from-[#252840]/90 to-[#1E2136]/90 shadow-md rounded-b-xl px-2 py-2;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+} 

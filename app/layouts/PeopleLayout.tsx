@@ -1,29 +1,28 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from "@/app/context/user";
 import { useRouter, usePathname } from "next/navigation";
 import TopNav from "@/app/layouts/includes/TopNav";
 
-export default function PeopleLayout({ children }: { children: React.ReactNode }) {
+interface PeopleLayoutProps {
+    children: ReactNode;
+}
+
+export default function PeopleLayout({ children }: PeopleLayoutProps) {
     const userContext = useUser();   
     const router = useRouter();
     const pathname = usePathname();
 
-    useEffect(() => {
-        if (!userContext?.user) {
-            router.push('/');
-        }
-        
-        // Очистка при размонтировании
-        return () => {
-            console.log('PeopleLayout unmounted');
-        };
-    }, [userContext?.user, router]);
-
     return (
-        <div className="min-h-screen bg-[linear-gradient(180deg,#1F2339,#161824)] relative">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen bg-gradient-to-br from-[#1E1A36] to-[#2A2151]"
+        >
             {/* Верхняя навигация с высоким z-index */}
             <TopNav params={{ id: userContext?.user?.id as string }} />
             
@@ -53,6 +52,6 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
                     </motion.div>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 } 

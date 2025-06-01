@@ -20,6 +20,7 @@ const genres = [
     "Street music",
     "Poetry",
     "Rap",
+    "Mantra",
     
     // House
     "Deep House",
