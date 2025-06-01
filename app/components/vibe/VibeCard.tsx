@@ -184,10 +184,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     let likesCount = 0;
     let commentsCount = 0;
 
-    // 1. Try to get from vibe.stats first
-    if (vibe.stats) {
+    // First try to get comments count from the comments list if it's already loaded
+    if (commentsList && Array.isArray(commentsList)) {
+      commentsCount = commentsList.length;
+    } 
+    // Then try to get from vibe.stats if comments list is empty
+    else if (vibe.stats) {
       if (Array.isArray(vibe.stats)) {
-        // Безопасное преобразование для массивов статистики
         likesCount = typeof vibe.stats[0] === 'string' 
           ? parseInt(vibe.stats[0], 10) || 0 
           : typeof vibe.stats[0] === 'number' 
@@ -200,7 +203,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             ? vibe.stats[1] 
             : 0;
       } else if (typeof vibe.stats === 'object' && vibe.stats !== null) {
-        // Безопасное преобразование для объекта статистики
         likesCount = typeof vibe.stats.total_likes === 'string' 
           ? parseInt(vibe.stats.total_likes, 10) || 0 
           : typeof vibe.stats.total_likes === 'number' 
@@ -215,22 +217,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       }
     }
 
-    // 2. Check localStorage for potentially fresher data
-    try {
-      const storedCountKey = getVibeLocalStorageKey(vibe.id);
-      const storedCount = localStorage.getItem(storedCountKey);
-      
-      if (storedCount) {
-        const parsedCount = parseInt(storedCount, 10);
-        if (!isNaN(parsedCount)) {
-          console.log(`[VIBE-CARD] Using stored like count for ${vibe.id}: ${parsedCount}`);
-          likesCount = parsedCount;
-        }
-      }
-    } catch (error) {
-      console.error('[VIBE-CARD] Error accessing localStorage:', error);
-    }
-
     return {
       likesCount,
       commentsCount
@@ -239,6 +225,58 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
 
   // Initialize state with calculated stats
   const [vibeStats, setVibeStats] = useState(calculateInitialStats());
+
+  // Update stats when comments list changes or when vibe stats change
+  useEffect(() => {
+    const newStats = calculateInitialStats();
+    if (commentsList && Array.isArray(commentsList)) {
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: commentsList.length
+      }));
+    } else if (newStats.commentsCount > 0) {
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: newStats.commentsCount
+      }));
+    }
+  }, [commentsList, vibe.stats]);
+
+  // Fetch comments immediately when component mounts and set up polling
+  useEffect(() => {
+    if (vibe.id) {
+      console.log(`[VIBE-CARD] Initial comments loading for: ${vibe.id}`);
+      fetchComments();
+      
+      // Set up polling with visibility detection
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          console.log('[VIBE-CARD] Visibility changed to visible, fetching comments');
+          fetchComments();
+        }
+      };
+      
+      // Add visibility change listener
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      };
+    }
+  }, [vibe.id]);
+
+  // Add a new effect to keep the comment count in sync with the actual comments
+  useEffect(() => {
+    if (commentsList && Array.isArray(commentsList)) {
+      const actualCount = commentsList.length;
+      if (actualCount !== vibeStats.commentsCount) {
+        setVibeStats(prev => ({
+          ...prev,
+          commentsCount: actualCount
+        }));
+      }
+    }
+  }, [commentsList]);
   
   // Refs
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -387,8 +425,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
-  // Improved handleOpenComments function with loading timeout protection
-  const handleOpenComments = () => {
+  // Добавляем эффект для обновления счетчика комментариев при изменении списка комментариев
+  useEffect(() => {
+    if (commentsList && Array.isArray(commentsList)) {
+      setVibeStats(prev => ({
+        ...prev,
+        commentsCount: commentsList.length
+      }));
+    }
+  }, [commentsList]);
+
+  // Fix the handleOpenComments function
+  const handleOpenComments = async () => {
     // Toggle comments visibility
     setShowComments(prev => !prev);
     
@@ -399,7 +447,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       // If we're opening comments and none are loaded yet
       if (commentsList.length === 0 && !commentsLoading) {
         console.log(`[VIBE-CARD] Fetching comments for ${vibe.id}`);
-        fetchComments();
+        await fetchComments();
         
         // Set 5-second timeout to prevent infinite loading state
         const timeoutId = setTimeout(() => {
@@ -409,10 +457,10 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         // Store the timeout ID so we can clear it
         return () => clearTimeout(timeoutId);
       }
+    } else {
+      // When closing comments, ensure we update the stats
+      refreshVibeStats();
     }
-    
-    // Always refresh vibe stats when toggling comments
-    refreshVibeStats();
   };
   
   // Fix the addCommentWrapper function to use the hook's addComment directly
@@ -491,16 +539,6 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     if (typeof value === 'string') return parseInt(value, 10) || 0;
     return 0;
   };
-
-  // Добавляем эффект для обновления счетчика комментариев при изменении списка комментариев
-  useEffect(() => {
-    if (commentsList && commentsList.length > 0) {
-      setVibeStats(prev => ({
-        ...prev,
-        commentsCount: commentsList.length
-      }));
-    }
-  }, [commentsList]);
 
   // Replace the refreshVibeStats function with a simpler version that only updates this card
   const refreshVibeStats = async () => {
