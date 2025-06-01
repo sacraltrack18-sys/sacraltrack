@@ -36,6 +36,9 @@ import { useMediaQuery } from 'react-responsive';
 import { useInView } from 'react-intersection-observer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import UserCardSkeleton from '@/app/components/skeletons/UserCardSkeleton';
+import { useSwipeable, SwipeableHandlers } from 'react-swipeable';
+import useInfiniteScroll from 'react-infinite-scroll-hook';
+import { useRefreshControl } from '@/app/hooks/useRefreshControl';
 
 // Динамический импорт иконок
 const StarIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.StarIcon));
@@ -444,9 +447,10 @@ const IconWithFallback = ({ Icon }: { Icon: any }) => (
 );
 
 // Constants for optimization
-const INITIAL_PAGE_SIZE = 6;
-const LOAD_MORE_SIZE = 6;
-const SCROLL_THRESHOLD = 0.5;
+const INITIAL_PAGE_SIZE = 12;
+const LOAD_MORE_SIZE = 9;
+const SCROLL_THRESHOLD = 0.8;
+const SCROLL_DEBOUNCE_TIME = 150;
 
 // Add cache utility
 const useProfilesCache = () => {
@@ -475,16 +479,134 @@ const useProfilesCache = () => {
     return { setCache, getCache };
 };
 
+// Оптимизированная функция для виртуализации
+const useVirtualScroll = (items: any[], itemHeight: number) => {
+    const [visibleRange, setVisibleRange] = useState({ start: 0, end: INITIAL_PAGE_SIZE });
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const updateVisibleRange = useCallback(
+        debounce(() => {
+            if (!containerRef.current) return;
+            
+            const container = containerRef.current;
+            const scrollTop = container.scrollTop;
+            const containerHeight = container.clientHeight;
+            
+            const start = Math.floor(scrollTop / itemHeight);
+            const end = Math.min(
+                Math.ceil((scrollTop + containerHeight) / itemHeight) + 1,
+                items.length
+            );
+            
+            setVisibleRange({ start: Math.max(0, start - 3), end: end + 3 });
+        }, SCROLL_DEBOUNCE_TIME),
+        [items.length, itemHeight]
+    );
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.addEventListener('scroll', updateVisibleRange);
+        window.addEventListener('resize', updateVisibleRange);
+
+        return () => {
+            container.removeEventListener('scroll', updateVisibleRange);
+            window.removeEventListener('resize', updateVisibleRange);
+        };
+    }, [updateVisibleRange]);
+
+    return { containerRef, visibleRange };
+};
+
+// Custom hook for search functionality
+const useSearch = (profiles: any[]) => {
+    const [query, setQuery] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState(profiles);
+    
+    const debouncedSearch = useCallback(
+        debounce((text: string) => {
+            if (!text.trim()) {
+                setSearchResults(profiles);
+                setSearching(false);
+                return;
+            }
+            
+            const searchTerms = text.toLowerCase().trim().split(/\s+/);
+            const results = profiles.filter(profile => {
+                const searchableText = `${profile.name} ${profile.username || ''} ${profile.bio || ''}`.toLowerCase();
+                return searchTerms.every(term => searchableText.includes(term));
+            });
+            
+            setSearchResults(results);
+            setSearching(false);
+        }, 300),
+        [profiles]
+    );
+    
+    const handleSearchInput = useCallback((text: string) => {
+        setQuery(text);
+        setSearching(true);
+        debouncedSearch(text);
+    }, [debouncedSearch]);
+    
+    const handleSearchSubmit = useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        setSearching(true);
+        debouncedSearch(query);
+    }, [debouncedSearch, query]);
+    
+    // Effect to handle search completion
+    useEffect(() => {
+        if (!searching) return;
+        
+        const timer = setTimeout(() => {
+            setSearching(false);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+    }, [searching]);
+    
+    // Update search results when original profiles change
+    useEffect(() => {
+        if (!query.trim()) {
+            setSearchResults(profiles);
+        } else {
+            debouncedSearch(query);
+        }
+    }, [profiles, query, debouncedSearch]);
+    
+    return {
+        query,
+        searching,
+        searchResults,
+        handleSearchInput,
+        handleSearchSubmit
+    };
+};
+
+// Add this helper function at the top of the file, after imports
+const calculateRating = (rating: number): { full: number; half: boolean; empty: number } => {
+    const fullStars = Math.floor(rating);
+    const hasHalf = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+    
+    return {
+        full: fullStars,
+        half: hasHalf,
+        empty: emptyStars
+    };
+};
+
 export default function People() {
     const [profiles, setProfiles] = useState<any[]>([]);
-    const [filteredProfiles, setFilteredProfiles] = useState<any[]>([]);
+    const [visibleProfiles, setVisibleProfiles] = useState<any[]>([]);
     const [topRankedUsers, setTopRankedUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
     const [sortBy, setSortBy] = useState('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [filterBy, setFilterBy] = useState('all');
@@ -494,7 +616,6 @@ export default function People() {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
     const [isIconsLoaded, setIconsLoaded] = useState(false);
     const [isHydrated, setIsHydrated] = useState(false);
-    const [visibleProfiles, setVisibleProfiles] = useState<any[]>([]);
     const { ref: loadMoreRef, inView } = useInView({
         threshold: SCROLL_THRESHOLD,
         triggerOnce: false
@@ -502,6 +623,13 @@ export default function People() {
     const { setCache, getCache } = useProfilesCache();
     const parentRef = useRef<HTMLDivElement>(null);
     const allProfilesRef = useRef<any[]>([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [lastTouchY, setLastTouchY] = useState(0);
+    const [isScrollingUp, setIsScrollingUp] = useState(false);
+    const [showScrollToTop, setShowScrollToTop] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [showTopRanked, setShowTopRanked] = useState(false);
     
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
@@ -517,7 +645,326 @@ export default function People() {
         overscan: 5
     });
 
-    // Optimized load users function
+    // Use virtual scroll
+    const { containerRef: virtualScrollContainerRef, visibleRange } = useVirtualScroll(profiles, 380); // 380px is card height
+
+    // Use the search hook
+    const {
+        query,
+        searching,
+        searchResults,
+        handleSearchInput,
+        handleSearchSubmit
+    } = useSearch(profiles);
+
+    // Mobile touch handlers
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setLastTouchY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        const currentY = e.touches[0].clientY;
+        setIsScrollingUp(currentY > lastTouchY);
+        setLastTouchY(currentY);
+    };
+
+    // Swipe handlers for mobile
+    const swipeHandlers = useSwipeable({
+        onSwipedDown: () => {
+            if (containerRef.current?.scrollTop === 0) {
+                handleRefresh();
+            }
+        },
+        onSwipedLeft: () => {
+            if (activeTab === TabTypes.USERS) {
+                setActiveTab(TabTypes.ARTISTS);
+            }
+        },
+        onSwipedRight: () => {
+            if (activeTab === TabTypes.ARTISTS) {
+                setActiveTab(TabTypes.USERS);
+            }
+        },
+        trackMouse: false
+    });
+
+    // Refresh control for mobile pull-to-refresh
+    const { isRefreshing: isPullingToRefresh, onRefresh } = useRefreshControl();
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await Promise.all([
+                loadUsers(),
+                loadFriends(),
+                loadSentRequests(),
+                loadTopUsers()
+            ]);
+            toast.success('Content updated!');
+        } catch (error) {
+            console.error('Refresh error:', error);
+            toast.error('Failed to refresh. Please try again.');
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    // Scroll to top handler
+    const scrollToTop = () => {
+        containerRef.current?.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    };
+
+    // Handle scroll for showing/hiding scroll-to-top button
+    const handleScroll = useCallback(() => {
+        if (!containerRef.current) return;
+        
+        const { scrollTop } = containerRef.current;
+        setShowScrollToTop(scrollTop > 1000);
+        
+        // Hide mobile filters when scrolling down
+        if (!isScrollingUp && showMobileFilters) {
+            setShowMobileFilters(false);
+        }
+    }, [isScrollingUp, showMobileFilters]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
+
+    // Move MobileNav inside People component
+    const MobileNav = () => (
+        <motion.nav 
+            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#1A1A2E] to-[#1A1A2E]/95 backdrop-blur-lg border-t border-white/5 px-4 py-2 z-50 lg:hidden"
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+            <div className="flex items-center justify-around">
+                <button
+                    onClick={() => setShowTopRanked(true)}
+                    className="p-3 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
+                >
+                    <FaTrophy className="w-6 h-6" />
+                    <span className="text-xs mt-1">Top Ranked</span>
+                </button>
+
+                <button
+                    onClick={() => setShowMobileFilters(true)}
+                    className="p-3 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
+                >
+                    <AdjustmentsHorizontalIcon className="w-6 h-6" />
+                    <span className="text-xs mt-1">Filters</span>
+                </button>
+            </div>
+        </motion.nav>
+    );
+
+    // Move TopRankedModal inside People component
+    const TopRankedModal = () => (
+        <AnimatePresence>
+            {showTopRanked && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 lg:hidden"
+                    onClick={() => setShowTopRanked(false)}
+                >
+                    <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 25 }}
+                        className="absolute bottom-0 left-0 right-0 bg-[#1A1A2E] rounded-t-3xl max-h-[80vh] overflow-hidden flex flex-col"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#1A1A2E] z-10">
+                            <h2 className="text-xl font-bold text-white">Top Ranked</h2>
+                            <button 
+                                onClick={() => setShowTopRanked(false)}
+                                className="p-2 rounded-full hover:bg-white/10"
+                            >
+                                <XMarkIcon className="w-6 h-6 text-white" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            {topRankedUsers.map((user, index) => {
+                                const userId = user?.user_id || user?.id;
+                                if (!userId) return null;
+
+                                return (
+                                    <motion.div
+                                        key={`top-user-${index}`}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className="mb-3"
+                                    >
+                                        <div 
+                                            className="p-4 rounded-xl bg-white/5 border border-white/10 active:bg-white/10 transition-all"
+                                            onClick={() => {
+                                                window.location.href = `/profile/${userId}`;
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                {/* Rank Badge */}
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
+                                                    index === 0 ? 'bg-gradient-to-br from-yellow-500/20 to-amber-600/20 text-yellow-400 border border-yellow-500/20' :
+                                                    index === 1 ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 text-slate-300 border border-slate-400/20' :
+                                                    index === 2 ? 'bg-gradient-to-br from-amber-600/20 to-amber-700/20 text-amber-500 border border-amber-600/20' :
+                                                    'bg-gradient-to-br from-purple-500/10 to-purple-600/10 text-purple-400 border border-purple-500/20'
+                                                }`}>
+                                                    {index + 1}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-white text-lg">
+                                                        {user.name || "Unknown User"}
+                                                    </div>
+                                                    <div className="flex items-center gap-3 mt-1">
+                                                        <div className="flex items-center">
+                                                            <StarIcon className="w-4 h-4 text-yellow-400 mr-1" />
+                                                            <span className="text-sm text-yellow-400">
+                                                                {user.stats?.averageRating?.toFixed(1) || "0.0"}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-white/20">•</span>
+                                                        <div className="flex items-center">
+                                                            <UsersIcon className="w-4 h-4 text-purple-400 mr-1" />
+                                                            <span className="text-sm text-purple-400">
+                                                                {user.stats?.totalFollowers || 0}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <ChevronDownIcon className="w-5 h-5 text-white/40 rotate-[-90deg]" />
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+
+    // Mobile filters modal
+    const MobileFiltersModal: React.FC = () => (
+        <AnimatePresence>
+            {showMobileFilters && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 lg:hidden"
+                    onClick={() => setShowMobileFilters(false)}
+                >
+                    <motion.div
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 25 }}
+                        className="absolute bottom-0 left-0 right-0 bg-[#1A1A2E] rounded-t-3xl p-6"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-white font-medium mb-3">Sort by</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['name', 'rating', 'followers'].map(option => (
+                                        <button
+                                            key={option}
+                                            onClick={() => setSortBy(option)}
+                                            className={`p-3 rounded-xl text-sm font-medium ${
+                                                sortBy === option
+                                                    ? 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30'
+                                                    : 'bg-white/5 text-white/60 border border-white/5'
+                                            }`}
+                                        >
+                                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-white font-medium mb-3">Show</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['all', 'friends', 'new'].map(option => (
+                                        <button
+                                            key={option}
+                                            onClick={() => setFilterBy(option)}
+                                            className={`p-3 rounded-xl text-sm font-medium ${
+                                                filterBy === option
+                                                    ? 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30'
+                                                    : 'bg-white/5 text-white/60 border border-white/5'
+                                            }`}
+                                        >
+                                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-white font-medium mb-3">Order</h3>
+                                <button
+                                    onClick={toggleSortDirection}
+                                    className="w-full p-3 rounded-xl text-sm font-medium bg-white/5 text-white/60 border border-white/5 flex items-center justify-center gap-2"
+                                >
+                                    <span>Sort {sortDirection === 'asc' ? 'Ascending' : 'Descending'}</span>
+                                    {sortDirection === 'asc' ? (
+                                        <ArrowUpIcon className="w-4 h-4" />
+                                    ) : (
+                                        <ArrowDownIcon className="w-4 h-4" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowMobileFilters(false)}
+                            className="mt-6 w-full bg-[#20DDBB] text-white font-medium py-3 rounded-xl"
+                        >
+                            Apply Filters
+                        </button>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+
+    // Scroll to top button
+    const ScrollToTopButton: React.FC = () => (
+        <AnimatePresence>
+            {showScrollToTop && (
+                <motion.button
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    onClick={scrollToTop}
+                    className="fixed bottom-20 right-4 z-40 p-3 rounded-full bg-[#20DDBB] text-white shadow-lg lg:hidden"
+                >
+                    <ArrowUpIcon className="w-6 h-6" />
+                </motion.button>
+            )}
+        </AnimatePresence>
+    );
+
+    // Optimize profile loading
     const loadUsers = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -527,8 +974,6 @@ export default function People() {
             if (cached) {
                 console.log("[DEBUG] Using cached profiles");
                 setProfiles(cached);
-                setFilteredProfiles(cached);
-                setVisibleProfiles(cached.slice(0, INITIAL_PAGE_SIZE));
                 setIsLoading(false);
                 return;
             }
@@ -560,92 +1005,38 @@ export default function People() {
             
             setCache('initial_profiles', loadedProfiles);
             setProfiles(loadedProfiles);
-            setFilteredProfiles(loadedProfiles);
-            setVisibleProfiles(loadedProfiles.slice(0, INITIAL_PAGE_SIZE));
-            allProfilesRef.current = loadedProfiles;
+            setVisibleProfiles(loadedProfiles); // Update visible profiles as well
         } catch (error) {
             console.error('[ERROR] Error loading users:', error);
             setError('Failed to load users. Please try again later.');
-            
-            if (profiles.length > 0) {
-                setFilteredProfiles(profiles);
-                setVisibleProfiles(profiles.slice(0, INITIAL_PAGE_SIZE));
-            }
         } finally {
             setIsLoading(false);
         }
     }, [setCache, getCache]);
 
-    // Load more profiles when scrolling
-    const loadMoreProfiles = useCallback(() => {
-        if (isLoadingMore || !hasMoreProfiles) return;
-        
-        const currentLength = visibleProfiles.length;
-        const nextProfiles = filteredProfiles.slice(
-            currentLength,
-            currentLength + LOAD_MORE_SIZE
-        );
-        
-        if (nextProfiles.length > 0) {
-            setVisibleProfiles(prev => [...prev, ...nextProfiles]);
-        } else {
-            setHasMoreProfiles(false);
-        }
-    }, [filteredProfiles, visibleProfiles.length, isLoadingMore, hasMoreProfiles]);
-
-    // Watch for scroll and load more
+    // Effect to update visible profiles when search results or sorting changes
     useEffect(() => {
-        if (inView && !isLoading) {
-            loadMoreProfiles();
-        }
-    }, [inView, isLoading, loadMoreProfiles]);
-
-    // Optimized search function with debounce
-    const debouncedSearch = useCallback(
-        debounce((text: string) => {
-            if (!text.trim()) {
-                setFilteredProfiles(profiles);
-                setVisibleProfiles(profiles.slice(0, INITIAL_PAGE_SIZE));
-                return;
+        const sortedProfiles = [...searchResults].sort((a, b) => {
+            if (sortBy === 'name') {
+                return sortDirection === 'asc' 
+                    ? a.name.localeCompare(b.name)
+                    : b.name.localeCompare(a.name);
             }
-
-            const searchTerms = text.trim().toLowerCase().split(/\s+/);
-            const results = profiles.filter(profile => {
-                if (!profile) return false;
-                
-                const name = (profile.name || '').toLowerCase();
-                const username = (profile.username || '').toLowerCase();
-                const bio = (profile.bio || '').toLowerCase();
-                
-                return searchTerms.every(term => 
-                    name.includes(term) || 
-                    username.includes(term) || 
-                    bio.includes(term)
-                );
-            });
-            
-            setFilteredProfiles(results);
-            setVisibleProfiles(results.slice(0, INITIAL_PAGE_SIZE));
-        }, 300),
-        [profiles]
-    );
-
-    // Update visible profiles when filters change
-    useEffect(() => {
-        setVisibleProfiles(filteredProfiles.slice(0, INITIAL_PAGE_SIZE));
-    }, [sortBy, sortDirection, filterBy]);
-
-    // Handle search input
-    const handleSearchInput = (text: string) => {
-        setSearchQuery(text);
-        debouncedSearch(text);
-    };
-
-    // Handle search form submission
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        debouncedSearch(searchQuery);
-    };
+            if (sortBy === 'rating') {
+                const aRating = parseFloat(a.average_rating);
+                const bRating = parseFloat(b.average_rating);
+                return sortDirection === 'asc' ? aRating - bRating : bRating - aRating;
+            }
+            if (sortBy === 'followers') {
+                const aFollowers = parseInt(a.total_followers);
+                const bFollowers = parseInt(b.total_followers);
+                return sortDirection === 'asc' ? aFollowers - bFollowers : bFollowers - aFollowers;
+            }
+            return 0;
+        });
+        
+        setVisibleProfiles(sortedProfiles);
+    }, [searchResults, sortBy, sortDirection]);
 
     // Добавим useEffect для отслеживания состояния навигации
     useEffect(() => {
@@ -735,7 +1126,7 @@ export default function People() {
             );
             
             // Also update filtered profiles
-            setFilteredProfiles(prevProfiles => 
+            setProfiles(prevProfiles => 
                 prevProfiles.map(profile => {
                     if (profile.user_id === userId) {
                         // Calculate new average rating
@@ -994,7 +1385,7 @@ export default function People() {
 
     // Initial loading state
     if (!isHydrated || !isIconsLoaded) {
-        return (
+    return (
             <div className={styles.container}>
                 <div className={styles.pageContent}>
                     <div className={`${styles.loadingPulse} space-y-4`}>
@@ -1003,303 +1394,280 @@ export default function People() {
                             {[...Array(6)].map((_, i) => (
                                 <div key={i} className={styles.loadingCard}></div>
                             ))}
-                        </div>
                     </div>
                 </div>
-            </div>
+                    </div>
+                </div>
         );
     }
 
     return (
         <PeopleLayout>
-            <div className={styles.container}>
-                <div className={styles.pageContent}>
-                    {error && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-500/10 border border-red-500/30 text-red-200 px-4 py-3 rounded-lg mb-6"
-                        >
-                            {error}
-                        </motion.div>
-                    )}
-                    
-                    {/* Верхний баннер */}
-                    <div className="mb-6 w-full flex justify-center">
-                        <div className="overflow-hidden rounded-xl">
-                            <Banner 
-                                adKey="C6AILKQE" 
-                                adHeight={90} 
-                                adWidth={728} 
-                                adFormat="iframe"
-                            />
-                        </div>
-                    </div>
-                    
-                    {/* Второй баннер */}
-                    <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
-                        <div className="flex-1 overflow-hidden rounded-xl">
-                            <Banner 
-                                adKey="C6AIL5QE" 
-                                adHeight={250} 
-                                adWidth={970} 
-                                adFormat="iframe"
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
-                        <div className="lg:col-span-3">
-                            {/* Упрощенный блок фильтров без фоновой панели */}
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: 0.1 }}
-                                className="mb-6 sticky top-0 z-40 bg-gradient-to-r from-[#252840]/90 to-[#1E2136]/90 shadow-md rounded-b-xl px-2 py-2"
-                            >
-                                <div className="flex flex-wrap items-center gap-4">
-                                    {/* Поисковая строка и фильтры */}
-                                    <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 min-w-[250px]">
-                                        <div className="relative flex-1">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <MagnifyingGlassIconDynamic className="h-5 w-5 text-[#20DDBB]" />
+            <div 
+                {...swipeHandlers}
+                className="min-h-screen bg-[#1A1A2E]"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+            >
+                {/* Search and Filters Bar - Mobile Optimized */}
+                <div className={styles.searchContainer}>
+                    <div className={styles.searchWrapper}>
+                        <div className={styles.searchInputWrapper}>
+                            <div className="relative h-full">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <MagnifyingGlassIcon className="h-5 w-5 text-[#20DDBB]" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search people..."
+                                    value={query}
+                                            onChange={(e) => handleSearchInput(e.target.value)}
+                                    className="w-full h-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent"
+                                        />
+                                {searching && (
+                                            <div className="absolute inset-y-0 right-3 flex items-center">
+                                        <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full" />
                                             </div>
-                                            <input
-                                                type="text"
-                                                placeholder="Search people..."
-                                                value={searchQuery}
-                                                onChange={(e) => handleSearchInput(e.target.value)}
-                                                className="w-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent shadow-md"
-                                            />
-                                            {isSearching && (
-                                                <div className="absolute inset-y-0 right-3 flex items-center">
-                                                    <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <motion.button
-                                            whileHover={{ scale: 1.03 }}
-                                            whileTap={{ scale: 0.97 }}
-                                            type="submit"
-                                            className="bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-medium py-2.5 px-6 rounded-xl hover:shadow-lg hover:shadow-[#20DDBB]/20 transition-all duration-300"
-                                        >
-                                            Search
-                                        </motion.button>
-                                    </form>
+                                        )}
+                                    </div>
+                        </div>
+
+                        {/* Desktop Filters */}
+                        <div className={`${styles.filterGroup} hidden lg:flex`}>
+                                    <FilterDropdown 
+                                        options={[
+                                            { value: 'name', label: 'Name' },
+                                            { value: 'rating', label: 'Rating' },
+                                            { value: 'followers', label: 'Followers' }
+                                        ]}
+                                        value={sortBy}
+                                        onChange={setSortBy}
+                                        label="Sort by"
+                                    />
                                     
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <FilterDropdown 
-                                            options={[
-                                                { value: 'name', label: 'Name' },
-                                                { value: 'rating', label: 'Rating' },
-                                                { value: 'followers', label: 'Followers' }
-                                            ]}
-                                            value={sortBy}
-                                            onChange={setSortBy}
-                                            label="Sort by"
-                                        />
-                                        
-                                        <FilterDropdown 
-                                            options={[
-                                                { value: 'all', label: 'All' },
-                                                { value: 'friends', label: 'Friends' },
-                                                { value: 'new', label: 'New users' }
-                                            ]}
-                                            value={filterBy}
-                                            onChange={setFilterBy}
-                                            label="Show"
-                                        />
-                                        
-                                        <motion.button
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={toggleSortDirection}
-                                            className="flex items-center gap-1 bg-white/10 hover:bg-white/15 p-2.5 rounded-lg text-white border border-white/10 transition-all duration-200 shadow-sm"
-                                        >
-                                            {sortDirection === 'asc' ? <ArrowUpIconDynamic className="h-5 w-5" /> : <ArrowDownIconDynamic className="h-5 w-5" />}
-                                        </motion.button>
-                                    </div>
-                                </div>
-                                
-                                {/* Индикатор текущего поиска */}
-                                {searchQuery.trim() && (
-                                    <div className="mt-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-gray-400">
-                                                Search results for: 
-                                            </span>
-                                            <span className="bg-[#20DDBB]/10 text-[#20DDBB] px-2 py-1 rounded-md font-medium">
-                                                {searchQuery}
-                                            </span>
-                                            <span className="text-gray-400">
-                                                ({filteredProfiles.length} {filteredProfiles.length === 1 ? 'result' : 'results'})
-                                            </span>
-                                        </div>
-                                        
-                                        <button
-                                            onClick={() => handleSearchInput('')}
-                                            className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"
-                                        >
-                                            <XMarkIconDynamic className="h-4 w-4" />
-                                            Clear
-                                        </button>
-                                    </div>
-                                )}
-                            </motion.div>
-                            
-                            <div 
-                                ref={parentRef}
-                                className={styles.gridContainer}
-                                style={{
-                                    height: 'calc(100vh - 200px)',
-                                    overflow: 'auto',
-                                    scrollBehavior: 'smooth'
-                                }}
-                            >
-                                {isLoading ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                                        {Array.from({ length: INITIAL_PAGE_SIZE }).map((_, index) => (
-                                            <motion.div
-                                                key={index}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ duration: 0.3, delay: index * 0.1 }}
-                                            >
-                                                <UserCardSkeleton />
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                                        {visibleProfiles.map((profile, index) => (
-                                            <motion.div
-                                                key={profile.$id}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.3, delay: index * 0.1 }}
-                                            >
-                                                <MemoizedUserCard
-                                                    user={profile}
-                                                    isFriend={isFriend(profile.user_id)}
-                                                    onAddFriend={handleAddFriend}
-                                                    onRemoveFriend={handleRemoveFriend}
-                                                    onRateUser={handleRateUser}
-                                                />
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                )}
-                                
-                                {/* Intersection Observer target */}
-                                {!isLoading && hasMoreProfiles && (
-                                    <div 
-                                        ref={loadMoreRef} 
-                                        className="h-20 w-full flex items-center justify-center"
+                                    <FilterDropdown 
+                                        options={[
+                                            { value: 'all', label: 'All' },
+                                            { value: 'friends', label: 'Friends' },
+                                            { value: 'new', label: 'New users' }
+                                        ]}
+                                        value={filterBy}
+                                        onChange={setFilterBy}
+                                        label="Show"
+                                    />
+                                    
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={toggleSortDirection}
+                                className="h-10 flex items-center gap-1 bg-white/10 hover:bg-white/15 px-3 rounded-lg text-white border border-white/10 transition-all duration-200"
                                     >
-                                        <div className="animate-bounce">
-                                            <svg 
-                                                className="w-6 h-6 text-[#20DDBB]" 
-                                                fill="none" 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round" 
-                                                strokeWidth="2" 
-                                                viewBox="0 0 24 24" 
-                                                stroke="currentColor"
-                                            >
-                                                <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {/* Loading indicator */}
-                                {isLoadingMore && (
-                                    <div className="h-20 w-full flex items-center justify-center">
-                                        <div className="animate-spin h-8 w-8 border-2 border-[#20DDBB] border-t-transparent rounded-full"></div>
-                                    </div>
-                                )}
+                                        {sortDirection === 'asc' ? <ArrowUpIcon className="h-5 w-5" /> : <ArrowDownIcon className="h-5 w-5" />}
+                                    </motion.button>
+                                </div>
                             </div>
+                                    </div>
+                                    
+                {/* Main Content */}
+                <div className={styles.container}>
+                    <div className={styles.pageContent}>
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Users Grid */}
+                            <div className="lg:col-span-3">
+                                <div 
+                                    ref={containerRef}
+                                    className={styles.gridContainer}
+                                >
+                                    {/* Pull to refresh indicator */}
+                                    {isPullingToRefresh && (
+                                        <div className="flex items-center justify-center py-4 text-[#20DDBB]">
+                                            <div className="animate-spin mr-2">
+                                                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                            </div>
+                                            <span>Refreshing...</span>
+                                </div>
+                            )}
+                        
+                                    {/* Grid content */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                            {isLoading ? (
+                                            Array.from({ length: INITIAL_PAGE_SIZE }).map((_, index) => (
+                                                <div key={index}>
+                                        <UserCardSkeleton />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            searchResults
+                                                .slice(visibleRange.start, visibleRange.end)
+                                                .map((profile) => (
+                                                    <div 
+                                        key={profile.$id}
+                                                        className="transform-gpu"
+                                    >
+                                        <MemoizedUserCard
+                                            user={profile}
+                                            isFriend={isFriend(profile.user_id)}
+                                            onAddFriend={handleAddFriend}
+                                            onRemoveFriend={handleRemoveFriend}
+                                            onRateUser={handleRateUser}
+                                        />
+                                    </div>
+                                                ))
+                                        )}
                         </div>
                         
-                        {/* Боковая панель с топ пользователями (только на десктопе, sticky) */}
-                        <div className="lg:col-span-1 hidden lg:block">
-                            <motion.div 
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.5, delay: 0.2 }}
-                                className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl p-6 shadow-lg border border-white/5 sticky top-24"
-                            >
-                                <div className="mb-4">
-                                    <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
-                                    <div className="flex justify-center mb-4">
-                                        <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
-                                            <button
-                                                onClick={() => setActiveTab(TabTypes.USERS)}
-                                                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                                    activeTab === TabTypes.USERS
-                                                    ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
-                                                    : 'text-white/60 hover:text-white'
-                                                }`}
-                                            >
-                                                Users
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveTab(TabTypes.ARTISTS)}
-                                                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                                                    activeTab === TabTypes.ARTISTS
-                                                    ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
-                                                    : 'text-white/60 hover:text-white'
-                                                }`}
-                                            >
-                                                Artists
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {topRankedUsers.length > 0 ? (
-                                        <TopRankingUsers users={topRankedUsers} />
-                                    ) : (
-                                        <div className="text-center py-4 text-gray-400">
-                                            No users found
+                                    {/* Load more indicator */}
+                                    {!isLoading && hasMoreProfiles && (
+                                        <div ref={loadMoreRef} className="h-16 w-full flex items-center justify-center">
+                                            <div className="w-8 h-8 border-2 border-[#20DDBB] border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     )}
                                 </div>
-                            </motion.div>
+                    </div>
+                    
+                            {/* Sidebar - Hidden on mobile */}
+                    <div className="lg:col-span-1 hidden lg:block">
+                        <motion.div 
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
+                                    className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl shadow-lg border border-white/5 sticky top-20 h-[calc(100vh-100px)] flex flex-col overflow-hidden"
+                        >
+                                    {/* Header */}
+                                    <div className="p-5 border-b border-white/5">
+                                <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
+                                        <div className="flex justify-center">
+                                    <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
+                                        <button
+                                            onClick={() => setActiveTab(TabTypes.USERS)}
+                                            className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                                                activeTab === TabTypes.USERS
+                                                ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
+                                                : 'text-white/60 hover:text-white'
+                                            }`}
+                                        >
+                                            Users
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab(TabTypes.ARTISTS)}
+                                            className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                                                activeTab === TabTypes.ARTISTS
+                                                ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-md'
+                                                : 'text-white/60 hover:text-white'
+                                            }`}
+                                        >
+                                            Artists
+                                        </button>
+                                    </div>
+                                </div>
+                                    </div>
+
+                                    {/* Users List - with custom scrollbar */}
+                                    <div className="flex-1 overflow-y-auto px-2 py-3 custom-scrollbar">
+                                        {topRankedUsers.slice(0, 8).map((user, index) => {
+                                            const userId = user?.user_id || user?.id;
+                                            if (!userId) return null;
+                                            
+                                            return (
+                                                <motion.div 
+                                                    key={`top-user-${index}`}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: index * 0.1 }}
+                                                    className="mb-2 last:mb-0"
+                                                    onClick={() => {
+                                                        window.location.href = `/profile/${userId}`;
+                                                    }}
+                                                >
+                                                    <div className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer border border-white/10 backdrop-blur-sm">
+                                                        <div className="flex items-center gap-3">
+                                                            {/* Rank Number with Dynamic Color */}
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium ${
+                                                                index === 0 ? 'bg-gradient-to-br from-yellow-500/20 to-amber-600/20 text-yellow-400 border border-yellow-500/20' :
+                                                                index === 1 ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 text-slate-300 border border-slate-400/20' :
+                                                                index === 2 ? 'bg-gradient-to-br from-amber-600/20 to-amber-700/20 text-amber-500 border border-amber-600/20' :
+                                                                'bg-gradient-to-br from-purple-500/10 to-purple-600/10 text-purple-400 border border-purple-500/20'
+                                                            }`}>
+                                                                {index + 1}
+                            </div>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="font-medium text-white truncate">
+                                                                    {user.name || "Unknown User"}
+                    </div>
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <div className="flex items-center">
+                                                                        {/* Rating Stars */}
+                                                                        <div className="flex items-center">
+                                                                            {(() => {
+                                                                                const rating = user.stats?.averageRating || 0;
+                                                                                const { full, half, empty } = calculateRating(rating);
+                                                                                
+                                                                                return (
+                                                                                    <>
+                                                                                        {/* Full stars */}
+                                                                                        {[...Array(full)].map((_, i) => (
+                                                                                            <StarIcon
+                                                                                                key={`full-${i}`}
+                                                                                                className="w-3.5 h-3.5 text-yellow-400"
+                                                                                            />
+                                                                                        ))}
+                                                                                        
+                                                                                        {/* Half star */}
+                                                                                        {half && (
+                                                                                            <div className="relative w-3.5 h-3.5">
+                                                                                                <StarIcon className="absolute inset-0 text-white/10" />
+                </div>
+                                                                                        )}
+                                                                                        
+                                                                                        {/* Empty stars */}
+                                                                                        {[...Array(empty)].map((_, i) => (
+                                                                                            <StarIcon
+                                                                                                key={`empty-${i}`}
+                                                                                                className="w-3.5 h-3.5 text-white/10"
+                                                                                            />
+                                                                                        ))}
+                                                                                    </>
+                                                                                );
+                                                                            })()}
+            </div>
+                                                                        <span className="text-xs text-yellow-400/90 ml-1">
+                                                                            ({user.stats?.totalRatings || 0})
+                    </span>
+                </div>
+                                                                    <span className="text-xs text-white/40">•</span>
+                                                                    <div className="flex items-center">
+                                                                        <UsersIcon className="w-3.5 h-3.5 text-purple-400 mr-1" />
+                                                                        <span className="text-xs text-purple-400">
+                                                                            {user.stats?.totalFollowers || 0}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="text-white/40">
+                                                                <ChevronDownIcon className="w-4 h-4 rotate-[-90deg]" />
+                                                            </div>
+                                                        </div>
+                            </div>
+                        </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </motion.div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            {/* Мобильная Top Ranked панель (фиксированная снизу) */}
-            <div className="fixed bottom-0 left-0 w-full z-50 block lg:hidden">
-                <div
-                    className="mx-auto max-w-md bg-gradient-to-r from-[#252840] to-[#1E2136] rounded-t-2xl shadow-2xl p-3 flex items-center justify-between cursor-pointer"
-                    onClick={() => setShowRanking(true)}
-                >
-                    <span className="font-bold text-white text-lg flex items-center gap-2">
-                        <FaCrown className="text-yellow-400" /> Top Ranked
-                    </span>
-                    <span className="text-[#20DDBB] font-semibold">View</span>
-                </div>
-                {/* Выпадающий рейтинг */}
-                <AnimatePresence>
-                    {showRanking && (
-                        <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                            className="fixed inset-0 z-50 bg-black/60 flex flex-col"
-                            onClick={() => setShowRanking(false)}
-                        >
-                            <div
-                                className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-t-2xl p-6 max-w-md mx-auto mt-auto"
-                                onClick={e => e.stopPropagation()}
-                            >
-                                <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
-                                <TopRankingUsers users={topRankedUsers} />
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+
+                {/* Mobile-specific components */}
+                <MobileNav />
+                <MobileFiltersModal />
+                <TopRankedModal />
+                <ScrollToTopButton />
             </div>
         </PeopleLayout>
     );
@@ -1322,59 +1690,3 @@ function debounce<T extends (...args: any[]) => any>(
         timeout = setTimeout(later, wait);
     };
 }
-
-// Fix the TopRankingUsersWithDirectNavigation component
-const TopRankingUsersWithDirectNavigation = ({ users }: { users: any[] }) => {
-    // Дебаг для отслеживания проблем
-    useEffect(() => {
-        console.log("[DEBUG] TopRankingUsers data:", users);
-    }, [users]);
-    
-    if (!users || users.length === 0) {
-        return <div className="text-white/60 text-center p-4">No users found</div>;
-    }
-    
-    return (
-        <div className="space-y-2">
-            {users.map((user, index) => {
-                const userId = user?.user_id || user?.id;
-                
-                // Пропускаем пользователей без ID
-                if (!userId) return null;
-                
-                // Прямая ссылка на профиль
-                const profileUrl = `/profile/${userId}`;
-                
-                return (
-                    <div 
-                        key={`top-user-${index}`}
-                        className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10 cursor-pointer"
-                        onClick={() => {
-                            console.log(`[DEBUG] Direct navigation to: ${profileUrl}`);
-                            window.location.href = profileUrl;
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-gradient-to-br ${index < 3 ? 'from-purple-500/30 to-cyan-500/30' : 'from-gray-500/20 to-slate-500/20'} border border-white/10`}>
-                                {index + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="font-medium text-white truncate">
-                                    {user.name || "Unknown User"}
-                                </div>
-                                <div className="text-xs text-gray-400 truncate">
-                                    {user.username || `User #${userId?.substring(0, 6)}`}
-                                </div>
-                            </div>
-                            <div className="text-purple-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};

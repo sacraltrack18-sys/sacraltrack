@@ -56,8 +56,10 @@
     "react-error-boundary": "^5.0.0",
     "react-hot-toast": "^2.5.2",
     "react-icons": "^4.10.1",
+    "react-infinite-scroll-hook": "^6.0.0",
     "react-intersection-observer": "^9.16.0",
     "react-responsive": "^10.0.0",
+    "react-swipeable": "^7.0.2",
     "react-tooltip": "^5.28.0",
     "react-webcam": "^7.2.0",
     "react-yandex-metrika": "^2.6.0",
@@ -83,7 +85,10 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "appwrite": "^13.0.1",
-    "hardhat": "^2.22.17"
+    "hardhat": "^2.22.17",
+    "postcss-import": "^16.1.0",
+    "postcss-nesting": "^13.0.1",
+    "postcss-preset-env": "^10.2.0"
   },
   "optionalDependencies": {
     "canvas": "^2.11.2"

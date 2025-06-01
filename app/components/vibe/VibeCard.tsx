@@ -83,7 +83,7 @@ export const VibeCardSkeleton = () => {
             {/* Glass Effect Lines */}
             <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-[#20DDBB]/20 to-transparent transform -skew-x-45" />
             <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-[#20DDBB]/10 to-transparent transform skew-x-45" />
-            
+          
             {/* Additional Static Design Elements */}
             <div className="absolute inset-x-0 top-1/3 h-px bg-gradient-to-r from-transparent via-[#20DDBB]/20 to-transparent" />
             <div className="absolute inset-x-0 bottom-1/3 h-px bg-gradient-to-r from-transparent via-[#20DDBB]/10 to-transparent" />
