@@ -17,7 +17,6 @@ import {
   UserPlusIcon, 
   UserMinusIcon, 
   MagnifyingGlassIcon,
-  AdjustmentsHorizontalIcon,
   ArrowUpIcon, 
   ArrowDownIcon,
   XMarkIcon,
@@ -383,29 +382,33 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
 // Мемоизированная версия UserCard для предотвращения лишних ререндеров
 const MemoizedUserCard = React.memo(UserCard);
 
-// Filter dropdown component
+// Обновленный компонент FilterDropdown
 const FilterDropdown = ({ 
     options, 
     value, 
     onChange, 
-    label 
+    label,
+    isMobile 
 }: { 
     options: {value: string, label: string}[], 
     value: string, 
     onChange: (val: string) => void,
-    label: string
+    label: string,
+    isMobile?: boolean
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     
     return (
         <div className="relative">
             <button 
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 px-3.5 py-2.5 rounded-lg text-sm text-white/90 border border-white/10 transition-all duration-200 shadow-sm"
+                className={`flex items-center gap-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all duration-200 shadow-sm h-[50px] ${
+                    isMobile ? 'px-3 text-xs' : 'px-3.5 text-sm'
+                }`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className="text-purple-300">{label}:</span>
-                <span className="font-medium">{options.find(opt => opt.value === value)?.label}</span>
-                <ChevronDownIconDynamic className="w-4 h-4 text-purple-300" />
+                {!isMobile && <span className="text-purple-300">{label}:</span>}
+                <span className="font-medium text-white/90">{options.find(opt => opt.value === value)?.label}</span>
+                <ChevronDownIcon className={`w-4 h-4 text-purple-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isOpen && (
@@ -414,12 +417,16 @@ const FilterDropdown = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 w-48 bg-gradient-to-br from-[#1E2136] to-[#141625] rounded-xl py-2 shadow-xl border border-white/10 z-50"
+                    className="absolute top-full left-0 mt-2 min-w-[120px] bg-gradient-to-br from-[#1E2136] to-[#141625] rounded-xl py-1 shadow-xl border border-white/10 z-50"
                 >
                     {options.map(option => (
                         <button
                             key={option.value}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${option.value === value ? 'text-[#20DDBB] font-medium' : 'text-white/80'}`}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
+                                option.value === value 
+                                    ? 'text-[#20DDBB] font-medium bg-[#20DDBB]/10' 
+                                    : 'text-white/80'
+                            }`}
                             onClick={() => {
                                 onChange(option.value);
                                 setIsOpen(false);
@@ -613,7 +620,7 @@ export default function People() {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
     const [showRanking, setShowRanking] = useState(false);
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+    const isMobile = useMediaQuery({ maxWidth: 768 });
     const [isIconsLoaded, setIconsLoaded] = useState(false);
     const [isHydrated, setIsHydrated] = useState(false);
     const { ref: loadMoreRef, inView } = useInView({
@@ -738,7 +745,7 @@ export default function People() {
         return () => container.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
 
-    // Move MobileNav inside People component
+    // Обновленная нижняя навигация только с Top Ranked
     const MobileNav = () => (
         <motion.nav 
             className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#1A1A2E] to-[#1A1A2E]/95 backdrop-blur-lg border-t border-white/5 px-4 py-2 z-50 lg:hidden"
@@ -746,21 +753,13 @@ export default function People() {
             animate={{ y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-            <div className="flex items-center justify-around">
+            <div className="flex items-center justify-center">
                 <button
                     onClick={() => setShowTopRanked(true)}
                     className="p-3 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
                 >
                     <FaTrophy className="w-6 h-6" />
-                    <span className="text-xs mt-1">Top Ranked</span>
-                </button>
-
-                <button
-                    onClick={() => setShowMobileFilters(true)}
-                    className="p-3 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
-                >
-                    <AdjustmentsHorizontalIcon className="w-6 h-6" />
-                    <span className="text-xs mt-1">Filters</span>
+                    <span className="text-xs mt-1">Top</span>
                 </button>
             </div>
         </motion.nav>
@@ -853,94 +852,6 @@ export default function People() {
                                 );
                             })}
                         </div>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
-
-    // Mobile filters modal
-    const MobileFiltersModal: React.FC = () => (
-        <AnimatePresence>
-            {showMobileFilters && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 lg:hidden"
-                    onClick={() => setShowMobileFilters(false)}
-                >
-                    <motion.div
-                        initial={{ y: "100%" }}
-                        animate={{ y: 0 }}
-                        exit={{ y: "100%" }}
-                        transition={{ type: "spring", damping: 25 }}
-                        className="absolute bottom-0 left-0 right-0 bg-[#1A1A2E] rounded-t-3xl p-6"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-                        
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="text-white font-medium mb-3">Sort by</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {['name', 'rating', 'followers'].map(option => (
-                                        <button
-                                            key={option}
-                                            onClick={() => setSortBy(option)}
-                                            className={`p-3 rounded-xl text-sm font-medium ${
-                                                sortBy === option
-                                                    ? 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30'
-                                                    : 'bg-white/5 text-white/60 border border-white/5'
-                                            }`}
-                                        >
-                                            {option.charAt(0).toUpperCase() + option.slice(1)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-white font-medium mb-3">Show</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {['all', 'friends', 'new'].map(option => (
-                                        <button
-                                            key={option}
-                                            onClick={() => setFilterBy(option)}
-                                            className={`p-3 rounded-xl text-sm font-medium ${
-                                                filterBy === option
-                                                    ? 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30'
-                                                    : 'bg-white/5 text-white/60 border border-white/5'
-                                            }`}
-                                        >
-                                            {option.charAt(0).toUpperCase() + option.slice(1)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-white font-medium mb-3">Order</h3>
-                                <button
-                                    onClick={toggleSortDirection}
-                                    className="w-full p-3 rounded-xl text-sm font-medium bg-white/5 text-white/60 border border-white/5 flex items-center justify-center gap-2"
-                                >
-                                    <span>Sort {sortDirection === 'asc' ? 'Ascending' : 'Descending'}</span>
-                                    {sortDirection === 'asc' ? (
-                                        <ArrowUpIcon className="w-4 h-4" />
-                                    ) : (
-                                        <ArrowDownIcon className="w-4 h-4" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => setShowMobileFilters(false)}
-                            className="mt-6 w-full bg-[#20DDBB] text-white font-medium py-3 rounded-xl"
-                        >
-                            Apply Filters
-                        </button>
                     </motion.div>
                 </motion.div>
             )}
@@ -1437,32 +1348,38 @@ export default function People() {
                                     <FilterDropdown 
                                         options={[
                                             { value: 'name', label: 'Name' },
-                                            { value: 'rating', label: 'Rating' },
-                                            { value: 'followers', label: 'Followers' }
+                                            { value: 'rating', label: 'Rating' }
                                         ]}
                                         value={sortBy}
                                         onChange={setSortBy}
                                         label="Sort by"
+                                        isMobile={isMobile}
                                     />
                                     
                                     <FilterDropdown 
                                         options={[
                                             { value: 'all', label: 'All' },
-                                            { value: 'friends', label: 'Friends' },
-                                            { value: 'new', label: 'New users' }
+                                            { value: 'friends', label: 'Friends' }
                                         ]}
                                         value={filterBy}
                                         onChange={setFilterBy}
                                         label="Show"
+                                        isMobile={isMobile}
                                     />
                                     
                                     <motion.button
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                         onClick={toggleSortDirection}
-                                className="h-10 flex items-center gap-1 bg-white/10 hover:bg-white/15 px-3 rounded-lg text-white border border-white/10 transition-all duration-200"
+                                className={`flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all h-[50px] ${
+                                    isMobile ? 'w-[50px]' : 'w-[50px]'
+                                }`}
                                     >
-                                        {sortDirection === 'asc' ? <ArrowUpIcon className="h-5 w-5" /> : <ArrowDownIcon className="h-5 w-5" />}
+                                        {sortDirection === 'asc' ? (
+                                            <ArrowUpIcon className="w-5 h-5 text-white/80" />
+                                        ) : (
+                                            <ArrowDownIcon className="w-5 h-5 text-white/80" />
+                                        )}
                                     </motion.button>
                                 </div>
                             </div>
@@ -1492,11 +1409,11 @@ export default function People() {
                             )}
                         
                                     {/* Grid content */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                            {isLoading ? (
+                                    <div className={styles.gridLayout}>
+                                        {isLoading ? (
                                             Array.from({ length: INITIAL_PAGE_SIZE }).map((_, index) => (
                                                 <div key={index}>
-                                        <UserCardSkeleton />
+                                                    <UserCardSkeleton />
                                                 </div>
                                             ))
                                         ) : (
@@ -1504,21 +1421,21 @@ export default function People() {
                                                 .slice(visibleRange.start, visibleRange.end)
                                                 .map((profile) => (
                                                     <div 
-                                        key={profile.$id}
+                                                        key={profile.$id}
                                                         className="transform-gpu"
-                                    >
-                                        <MemoizedUserCard
-                                            user={profile}
-                                            isFriend={isFriend(profile.user_id)}
-                                            onAddFriend={handleAddFriend}
-                                            onRemoveFriend={handleRemoveFriend}
-                                            onRateUser={handleRateUser}
-                                        />
-                                    </div>
+                                                    >
+                                                        <MemoizedUserCard
+                                                            user={profile}
+                                                            isFriend={isFriend(profile.user_id)}
+                                                            onAddFriend={handleAddFriend}
+                                                            onRemoveFriend={handleRemoveFriend}
+                                                            onRateUser={handleRateUser}
+                                                        />
+                                                    </div>
                                                 ))
                                         )}
-                        </div>
-                        
+                                    </div>
+                                    
                                     {/* Load more indicator */}
                                     {!isLoading && hasMoreProfiles && (
                                         <div ref={loadMoreRef} className="h-16 w-full flex items-center justify-center">
@@ -1665,7 +1582,6 @@ export default function People() {
 
                 {/* Mobile-specific components */}
                 <MobileNav />
-                <MobileFiltersModal />
                 <TopRankedModal />
                 <ScrollToTopButton />
             </div>
