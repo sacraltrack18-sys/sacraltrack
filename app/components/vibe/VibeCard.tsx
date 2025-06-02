@@ -492,18 +492,11 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
 
   // Обновляем вызов handleLikeUpdate
   const handleLikeUpdate = (newCount: number, isLiked: boolean) => {
-    // Update only the local stats
+    // Update only the local stats immediately
     setVibeStats(prev => ({
       ...prev,
       likesCount: newCount
     }));
-    
-    // Store the updated count in localStorage
-    try {
-      localStorage.setItem(getVibeLocalStorageKey(vibe.id), newCount.toString());
-    } catch (error) {
-      console.error('[VIBE-CARD] Error storing like count in localStorage:', error);
-    }
     
     // Call the parent handlers if provided
     if (isLiked && onLike) {
@@ -753,7 +746,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         // Conditionally render the image section if vibe.media_url exists
         if (!vibe.media_url) return null;
         return (
-          <div className="relative aspect-[4/5] rounded-xl overflow-hidden group">
+          <div className="relative w-full group">
             {isLoading && (
               <div className="absolute inset-0 bg-gradient-to-br from-[#2A2151]/50 to-[#1E1A36]/50 flex items-center justify-center">
                 <div className="animate-pulse">
@@ -767,7 +760,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             <Image 
               src={imageError ? '/images/placeholders/default-placeholder.svg' : getVibeImageUrl(vibe.media_url)}
               alt={vibe.caption ? `Musical vibe: ${vibe.caption} by ${vibe.profile?.name || 'artist'}` : `Musical vibe shared by ${vibe.profile?.name || 'artist'} on ${new Date(vibe.created_at).toLocaleDateString()}`}
-              className={`object-cover w-full h-full transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+              className={`w-full transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
               width={500}
               height={650}
               onError={(e) => {
@@ -775,6 +768,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 setImageError(true);
               }}
               onLoad={() => setIsLoading(false)}
+              style={{ width: '100%', height: 'auto' }}
             />
           </div>
         );
@@ -823,10 +817,10 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.5 }}
-          className="p-4"
+          className="pt-[15px] pb-[15px] px-[5px]"
         >
           {/* Vibe header section */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-[5px]">
             <Link href={`/profile/${vibe.user_id}`} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full overflow-hidden mr-3 border border-white/10">
@@ -906,7 +900,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           
           {/* Caption с музыкальными нотами */}
           {vibe.caption && (
-            <div className="mt-3 flex items-start justify-between text-gray-300 text-sm relative">
+            <div className="mt-[5px] flex items-start justify-between text-gray-300 text-sm relative">
               <div className="absolute -left-1 top-0 h-full w-0.5 bg-gradient-to-b from-purple-500/30 to-transparent rounded-full"></div>
               <p className="pl-3 flex-1 mr-2">{vibe.caption}</p>
               {/* Mood Glass Tag */}
@@ -927,7 +921,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           )}
           
           {/* Action buttons */}
-          <div className="flex items-center justify-between w-full mt-4">
+          <div className="flex items-center justify-between w-full mt-[5px]">
             <div className="flex items-center gap-4">
               <VibeLikeButton 
                 vibeId={vibe.id}

@@ -42,6 +42,22 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
   const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
   const getVibeUserLikedLocalStorageKey = (id: string, userId: string) => `vibe_liked_by_user_${id}_${userId}`;
 
+  // Immediately update likes count when initialLikeCount changes
+  useEffect(() => {
+    const newCount = typeof initialLikeCount === 'string' 
+      ? parseInt(initialLikeCount) || 0 
+      : initialLikeCount || 0;
+      
+    if (newCount !== likesCount) {
+      setLikesCount(newCount);
+      try {
+        localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
+      } catch (e) {
+        console.error('[VibeLikeButton] Error updating localStorage:', e);
+      }
+    }
+  }, [initialLikeCount, vibeId]);
+
   // Check if the like count is stored in localStorage
   useEffect(() => {
     if (!vibeId) return;
@@ -142,24 +158,6 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
     }
   }, [userLikedVibes, vibeId, isLiked]);
   
-  // Update local state when initialLikeCount changes from parent
-  useEffect(() => {
-    const newCount = typeof initialLikeCount === 'string' 
-      ? parseInt(initialLikeCount) || 0 
-      : initialLikeCount || 0;
-      
-    if (newCount !== likesCount) {
-      setLikesCount(newCount);
-      
-      // Store in localStorage
-      try {
-        localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
-      } catch (e) {
-        console.error('[VibeLikeButton] Error updating localStorage:', e);
-      }
-    }
-  }, [initialLikeCount]);
-  
   // Update local state when initialLikeState changes from parent
   useEffect(() => {
     if (initialLikeState !== isLiked) {
@@ -182,152 +180,121 @@ const VibeLikeButton: React.FC<VibeLikeButtonProps> = ({
       return;
     }
     
-    if (isUpdating) return; // Prevent multiple clicks
+    if (isUpdating) return;
     
-    // Generate unique operation ID for logging
-    const operationId = Math.random().toString(36).substring(7);
-    console.log(`[VibeLikeButton ${operationId}] Toggle like for vibe ${vibeId}`);
-    
-    // Store previous state for rollback if needed
-    const wasLiked = isLiked;
-    const prevLikesCount = likesCount;
-    
-    // Optimistically update UI
     setIsUpdating(true);
-    setIsLiked(!isLiked);
-    const newCount = !isLiked ? prevLikesCount + 1 : Math.max(0, prevLikesCount - 1);
-    setLikesCount(newCount);
     
-    // Store in localStorage (optimistic update)
-    try {
-      localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
-      localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), !isLiked ? 'true' : 'false');
-    } catch (e) {
-      console.error('[VibeLikeButton] Error updating localStorage:', e);
-    }
+    // Store previous state for rollback
+    const prevIsLiked = isLiked;
+    const prevCount = likesCount;
     
     try {
-      // Call appropriate method based on current like state
-      let success;
-      if (!isLiked) {
-        console.log(`[VibeLikeButton ${operationId}] Adding like`);
-        success = await likeVibe(vibeId, user.id);
-      } else {
-        console.log(`[VibeLikeButton ${operationId}] Removing like`);
-        success = await unlikeVibe(vibeId, user.id);
-      }
+      // Immediate UI update
+      const newIsLiked = !isLiked;
+      const newCount = newIsLiked ? prevCount + 1 : Math.max(0, prevCount - 1);
       
-      if (!success) {
-        // If operation failed, rollback state
-        console.error(`[VibeLikeButton ${operationId}] Failed to ${!isLiked ? 'add' : 'remove'} like`);
-        setIsLiked(wasLiked);
-        setLikesCount(prevLikesCount);
-        
-        // Revert localStorage
-        try {
-          localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
-          localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
-        } catch (e) {
-          console.error('[VibeLikeButton] Error updating localStorage:', e);
-        }
-        
-        toast.error(`Failed to ${!isLiked ? 'like' : 'unlike'}. Please try again.`);
-      } else {
-        // Ensure userLikedVibes is up to date for other components
-        if (user && user.id) {
-          fetchUserLikedVibes(user.id);
-        }
-        
-        // Notify parent component about the update if callback is provided
-        if (onLikeUpdated) {
-          onLikeUpdated(
-            !isLiked ? prevLikesCount + 1 : Math.max(0, prevLikesCount - 1),
-            !isLiked
-          );
-        }
-      }
-    } catch (error) {
-      console.error(`[VibeLikeButton ${operationId}] Error in like operation:`, error);
+      // Update UI immediately
+      setIsLiked(newIsLiked);
+      setLikesCount(newCount);
       
-      // Restore previous state on error
-      setIsLiked(wasLiked);
-      setLikesCount(prevLikesCount);
-      
-      // Revert localStorage
+      // Update localStorage
       try {
-        localStorage.setItem(getVibeLocalStorageKey(vibeId), prevLikesCount.toString());
-        localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), wasLiked ? 'true' : 'false');
+        localStorage.setItem(getVibeLocalStorageKey(vibeId), newCount.toString());
+        localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), newIsLiked ? 'true' : 'false');
       } catch (e) {
         console.error('[VibeLikeButton] Error updating localStorage:', e);
       }
       
-      // Show error to user
-      toast.error('Failed to update like. Please try again.', {
-        duration: 3000,
-        style: {
-          background: '#333',
-          color: '#fff',
-          borderRadius: '10px'
-        }
-      });
-      
-      // If auth error, prompt login
-      if (error.toString().includes('401') || 
-          error.toString().includes('unauthorized') || 
-          error.toString().includes('unauthenticated')) {
-        setIsLoginOpen(true);
+      // Notify parent component
+      if (onLikeUpdated) {
+        onLikeUpdated(newCount, newIsLiked);
       }
+      
+      // Make API request
+      const success = newIsLiked 
+        ? await likeVibe(vibeId, user.id)
+        : await unlikeVibe(vibeId, user.id);
+      
+      if (!success) {
+        // Rollback on error
+        setIsLiked(prevIsLiked);
+        setLikesCount(prevCount);
+        
+        try {
+          localStorage.setItem(getVibeLocalStorageKey(vibeId), prevCount.toString());
+          localStorage.setItem(getVibeUserLikedLocalStorageKey(vibeId, user.id), prevIsLiked.toString());
+        } catch (e) {
+          console.error('[VibeLikeButton] Error updating localStorage:', e);
+        }
+        
+        if (onLikeUpdated) {
+          onLikeUpdated(prevCount, prevIsLiked);
+        }
+        
+        toast.error(`Failed to ${newIsLiked ? 'like' : 'unlike'}. Please try again.`);
+      } else {
+        // Update global state
+        if (user && user.id) {
+          fetchUserLikedVibes(user.id);
+        }
+      }
+    } catch (error) {
+      // Rollback on error
+      setIsLiked(prevIsLiked);
+      setLikesCount(prevCount);
+      
+      if (onLikeUpdated) {
+        onLikeUpdated(prevCount, prevIsLiked);
+      }
+      
+      console.error('[VibeLikeButton] Error in like operation:', error);
+      toast.error('An error occurred. Please try again.');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Determine size classes based on size prop
-  const iconSizeClass = {
-    'sm': 'w-4 h-4',
-    'md': 'w-6 h-6',
-    'lg': 'w-8 h-8'
-  }[size];
-  
-  const textSizeClass = {
-    'sm': 'text-xs',
-    'md': 'text-sm',
-    'lg': 'text-base'
-  }[size];
-  
-  // Format number for display according to requirements
+  // Форматирование числа лайков
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
-      return Math.floor(num / 1000000) + 'M+';
+      return `${(num / 1000000).toFixed(1)}M`;
     } else if (num >= 1000) {
-      return Math.floor(num / 1000) + 'k+';
-    } else if (num >= 100) {
-      return '100+';
-    } else {
-      return String(num);
+      return `${(num / 1000).toFixed(1)}K`;
     }
+    return num.toString();
   };
 
   return (
-    <div 
-      className={`flex items-center cursor-pointer ${className}`}
+    <button
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         handleLikeToggle();
       }}
+      disabled={isUpdating}
+      className={`group flex items-center gap-1.5 ${className}`}
     >
-      {isLiked ? (
-        <HeartIconSolid className={`${iconSizeClass} text-pink-500`} />
-      ) : (
-        <HeartIconOutline className={`${iconSizeClass} text-white hover:text-pink-400 transition-colors`} />
-      )}
-      
+      <div className={`relative flex items-center justify-center transition-transform duration-200 ${isUpdating ? 'scale-90' : 'hover:scale-110'}`}>
+        {isLiked ? (
+          <HeartIconSolid className={`${
+            size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+          } text-red-500`} />
+        ) : (
+          <HeartIconOutline className={`${
+            size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-5 h-5'
+          } text-gray-400 group-hover:text-red-500 transition-colors`} />
+        )}
+      </div>
       {showCount && (
-        <span className={`${textSizeClass} font-semibold ml-2 ${isLiked ? 'text-pink-500' : 'text-white'}`}>
+        <span className={`${
+          isLiked ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+        } transition-colors ${
+          size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-base' : 'text-sm'
+        }`}>
           {formatNumber(likesCount)}
         </span>
       )}
-    </div>
+    </button>
   );
 };
 
