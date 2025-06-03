@@ -152,7 +152,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
                     {currentProfile && (
-                        <div className="hidden md:block w-[300px] flex-shrink-0">
+                        <div className="hidden md:block w-[300px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)]">
                             <UserProfileSidebar profile={currentProfile} />
                         </div>
                     )}
@@ -196,7 +196,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            <div className="mx-auto w-full max-w-[650px] flex flex-col gap-4">
                                                 {likedPosts.map((post) => (
                                                     <PostLikes 
                                                         key={post.$id} 
@@ -266,7 +266,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                     
                     {/* Right sidebar with user activity */}
                     {currentProfile && isProfileOwner && (
-                        <div className="hidden lg:block w-[300px] flex-shrink-0">
+                        <div className="hidden lg:block w-[300px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)]">
                             <UserActivitySidebar 
                                 userId={currentProfile.user_id} 
                                 isOwner={isProfileOwner}
@@ -507,12 +507,11 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     setShowPurchases(false);
                                     setShowVibes(false);
                                 }}
-                                className={`group flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 flex-1 ${
+                                className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
                                     showFriends
                                     ? 'text-blue-400 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 shadow-[0_0_15px_rgba(96,165,250,0.1)]'
                                     : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-[0_0_10px_rgba(96,165,250,0.05)]'
                                 }`}
-                                style={{ position: 'relative' }}
                             >
                                 <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showFriends ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-blue-500/50 group-hover:to-cyan-500/50 group-hover:shadow-[0_0_8px_rgba(96,165,250,0.3)]'} transition-all duration-300`}>
                                     <BsPeopleFill

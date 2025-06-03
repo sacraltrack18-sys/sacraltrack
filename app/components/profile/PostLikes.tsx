@@ -116,132 +116,65 @@ const PostLikes = ({ post }: PostLikesProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-[#24183d]/80 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden 
-                      shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300
-                      hover:shadow-[0_8px_32px_rgba(32,221,187,0.15)] hover:border-[#20DDBB]/20"
+            className="w-full max-w-[650px] mx-auto rounded-2xl bg-[#24183d]/70 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.15)] transition-all duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.25)] flex flex-row items-center gap-0 p-0 overflow-hidden"
+            style={{ height: '110px', minHeight: '110px' }}
         >
-            <div className="p-4 flex items-center justify-between border-b border-white/5">
-                <div className="flex items-center gap-3">
-                    <Link href={`/profile/${post.user_id}`}>
-                        <motion.img
-                            whileHover={{ scale: 1.05 }}
-                            className="w-12 h-12 rounded-full object-cover ring-2 ring-white/10 
-                                     hover:ring-[#20DDBB]/50 transition-all duration-300"
-                            src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
-                            alt={post.profile.name}
-                            onError={() => setAvatarError(true)}
-                        />
-                    </Link>
-                    <div>
-                        <Link href={`/profile/${post.user_id}`} 
-                              className="text-white font-medium hover:text-[#20DDBB] transition-colors">
-                            {post.profile.name}
-                        </Link>
-                        <p className="text-[#818BAC] text-sm">{post.trackname}</p>
-                    </div>
-                </div>
-            </div>
-
-            <motion.div 
-                className="relative w-full"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.2 }}
-            >
-                <div 
-                    onClick={handlePlay}
-                    className="w-full aspect-square bg-cover bg-center relative overflow-hidden cursor-pointer
-                             group transition-all duration-300"
-                    style={{ 
-                        backgroundImage: imageError ? 
-                            'linear-gradient(45deg, #2E2469, #351E43)' : 
-                            `url(${imageUrl})`
-                    }}
-                >
-                    {imageError ? (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="flex flex-col items-center">
-                                <motion.img 
-                                    initial={{ opacity: 0.2, scale: 0.9 }}
-                                    animate={{ opacity: 0.2, scale: 1 }}
-                                    transition={{ duration: 1, repeat: Infinity, repeatType: "reverse" }}
-                                    src="/images/T-logo.svg" 
-                                    alt="Default" 
-                                    className="w-16 h-16"
-                                />
-                                <div className="mt-4 w-32 h-[1px] bg-white/10"></div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
-                                      transition-opacity duration-300 flex items-center justify-center">
-                            <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ duration: 0.2 }}
-                                className="bg-[#20DDBB]/20 backdrop-blur-sm p-4 rounded-full"
-                            >
-                                {isCurrentTrack && isPlaying ? (
-                                    <motion.div 
-                                        initial={{ scale: 1 }}
-                                        animate={{ scale: 1.1 }}
-                                        transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
-                                        className="w-8 h-8 rounded-full bg-[#20DDBB]"
-                                    />
-                                ) : (
-                                    <svg className="w-8 h-8 text-[#20DDBB]" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M8 5v14l11-7z"/>
-                                    </svg>
-                                )}
-                            </motion.div>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-
-            <div className="px-4 py-2 border-t border-white/5">
-                <AudioPlayer 
-                    m3u8Url={m3u8Url}
-                    isPlaying={isCurrentTrack && isPlaying}
-                    onPlay={() => {
-                        setCurrentAudioId(post.$id);
-                        setCurrentTrack({
-                            id: post.$id,
-                            audio_url: m3u8Url,
-                            image_url: imageUrl,
-                            name: post.trackname,
-                            artist: post.profile.name,
-                        });
-                        if (!isPlaying) togglePlayPause();
-                    }}
-                    onPause={() => {
-                        stopAllPlayback();
-                    }}
+            {/* Artwork */}
+            <div className="flex-shrink-0 h-[110px] w-[110px] flex items-center justify-center p-0 m-0">
+                <img
+                    className="w-full h-full object-cover rounded-none"
+                    src={imageError ? '/images/T-logo.svg' : imageUrl}
+                    alt={post.trackname}
+                    onError={() => setImageError(true)}
                 />
             </div>
 
-            <div className="px-4 py-3 flex justify-between items-center border-t border-white/5">
-                <div className="flex items-center space-x-4">
-                    <PostMainLikes post={formattedPost} />
-                    
-                    <button 
-                        onClick={navigateToComments}
-                        className="flex items-center space-x-1 text-white/60 hover:text-[#20DDBB] transition-colors group"
-                    >
-                        <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            transition={{ duration: 0.2 }}
+            {/* Info and controls */}
+            <div className="flex-1 flex flex-col justify-center min-w-0 h-full px-3 py-2 md:px-4 md:py-2">
+                <div className="flex flex-row items-center h-full w-full min-w-0">
+                    <div className="flex-1 min-w-0 flex flex-col justify-center h-full">
+                        <div className="flex items-center gap-2 min-w-0 mt-1 md:mt-2">
+                            <Link href={`/profile/${post.user_id}`} className="truncate text-white font-semibold text-base md:text-lg hover:text-[#20DDBB] transition-colors">
+                                {post.profile.name}
+                            </Link>
+                            <span className="text-[#20DDBB] mx-1">•</span>
+                            <span className="truncate text-[#F1F1F1] text-base md:text-lg font-medium">{post.trackname}</span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                            <span className="text-xs md:text-sm text-[#818BAC]">{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        <div className="w-full mt-1 md:mt-1 flex items-center">
+                            <AudioPlayer 
+                                m3u8Url={m3u8Url}
+                                isPlaying={isCurrentTrack && isPlaying}
+                                onPlay={() => {
+                                    setCurrentAudioId(post.$id);
+                                    setCurrentTrack({
+                                        id: post.$id,
+                                        audio_url: m3u8Url,
+                                        image_url: imageUrl,
+                                        name: post.trackname,
+                                        artist: post.profile.name,
+                                    });
+                                    if (!isPlaying) togglePlayPause();
+                                }}
+                                onPause={() => {
+                                    stopAllPlayback();
+                                }}
+                            />
+                        </div>
+                    </div>
+                    {/* Like and comment */}
+                    <div className="flex flex-col items-center justify-center h-full ml-2 md:ml-4 gap-2 py-2">
+                        <PostMainLikes post={formattedPost} />
+                        <button 
+                            onClick={navigateToComments}
+                            className="flex items-center justify-center space-x-1 text-white/60 hover:text-[#20DDBB] transition-colors group w-[40px] h-[30px]"
                         >
-                            <FaCommentDots size={20} className="group-hover:text-[#20DDBB]" />
-                        </motion.div>
-                        <span className="text-xs group-hover:text-[#20DDBB]">{comments.length}</span>
-                    </button>
-                </div>
-                <div className="text-[#818BAC] text-sm">
-                    {new Date(post.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    })}
+                            <img src="/images/comments.svg" className="w-5 h-5" />
+                            <span className="text-xs group-hover:text-[#20DDBB] ml-1 flex items-center">{comments.length}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </motion.div>

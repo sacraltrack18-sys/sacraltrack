@@ -8,100 +8,119 @@ interface GenreSelectorProps {
 
 // Удаляем дублирующиеся жанры из массива
 const genres = [
-    // Unique genres
-    "Instrumental",
-    "K-pop",
-    "Meditative", 
+    // Acapella
     "Acapella",
+
+    // Afro
+    "Afro / Tribal",
+    "Afro Pop",
+    "Afro Tech",
+
+    // Ai
     "Ai",
-    "Films",
-    "Games",
-    "Jazz",
-    "Street music",
-    "Poetry",
-    "Rap",
-    "Mantra",
-    
-    // House
-    "Deep House",
-    "Tech House",
-    "Progressive House",
-    "Melodic House",
-    "Future House",
-    "Bass House",
-    "Afro House",
-    "Organic House",
-    
-    // Techno
-    "Peak Time / Driving Techno",
-    "Melodic Techno",
-    "Deep Techno",
-    "Minimal",
-    "Deep / Hypnotic Techno",
-    "Techno",
-    "Techno (Peak Time / Driving)",
-    "Techno (Melodic)",
-    
-    // Trance
-    "Uplifting Trance",
-    "Psy-Trance",
-    "Tech-Trance",
-    "Progressive Trance",
-    "Vocal Trance",
-    "Hard Trance",
-    "Trance (Main Floor)",
-    "Trance (Deep / Hypnotic)",
-    
-    // Dubstep / Bass
-    "Dubstep",
-    "Riddim",
-    "Melodic Dubstep",
-    "Future Bass",
-    "Trap",
-    "Bass / Club",
-    "Bass Music",
-    "UK Garage / Bassline",
-    "Neurofunk",
-    
+
     // Breaks
-    "Breaks",
-    "Breakbeat",
     "Breakbeat / UK Bass",
+    "Breaks",
     "Electro (Classic / Detroit / Modern)",
-    
-    // Hard Dance
-    "Hardcore / Hard Techno",
-    "Hardstyle / Hardcore",
-    
-    // Indie Dance / Nu Disco
-    "Indie Dance",
-    "Nu Disco",
-    "Disco",
-    "Indie Dance / Nu Disco",
-    "Disco / Nu Disco",
-    
+
+    // Dubstep / Bass
+    "Bass",
+    "D'n'B",
+    "Dubstep",
+    "Future Bass",
+    "Melodic Dubstep",
+    "Neurofunk",
+    "Riddim",
+    "Trap",
+    "UK Garage",
+
     // Electronica / Downtempo
-    "Electronica",
-    "Downtempo",
-    "IDM",
-    "Leftfield",
     "Ambient",
     "Chillout",
-    "Trip Hop",
+    "Downtempo",
+    "Electronica",
     "Experimental",
-    
+    "IDM",
+    "Leftfield",
+    "Trip Hop",
+
     // Ethnic
     "Ethnic",
+
+    // Films
+    "Films",
+
+    // Games
+    "Games",
+
+    // Hard Dance
+    "Hardcore / Hard Techno",
+
+    // House
+    "Afro House",
+    "Bass House",
+    "Deep House",
+    "Future House",
+    "House",
+    "Melodic House",
+    "Organic House",
+    "Progressive House",
+    "Tech House",
+
+    // Indie Dance / Nu Disco
+    "Disco",
+    "Disco / Nu Disco",
+    "Indie Dance",
+    "Indie Dance / Nu Disco",
+    "Nu Disco",
     
-    // Afro
-    "Afro Tech",
-    "Afro Pop",
-    "Afro / Tribal",
-    
+    // Instrumental
+    "Instrumental",
+
+    // Jazz
+    "Jazz",
+
+    // K-pop
+    "K-pop",
+
+    // Mantra
+    "Mantra",
+
+    // Meditative
+    "Meditative",
+
     // Minimal
     "Deep Tech",
     "Lo-Fi",
-    "House"
+    "Minimal",
+    
+    // Poetry
+    "Poetry",
+
+    // Rap
+    "Rap",
+
+    // Street music
+    "Street music",
+
+    // Techno
+    "Hypnotic Techno",
+    "Deep Techno",
+    "Melodic Techno",
+    "Minimal", // Note: Minimal is also under its own category. Kept here as per original structure if it's a sub-genre of Techno.
+    "Techno",
+    "Techno (Peak Time / Driving)",
+
+    // Trance
+    "Hard Trance",
+    "Progressive Trance",
+    "Psy-Trance",
+    "Tech-Trance",
+    "Trance (Deep / Hypnotic)",
+    "Trance (Main Floor)",
+    "Uplifting Trance",
+    "Vocal Trance"
 ];
 
 // Создаем массив уникальных жанров

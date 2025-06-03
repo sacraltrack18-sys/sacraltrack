@@ -26,8 +26,6 @@ export const genres: Genre[] = [
   { id: "genre-new-1", name: "Organic House" },
   
   // Techno
-  { id: "genre-19", name: "Peak Time / Driving Techno" },
-  { id: "genre-20", name: "Melodic Techno" },
   { id: "genre-21", name: "Deep Techno" },
   { id: "genre-22", name: "Minimal" },
   { id: "genre-23", name: "Deep / Hypnotic Techno" },
@@ -51,27 +49,23 @@ export const genres: Genre[] = [
   { id: "genre-37", name: "Melodic Dubstep" },
   { id: "genre-39", name: "Future Bass" },
   { id: "genre-40", name: "Trap" },
-  { id: "genre-41", name: "Bass / Club" },
-  { id: "genre-42", name: "Bass Music" },
-  { id: "genre-43", name: "UK Garage / Bassline" },
+  { id: "genre-41", name: "Bass" },
+  { id: "genre-43", name: "UK Garage" },
+  { id: "genre-44", name: "D'n'B" },
   { id: "genre-new-2", name: "Neurofunk" },
   
   // Breaks
   { id: "genre-44", name: "Breaks" },
   { id: "genre-45", name: "Breakbeat" },
-  { id: "genre-46", name: "Breakbeat / UK Bass" },
   { id: "genre-47", name: "Electro (Classic / Detroit / Modern)" },
   
   // Hard Dance
   { id: "genre-48", name: "Hardcore / Hard Techno" },
-  { id: "genre-49", name: "Hardstyle / Hardcore" },
   
   // Indie Dance / Nu Disco
   { id: "genre-50", name: "Indie Dance" },
   { id: "genre-51", name: "Nu Disco" },
   { id: "genre-52", name: "Disco" },
-  { id: "genre-53", name: "Indie Dance / Nu Disco" },
-  { id: "genre-54", name: "Disco / Nu Disco" },
   
   // Electronica / Downtempo
   { id: "genre-55", name: "Electronica" },
