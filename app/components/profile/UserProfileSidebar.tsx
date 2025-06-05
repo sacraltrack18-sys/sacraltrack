@@ -259,7 +259,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="sticky top-[90px] w-full max-w-[350px] rounded-2xl overflow-hidden z-10"
+      className="fixed top-[90px] w-full max-w-[350px] rounded-2xl overflow-hidden z-10"
     >
       <div className="glass-profile-card bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_25px_rgba(32,221,187,0.15)] rounded-2xl overflow-hidden">
         {/* Profile Image Section - Clickable for owners */}

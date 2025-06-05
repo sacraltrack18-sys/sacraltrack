@@ -117,10 +117,10 @@ const PostLikes = ({ post }: PostLikesProps) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="w-full max-w-[650px] mx-auto rounded-2xl bg-[#24183d]/70 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.15)] transition-all duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.25)] flex flex-row items-center gap-0 p-0 overflow-hidden"
-            style={{ height: '110px', minHeight: '110px' }}
+            style={{ height: '120px', minHeight: '120px' }}
         >
             {/* Artwork */}
-            <div className="flex-shrink-0 h-[110px] w-[110px] flex items-center justify-center p-0 m-0">
+            <div className="flex-shrink-0 h-[120px] w-[120px] flex items-center justify-center p-0 m-0">
                 <img
                     className="w-full h-full object-cover rounded-none"
                     src={imageError ? '/images/T-logo.svg' : imageUrl}
@@ -166,12 +166,14 @@ const PostLikes = ({ post }: PostLikesProps) => {
                     </div>
                     {/* Like and comment */}
                     <div className="flex flex-col items-center justify-center h-full ml-2 md:ml-4 gap-2 py-2">
-                        <PostMainLikes post={formattedPost} />
-                        <button 
+                        <div className="mb-[-12px]">
+                            <PostMainLikes post={formattedPost} />
+                        </div>
+                        <button
                             onClick={navigateToComments}
-                            className="flex items-center justify-center space-x-1 text-white/60 hover:text-[#20DDBB] transition-colors group w-[40px] h-[30px]"
+                            className="flex items-center justify-center space-x-1 text-white/60 hover:text-[#20DDBB] transition-colors group w-[40px] h-[30px] mt-[12px]"
                         >
-                            <img src="/images/comments.svg" className="w-5 h-5" />
+                            <img src="/images/comments.svg" className="w-[18px] h-[18px]" />
                             <span className="text-xs group-hover:text-[#20DDBB] ml-1 flex items-center">{comments.length}</span>
                         </button>
                     </div>

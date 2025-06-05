@@ -47,8 +47,9 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
     const { fetchVibesByUser } = useVibeStore();
     const { isEditMode } = useEditContext();
     const [isMobile, setIsMobile] = useState(false);
+    const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(true);
 
-    // Check for mobile view
+    // Check for mobile view and scroll position
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768);
@@ -56,11 +57,24 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
         
         checkMobile();
         window.addEventListener('resize', checkMobile);
+
+        const handleScroll = () => {
+            if (isMobile) {
+                const threshold = 50; // Пиксельный порог до конца страницы
+                const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - threshold;
+                setIsBottomPanelVisible(!isAtBottom);
+            } else {
+                setIsBottomPanelVisible(true); // На десктопе панель всегда видна
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
         
         return () => {
             window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('scroll', handleScroll);
         };
-    }, []);
+    }, [isMobile]);
 
     // Проверяем, является ли текущий пользователь владельцем профиля
     const isProfileOwner = contextUser?.user?.id === currentProfile?.user_id;
@@ -152,7 +166,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
                     {currentProfile && (
-                        <div className="hidden md:block w-[300px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)]">
+                        <div className="hidden md:block w-[260px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)]">
                             <UserProfileSidebar profile={currentProfile} />
                         </div>
                     )}
@@ -196,9 +210,9 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="mx-auto w-full max-w-[650px] flex flex-col gap-4">
+                                            <div className="mx-auto w-full max-w-[650px] flex flex-col gap-4 md:relative md:left-[20px]">
                                                 {likedPosts.map((post) => (
-                                                    <PostLikes 
+                                                    <PostLikes
                                                         key={post.$id} 
                                                         post={post}
                                                     />
@@ -266,9 +280,9 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                     
                     {/* Right sidebar with user activity */}
                     {currentProfile && isProfileOwner && (
-                        <div className="hidden lg:block w-[300px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)]">
-                            <UserActivitySidebar 
-                                userId={currentProfile.user_id} 
+                        <div className="hidden lg:block w-[260px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)] lg:mr-[30px]">
+                            <UserActivitySidebar
+                                userId={currentProfile.user_id}
                                 isOwner={isProfileOwner}
                                 onShowFriends={() => switchToTab('friends')}
                                 onShowLikes={() => switchToTab('likes')} 
@@ -294,12 +308,12 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
 
         <motion.div 
             initial={{ y: 100, opacity: 0 }}
-            animate={{ 
-                y: isEditMode && isMobile ? 120 : 0, 
-                opacity: isEditMode && isMobile ? 0 : 1,
+            animate={{
+                y: (isEditMode && isMobile) || (!isBottomPanelVisible && isMobile) ? 120 : 0,
+                opacity: (isEditMode && isMobile) || (!isBottomPanelVisible && isMobile) ? 0 : 1,
                 transition: {
-                    type: "spring", 
-                    stiffness: 260, 
+                    type: "spring",
+                    stiffness: 260,
                     damping: 20,
                     duration: 0.5
                 }
@@ -309,51 +323,36 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
             <div className="max-w-screen-xl mx-auto">
                 <div className="flex flex-col p-4">
                     {/* User profile section - visible on both mobile and desktop */}
-                    <div className="flex items-center w-full justify-between mb-3 md:hidden">
+                    <div className="flex items-center w-full mb-3 md:hidden"> {/* Removed justify-between as Edit button is moved */}
                         {/* Avatar + Username */}
                         <div className="flex items-center">
-                            <motion.div 
+                            <motion.div
                                 whileHover={{ scale: 1.05 }}
-                                className={`relative w-10 h-10 rounded-xl overflow-hidden ring-2 ring-[#20DDBB]/30 
+                                className={`relative w-10 h-10 rounded-xl overflow-hidden ring-2 ring-[#20DDBB]/30
                                         group transition-all duration-300 hover:ring-[#20DDBB]/50
                                         shadow-[0_0_15px_rgba(32,221,187,0.15)] ${isProfileOwner ? 'cursor-pointer' : ''}`}
-                                onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
+                                onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined} // Keep this for avatar/name click
                             >
-                                <img 
+                                <img
                                     src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
-                                    alt={currentProfile?.name || 'Profile'} 
+                                    alt={currentProfile?.name || 'Profile'}
                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                 />
                             </motion.div>
                             
                             <div className="flex items-center ml-3">
-                                <motion.h1 
+                                <motion.h1
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className={`text-base font-bold text-white truncate max-w-[120px] ${isProfileOwner ? 'cursor-pointer hover:text-[#20DDBB] transition-colors' : ''}`}
-                                    onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined}
+                                    onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined} // Keep this for avatar/name click
                                 >
                                     {currentProfile?.name || 'User Name'}
                                 </motion.h1>
                             </div>
                         </div>
                         
-                        {/* Edit Profile button */}
-                        {isProfileOwner && (
-                            <motion.button 
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setIsEditProfileOpen(true)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 text-[#20DDBB] hover:bg-[#20DDBB]/20 transition-all duration-300 ml-0"
-                                aria-label="Edit Profile"
-                                style={{ marginLeft: !isProfileOwner && isMobile ? '0' : '0' }}
-                            >
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                            </motion.button>
-                        )}
+                        {/* Edit Profile button has been moved */}
                     </div>
 
                     {/* Navigation Icons - for both desktop and mobile */}
@@ -523,28 +522,45 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                         </div>
 
                         {isProfileOwner && (
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => {
-                                    setShowFriends(false);
-                                    setShowLikedTracks(false);
-                                    setShowPurchases(true);
-                                    setShowVibes(false);
-                                }}
-                                className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 ${
-                                    showPurchases
-                                    ? 'text-green-400 bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
-                                    : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 hover:shadow-[0_0_10px_rgba(34,197,94,0.05)]'
-                                }`}
-                            >
-                                <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-green-500/50 group-hover:to-emerald-500/50 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.3)]'} transition-all duration-300`}>
-                                    <RiDownloadLine
-                                        className={`w-3.5 h-3.5 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`} 
-                                    />
-                                </div>
-                                <span className={`text-[9px] font-medium ${showPurchases ? 'text-green-400' : 'text-gray-400'}`}>Purchases</span>
-                            </motion.button>
+                            <div className="relative flex flex-1 flex-col items-center justify-center">
+                                {/* New Edit Profile Button - visible only on mobile and when profile owner */}
+                                {isMobile && (
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setIsEditProfileOpen(true)}
+                                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/10 text-[#20DDBB] hover:bg-[#20DDBB]/20 transition-all duration-300 md:hidden"
+                                        aria-label="Edit Profile"
+                                    >
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                    </motion.button>
+                                )}
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                        setShowFriends(false);
+                                        setShowLikedTracks(false);
+                                        setShowPurchases(true);
+                                        setShowVibes(false);
+                                    }}
+                                    className={`group flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-all duration-300 w-full ${ // Added w-full for flex-1 to take effect
+                                        showPurchases
+                                        ? 'text-green-400 bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                                        : 'text-white/70 hover:text-white hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 hover:shadow-[0_0_10px_rgba(34,197,94,0.05)]'
+                                    }`}
+                                >
+                                    <div className={`relative flex items-center justify-center w-7 h-7 rounded-full overflow-hidden ${showPurchases ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/10 group-hover:bg-gradient-to-r group-hover:from-green-500/50 group-hover:to-emerald-500/50 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.3)]'} transition-all duration-300`}>
+                                        <RiDownloadLine
+                                            className={`w-3.5 h-3.5 transition-all duration-300 ${showPurchases ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}
+                                        />
+                                    </div>
+                                    <span className={`text-[9px] font-medium ${showPurchases ? 'text-green-400' : 'text-gray-400'}`}>Purchases</span>
+                                </motion.button>
+                            </div>
                         )}
                     </div>
                 </div>

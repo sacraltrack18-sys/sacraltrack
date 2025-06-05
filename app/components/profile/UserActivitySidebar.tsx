@@ -333,7 +333,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
-            className="w-full sticky top-20 max-h-[calc(100vh-100px)] overflow-y-auto hide-scrollbar"
+            className="w-full fixed top-[90px] max-h-[calc(100vh-100px)] overflow-y-auto hide-scrollbar"
         >
             <div className="space-y-4 sticky-sidebar">
                 {/* Profile Stats Card */}
@@ -483,8 +483,8 @@ export default UserActivitySidebar;
 // Add this CSS at the end of the file
 const styles = `
 .sticky-sidebar {
-  position: sticky;
-  top: 20px;
+  position: fixed;
+  top: 90px;
   z-index: 40;
 }
 
