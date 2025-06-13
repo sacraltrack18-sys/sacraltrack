@@ -280,7 +280,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                     
                     {/* Right sidebar with user activity */}
                     {currentProfile && isProfileOwner && (
-                        <div className="hidden lg:block w-[260px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)] lg:mr-[30px]">
+                        <div className="hidden lg:block w-[260px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)] mr-[60px] sm:mr-0">
                             <UserActivitySidebar
                                 userId={currentProfile.user_id}
                                 isOwner={isProfileOwner}

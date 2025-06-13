@@ -434,44 +434,12 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
     // Render and UI
     return (
         <div className="w-full">
-            {/* Header and search friends button */}
+            {/* Glass Tabs Panel */}
             <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8"
-            >
-                <div className="mb-4 md:mb-0">
-                    <h2 className="text-2xl font-bold text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-[#20DDBB]">
-                        {isOwner ? 'Your Friends' : `${currentProfile?.name}'s Friends`}
-                    </h2>
-                    <p className="text-gray-400 mt-1">
-                        {isOwner 
-                            ? 'Manage your connections and friend requests' 
-                            : `Explore ${currentProfile?.name}'s connections`}
-                    </p>
-                </div>
-                    
-                {isOwner && (
-                    <motion.button
-                    onClick={() => setShowSearchModal(true)}
-                        whileHover={{ scale: 1.05, y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/70 rounded-xl text-[#1A1E36] font-medium shadow-lg shadow-[#20DDBB]/20 border border-[#20DDBB]/30"
-                    >
-                        <FaSearch className="w-4 h-4" />
-                        <span>Find Friends</span>
-                    </motion.button>
-                )}
-            </motion.div>
-                
-            {/* Tabs (only for profile owner) */}
-            {isOwner && (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                    className="flex border-b border-gray-800 mb-6 overflow-x-auto no-scrollbar"
+                className="flex flex-wrap items-center gap-2 mb-6 px-3 py-2 rounded-2xl bg-white/5 backdrop-blur-xl shadow-lg border border-white/10 w-fit mx-auto"
                 >
                     <TabButton 
                         isActive={activeTab === 'friends'}
@@ -494,8 +462,18 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                         label="Sent Requests"
                         count={sentRequests.length}
                     />
+                {isOwner && (
+                    <motion.button
+                        onClick={() => setShowSearchModal(true)}
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#20DDBB]/80 to-[#5D59FF]/80 rounded-xl text-white font-medium shadow-md border border-[#20DDBB]/30 ml-2 text-xs hover:from-[#20DDBB] hover:to-[#5D59FF] transition-all"
+                    >
+                        <FaSearch className="w-4 h-4" />
+                        <span>Find Friends</span>
+                    </motion.button>
+                )}
                 </motion.div>
-            )}
             
             {/* Tab contents */}
             {isLoading ? (
@@ -531,7 +509,7 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                                     )}
                                 />
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2 lg:ml-[30px] lg:mr-[30px]">
                                     {friends.map((friend) => (
                                         <FriendCard
                                             key={friend.id}

@@ -94,7 +94,8 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
                     alt={item.title}
                     width={48}
                     height={48}
-                    className="rounded-lg object-cover"
+                    className="rounded-lg object-cover aspect-square w-12 h-12"
+                    style={{ aspectRatio: '1 / 1', width: '48px', height: '48px' }}
                     onError={() => setImageError(true)}
                 />
                 <div className="absolute -bottom-1 -right-1 bg-[#1E2136] p-1 rounded-full">
@@ -333,7 +334,8 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
-            className="w-full fixed top-[90px] max-h-[calc(100vh-100px)] overflow-y-auto hide-scrollbar"
+            className="fixed top-[90px] max-h-[calc(100vh-100px)] overflow-y-auto hide-scrollbar mr-[60px] w-[300px] max-w-[90vw] space-y-4
+                sm:mr-0 sm:w-full sm:relative sm:top-0"
         >
             <div className="space-y-4 sticky-sidebar">
                 {/* Profile Stats Card */}
@@ -341,26 +343,25 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
-                    className="p-4 rounded-xl border border-white/5 bg-[#251A3A]/50 backdrop-blur-lg"
+                    className="p-4 rounded-xl border border-white/5 bg-[#251A3A]/50 backdrop-blur-lg w-full max-w-[270px] w-[270px] mx-auto"
                 >
                     {isLoading ? (
                         <ActivitySkeleton />
                     ) : (
                         <>
-                            <h3 className="text-lg font-semibold text-[#20DDBB] mb-4">Profile Stats</h3>
                             <div className="space-y-3">
                                 {/* User Rank */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-[#20DDBB]/10 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-full bg-[#20DDBB]/10 flex items-center justify-center">
                                             <GiRank3 className="text-[#20DDBB] w-4 h-4" />
                                         </div>
-                                        <span className="text-white/80">Rank</span>
+                                        <span className="text-sm text-white/70">Rank</span>
                                     </div>
                                     <div className="text-right">
                                         <div className="flex items-center gap-1.5">
-                                            <div className="text-white font-semibold">{rank.name}</div>
-                                            <div className="text-xs text-[#20DDBB] px-1.5 py-0.5 rounded-md bg-[#20DDBB]/10">
+                                            <div className="text-sm text-white font-semibold">{rank.name}</div>
+                                            <div className="text-xs text-[#20DDBB] px-1 py-0.5 rounded bg-[#20DDBB]/10">
                                                 {Math.min(100, rank.score)}%
                                             </div>
                                         </div>
@@ -370,13 +371,13 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                 {/* User Friends */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
                                             <FaUserFriends className="text-blue-400 w-4 h-4" />
                                         </div>
-                                        <span className="text-white/80">Friends</span>
+                                        <span className="text-sm text-white/70">Friends</span>
                                     </div>
                                     <div 
-                                        className="text-white font-semibold cursor-pointer hover:text-blue-400 transition-colors"
+                                        className="text-sm text-white font-semibold cursor-pointer hover:text-blue-400 transition-colors"
                                         onClick={onShowFriends}
                                     >
                                         {friendsList.length}
@@ -386,12 +387,12 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                 {/* User Releases */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-full bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 flex items-center justify-center">
                                             <MdAlbum className="text-[#20DDBB] w-4 h-4" />
                                         </div>
-                                        <span className="text-white/80">Tracks</span>
+                                        <span className="text-sm text-white/70">Tracks</span>
                                     </div>
-                                    <div className="text-white font-semibold">
+                                    <div className="text-sm text-white font-semibold">
                                         {tracks?.length || 0}
                                     </div>
                                 </div>
@@ -399,13 +400,13 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                 {/* User Likes */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-pink-500/10 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-full bg-pink-500/10 flex items-center justify-center">
                                             <FaHeart className="text-pink-400 w-4 h-4" />
                                         </div>
-                                        <span className="text-white/80">Likes</span>
+                                        <span className="text-sm text-white/70">Likes</span>
                                     </div>
                                     <div 
-                                        className="text-white font-semibold cursor-pointer hover:text-pink-400 transition-colors"
+                                        className="text-sm text-white font-semibold cursor-pointer hover:text-pink-400 transition-colors"
                                         onClick={onShowLikes}
                                     >
                                         {likes?.length || 0}
@@ -415,13 +416,13 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                 {/* User Vibes */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                                        <div className="w-7 h-7 rounded-full bg-purple-500/10 flex items-center justify-center">
                                             <FaMusic className="text-purple-400 w-4 h-4" />
                                         </div>
-                                        <span className="text-white/80">Vibes</span>
+                                        <span className="text-sm text-white/70">Vibes</span>
                                     </div>
                                     <div 
-                                        className="text-white font-semibold cursor-pointer hover:text-purple-400 transition-colors"
+                                        className="text-sm text-white font-semibold cursor-pointer hover:text-purple-400 transition-colors"
                                         onClick={onShowVibes}
                                     >
                                         {vibes?.length || 0}
@@ -430,19 +431,19 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                 
                                 {/* User Purchases - показываем только владельцу профиля */}
                                 {isOwner && (
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between mt-2">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                                            <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center">
                                                 <FaShoppingCart className="text-green-400 w-4 h-4" />
                                             </div>
-                                            <span className="text-white/80">Purchases</span>
+                                            <span className="text-sm text-white/70">Purchases</span>
                                         </div>
-                                        <div 
-                                            className="text-white font-semibold cursor-pointer hover:text-green-400 transition-colors"
+                                        <button
+                                            className="glass-purchase-btn px-4 py-1.5 rounded-xl font-semibold text-xs text-green-300 shadow-lg border border-green-400/30 bg-gradient-to-br from-white/10 to-green-400/10 backdrop-blur-[6px] transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_2px_rgba(34,197,94,0.25)] hover:bg-green-400/20 focus:outline-none focus:ring-2 focus:ring-green-300/40"
                                             onClick={onShowPurchases}
                                         >
-                                            View
-                                        </div>
+                                            <span className="drop-shadow-[0_1px_2px_rgba(34,197,94,0.25)]">View</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -455,20 +456,18 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
-                    className="p-4 rounded-xl border border-white/5 bg-[#251A3A]/50 backdrop-blur-lg"
+                    className="p-4 rounded-xl border border-white/5 bg-[#251A3A]/50 backdrop-blur-lg w-full max-w-[270px] w-[270px] mx-auto"
                 >
-                    <h3 className="text-lg font-semibold text-[#20DDBB] mb-4">Recent Activity</h3>
-                    
                     {isLoading ? (
                         <ActivitySkeleton />
                     ) : activityItems.length === 0 ? (
                         <div className="text-center py-4">
-                            <div className="text-white/50 text-sm">No recent activity</div>
+                            <div className="text-white/50 text-base">No recent activity</div>
                         </div>
                     ) : (
                         <div className="space-y-4">
                             {activityItems.map((item, index) => (
-                                <ActivityCard key={index} item={item} />
+                                <ActivityCard key={index} item={{...item, title: item.title, subtitle: item.subtitle}} />
                             ))}
                         </div>
                     )}
@@ -493,6 +492,21 @@ const styles = `
     position: relative;
     top: 0;
   }
+}
+
+.glass-purchase-btn {
+  background: rgba(34, 197, 94, 0.10);
+  box-shadow: 0 4px 24px 0 rgba(34,197,94,0.10), 0 1.5px 8px 0 rgba(32,221,187,0.10);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(34,197,94,0.18);
+  transition: all 0.18s cubic-bezier(.4,2,.6,1);
+}
+.glass-purchase-btn:hover {
+  background: rgba(34, 197, 94, 0.18);
+  box-shadow: 0 0 32px 0 rgba(34,197,94,0.25), 0 2px 12px 0 rgba(32,221,187,0.12);
+  color: #fff;
+  border-color: #34d399;
+  filter: brightness(1.08) saturate(1.2);
 }
 `;
 
