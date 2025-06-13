@@ -31,11 +31,13 @@ interface PostStore {
   page: number;
   hasMore: boolean;
   isLoading: boolean;
+  currentPlayingPostId: string | null; // Added to track currently playing post from PostMain
   setGenre: (genre: string) => void;
   setAllPosts: () => void;
   setPostsByUser: (userId: string) => void;
   setPostById: (postId: string) => void;
   setPage: (page: number) => void;
+  setCurrentPlayingPostId: (id: string | null) => void; // Added setter
   loadMorePosts: () => Promise<void>;
   searchTracksByName: (query: string) => Promise<{ id: string; name: string; image: string; type: string }[]>;
 }
@@ -52,6 +54,9 @@ export const usePostStore = create<PostStore>()(
         page: 1,
         hasMore: true,
         isLoading: false,
+        currentPlayingPostId: null, // Initial state
+
+        setCurrentPlayingPostId: (id) => set({ currentPlayingPostId: id }), // Implementation
 
         setGenre: async (genre: string) => {
           set({ isLoading: true, page: 1 });

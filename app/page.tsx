@@ -18,19 +18,20 @@ import { FaInfoCircle, FaCheckCircle } from "react-icons/fa";
 import { PostMainSkeleton } from "./components/PostMain";
 import { ErrorBoundary } from "react-error-boundary";
 import SafeVibeCard from "./components/vibe/SafeVibeCard";
+import PostApiCard, { ApiTrack } from "./components/cards/PostApiCard"; // Импортируем PostApiCard и его тип
 
 // Import app initialization to disable console logs
 import '@/app/utils/initApp';
 
-// Объединенный тип для ленты, содержащей как обычные посты, так и VIBE посты
+// Объединенный тип для ленты
 interface FeedItem {
-  type: 'post' | 'vibe';
-  data: any;
-  created_at: string;
+  type: 'post' | 'vibe' | 'api_track'; // Добавляем api_track
+  data: any; // Consider creating a more specific union type for data based on 'type'
+  created_at: string; // Or Date object
 }
 
 // Helper function to create properly typed FeedItems
-const createFeedItem = (type: 'post' | 'vibe', data: any, created_at: string): FeedItem => ({
+const createFeedItem = (type: 'post' | 'vibe' | 'api_track', data: any, created_at: string): FeedItem => ({
   type,
   data,
   created_at
@@ -86,6 +87,9 @@ function HomePageContent() {
   const [combinedFeed, setCombinedFeed] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true); // Start with loading state
   const [hasMore, setHasMore] = useState(true);
+  const [apiTracks, setApiTracks] = useState<ApiTrack[]>([]);
+  const [isLoadingApiTracks, setIsLoadingApiTracks] = useState(false);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<{ id: string | null; type: 'post' | 'vibe' | 'api_track' | null }>({ id: null, type: null });
   
   // Track if initial content has been loaded
   const [initialContentLoaded, setInitialContentLoaded] = useState(false);
@@ -103,59 +107,93 @@ function HomePageContent() {
     return new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime();
   }, []);
 
-  // Combine vibe and track posts into a single feed
+  // Combine vibe, track posts, and API tracks into a single feed
   useEffect(() => {
-    if (!displayedPosts.length && !allVibePosts.length) return;
-    
-    const combineFeed = () => {
-      const combined: FeedItem[] = [];
-      
-      // Include posts from allPosts based on filter
-      const shouldIncludePosts = ['all', 'stracks', 'sacral', 'world'].includes(activeFilter);
-      
-      if (shouldIncludePosts && displayedPosts.length > 0) {
-        const postsToInclude = displayedPosts.filter(post => {
-          // Filter posts based on activeFilter
-          if (activeFilter === 'all') return true;
-          if (activeFilter === 'stracks') return post.genre?.toLowerCase() === 'stracks';
-          if (activeFilter === 'sacral') return post.genre?.toLowerCase() === 'sacral';
-          if (activeFilter === 'world') return post.genre?.toLowerCase() === 'world';
-          return false;
-        });
-        
-        // Add posts to combined feed
-        combined.push(...postsToInclude.map(post => 
-          createFeedItem('post', post, post.created_at || new Date().toISOString())
-        ));
-      }
-      
-      // Include vibes if filter allows
-      const shouldIncludeVibes = ['all', 'vibe'].includes(activeFilter);
-      
-      if (shouldIncludeVibes && allVibePosts.length > 0) {
-        combined.push(...allVibePosts.map(vibe => 
-          createFeedItem('vibe', vibe, vibe.created_at || new Date().toISOString())
-        ));
-      }
-      
-      // Сортируем с использованием мемоизированной функции
-      combined.sort(sortByDate);
-      
-      setCombinedFeed(combined);
-      setHasMore(
-        (activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'world') && hasMorePosts || 
-        (activeFilter === 'all' || activeFilter === 'vibe') && hasMoreVibes
-      );
-    };
-    
-    combineFeed();
-    
-    // Устанавливаем флаг загрузки контента
-    if (displayedPosts.length > 0 || allVibePosts.length > 0) {
-      setInitialContentLoaded(true);
-      setIsLoading(false);
+    // Wait for all initial data sources if they are expected
+    if (isLoadingPosts || isLoadingVibes || isLoadingApiTracks) {
+        // If still loading initial sets, don't combine yet, unless some are already present
+        if (!initialContentLoaded && !(displayedPosts.length || allVibePosts.length || apiTracks.length)) {
+            return;
+        }
     }
-  }, [displayedPosts, allVibePosts, hasMorePosts, hasMoreVibes, sortByDate, activeFilter]);
+
+    const combineFeed = () => {
+        const combined: FeedItem[] = [];
+
+        // Include posts from displayedPosts (already filtered by genre in store or here)
+        const shouldIncludePosts = ['all', 'stracks', 'sacral'].includes(activeFilter); // 'world' filter will now target api_tracks
+        if (shouldIncludePosts && displayedPosts.length > 0) {
+            const postsToInclude = displayedPosts.filter(post => {
+                if (activeFilter === 'all') return true;
+                if (activeFilter === 'stracks') return post.genre?.toLowerCase() === 'stracks';
+                if (activeFilter === 'sacral') return post.genre?.toLowerCase() === 'sacral';
+                return false; // Explicitly false if no match
+            });
+            combined.push(...postsToInclude.map(post =>
+                createFeedItem('post', post, post.created_at || new Date().toISOString())
+            ));
+        }
+
+        // Include vibes if filter allows
+        const shouldIncludeVibes = ['all', 'vibe'].includes(activeFilter);
+        if (shouldIncludeVibes && allVibePosts.length > 0) {
+            combined.push(...allVibePosts.map(vibe =>
+                createFeedItem('vibe', vibe, vibe.created_at || new Date().toISOString())
+            ));
+        }
+
+        // Include API tracks if filter allows
+        const shouldIncludeApiTracks = ['all', 'world'].includes(activeFilter);
+        console.log('[DEBUG PAGE] apiTracks before combine:', apiTracks); // DEBUG
+        if (shouldIncludeApiTracks && apiTracks.length > 0) {
+            combined.push(...apiTracks.map(track =>
+                createFeedItem('api_track', track, new Date().toISOString())
+            ));
+        }
+        
+        combined.sort(sortByDate);
+        console.log('[DEBUG PAGE] combinedFeed after combine:', combined); // DEBUG
+        
+        setCombinedFeed(combined);
+        // For now, apiTracks are loaded once, so hasMore depends on posts and vibes
+        setHasMore(
+            (activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral') && hasMorePosts ||
+            (activeFilter === 'all' || activeFilter === 'vibe') && hasMoreVibes
+        );
+    };
+
+    combineFeed();
+
+    if (displayedPosts.length > 0 || allVibePosts.length > 0 || apiTracks.length > 0) {
+        setInitialContentLoaded(true);
+        setIsLoading(false); // Overall loading false if any content is ready
+    }
+  }, [displayedPosts, allVibePosts, apiTracks, hasMorePosts, hasMoreVibes, sortByDate, activeFilter, isLoadingPosts, isLoadingVibes, isLoadingApiTracks, initialContentLoaded]);
+
+  // Function to load API tracks
+  const loadApiTracks = useCallback(async () => {
+    if (isLoadingApiTracks) return;
+    console.log('[DEBUG PAGE] Attempting to load API tracks...'); // DEBUG
+    setIsLoadingApiTracks(true);
+    try {
+        const response = await fetch('/api/world-music/jamendo');
+        console.log('[DEBUG PAGE] API tracks response status:', response.status); // DEBUG
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[DEBUG PAGE] API tracks response error text:', errorText); // DEBUG
+            throw new Error(`Failed to fetch API tracks: ${response.status}`);
+        }
+        const data: ApiTrack[] = await response.json();
+        console.log('[DEBUG PAGE] API tracks data received:', data); // DEBUG
+        setApiTracks(data);
+    } catch (error) {
+        console.error("[DEBUG PAGE] Error loading API tracks:", error);
+        setApiTracks([]);
+    } finally {
+        setIsLoadingApiTracks(false);
+    }
+  }, [isLoadingApiTracks]);
+
 
   // Initial load with optimized approach
   useEffect(() => {
@@ -174,21 +212,25 @@ function HomePageContent() {
         if (typeof fetchAllVibes === 'function') {
           // Then load vibes
           await fetchAllVibes();
-        } else {
-          console.error('fetchAllVibes is not a function');
-        }
-      } catch (error) {
-        console.error("Error loading initial content:", error);
-      } finally {
-        refreshCountRef.current = 0;
-        setAutoRefreshEnabled(true);
-      }
-    };
-    
-    loadInitialContent();
-  }, [selectedGenre, setAllPosts, fetchAllVibes]);
+       } else {
+         console.error('fetchAllVibes is not a function');
+       }
+       // Load API tracks
+       await loadApiTracks();
 
-  // Auto-refresh at specified interval to keep content fresh
+     } catch (error) {
+       console.error("Error loading initial content:", error);
+     } finally {
+       refreshCountRef.current = 0;
+       setAutoRefreshEnabled(true);
+       // setIsLoading(false); // Moved to the combineFeed effect
+     }
+   };
+   
+   loadInitialContent();
+ }, [selectedGenre, setAllPosts, fetchAllVibes, loadApiTracks]);
+
+ // Auto-refresh at specified interval to keep content fresh
   useEffect(() => {
     if (!autoRefreshEnabled) return;
     
@@ -236,15 +278,17 @@ function HomePageContent() {
       
       try {
         // Загружаем следующие элементы в зависимости от фильтра
-        if ((activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'world') && 
+        // 'world' filter now targets api_tracks, which are not paginated in this example
+        if ((activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral') &&
             hasMorePosts && typeof loadMorePosts === 'function') {
           await loadMorePosts();
         }
         
-        if ((activeFilter === 'all' || activeFilter === 'vibe') && 
+        if ((activeFilter === 'all' || activeFilter === 'vibe') &&
             hasMoreVibes && typeof loadMoreVibes === 'function') {
           await loadMoreVibes();
         }
+        // No loadMore for apiTracks in this example
       } catch (error) {
         console.error("Error loading more content:", error);
       } finally {
@@ -271,16 +315,43 @@ function HomePageContent() {
         // Filter posts based on activeFilter
         if (activeFilter === 'stracks') return item.data.genre?.toLowerCase() === 'stracks';
         if (activeFilter === 'sacral') return item.data.genre?.toLowerCase() === 'sacral';
-        if (activeFilter === 'world') return item.data.genre?.toLowerCase() === 'world';
+        // 'world' filter is handled by api_track type below
       }
       
       if (item.type === 'vibe' && activeFilter === 'vibe') {
         return true;
       }
       
+      if (item.type === 'api_track' && activeFilter === 'world') {
+        return true;
+      }
+      
       return false;
     });
   }, [combinedFeed, activeFilter]);
+
+  const handlePlayPause = useCallback((trackId: string, type: 'post' | 'vibe' | 'api_track') => {
+    setCurrentlyPlaying(prev => {
+        // If clicking the currently playing track of the same type, pause it
+        if (prev.id === trackId && prev.type === type) {
+            if (type === 'post' && postStore.currentPlayingPostId === trackId) { // Check if PostMain was playing this
+                postStore.setCurrentPlayingPostId(null);
+            }
+            // For api_track, its own isPlaying prop will handle visual pause via SimpleMp3Player
+            return { id: null, type: null };
+        }
+
+        // Otherwise, play the new track (and stop others)
+        if (type === 'post') { // This should match the type used in FeedItem and createFeedItem
+            postStore.setCurrentPlayingPostId(trackId);
+        } else {
+            // If playing an api_track or vibe, ensure PostMain's player is stopped
+            postStore.setCurrentPlayingPostId(null);
+        }
+        return { id: trackId, type };
+    });
+  }, [postStore]);
+
 
   return (
     <MainLayout>
@@ -322,12 +393,28 @@ function HomePageContent() {
                       className={`my-4 ${item.type === 'vibe' ? 'flex justify-center' : ''}`}
                     >
                       {item.type === 'post' ? (
-                        <PostMain post={item.data} />
-                      ) : (
+                        <PostMain
+                            post={item.data}
+                            // Pass down play/pause controls if PostMain needs to participate in global play state
+                            // isGloballyPlaying={currentlyPlaying.id === item.data.id && currentlyPlaying.type === 'post'}
+                            // onGlobalPlay={() => handlePlayPause(item.data.id, 'post')} // Ensure 'post' is used here
+                            // onGlobalPause={() => handlePlayPause(item.data.id, 'post')} // Ensure 'post' is used here
+                        />
+                      ) : item.type === 'vibe' ? (
                         <ErrorBoundary fallback={<div className="bg-[#1A1A2E] p-4 rounded-xl text-white">Could not display this vibe</div>}>
-                          <SafeVibeCard vibe={item.data} />
+                          <SafeVibeCard
+                            vibe={item.data}
+                            // Add play/pause if VibeCard has audio & needs to sync
+                          />
                         </ErrorBoundary>
-                      )}
+                      ) : item.type === 'api_track' ? (
+                        <PostApiCard
+                            track={item.data as ApiTrack}
+                            isPlaying={currentlyPlaying.id === item.data.id && currentlyPlaying.type === 'api_track'}
+                            onPlay={() => handlePlayPause(item.data.id, 'api_track')}
+                            onPause={() => handlePlayPause(item.data.id, 'api_track')}
+                        />
+                      ) : null}
                     </div>
                   );
                 })}

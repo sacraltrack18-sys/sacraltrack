@@ -389,29 +389,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     // Оптимизированная конфигурация HLS для аудио
                     const hlsConfig = {
                         enableWorker: true,
-                        lowLatencyMode: false,
-                        maxBufferSize: 0,
-                        maxBufferLength: 300,
-                        maxMaxBufferLength: 600,
-                        maxBufferHole: 0.1,
-                        startLevel: -1,
+                        lowLatencyMode: false, // Keep false for audio, true can increase CPU
+                        maxBufferSize: 20 * 1024 * 1024, // 20MB buffer size
+                        maxBufferLength: 180, // Max buffer length in seconds
+                        maxMaxBufferLength: 300, // Max overall buffer length
+                        maxBufferHole: 0.2, // Slightly larger tolerance for buffer gaps
+                        startLevel: -1, // Auto start level
                         manifestLoadingTimeOut: 20000,
                         manifestLoadingMaxRetry: 8,
-                        manifestLoadingRetryDelay: 500,
+                        manifestLoadingRetryDelay: 1000, // Increased retry delay
                         levelLoadingTimeOut: 20000,
                         levelLoadingMaxRetry: 8,
-                        levelLoadingRetryDelay: 500,
+                        levelLoadingRetryDelay: 1000, // Increased retry delay
                         fragLoadingTimeOut: 20000,
                         fragLoadingMaxRetry: 8,
-                        fragLoadingRetryDelay: 500,
+                        fragLoadingRetryDelay: 1000, // Increased retry delay
                         startFragPrefetch: true,
-                        testBandwidth: true,
+                        testBandwidth: false, // Disable for audio, can be less stable
                         progressive: true,
                         abrEwmaDefaultEstimate: 1000000,
-                        abrBandwidthFactor: 0.95,
-                        abrBandwidthUpFactor: 0.7,
-                        backBufferLength: 300,
-                        appendErrorMaxRetry: 5
+                        abrBandwidthFactor: 0.9, // Be slightly more conservative
+                        abrBandwidthUpFactor: 0.6, // Be slightly more conservative
+                        backBufferLength: 60,  // Reduced back buffer
+                        appendErrorMaxRetry: 5,
+                        defaultAudioCodec: 'mp4a.40.2' // Assuming AAC audio
                     };
 
                     try {
@@ -631,7 +632,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                             if (data.details === 'bufferStalledError') {
                                 console.log('Buffer stalled. Attempting to recover media error.');
                                 hls.recoverMediaError();
-                                // Consider more aggressive recovery if stall persists e.g. re-attaching media or small seek.
+                                // If recoverMediaError is not enough, a small seek might help
+                                if (audioRef.current && audioRef.current.readyState > 2) { // Ensure ready to seek
+                                    const currentTime = audioRef.current.currentTime;
+                                    // Check if seeking forward a tiny bit is possible and not at the very end
+                                    if (audioRef.current.duration > 0 && currentTime < audioRef.current.duration - 0.5) {
+                                        console.log(`Attempting small seek from ${currentTime} to ${currentTime + 0.1} to unstall.`);
+                                        audioRef.current.currentTime = currentTime + 0.1;
+                                    }
+                                }
                             } else if (data.details === 'bufferFullError') {
                                 console.warn('Buffer full. This might indicate an issue with consumption or HLS config. Attempting recovery.');
                                 hls.recoverMediaError();
@@ -679,10 +688,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     }
                     const timeLeft = bufferedEnd - currentTime;
                     // Если буфер мал, инициируем загрузку
-                    if (timeLeft < 30) {
+                    if (timeLeft < 15) { // Reduced threshold
                         try {
+                            console.log(`[FRAG_LOADED] Low buffer (${timeLeft.toFixed(2)}s), attempting hls.startLoad().`);
                             hls.startLoad();
-                             } catch (e) {
+                        } catch (e) {
                             console.warn('Ошибка при вызове startLoad в FRAG_LOADED:', e);
                         }
                     }
@@ -1199,7 +1209,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         console.log(`[BufferCheck] CT: ${currentTime.toFixed(2)}, No buffered ranges.`);
                     }
                     
-                    if (timeBuffered < 60) { 
+                    if (timeBuffered < 25) { // Reduced threshold from 60 to 25
                         console.log(`[BufferCheck] Low buffer (${timeBuffered.toFixed(2)}s), attempting hls.startLoad().`);
                         hls.startLoad();
                     }

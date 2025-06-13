@@ -95,9 +95,9 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
       <TopNav params={{ id: userContext?.user?.id as string }} />
       <AuthObserver />
       
-      <div className="flex mx-auto w-full pt-5 px-4 md:px-6 lg:px-8">
+      <div className="flex mx-auto w-full pt-5 px-4 md:px-6 lg:px-8 gap-6">
         {/* Боковая панель с профилем пользователя */}
-        <div className="hidden md:flex w-[300px] px-5">
+        <div className="hidden md:flex w-[300px] shrink-0 px-0">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -111,7 +111,7 @@ const RoyaltyLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
         
         <PlayerProvider>
-          <div className="flex justify-center w-full px-0 md:px-5">
+          <div className="flex-1 min-w-0">
             {children}
           </div>
         </PlayerProvider>

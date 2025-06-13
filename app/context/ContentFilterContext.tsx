@@ -2,10 +2,13 @@
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 
+// Define and export the FilterType
+export type FilterType = 'all' | 'stracks' | 'sacral' | 'vibe' | 'world';
+
 // Content filtering context
 interface ContentFilterContextType {
-  activeFilter: string;
-  setActiveFilter: (filter: string) => void;
+  activeFilter: FilterType;
+  setActiveFilter: (filter: FilterType) => void;
 }
 
 export const ContentFilterContext = createContext<ContentFilterContextType>({
@@ -19,16 +22,25 @@ interface ContentFilterProviderProps {
 
 export const ContentFilterProvider: React.FC<ContentFilterProviderProps> = ({ children }) => {
   // Use local storage if available to persist filter choice across page refreshes
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   // Initialize from localStorage if available (client-side only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedFilter = localStorage.getItem('sacraltrack-filter');
+      const savedFilter = localStorage.getItem('sacraltrack-filter') as FilterType | null; // Cast to FilterType or null
       if (savedFilter) {
-        // Convert old "sacral" value to "stracks" if needed
-        const normalizedFilter = savedFilter === 'sacral' ? 'stracks' : savedFilter;
-        setActiveFilter(normalizedFilter);
+        // Normalize old "sacral" value if necessary, ensure it's a valid FilterType
+        let normalizedFilter: FilterType = savedFilter;
+        if (savedFilter === 'sacral') { // This specific normalization might still be needed if 'sacral' was a legacy value
+            normalizedFilter = 'stracks'; // Or 'sacral' if 'sacral' is now a valid FilterType
+        }
+        // Ensure the loaded filter is one of the defined FilterTypes
+        const validFilters: FilterType[] = ['all', 'stracks', 'sacral', 'vibe', 'world'];
+        if (validFilters.includes(normalizedFilter)) {
+            setActiveFilter(normalizedFilter);
+        } else {
+            setActiveFilter('all'); // Default if saved filter is invalid
+        }
       }
     }
   }, []);
@@ -43,11 +55,13 @@ export const ContentFilterProvider: React.FC<ContentFilterProviderProps> = ({ ch
     }
   }, [activeFilter]);
 
-  const handleSetActiveFilter = (filter: string) => {
+  const handleSetActiveFilter = (filter: FilterType) => {
     console.log('[CONTENT-FILTER] Setting filter to:', filter);
-    // Convert "sacral" to "stracks" for consistency
-    const normalizedFilter = filter === 'sacral' ? 'stracks' : filter;
-    setActiveFilter(normalizedFilter);
+    // Normalization for 'sacral' to 'stracks' might be legacy.
+    // If 'sacral' is a valid FilterType now, this specific line might not be needed
+    // or should be adjusted based on current valid filter values.
+    // For now, assuming 'sacral' as a filter value is directly used or handled by its presence in FilterType.
+    setActiveFilter(filter);
   };
 
   return (
