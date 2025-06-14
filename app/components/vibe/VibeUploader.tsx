@@ -175,7 +175,9 @@ interface CropperProps {
 interface VibeUploaderProps {
   onClose: () => void;
   onSuccess?: (vibeId: string) => void;
-}
+};
+
+const tabButtonBase = 'flex flex-row items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 relative overflow-hidden group text-base font-bold min-w-[90px] h-12 shadow-xl border-2 border-[#4b3470] bg-[#2a2151] text-white hover:bg-[#3b2351] hover:border-[#7c4fd6]';
 
 const TabButton: React.FC<{
   active: boolean;
@@ -186,20 +188,16 @@ const TabButton: React.FC<{
 }> = ({ active, icon, label, onClick, isComingSoon }) => (
   <motion.button
     type="button"
-    whileHover={{ scale: 1.05, y: -1 }}
-    whileTap={{ scale: 0.97, y: 0 }}
+    whileHover={{ scale: 1.08, y: -2 }}
+    whileTap={{ scale: 0.96, y: 0 }}
     onClick={(e) => {
       e.preventDefault();
       onClick(e);
     }}
-    className={`flex flex-row items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-300 relative overflow-hidden group text-sm font-semibold min-w-[90px] h-9
-      ${active
-        ? 'bg-gradient-to-r from-[#20DDBB]/80 to-[#018CFD]/80 text-white shadow-md border border-[#20DDBB]/40'
-        : 'bg-white/5 text-gray-300 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-[#20DDBB]/30'}
-    `}
-    style={{ minHeight: 36 }}
+    className={`${tabButtonBase} ${active ? ' ring-2 ring-[#ec4899]' : ''}`}
+    style={{ minHeight: 48, letterSpacing: '0.01em', fontWeight: 600 }}
   >
-    <span className="relative z-10 flex items-center">{icon}</span>
+    <span className="relative z-10 flex items-center text-xl">{icon}</span>
     <span className="relative z-10">{label}</span>
     {isComingSoon && (
       <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[8px] font-semibold px-2 py-0.5 rounded-full shadow-lg">
@@ -220,11 +218,12 @@ const MoodChip: React.FC<{
       e.preventDefault();
       onClick();
     }}
-    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+    className={`px-3 py-3 rounded-full text-sm font-medium transition-all duration-200 h-11 ${
       selected
-        ? 'bg-primary/20 text-white border border-primary/50'
-        : 'bg-white/10 text-white/70 border border-white/10 hover:bg-white/15'
-    }`}
+        ? 'bg-gradient-to-r from-[#3b82f6]/30 to-[#ec4899]/30 text-white border border-[#ec4899]/60'
+        : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 hover:border-[#ec4899]/30 backdrop-blur-md'}
+    `}
+    style={{ minHeight: 44 }}
   >
     {mood}
   </button>
@@ -244,7 +243,7 @@ const buttonStyles = {
 };
 
 // Обновить стили для input и textarea
-const inputStyles = "w-full px-4 py-3 bg-white/5 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#20DDBB] transition-all border border-white/10 focus:border-[#20DDBB]/30 backdrop-blur-sm";
+const inputStyles = "w-full px-4 py-3 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ec4899] transition-all border border-white/10 focus:border-[#ec4899]/30 shadow-[0_2px_12px_0_rgba(59,130,246,0.08)] backdrop-blur-md bg-[#2a2151]";
 
 // Функция безопасного кропа, которая проверяет на null
 const safeCropComplete = (
@@ -894,8 +893,8 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               className="space-y-3">
             {/* Image Upload Area */}
             <div
-              className={`relative w-full h-64 rounded-lg border-2 border-dashed transition-colors duration-200 px-[5px]`
-                + (isDragging ? ' border-primary bg-primary/5' : ' border-gray-300 hover:border-primary')}
+              className={`relative w-full h-64 rounded-2xl border-2 border-dashed transition-colors duration-200 px-[5px] flex flex-col justify-center items-center bg-[#2a2151]`
+                + (isDragging ? ' border-primary bg-primary/10' : ' border-gray-300 hover:border-primary')}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -917,27 +916,22 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                 onChange={handleFileSelect}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                 {isLoading ? (
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm text-gray-500">Processing image...</span>
+                    <span className="text-sm text-gray-400">Processing image...</span>
                   </div>
                 ) : imagePreview ? (
                   <div className="relative w-full h-full">
                     <img
                       src={imagePreview}
                       alt="Preview"
-                      className="w-full h-full object-cover rounded-lg"
+                      className="w-full h-full object-cover rounded-2xl"
                     />
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImagePreview(null);
-                        setSelectedFile(null);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); setImagePreview(null); setSelectedFile(null); }}
                       className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
                     >
                       <XMarkIcon className="w-5 h-5 text-white" />
@@ -945,12 +939,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-center">
-                    <PhotoIcon className="w-12 h-12 text-gray-400" />
-                    <div className="text-sm text-gray-500">
-                      <p>Drag and drop an image here, or</p>
-                      <p className="text-primary font-medium">click to select</p>
-                    </div>
-                    <p className="text-xs text-gray-400">Supports JPG, PNG, WebP (max 5MB)</p>
+                    <PhotoIcon className="w-14 h-14 text-[#3b82f6]" />
+                    <div className="text-base text-white font-semibold">Drag and drop an image here, or <span className="text-[#ec4899] font-bold">click to select</span></div>
+                    <div className="text-xs text-gray-400">JPG, PNG, WebP (max 5MB)</div>
                   </div>
                 )}
               </div>
@@ -999,9 +990,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               </div>
               <div className="flex items-center space-x-2">
                 {location ? (
-                  <div className="flex-1 flex items-center bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/10">
+                  <div className="flex-1 flex items-center bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/10 overflow-hidden">
                     <MapPinIcon className="w-4 h-4 text-[#20DDBB] mr-2 flex-shrink-0" />
-                    <span className="text-gray-200 text-sm truncate">{location}</span>
+                    <span className="text-gray-200 text-sm truncate max-w-[70vw] md:max-w-[300px] whitespace-nowrap overflow-hidden text-ellipsis">{location}</span>
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.1 }}
@@ -1184,74 +1175,81 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   
   return (
     <div 
-      className="modal-overlay flex items-center justify-center overflow-y-auto"
+      className={`modal-overlay flex items-center justify-center overflow-y-auto ${isMobile ? 'fixed inset-0 w-full h-full bg-black/80 z-[99999] rounded-none p-0' : 'fixed inset-0 z-[99999]'}`}
+      style={{ zIndex: 99999 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/* 1. Подложка под модальным окном: bg-black/70 + backdrop-blur-2xl всегда */}
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl" style={{ zIndex: 99998 }} />
       <motion.div 
         initial={{ y: 100, opacity: 0 }} 
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
-        className="relative rounded-2xl w-[95%] max-w-[500px] mx-auto border border-white/10 shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        className={`relative ${isMobile ? 'w-full p-0 rounded-none min-h-screen max-h-screen' : 'w-[95%] max-w-[500px] mx-auto rounded-2xl'} border border-white/10 shadow-2xl overflow-hidden`}
         style={{
           padding: 5,
-          minHeight: isMobile ? 'calc(100vh - 20px)' : undefined,
-          maxHeight: isMobile ? 'calc(100vh - 20px)' : '96vh',
-          background: 'linear-gradient(120deg, rgba(236,72,153,0.22) 0%, rgba(59,130,246,0.23) 100%)',
+          minHeight: isMobile ? '100vh' : undefined,
+          maxHeight: isMobile ? '100vh' : '96vh',
+          background: 'linear-gradient(120deg, #24143a 0%, #2a2151 100%)',
           backdropFilter: 'blur(36px) saturate(1.25)',
           WebkitBackdropFilter: 'blur(36px) saturate(1.25)',
+          zIndex: 99999,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
-        <button 
+        {/* 2. Кнопка закрытия светлая */}
+        <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1 transition duration-200 z-[10]"
+          className="absolute top-4 right-4 z-[100] w-12 h-12 flex items-center justify-center rounded-full bg-white/30 text-black/80 hover:bg-white/60 hover:text-black transition duration-200 shadow-xl"
+          style={{ fontSize: 26 }}
+          aria-label="Close"
         >
-          <XMarkIcon className="w-5 h-5" />
+          <XMarkIcon className="w-7 h-7" />
         </button>
         {/* Form content */}
-        <div className="pt-2 pb-2 px-1 flex justify-center space-x-2">
+        <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start' : 'justify-center'}`}>
           <TabButton
             active={selectedTab === 'photo'}
-            icon={<PhotoIcon className="w-5 h-5" />}
+            icon={<PhotoIcon className="w-7 h-7" />}
             label="Photo"
             onClick={(e) => handleTabChange('photo', e)}
           />
           <TabButton
             active={selectedTab === 'video'}
-            icon={<VideoCameraIcon className="w-5 h-5" />}
+            icon={<VideoCameraIcon className="w-7 h-7" />}
             label="Video"
             onClick={(e) => handleTabChange('video', e)}
             isComingSoon={true}
           />
-          <TabButton
-            active={selectedTab === 'sticker'}
-            icon={<FaceSmileIcon className="w-5 h-5" />}
-            label="Sticker"
-            onClick={(e) => handleTabChange('sticker', e)}
-            isComingSoon={true}
-          />
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => { setUseCameraMode(true); checkCameraAvailability(); }}
+              className="ml-2 px-4 py-2 rounded-2xl border-2 border-[#4b3470] bg-[#2a2151] text-white font-bold shadow-lg text-base hover:bg-[#3b2351] hover:border-[#7c4fd6] transition-all h-12"
+              style={{ minHeight: 48, fontWeight: 600, letterSpacing: '0.01em' }}
+            >
+              Selfie
+            </button>
+          )}
         </div>
         {/* Content */}
         <div className="pt-1 pb-1 px-1 overflow-y-auto max-h-[calc(90vh-120px)]">
           {renderTabContent()}
         </div>
-        {/* Фиксированная гласс-кнопка Share Vibe */}
+        {/* Фиксированная главная кнопка Share Vibe */}
         {user && selectedTab === 'photo' && (
           <motion.button
             type="submit"
             disabled={!isValid || isLoading}
-            className="fixed left-1/2 bottom-6 z-50 -translate-x-1/2 px-6 py-3 rounded-2xl font-semibold text-base flex items-center gap-2 transition-all duration-200 shadow-xl hover:scale-105 cursor-pointer"
+            className={`${isMobile ? 'fixed left-1/2 bottom-6 z-50 -translate-x-1/2' : 'mt-8 w-full'} px-8 py-4 rounded-2xl font-semibold text-lg flex items-center gap-3 transition-all duration-200 shadow-2xl hover:scale-105 cursor-pointer bg-gradient-to-r from-[#3b82f6] to-[#ec4899] border-none justify-center text-white font-extrabold`}
             style={{
-              background: 'linear-gradient(90deg, #20DDBB 0%, #018CFD 100%)',
               color: '#fff',
-              boxShadow: '0 8px 32px 0 rgba(32,221,187,0.18)',
-              border: 'none',
-              fontWeight: 500,
+              boxShadow: '0 8px 32px 0 rgba(59,130,246,0.18)',
+              fontWeight: 800,
               letterSpacing: '0.01em',
-              fontSize: '1rem',
+              fontSize: '1.15rem',
               backdropFilter: 'blur(24px) saturate(1.2)',
               WebkitBackdropFilter: 'blur(24px) saturate(1.2)',
               opacity: 1,
@@ -1272,11 +1270,11 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                 >
                   <ArrowPathIcon className="w-5 h-5" />
                 </motion.div>
-                <span className="tracking-wide">Sharing Vibe...</span>
+                <span className="tracking-wide">Vibing...</span>
               </>
             ) : (
               <>
-                <span className="tracking-wide">Share Your Vibe</span>
+                <span className="tracking-wide">Vibe it</span>
                 <PaperAirplaneIcon className="w-5 h-5 ml-1" />
               </>
             )}
