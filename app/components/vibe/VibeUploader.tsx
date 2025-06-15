@@ -388,15 +388,16 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   }, []);
   
   const handleTabChange = (tab: VibeType, e?: React.MouseEvent) => {
-    // Предотвращаем отправку формы, если это событие клика
     if (e) {
       e.preventDefault();
     }
-    
     setSelectedTab(tab);
     setPhotoFile(null);
     setPhotoPreview(null);
+    setImagePreview(null);
+    setSelectedFile(null);
     setUseCameraMode(false);
+    setError(null);
   };
   
   const processAndOptimizeImage = async (file: File) => {
@@ -429,56 +430,60 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     }
   };
   
+  // 1. Проверка длительности видео при выборе файла
+  const checkVideoDuration = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        const duration = video.duration;
+        if (duration > 480) {
+          setError('Video duration exceeds 8 minutes limit');
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      };
+      video.onerror = () => {
+        setError('Could not read video duration');
+        resolve(false);
+      };
+      video.src = url;
+    });
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Validate file type
+    setError(null);
+    if (selectedTab === 'photo') {
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
-        setIsLoading(false);
         return;
       }
-
-      // Проверяем размер файла (максимум 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('File size exceeds 5MB limit');
-        setIsLoading(false);
         return;
       }
-
-      console.log(`Selected file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-
-      // Убедимся, что файл действительно содержит данные
-      if (file.size === 0) {
-        setError('Selected file appears to be empty');
-        setIsLoading(false);
-        return;
-      }
-
-      // Используем оригинальный файл без оптимизации
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
       setSelectedFile(file);
-      
-      // Сохраняем копию файла для загрузки
-      const photoFileCopy = new File([file], file.name, {
-        type: file.type,
-        lastModified: file.lastModified
-      });
-      setPhotoFile(photoFileCopy);
-
-      console.log(`Using original file for upload: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-
-    } catch (err) {
-      console.error('Error processing image:', err);
-      setError('Failed to process image. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setImagePreview(URL.createObjectURL(file));
+      setPhotoFile(file);
+    } else if (selectedTab === 'video') {
+      if (!file.type.startsWith('video/')) {
+        setError('Please select a video file');
+        return;
+      }
+      if (file.size > 100 * 1024 * 1024) {
+        setError('File size exceeds 100MB limit');
+        return;
+      }
+      const isValid = await checkVideoDuration(file);
+      if (!isValid) return;
+      setSelectedFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setPhotoFile(file);
     }
   };
   
@@ -486,56 +491,35 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Validate file type
+    setError(null);
+    if (selectedTab === 'photo') {
       if (!file.type.startsWith('image/')) {
         setError('Please drop an image file');
-        setIsLoading(false);
         return;
       }
-
-      // Проверяем размер файла (максимум 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('File size exceeds 5MB limit');
-        setIsLoading(false);
         return;
       }
-
-      console.log(`Dropped file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-
-      // Убедимся, что файл действительно содержит данные
-      if (file.size === 0) {
-        setError('Dropped file appears to be empty');
-        setIsLoading(false);
-        return;
-      }
-
-      // Используем оригинальный файл без оптимизации
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
       setSelectedFile(file);
-      
-      // Сохраняем копию файла для загрузки
-      const photoFileCopy = new File([file], file.name, {
-        type: file.type,
-        lastModified: file.lastModified
-      });
-      setPhotoFile(photoFileCopy);
-
-      console.log(`Using original file for upload: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-
-    } catch (err) {
-      console.error('Error processing image:', err);
-      setError('Failed to process image. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setImagePreview(URL.createObjectURL(file));
+      setPhotoFile(file);
+    } else if (selectedTab === 'video') {
+      if (!file.type.startsWith('video/')) {
+        setError('Please drop a video file');
+        return;
+      }
+      if (file.size > 100 * 1024 * 1024) {
+        setError('File size exceeds 100MB limit');
+        return;
+      }
+      const isValid = await checkVideoDuration(file);
+      if (!isValid) return;
+      setSelectedFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setPhotoFile(file);
     }
   };
   
@@ -601,24 +585,15 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
         console.error('User not authorized:', user);
         return;
       }
-
-      // Обработка функций, которые еще в разработке
-      if (selectedTab === 'video') {
-        musicToast.info('🎬 Music Video Vibes - Coming Soon! Our team is working on this feature. Stay tuned for the next update!');
-        return;
-      } else if (selectedTab === 'sticker') {
+      if (selectedTab === 'sticker') {
         musicToast.info('🎵 Musical Sticker Vibes - Coming Soon! Express your musical emotions with animated stickers in the next update!');
         return;
       }
-
-      if (selectedTab === 'photo' && !photoFile && !caption.trim()) {
-        musicToast.error('Please add a photo or write some text for your vibe!');
+      if ((selectedTab === 'photo' || selectedTab === 'video') && !photoFile && !caption.trim()) {
+        musicToast.error('Please add a file or write some text for your vibe!');
         return;
       }
-
       setIsLoading(true);
-      
-      // Симулируем прогресс загрузки для лучшего UX
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -628,119 +603,36 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           return prev + Math.floor(Math.random() * 10) + 1;
         });
       }, 300);
-
-      // Проверяем соединение с Appwrite перед загрузкой
       try {
         const connectionStatus = await checkAppwriteConnection();
-        console.log('Appwrite connection status:', connectionStatus);
-        
         if (!connectionStatus.connected || !connectionStatus.storageValid) {
           throw new Error('Cannot connect to Appwrite storage service. Please try again later.');
         }
-        
         if (!connectionStatus.sessionValid) {
           musicToast.info('Your session might have expired. Please log in again if upload fails.');
         }
       } catch (connectionError) {
         console.error('Error checking Appwrite connection:', connectionError);
-        // Продолжаем загрузку даже при ошибке проверки соединения
       }
-
       let vibeId: string = '';
-      
-      if (selectedTab === 'photo') {
-        // Убедимся, что у нас есть ID пользователя
+      if (selectedTab === 'photo' || selectedTab === 'video') {
         if (!user.id) {
           musicToast.error('Could not determine your user ID. Please log in again.');
-          console.error('User ID is missing in the user object:', user);
           clearInterval(progressInterval);
           setIsLoading(false);
           setUploadProgress(0);
           return;
         }
-        
         try {
-          console.log('Starting vibe creation with the following data:', {
-            user_id: user.id,
-            type: selectedTab,
-            has_media: !!photoFile,
-            media_type: photoFile?.type,
-            media_size: photoFile?.size,
-            caption_length: caption?.length,
-            mood: selectedMood
-          });
-
-          // Если у нас есть файл, проверим его еще раз перед отправкой
           if (photoFile) {
-            console.log('Photo file details before upload:', {
-              name: photoFile.name,
-              type: photoFile.type,
-              size: photoFile.size,
-              lastModified: photoFile.lastModified
-            });
-            
-            // Простая проверка на валидность файла
             if (!(photoFile instanceof File) || photoFile.size === 0) {
-              console.warn('Photo file is not a valid File instance or has size 0, creating new File from preview...');
-              
-              try {
-                // Если у нас есть превью-изображение, создаем из него файл
-                if (photoPreview) {
-                  const response = await fetch(photoPreview);
-                  if (!response.ok) throw new Error('Failed to fetch preview image');
-                  
-                  const blob = await response.blob();
-                  const fileType = blob.type || 'image/jpeg';
-                  const extension = fileType.split('/')[1] || 'jpg';
-                  const newFileName = `vibe_photo_${Date.now()}.${extension}`;
-                  
-                  // Создаем новый File объект с правильными параметрами
-                  const newFile = new File([blob], newFileName, { 
-                    type: fileType,
-                    lastModified: Date.now()
-                  });
-                  console.log('Created new File from preview for upload:', {
-                    name: newFile.name,
-                    type: newFile.type,
-                    size: newFile.size,
-                    lastModified: newFile.lastModified
-                  });
-                  
-                  // Загружаем вайб с новым файлом напрямую
-                  const result = await createVibePost({
-                    user_id: user.id,
-                    type: selectedTab,
-                    media: newFile,
-                    caption,
-                    mood: selectedMood,
-                    location,
-                    tags: [],
-                  });
-                  
-                  vibeId = result || '';
-                  setUploadProgress(100);
-                  setTimeout(() => {
-                    clearInterval(progressInterval);
-                    musicToast.success('Your musical vibe has been published! 🎵');
-                    if (onSuccess && vibeId) onSuccess(vibeId);
-                    setTimeout(() => onClose(), 800);
-                  }, 500);
-                  return;
-                } else {
-                  throw new Error('No photo preview available to create file from');
-                }
-              } catch (error) {
-                console.error('Error creating file from preview:', error);
-                musicToast.error('Failed to prepare photo for upload');
-                clearInterval(progressInterval);
-                setIsLoading(false);
-                setUploadProgress(0);
-                return;
-              }
+              musicToast.error('Invalid file for upload');
+              clearInterval(progressInterval);
+              setIsLoading(false);
+              setUploadProgress(0);
+              return;
             }
           }
-          
-          // Создаем пост с оригинальным файлом, если все проверки пройдены
           const result = await createVibePost({
             user_id: user.id,
             type: selectedTab,
@@ -750,47 +642,19 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             location,
             tags: [],
           });
-          
           vibeId = result || '';
-          
-          // Завершаем прогресс
           setUploadProgress(100);
           setTimeout(() => {
             clearInterval(progressInterval);
-            
-            // Показываем эффект успешной загрузки
             musicToast.success('Your musical vibe has been published! 🎵');
-            
             if (onSuccess && vibeId) onSuccess(vibeId);
-            
-            // Закрываем модальное окно с небольшой задержкой для красивого эффекта
             setTimeout(() => onClose(), 800);
           }, 500);
         } catch (createError: any) {
           clearInterval(progressInterval);
           setIsLoading(false);
           setUploadProgress(0);
-          
-          console.error('Detailed error info:', {
-            message: createError?.message,
-            code: createError?.code,
-            type: createError?.type,
-            name: createError?.name,
-            stack: createError?.stack
-          });
-          
-          // Проверяем специфические типы ошибок для более информативных сообщений
-          if (createError?.message?.includes('storage')) {
-            musicToast.error('Failed to upload photo. Check file size and format.');
-          } else if (createError?.message?.includes('permission') || createError?.code === 401) {
-            musicToast.error('You don\'t have permission to create a vibe. Try logging out and in again.');
-          } else if (createError?.message?.includes('collection')) {
-            musicToast.error('Error with vibes collection. Please contact the administrator.');
-          } else if (createError?.message?.includes('database')) {
-            musicToast.error('Database error. Please contact the administrator.');
-          } else {
-            musicToast.error('Failed to publish vibe. Please try again later.');
-          }
+          musicToast.error('Failed to publish vibe. Please try again later.');
         }
       }
     } catch (error) {
@@ -828,11 +692,14 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
 
   // Проверка на валидность формы для активации кнопки
   useEffect(() => {
-    // Проверяем наличие изображения или текста для активации кнопки
     if (selectedTab === 'photo') {
-      const hasImage = selectedFile !== null || imagePreview !== null || photoFile !== null;
+      const hasImage = selectedFile && selectedFile.type.startsWith('image/');
       const hasCaption = caption ? caption.trim().length > 0 : false;
-      setIsValid(hasImage || hasCaption);
+      setIsValid(!!hasImage || hasCaption);
+    } else if (selectedTab === 'video') {
+      const hasVideo = selectedFile && selectedFile.type.startsWith('video/');
+      const hasCaption = caption ? caption.trim().length > 0 : false;
+      setIsValid(!!hasVideo || hasCaption);
     }
   }, [selectedFile, imagePreview, photoFile, caption, selectedTab]);
 
@@ -1039,52 +906,185 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     
     case 'video':
       return (
-        <div className="py-12 px-4">
-          {/* Улучшенный UI для функции в разработке */}
-          <div className="relative bg-gradient-to-br from-white/5 to-white/2 backdrop-blur-sm rounded-xl p-8 text-center shadow-lg border border-white/10 overflow-hidden">
-            {/* Бейдж "Скоро" */}
-            <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg">
-              COMING SOON
-            </div>
-            
-            {/* Графический элемент для фона */}
-            <div className="absolute inset-0 overflow-hidden opacity-10">
-              <div className="absolute -right-28 -bottom-28 w-96 h-96 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 blur-3xl"></div>
-              <div className="absolute -left-28 -top-28 w-96 h-96 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] blur-3xl"></div>
-            </div>
-            
-            {/* Содержимое */}
-            <div className="relative z-10">
-              <div className="relative w-24 h-24 mx-auto mb-6 bg-white/5 rounded-full flex items-center justify-center">
-                <VideoCameraIcon className="h-12 w-12 text-[#20DDBB]" />
-                <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+        <div className="px-[5px] pt-2 pb-2">
+          <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              handleSubmit(e); 
+            }} 
+            className="space-y-3">
+            {/* Video Upload Area */}
+            <div
+              className={`relative w-full h-64 rounded-2xl border-2 border-dashed transition-colors duration-200 px-[5px] flex flex-col justify-center items-center bg-[#2a2151]`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+                const file = e.dataTransfer.files?.[0];
+                if (!file) return;
+                setError(null);
+                if (!file.type.startsWith('video/')) {
+                  setError('Please drop a video file');
+                  return;
+                }
+                if (file.size > 100 * 1024 * 1024) {
+                  setError('File size exceeds 100MB limit');
+                  return;
+                }
+                const isValid = await checkVideoDuration(file);
+                if (!isValid) return;
+                setSelectedFile(file);
+                setImagePreview(URL.createObjectURL(file));
+                setPhotoFile(file);
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ cursor: 'pointer' }}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="video/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setError(null);
+                  if (!file.type.startsWith('video/')) {
+                    setError('Please select a video file');
+                    return;
+                  }
+                  if (file.size > 100 * 1024 * 1024) {
+                    setError('File size exceeds 100MB limit');
+                    return;
+                  }
+                  const isValid = await checkVideoDuration(file);
+                  if (!isValid) return;
+                  setSelectedFile(file);
+                  setImagePreview(URL.createObjectURL(file));
+                  setPhotoFile(file);
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                {isLoading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-gray-400">Processing video...</span>
+                  </div>
+                ) : imagePreview ? (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center">
+                    <video
+                      src={imagePreview}
+                      controls
+                      className="w-full h-full object-contain rounded-2xl max-h-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setImagePreview(null); setSelectedFile(null); setPhotoFile(null); }}
+                      className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                    >
+                      <XMarkIcon className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <VideoCameraIcon className="w-14 h-14 text-[#3b82f6]" />
+                    <div className="text-base text-white font-semibold">Drag and drop a video here, or <span className="text-[#ec4899] font-bold">click to select</span></div>
+                    <div className="text-xs text-gray-400">MP4, WebM, MOV (max 100MB)</div>
+                  </div>
+                )}
               </div>
-              
-              <h3 className="text-white text-2xl font-bold mb-4">Music Video Vibes</h3>
-              
-              <p className="text-gray-300 mb-8 max-w-md mx-auto leading-relaxed">
-                We're currently composing the ability for you to share performance videos, 
-                music clips, and instrumental showcases. Our developers are working hard 
-                to bring this feature to life!
-              </p>
-              
-              <div className="inline-flex items-center bg-gradient-to-r from-[#20DDBB]/10 to-[#018CFD]/10 border border-[#20DDBB]/30 text-[#20DDBB] px-6 py-3 rounded-full">
-                <SparklesIcon className="h-5 w-5 mr-2" />
-                <span className="font-medium">Coming in the next update</span>
-              </div>
-              
-              {/* Индикатор прогресса разработки */}
-              <div className="mt-8">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-                  <span>Development progress</span>
-                  <span>75%</span>
-                </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] w-3/4"></div>
-                </div>
+            </div>
+            {/* Caption Input */}
+            <div className="relative px-[5px]">
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Describe your video vibe..."
+                className={inputStyles}
+                rows={3}
+              />
+              <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                {caption.length}/500
               </div>
             </div>
-          </div>
+            {/* Mood Selection */}
+            <div className="space-y-2 px-[5px]">
+              <div className="flex items-center space-x-2">
+                <FaceSmileIcon className="w-5 h-5 text-[#20DDBB]" />
+                <span className="text-white font-medium">How are you feeling?</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['Happy', 'Excited', 'Chill', 'Creative', 'Inspired', 'Focused', 'Relaxed'].map((mood) => (
+                  <MoodChip
+                    key={mood}
+                    mood={mood as MoodType}
+                    selected={selectedMood === mood}
+                    onClick={() => setSelectedMood(mood as MoodType)}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* Location */}
+            <div className="space-y-2 px-[5px]">
+              <div className="flex items-center space-x-2">
+                <MapPinIcon className="w-5 h-5 text-[#20DDBB]" />
+                <span className="text-white font-medium">Add Location</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {location ? (
+                  <div className="flex-1 flex items-center bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 border border-white/10 overflow-hidden">
+                    <MapPinIcon className="w-4 h-4 text-[#20DDBB] mr-2 flex-shrink-0" />
+                    <span className="text-gray-200 text-sm truncate max-w-[70vw] md:max-w-[300px] whitespace-nowrap overflow-hidden text-ellipsis">{location}</span>
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setLocation('')}
+                      className="ml-auto p-1 text-gray-400 hover:text-white"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+                ) : (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={(e) => handleDetectLocation(e)}
+                    disabled={isDetectingLocation}
+                    className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors rounded-lg px-4 py-3 border border-white/10 hover:border-[#20DDBB]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDetectingLocation ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                          className="mr-2"
+                        >
+                          <ArrowPathIcon className="w-4 h-4 text-[#20DDBB]" />
+                        </motion.div>
+                        <span className="text-gray-300">Detecting location...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPinIcon className="w-4 h-4 text-[#20DDBB] mr-2" />
+                        <span className="text-gray-300">Detect my location</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
+              </div>
+            </div>
+          </form>
         </div>
       );
     
@@ -1239,7 +1239,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           {renderTabContent()}
         </div>
         {/* Фиксированная главная кнопка Share Vibe */}
-        {user && selectedTab === 'photo' && (
+        {user && (selectedTab === 'photo' || selectedTab === 'video') && (
           <motion.button
             type="submit"
             disabled={!isValid || isLoading}

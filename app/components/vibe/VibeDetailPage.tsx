@@ -946,8 +946,17 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             </div>
           </div>
         );
-        
-      // Другие типы Vibe можно добавить по мере необходимости
+      case 'video':
+        return (
+          <div className="relative w-full group">
+            <video
+              src={vibe.media_url}
+              controls
+              className="w-full rounded-2xl"
+              style={{ maxHeight: 650 }}
+            />
+          </div>
+        );
       default:
         return (
           <div className="bg-gradient-to-br from-[#2A2151]/50 to-[#1E1A36]/50 text-white p-6 rounded-xl text-center border border-white/5">

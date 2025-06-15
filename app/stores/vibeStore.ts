@@ -495,8 +495,8 @@ export const useVibeStore = create<VibeStore>()(
                 });
 
                 // Проверяем MIME-тип для безопасности
-                if (!vibeData.media.type.startsWith('image/')) {
-                  throw new Error(`Invalid file type: ${vibeData.media.type}. Only images are supported.`);
+                if (!(vibeData.media.type.startsWith('image/') || vibeData.media.type.startsWith('video/'))) {
+                  throw new Error(`Invalid file type: ${vibeData.media.type}. Only images and videos are supported.`);
                 }
                 
                 // Используем ID.unique() для генерации ID

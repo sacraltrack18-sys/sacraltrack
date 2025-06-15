@@ -739,8 +739,33 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const renderVibeContent = () => {
     // Default type is 'photo' if not specified
     const vibeType = vibe.type || 'photo';
-    
     switch(vibeType) {
+      case 'video':
+        if (!vibe.media_url) return null;
+        return (
+          <div className="relative w-full group">
+            {isLoading && (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#2A2151]/50 to-[#1E1A36]/50 flex items-center justify-center">
+                <div className="animate-pulse">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                </div>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <video
+              src={vibe.media_url}
+              controls
+              className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+              width={500}
+              height={650}
+              onLoadedData={() => setIsLoading(false)}
+              onError={() => setIsLoading(false)}
+              style={{ width: '100%', height: 'auto', maxHeight: 650 }}
+            />
+          </div>
+        );
       case 'photo':
       default:
         // Conditionally render the image section if vibe.media_url exists
