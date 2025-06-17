@@ -317,9 +317,8 @@ const UploaderTabButton: React.FC<{
     className={`relative flex flex-col items-center justify-center h-[56px] px-4 rounded-full transition-all duration-300 font-medium text-sm mr-3 shadow-xl border ${active ? 'border-[#20DDBB]/60' : 'border-white/10'} ${active ? 'bg-gradient-to-r from-[#20DDBB]/30 to-[#3b82f6]/20' : 'bg-white/10'} text-white backdrop-blur-[18px]`}
     style={{ minHeight: 56, marginTop: 25, WebkitBackdropFilter: 'blur(18px) saturate(1.2)' }}
   >
-    <span className="z-10 flex items-center justify-center mb-1" style={{ fontSize: 0 }}>
-      {/* Иконка чуть меньше, strokeWidth 1 */}
-      {React.cloneElement(icon as React.ReactElement, { width: 18, height: 18, strokeWidth: 1 })}
+    <span className="z-10 flex items-center justify-center mb-1" style={{ width: 18, height: 18 }}>
+      {icon}
     </span>
     <span className="z-10 text-sm font-medium" style={{ letterSpacing: '0.01em' }}>{label}</span>
     {active && (
@@ -1248,20 +1247,20 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
         <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start' : 'justify-center'} mt-[25px]`}>
           <UploaderTabButton
             active={selectedTab === 'photo'}
-            icon={<BsCamera style={{ color: '#20DDBB', width: 24, height: 24, strokeWidth: 1.5 }} />}
+            icon={<BsCamera className="w-[18px] h-[18px] text-[#20DDBB]" />}
             label="Photo"
             onClick={(e) => handleTabChange('photo', e)}
           />
           <UploaderTabButton
             active={selectedTab === 'video'}
-            icon={<BsCameraVideo style={{ color: '#3b82f6', width: 24, height: 24, strokeWidth: 1.5 }} />}
+            icon={<BsCameraVideo className="w-[18px] h-[18px] text-[#3b82f6]" />}
             label="Vibe"
             onClick={(e) => handleTabChange('video', e)}
           />
           {isMobile && (
             <UploaderTabButton
               active={useCameraMode}
-              icon={<BsCamera style={{ color: '#20DDBB', width: 24, height: 24, strokeWidth: 1.5 }} />}
+              icon={<BsCamera className="w-[18px] h-[18px] text-[#20DDBB]" />}
               label="Selfie"
               onClick={() => { setUseCameraMode(true); checkCameraAvailability(); }}
             />
