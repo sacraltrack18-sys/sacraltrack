@@ -135,29 +135,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <ContentFilter />
             </motion.div>
 
-            {/* Guide Button - Now using the Welcome Modal */}
-            <motion.button
-                onClick={() => setShowWelcomeModal(true)}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                whileHover={{ 
-                    scale: 1.05, 
-                    y: -5,
-                    boxShadow: '0 10px 25px rgba(32, 221, 187, 0.3)'
-                }}
-                className="fixed md:bottom-5 md:left-5 md:w-20 md:h-20 bottom-[65px] left-4 w-16 h-16 bg-gradient-to-r from-[#20DDBB]/80 to-[#018CFD]/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center cursor-pointer border border-[#20DDBB]/30 shadow-lg z-[99999] transition-all duration-300 group"
-            >   
-                <div className="flex flex-col items-center">
-                    <FaInfoCircle className="w-4 h-4 md:w-5 md:h-5 mb-1 drop-shadow-md" />
-                    <span className="text-[10px] md:text-xs font-medium">Guide</span>
-                </div>
-                <span className="absolute left-full ml-2 px-2 py-1 bg-[#1A2338] rounded text-sm whitespace-nowrap
-                             opacity-0 group-hover:opacity-100 transition-opacity">
-                    Show Guide
-                </span>
-            </motion.button>
-            
             {/* Welcome Modal */}
             <ClientWelcomeModal 
                 isVisible={showWelcomeModal} 

@@ -210,4 +210,23 @@
 
 .animate-shine {
     animation: shine 2s infinite;
+}
+
+/* Glassmorphism for TopNavGuide */
+.topnav-glass {
+  background: rgba(36, 24, 61, 0.85);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1.5px solid rgba(255,255,255,0.10);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+}
+
+/* Floating animation for tooltips */
+@keyframes floatUpDown {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.topnav-float {
+  animation: floatUpDown 2.8s ease-in-out infinite;
 } 

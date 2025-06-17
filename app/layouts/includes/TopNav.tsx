@@ -20,6 +20,7 @@ import React from 'react'
 import toast from "react-hot-toast"
 import { useNotifications, Notification } from "@/app/hooks/useNotifications"
 import { MusicalNoteIcon } from "@heroicons/react/24/outline"
+import TopNavGuide from '@/app/components/nav/TopNavGuide'
 
 // Import the smaller components
 import GenreSelector from "@/app/components/nav/GenreSelector"
@@ -247,6 +248,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
 
     return (
         <>  
+            <TopNavGuide />
             <div id="TopNav" className="fixed top-0 bg-[linear-gradient(60deg,#2E2469,#351E43)] z-[49] flex items-center h-[60px] right-0 left-0 border-b border-white/10">
                 <div className={`flex items-center justify-between w-full px-3 md:px-5 mx-auto ${isHomePage ? 'max-w-full' : ''}`}>
                     {/* Logo - улучшенная версия с более надежной навигацией */}
