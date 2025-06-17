@@ -12,11 +12,11 @@ import {
 import { ContentFilterContext } from '@/app/context/ContentFilterContext';
 
 // Content filter types
-type ContentType = 'all' | 'vibe' | 'stracks' | 'world';
+type ContentType = 'all' | 'vibe' | 'stracks' | 'tracks';
 
-// Обновленная иконка для All Content - бриллиант
+// Обновленная иконка для All Content - кружок
 const AllContentIcon = ({ className = "w-5 h-5" }) => (
-  <FaGem className={className} />
+  <span className={className + " inline-block rounded-full bg-gradient-to-br from-[#20DDBB] to-[#8B5CF6]"} style={{ width: '20px', height: '20px' }} />
 );
 
 // Обновленная иконка для Vibe - магия
@@ -27,6 +27,11 @@ const VibeIcon = ({ className = "w-5 h-5" }) => (
 // Обновленная иконка для World - планета
 const WorldIcon = ({ className = "w-5 h-5" }) => (
   <FaGlobeAmericas className={className} />
+);
+
+// Обновленная иконка для Tracks - нота
+const TracksIcon = ({ className = "w-5 h-5" }) => (
+  <HiMusicNote className={className} />
 );
 
 // Main filter component
@@ -54,7 +59,7 @@ const ContentFilter = () => {
     if (filter === 'all') return 'all';
     if (filter === 'vibe') return 'vibe';
     if (filter === 'sacral' || filter === 'stracks') return 'stracks';
-    if (filter === 'world') return 'world';
+    if (filter === 'tracks') return 'tracks';
     return 'all'; // Default to all if not matching
   };
   
@@ -108,13 +113,13 @@ const ContentFilter = () => {
               description="Social posts from artists & fans"
             />
             
-            {/* World */}
+            {/* Tracks */}
             <TabButton 
-              active={activeTab === 'world'} 
-              onClick={() => handleTabChange('world')}
-              icon={<WorldIcon />}
-              label="World"
-              description="Global trending content"
+              active={activeTab === 'tracks'} 
+              onClick={() => handleTabChange('tracks')}
+              icon={<TracksIcon />}
+              label="Tracks"
+              description="Only music tracks (PostMain)"
             />
           </div>
         </div>
@@ -139,10 +144,10 @@ const ContentFilter = () => {
             />
             
             <MobileTabButton 
-              active={activeTab === 'world'} 
-              onClick={() => handleTabChange('world')}
-              icon={<WorldIcon className="w-5 h-5" />}
-              label="World"
+              active={activeTab === 'tracks'} 
+              onClick={() => handleTabChange('tracks')}
+              icon={<TracksIcon className="w-5 h-5" />}
+              label="Tracks"
             />
           </div>
         </div>

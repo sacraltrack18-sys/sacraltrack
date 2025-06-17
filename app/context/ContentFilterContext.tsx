@@ -3,7 +3,7 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 
 // Define and export the FilterType
-export type FilterType = 'all' | 'stracks' | 'sacral' | 'vibe' | 'world';
+export type FilterType = 'all' | 'stracks' | 'sacral' | 'vibe' | 'tracks';
 
 // Content filtering context
 interface ContentFilterContextType {
@@ -35,7 +35,7 @@ export const ContentFilterProvider: React.FC<ContentFilterProviderProps> = ({ ch
             normalizedFilter = 'stracks'; // Or 'sacral' if 'sacral' is now a valid FilterType
         }
         // Ensure the loaded filter is one of the defined FilterTypes
-        const validFilters: FilterType[] = ['all', 'stracks', 'sacral', 'vibe', 'world'];
+        const validFilters: FilterType[] = ['all', 'stracks', 'sacral', 'vibe', 'tracks'];
         if (validFilters.includes(normalizedFilter)) {
             setActiveFilter(normalizedFilter);
         } else {

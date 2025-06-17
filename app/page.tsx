@@ -121,13 +121,14 @@ function HomePageContent() {
         const combined: FeedItem[] = [];
 
         // Include posts from displayedPosts (already filtered by genre in store or here)
-        const shouldIncludePosts = ['all', 'stracks', 'sacral'].includes(activeFilter); // 'world' filter will now target api_tracks
+        const shouldIncludePosts = ['all', 'stracks', 'sacral', 'tracks'].includes(activeFilter);
         if (shouldIncludePosts && displayedPosts.length > 0) {
             const postsToInclude = displayedPosts.filter(post => {
                 if (activeFilter === 'all') return true;
                 if (activeFilter === 'stracks') return post.genre?.toLowerCase() === 'stracks';
                 if (activeFilter === 'sacral') return post.genre?.toLowerCase() === 'sacral';
-                return false; // Explicitly false if no match
+                if (activeFilter === 'tracks') return true;
+                return false;
             });
             combined.push(...postsToInclude.map(post =>
                 createFeedItem('post', post, post.created_at || new Date().toISOString())
@@ -315,14 +316,10 @@ function HomePageContent() {
         // Filter posts based on activeFilter
         if (activeFilter === 'stracks') return item.data.genre?.toLowerCase() === 'stracks';
         if (activeFilter === 'sacral') return item.data.genre?.toLowerCase() === 'sacral';
-        // 'world' filter is handled by api_track type below
+        if (activeFilter === 'tracks') return true;
       }
       
       if (item.type === 'vibe' && activeFilter === 'vibe') {
-        return true;
-      }
-      
-      if (item.type === 'api_track' && activeFilter === 'world') {
         return true;
       }
       

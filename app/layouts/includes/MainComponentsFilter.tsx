@@ -5,6 +5,7 @@ import { useUser } from "@/app/context/user";
 import { useRouter } from "next/navigation";
 import { ContentFilterContext } from '@/app/context/ContentFilterContext'; // Import context
 import type { FilterType } from '@/app/context/ContentFilterContext'; // Import type separately
+import { HiMusicNote } from 'react-icons/hi';
 
 export default function MainComponentsFilter() {
     const userContext = useUser();
@@ -27,7 +28,7 @@ export default function MainComponentsFilter() {
         { name: "Stracks", value: "stracks", icon: FaMusic },
         { name: "Sacral", value: "sacral", icon: AiOutlineStar }, // Using AiOutlineStar as an example
         { name: "Vibes", value: "vibe", icon: FaBroadcastTower },
-        { name: "World Content", value: "world", icon: FaGlobe },
+        { name: "Tracks", value: "tracks", icon: HiMusicNote },
     ];
 
     useEffect(() => {
