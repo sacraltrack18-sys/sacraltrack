@@ -438,7 +438,7 @@ export const useVibeStore = create<VibeStore>()(
               id: vibeDoc.$id,
               user_id: vibeDoc.user_id,
               type: vibeDoc.type || 'photo',
-              media_url: vibeDoc.media_url,
+              media_url: getFullMediaUrl(vibeDoc.media_url),
               caption: vibeDoc.caption,
               mood: vibeDoc.mood,
               created_at: vibeDoc.$createdAt || vibeDoc.created_at || new Date().toISOString(),

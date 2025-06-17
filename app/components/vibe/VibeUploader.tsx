@@ -54,6 +54,7 @@ import {
 import toast from 'react-hot-toast';
 import { BiLoaderCircle } from 'react-icons/bi';
 import { checkAppwriteConnection } from '@/libs/AppWriteClient';
+import { BsVinyl, BsStars, BsCamera, BsCameraVideo } from 'react-icons/bs';
 
 // Типы для временных компонентов
 interface CropArea {
@@ -297,6 +298,41 @@ const CropperAdapter = ({
     />
   );
 };
+
+// Новый TabButton в стиле TopNav
+const UploaderTabButton: React.FC<{
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: (e?: React.MouseEvent) => void;
+}> = ({ active, icon, label, onClick }) => (
+  <motion.button
+    type="button"
+    whileHover={{ scale: 1.07, boxShadow: "0 0 18px rgba(32,221,187,0.18)" }}
+    whileTap={{ scale: 0.96 }}
+    onClick={(e) => {
+      e.preventDefault();
+      onClick(e);
+    }}
+    className={`relative flex flex-col items-center justify-center h-[56px] px-4 rounded-full transition-all duration-300 font-medium text-sm mr-3 shadow-xl border ${active ? 'border-[#20DDBB]/60' : 'border-white/10'} ${active ? 'bg-gradient-to-r from-[#20DDBB]/30 to-[#3b82f6]/20' : 'bg-white/10'} text-white backdrop-blur-[18px]`}
+    style={{ minHeight: 56, marginTop: 25, WebkitBackdropFilter: 'blur(18px) saturate(1.2)' }}
+  >
+    <span className="z-10 flex items-center justify-center mb-1" style={{ fontSize: 0 }}>
+      {/* Иконка чуть меньше, strokeWidth 1 */}
+      {React.cloneElement(icon as React.ReactElement, { width: 18, height: 18, strokeWidth: 1 })}
+    </span>
+    <span className="z-10 text-sm font-medium" style={{ letterSpacing: '0.01em' }}>{label}</span>
+    {active && (
+      <motion.div
+        className="absolute inset-0 rounded-full border border-[#20DDBB]/40 pointer-events-none"
+        initial={{ opacity: 0.8, scale: 1 }}
+        animate={{ opacity: 0, scale: 1.5 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 1, repeat: Infinity }}
+      />
+    )}
+  </motion.button>
+);
 
 export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }) => {
   const { user } = useUser() || { user: null };
@@ -1209,29 +1245,26 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           <XMarkIcon className="w-7 h-7" />
         </button>
         {/* Form content */}
-        <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start' : 'justify-center'}`}>
-          <TabButton
+        <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start' : 'justify-center'} mt-[25px]`}>
+          <UploaderTabButton
             active={selectedTab === 'photo'}
-            icon={<PhotoIcon className="w-7 h-7" />}
+            icon={<BsCamera style={{ color: '#20DDBB', width: 24, height: 24, strokeWidth: 1.5 }} />}
             label="Photo"
             onClick={(e) => handleTabChange('photo', e)}
           />
-          <TabButton
+          <UploaderTabButton
             active={selectedTab === 'video'}
-            icon={<VideoCameraIcon className="w-7 h-7" />}
-            label="Video"
+            icon={<BsCameraVideo style={{ color: '#3b82f6', width: 24, height: 24, strokeWidth: 1.5 }} />}
+            label="Vibe"
             onClick={(e) => handleTabChange('video', e)}
-            isComingSoon={true}
           />
           {isMobile && (
-            <button
-              type="button"
+            <UploaderTabButton
+              active={useCameraMode}
+              icon={<BsCamera style={{ color: '#20DDBB', width: 24, height: 24, strokeWidth: 1.5 }} />}
+              label="Selfie"
               onClick={() => { setUseCameraMode(true); checkCameraAvailability(); }}
-              className="ml-2 px-4 py-2 rounded-2xl border-2 border-[#4b3470] bg-[#2a2151] text-white font-bold shadow-lg text-base hover:bg-[#3b2351] hover:border-[#7c4fd6] transition-all h-12"
-              style={{ minHeight: 48, fontWeight: 600, letterSpacing: '0.01em' }}
-            >
-              Selfie
-            </button>
+            />
           )}
         </div>
         {/* Content */}
@@ -1243,15 +1276,13 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           <motion.button
             type="submit"
             disabled={!isValid || isLoading}
-            className={`${isMobile ? 'fixed left-1/2 bottom-6 z-50 -translate-x-1/2' : 'mt-8 w-full'} px-8 py-4 rounded-2xl font-semibold text-lg flex items-center gap-3 transition-all duration-200 shadow-2xl hover:scale-105 cursor-pointer bg-gradient-to-r from-[#3b82f6] to-[#ec4899] border-none justify-center text-white font-extrabold`}
+            className={`${isMobile ? 'fixed left-1/2 bottom-6 z-50 -translate-x-1/2' : 'mt-8 w-full'} px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-3 transition-all duration-200 shadow-2xl hover:scale-105 cursor-pointer border border-[#20DDBB]/40 bg-gradient-to-r from-[#20DDBB]/30 to-[#3b82f6]/20 text-white backdrop-blur-[18px]`}
             style={{
               color: '#fff',
-              boxShadow: '0 8px 32px 0 rgba(59,130,246,0.18)',
               fontWeight: 800,
               letterSpacing: '0.01em',
               fontSize: '1.15rem',
-              backdropFilter: 'blur(24px) saturate(1.2)',
-              WebkitBackdropFilter: 'blur(24px) saturate(1.2)',
+              WebkitBackdropFilter: 'blur(18px) saturate(1.2)',
               opacity: 1,
             }}
             whileHover={isValid && !isLoading ? { scale: 1.08 } : {}}

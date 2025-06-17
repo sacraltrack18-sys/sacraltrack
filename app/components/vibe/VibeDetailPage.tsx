@@ -281,26 +281,16 @@ type ShareOptions = {
 // Add a function to handle vibe media URL properly
 function getVibeImageUrl(mediaUrl: string | undefined): string {
   if (!mediaUrl || mediaUrl.trim() === '') {
-    console.log('Empty media URL, using placeholder');
     return '/images/placeholders/default-placeholder.svg';
   }
-  
-  try {
-    // If it's already a full URL, return it as is
+  // Если уже полный URL
     if (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) {
-      console.log('Media URL is already a full URL:', mediaUrl);
       return mediaUrl;
     }
-    
-    // Debug info
-    console.log('Processing media URL:', mediaUrl);
-    
-    // Use createBucketUrl to generate a proper URL for Appwrite storage
-    const bucketUrl = createBucketUrl(mediaUrl, 'track');
-    console.log('Generated bucket URL:', bucketUrl);
-    return bucketUrl;
+  // Если это fileId — собираем полный путь через createBucketUrl
+  try {
+    return createBucketUrl(mediaUrl, 'track');
   } catch (error) {
-    console.error('Error in getVibeImageUrl:', error);
     return '/images/placeholders/default-placeholder.svg';
   }
 }
@@ -948,13 +938,46 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         );
       case 'video':
         return (
-          <div className="relative w-full group">
-            <video
-              src={vibe.media_url}
-              controls
-              className="w-full rounded-2xl"
-              style={{ maxHeight: 650 }}
+          <div className="relative rounded-xl overflow-hidden group">
+            {/* Скелетон до загрузки видео */}
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="w-full h-[400px] md:h-[600px] bg-gradient-to-br from-[#2A2151]/60 via-[#3b82f6]/30 to-[#20DDBB]/20 animate-pulse rounded-xl relative overflow-hidden">
+                  <div className="absolute inset-0 backdrop-blur-[8px]" />
+                  <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <svg className="animate-spin h-16 w-16 text-[#20DDBB]/70 drop-shadow-xl" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-xl font-bold text-[#20DDBB]/80 tracking-widest animate-pulse">Loading video...</div>
+                </div>
+              </div>
+            )}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              initial={{ opacity: 0 }}
+              whileHover={{ opacity: 1 }}
             />
+            <div className="w-full flex items-center justify-center">
+              <video
+                src={getVibeImageUrl(vibe.media_url)}
+                controls
+                autoPlay
+                muted
+                playsInline
+                className={`w-full object-contain rounded-xl transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                style={{ maxHeight: 650 }}
+                onLoadedData={e => {
+                  setIsLoading(false);
+                  // Автоматически запускать видео после загрузки
+                  try { e.currentTarget.play(); } catch (err) {}
+                }}
+                onPlay={() => setIsLoading(false)}
+                onError={() => setIsLoading(false)}
+                poster="/images/placeholders/video-placeholder.png"
+              />
+            </div>
           </div>
         );
       default:
