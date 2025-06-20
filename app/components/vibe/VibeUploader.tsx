@@ -372,6 +372,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const webcamRef = useRef<Webcam>(null);
@@ -489,10 +490,40 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     });
   };
 
+  const generateVideoThumbnail = (file: File): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.src = url;
+      video.muted = true;
+      video.playsInline = true;
+      video.currentTime = 0.1; // чуть дальше старта, чтобы точно был кадр
+      video.onloadeddata = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataUrl);
+        } else {
+          resolve(null);
+        }
+        URL.revokeObjectURL(url);
+      };
+      video.onerror = () => {
+        resolve(null);
+        URL.revokeObjectURL(url);
+      };
+    });
+  };
+  
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setError(null);
+      setError(null);
     if (selectedTab === 'photo') {
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
@@ -519,6 +550,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       setSelectedFile(file);
       setImagePreview(URL.createObjectURL(file));
       setPhotoFile(file);
+      // Генерируем превью
+      const thumb = await generateVideoThumbnail(file);
+      setVideoThumbnail(thumb);
     }
   };
   
@@ -528,7 +562,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    setError(null);
+      setError(null);
     if (selectedTab === 'photo') {
       if (!file.type.startsWith('image/')) {
         setError('Please drop an image file');
@@ -555,6 +589,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       setSelectedFile(file);
       setImagePreview(URL.createObjectURL(file));
       setPhotoFile(file);
+      // Генерируем превью
+      const thumb = await generateVideoThumbnail(file);
+      setVideoThumbnail(thumb);
     }
   };
   
@@ -662,12 +699,12 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           if (photoFile) {
             if (!(photoFile instanceof File) || photoFile.size === 0) {
               musicToast.error('Invalid file for upload');
-              clearInterval(progressInterval);
-              setIsLoading(false);
-              setUploadProgress(0);
-              return;
+                clearInterval(progressInterval);
+                setIsLoading(false);
+                setUploadProgress(0);
+                return;
+              }
             }
-          }
           const result = await createVibePost({
             user_id: user.id,
             type: selectedTab,
@@ -676,6 +713,8 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             mood: selectedMood,
             location,
             tags: [],
+            // Добавляем превью, если это видео
+            ...(selectedTab === 'video' && videoThumbnail ? { thumbnail: videoThumbnail } : {})
           });
           vibeId = result || '';
           setUploadProgress(100);
@@ -689,7 +728,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           clearInterval(progressInterval);
           setIsLoading(false);
           setUploadProgress(0);
-          musicToast.error('Failed to publish vibe. Please try again later.');
+            musicToast.error('Failed to publish vibe. Please try again later.');
         }
       }
     } catch (error) {
@@ -980,6 +1019,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                 setSelectedFile(file);
                 setImagePreview(URL.createObjectURL(file));
                 setPhotoFile(file);
+                // Генерируем превью
+                const thumb = await generateVideoThumbnail(file);
+                setVideoThumbnail(thumb);
               }}
               onClick={() => fileInputRef.current?.click()}
               style={{ cursor: 'pointer' }}
@@ -1005,6 +1047,9 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                   setSelectedFile(file);
                   setImagePreview(URL.createObjectURL(file));
                   setPhotoFile(file);
+                  // Генерируем превью
+                  const thumb = await generateVideoThumbnail(file);
+                  setVideoThumbnail(thumb);
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
@@ -1013,7 +1058,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                     <span className="text-sm text-gray-400">Processing video...</span>
-                  </div>
+            </div>
                 ) : imagePreview ? (
                   <div className="relative w-full h-full flex flex-col items-center justify-center">
                     <video
@@ -1028,16 +1073,16 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                     >
                       <XMarkIcon className="w-5 h-5 text-white" />
                     </button>
-                  </div>
+            </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-center">
                     <VideoCameraIcon className="w-14 h-14 text-[#3b82f6]" />
                     <div className="text-base text-white font-semibold">Drag and drop a video here, or <span className="text-[#ec4899] font-bold">click to select</span></div>
                     <div className="text-xs text-gray-400">MP4, WebM, MOV (max 100MB)</div>
-                  </div>
+              </div>
                 )}
               </div>
-            </div>
+                </div>
             {/* Caption Input */}
             <div className="relative px-[5px]">
               <textarea
@@ -1049,14 +1094,14 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               />
               <div className="absolute bottom-3 right-3 text-xs text-gray-400">
                 {caption.length}/500
+                </div>
               </div>
-            </div>
             {/* Mood Selection */}
             <div className="space-y-2 px-[5px]">
               <div className="flex items-center space-x-2">
                 <FaceSmileIcon className="w-5 h-5 text-[#20DDBB]" />
                 <span className="text-white font-medium">How are you feeling?</span>
-              </div>
+            </div>
               <div className="flex flex-wrap gap-2">
                 {['Happy', 'Excited', 'Chill', 'Creative', 'Inspired', 'Focused', 'Relaxed'].map((mood) => (
                   <MoodChip
@@ -1066,7 +1111,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
                     onClick={() => setSelectedMood(mood as MoodType)}
                   />
                 ))}
-              </div>
+          </div>
             </div>
             {/* Location */}
             <div className="space-y-2 px-[5px]">

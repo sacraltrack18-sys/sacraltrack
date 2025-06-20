@@ -39,6 +39,7 @@ export interface VibePost {
   location?: string;
   tags?: string;
   stats: number[] | { total_likes: number; total_comments: number; total_views: number };
+  thumbnail_url?: string;
 }
 
 export interface VibePostWithProfile extends VibePost {
@@ -77,6 +78,7 @@ interface VibeStore {
     mood?: string;
     location?: string;
     tags?: string[];
+    thumbnail?: string;
   }) => Promise<string | null>;
   likeVibe: (vibeId: string, userId: string) => Promise<boolean>;
   unlikeVibe: (vibeId: string, userId: string) => Promise<boolean>;
@@ -122,6 +124,19 @@ const statsToArray = (stats: { total_likes: number; total_comments: number; tota
   return [stats.total_likes || 0, stats.total_comments || 0, stats.total_views || 0];
 };
 
+// Вспомогательная функция для преобразования base64 в File
+function dataURLtoFile(dataurl: string, filename: string) {
+  const arr = dataurl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  if (!mimeMatch) throw new Error('Invalid dataurl: mime type not found');
+  const mime = mimeMatch[1];
+  const bstr = atob(arr[1]);
+  const n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+  return new File([u8arr], filename, { type: mime });
+}
+
 export const useVibeStore = create<VibeStore>()(
   devtools(
     persist(
@@ -147,10 +162,13 @@ export const useVibeStore = create<VibeStore>()(
         fetchAllVibes: async () => {
           try {
             const { selectedVibeType } = get();
-            set({ isLoadingVibes: true, error: null });
+            set({ isLoadingVibes: true, error: null, page: 1 });
 
             // Build query based on selected type
-            const queries = [Query.orderDesc('created_at')];
+            const queries = [
+              Query.orderDesc('created_at'),
+              Query.limit(5)
+            ];
             if (selectedVibeType !== 'all') {
               queries.push(Query.equal('type', selectedVibeType));
             }
@@ -196,36 +214,39 @@ export const useVibeStore = create<VibeStore>()(
                   location: doc.location,
                   tags: doc.tags,
                   stats: doc.stats || [0, 0, 0],
-                  profile
+                  profile,
+                  thumbnail_url: doc.thumbnail_url
                 };
               })
             );
 
-            set({ 
-              allVibePosts: vibes.slice(0, 10), 
-              hasMore: vibes.length > 10,
+            set({
+              allVibePosts: vibes,
+              hasMore: vibes.length === 5,
               page: 2,
-              isLoadingVibes: false 
+              isLoadingVibes: false
             });
           } catch (error) {
             console.error('Error fetching vibes:', error);
-            set({ 
-              error: 'Failed to load vibes', 
-              isLoadingVibes: false 
+            set({
+              error: 'Failed to load vibes',
+              isLoadingVibes: false
             });
           }
         },
 
         loadMoreVibes: async () => {
+          const { page, allVibePosts, selectedVibeType, isLoadingVibes, hasMore } = get();
+          if (isLoadingVibes || !hasMore) return;
+
           try {
-            const { page, allVibePosts, selectedVibeType } = get();
             set({ isLoadingVibes: true });
 
             // Build query based on selected type
             const queries = [
               Query.orderDesc('created_at'),
-              Query.limit(10),
-              Query.offset((page - 1) * 10)
+              Query.limit(5),
+              Query.offset((page - 1) * 5)
             ];
             
             if (selectedVibeType !== 'all') {
@@ -278,22 +299,23 @@ export const useVibeStore = create<VibeStore>()(
                   location: doc.location,
                   tags: doc.tags,
                   stats: doc.stats || [0, 0, 0],
-                  profile
+                  profile,
+                  thumbnail_url: doc.thumbnail_url
                 };
               })
             );
 
-            set({ 
+            set({
               allVibePosts: [...allVibePosts, ...newVibes],
               page: page + 1,
-              hasMore: newVibes.length === 10,
+              hasMore: newVibes.length === 5,
               isLoadingVibes: false
             });
           } catch (error) {
             console.error('Error loading more vibes:', error);
-            set({ 
-              error: 'Failed to load more vibes', 
-              isLoadingVibes: false 
+            set({
+              error: 'Failed to load more vibes',
+              isLoadingVibes: false
             });
           }
         },
@@ -482,6 +504,7 @@ export const useVibeStore = create<VibeStore>()(
             });
             
             let fileId = '';
+            let thumbnailUrl = '';
             
             // Загрузка файла медиа, если он существует
             if (vibeData.media) {
@@ -611,6 +634,31 @@ export const useVibeStore = create<VibeStore>()(
               console.log('Creating vibe without media file (text only)');
             }
             
+            // Загрузка превью для видео
+            if (vibeData.type === 'video' && vibeData.thumbnail) {
+              try {
+                const bucketId = process.env.NEXT_PUBLIC_BUCKET_ID;
+                if (!bucketId) throw new Error('Storage bucket ID is not defined in environment variables');
+                const thumbFile = dataURLtoFile(vibeData.thumbnail, `thumb_${Date.now()}.jpg`);
+                const thumbFileId = ID.unique();
+                const thumbUpload = await storage.createFile(
+                  bucketId,
+                  thumbFileId,
+                  thumbFile,
+                  [
+                    Permission.read(Role.any()),
+                    Permission.update(Role.user(vibeData.user_id)),
+                    Permission.delete(Role.user(vibeData.user_id))
+                  ]
+                );
+                // Получаем публичный URL превью
+                thumbnailUrl = storage.getFileView(bucketId, thumbUpload.$id).href;
+              } catch (thumbErr) {
+                console.error('Error uploading video thumbnail:', thumbErr);
+                thumbnailUrl = '';
+              }
+            }
+            
             console.log('Creating record in vibes collection, collection ID:', process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS);
             
             // Используем ID.unique() из Appwrite
@@ -625,7 +673,9 @@ export const useVibeStore = create<VibeStore>()(
               mood: vibeData.mood || '',
               location: vibeData.location || '',
               tags: vibeData.tags ? JSON.stringify(vibeData.tags) : '',
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
+              // Добавляем thumbnail_url если есть
+              ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {})
             };
             
             // Добавляем поля для статистики

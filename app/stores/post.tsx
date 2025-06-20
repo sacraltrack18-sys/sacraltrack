@@ -118,16 +118,21 @@ export const usePostStore = create<PostStore>()(
             console.log("[DEBUG] Posts after genre filtering:", filteredPosts?.length || 0);
             
             // For first load, show only first 5 posts
-              const postsToShow = filteredPosts.slice(0, 5);
-              console.log("[DEBUG] Loading first posts. Displaying:", postsToShow?.length || 0);
-              
-              set({ 
+            const postsToShow = filteredPosts.slice(0, 5);
+            console.log("[DEBUG] Loading first posts. Displaying:", postsToShow?.length || 0);
+            
+            set({ 
               allPosts: filteredPosts, // Store all filtered posts
               displayedPosts: postsToShow, // Show only first 5
-                hasMore: filteredPosts.length > 5,
+              hasMore: filteredPosts.length > 5,
               page: 2, // Start with page 2 for next load
-                isLoading: false
-              });
+              isLoading: false
+            });
+            console.log("[DEBUG] setAllPosts state after set:", {
+              allPosts: filteredPosts.length,
+              displayedPosts: postsToShow.length,
+              hasMore: filteredPosts.length > 5
+            });
           } catch (error) {
             console.error('[DEBUG] Error loading posts:', error);
             set({ 
@@ -214,18 +219,19 @@ export const usePostStore = create<PostStore>()(
         setPage: (page: number) => set({ page }),
 
         loadMorePosts: async () => {
-          console.log("[DEBUG] Loading more posts...");
-          const { page, allPosts, displayedPosts, isLoading } = get();
+          const { page, allPosts, displayedPosts, isLoading, hasMore } = get();
           
-          // Prevent multiple simultaneous loading requests
-          if (isLoading) {
-            console.log("[DEBUG] Already loading posts, skipping...");
+          // Prevent multiple simultaneous loading requests or loading when there are no more posts
+          if (isLoading || !hasMore) {
+            if (isLoading) console.log("[DEBUG] Already loading posts, skipping...");
+            if (!hasMore) console.log("[DEBUG] No more posts to load, skipping...");
             return;
           }
           
+          console.log("[DEBUG] Loading more posts...");
+          set({ isLoading: true });
+
           try {
-            set({ isLoading: true });
-            
             // We already have all posts in memory, just need to display more
             const postsPerPage = 5;
             const startIndex = displayedPosts.length;
@@ -243,17 +249,25 @@ export const usePostStore = create<PostStore>()(
             
             // Only update if we have new posts to add
             if (nextPosts.length > 0) {
-              set((state) => ({
-                displayedPosts: [...state.displayedPosts, ...nextPosts],
-                page: state.page + 1,
-                hasMore: hasMorePosts,
-                isLoading: false
-              }));
+              set((state) => {
+                const updated = {
+                  displayedPosts: [...state.displayedPosts, ...nextPosts],
+                  page: state.page + 1,
+                  hasMore: hasMorePosts,
+                  isLoading: false
+                };
+                console.log("[DEBUG] loadMorePosts state after set:", {
+                  displayedPosts: updated.displayedPosts.length,
+                  hasMore: updated.hasMore
+                });
+                return updated;
+              });
             } else {
               set({ 
                 hasMore: false,
                 isLoading: false
               });
+              console.log("[DEBUG] No more posts to add. hasMore set to false.");
             }
           } catch (error) {
             console.error('[DEBUG] Error loading more posts:', error);

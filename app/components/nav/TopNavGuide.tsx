@@ -61,6 +61,9 @@ const TopNavGuide: React.FC = () => {
   const [positions, setPositions] = useState<any>({});
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isLocalhost, setIsLocalhost] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1200
+  );
 
   // Detect if running on localhost
   useEffect(() => {
@@ -139,96 +142,67 @@ const TopNavGuide: React.FC = () => {
     }
   }, [show, step]);
 
-  // --- TEST GUIDE BUTTON (only on localhost) ---
-  const handleTestGuide = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(NAV_GUIDE_KEY);
-    }
-    setStep(0);
-    setShow(true);
-  };
-
-  // Render the test button if on localhost (always overlays, does not block guide logic)
-  const testButton = isLocalhost ? (
-    <button
-      onClick={handleTestGuide}
-      style={{
-        position: 'fixed',
-        top: 16,
-        right: 16,
-        zIndex: 100002,
-        background: '#20DDBB',
-        color: '#181028',
-        fontWeight: 'bold',
-        borderRadius: 12,
-        padding: '10px 18px',
-        boxShadow: '0 2px 12px rgba(32,221,187,0.15)',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: 16,
-        letterSpacing: 1,
-      }}
-    >
-      Test Guide
-    </button>
-  ) : null;
+  // Listen for window resize to update tooltip position
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // --- MOBILE: Single modal with stepper ---
   if (isMobile && show) {
     return (
-      <>
-        {testButton}
-        <AnimatePresence>
+      <AnimatePresence>
+        <motion.div
+          key="mobile-guide"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-lg"
+        >
           <motion.div
-            key="mobile-guide"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-lg"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className={`w-[90vw] max-w-[380px] p-6 rounded-2xl ${glassClass} relative`}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className={`w-[90vw] max-w-[380px] p-6 rounded-2xl ${glassClass} relative`}
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-3">{steps[step].icon}</div>
-                <div className="text-lg font-bold text-white mb-1">{steps[step].label}</div>
-                <div className="text-white/80 text-sm mb-4 min-h-[48px]">{steps[step].description}</div>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  {steps.map((_, i) => (
-                    <span
-                      key={i}
-                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                        i === step ? 'bg-[#20DDBB] scale-125' : 'bg-white/20'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <div className="flex w-full gap-2">
-                  <button
-                    className="flex-1 py-2 rounded-xl bg-white/10 text-white/80 font-semibold hover:bg-white/20 transition"
-                    onClick={() => setShow(false)}
-                  >
-                    Skip
-                  </button>
-                  <button
-                    className="flex-1 py-2 rounded-xl bg-[#20DDBB] text-black font-bold hover:bg-[#18bfa0] transition"
-                    onClick={() =>
-                      step < steps.length - 1 ? setStep(step + 1) : null
-                    }
-                    disabled={step === steps.length - 1}
-                  >
-                    {step < steps.length - 1 ? 'Next' : 'Done'}
-                  </button>
-                </div>
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-3">{steps[step].icon}</div>
+              <div className="text-lg font-bold text-white mb-1">{steps[step].label}</div>
+              <div className="text-white/80 text-sm mb-4 min-h-[48px]">{steps[step].description}</div>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {steps.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                      i === step ? 'bg-[#20DDBB] scale-125' : 'bg-white/20'
+                    }`}
+                  />
+                ))}
               </div>
-            </motion.div>
+              <div className="flex w-full gap-2">
+                <button
+                  className="flex-1 py-2 rounded-xl bg-white/10 text-white/80 font-semibold hover:bg-white/20 transition"
+                  onClick={() => setShow(false)}
+                >
+                  Skip
+                </button>
+                <button
+                  className="flex-1 py-2 rounded-xl bg-[#20DDBB] text-black font-bold hover:bg-[#18bfa0] transition"
+                  onClick={() =>
+                    step < steps.length - 1 ? setStep(step + 1) : null
+                  }
+                  disabled={step === steps.length - 1}
+                >
+                  {step < steps.length - 1 ? 'Next' : 'Done'}
+                </button>
+              </div>
+            </div>
           </motion.div>
-        </AnimatePresence>
-      </>
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
@@ -245,9 +219,14 @@ const TopNavGuide: React.FC = () => {
       top = pos.top + pos.height + 12;
       left = pos.left + pos.width / 2 - tooltipWidth / 2;
     }
+    // Special positioning for 3rd and 4th steps (vibe and notification)
+    if ((s.id === 'vibe' || s.id === 'notification')) {
+      left = windowWidth - tooltipWidth - 30;
+      if (!pos) top = 100; // fallback if pos is missing
+    }
     // Clamp to viewport
     if (typeof window !== 'undefined') {
-      const maxLeft = window.innerWidth - tooltipWidth - 16;
+      const maxLeft = windowWidth - tooltipWidth - 16;
       const minLeft = 16;
       left = Math.max(minLeft, Math.min(left, maxLeft));
       const maxTop = window.innerHeight - tooltipHeight - 16;
@@ -255,7 +234,6 @@ const TopNavGuide: React.FC = () => {
     }
     return (
       <>
-        {testButton}
         <AnimatePresence>
           <>
             {/* Overlay */}
@@ -268,7 +246,7 @@ const TopNavGuide: React.FC = () => {
               onClick={() => setShow(false)}
             />
             {/* Tooltip for current step ONLY */}
-            {pos && (
+            {((s.id === 'vibe' || s.id === 'notification') || pos) && (
               <motion.div
                 key={s.id}
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -325,7 +303,7 @@ const TopNavGuide: React.FC = () => {
   }
 
   // If nothing to show, just render the test button if on localhost
-  return testButton;
+  return null;
 };
 
 export default TopNavGuide; 

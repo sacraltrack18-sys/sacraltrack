@@ -890,6 +890,17 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     } as any); // Use type assertion to bypass type checking
   };
 
+  const [showVideo, setShowVideo] = useState(false);
+
+  // Новая функция для получения превью видео
+  function getVideoThumbnailUrl(vibe: VibePostWithProfile): string {
+    if (vibe.thumbnail_url && vibe.thumbnail_url.trim() !== '') {
+      return vibe.thumbnail_url;
+    }
+    // fallback на дефолтную картинку
+    return '/images/placeholders/video-placeholder.png';
+  }
+
   const renderVibeContent = () => {
     switch(vibe.type) {
       case 'photo':
@@ -938,7 +949,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
         );
       case 'video':
         return (
-          <div className="relative rounded-xl overflow-hidden group">
+          <div className="relative rounded-xl overflow-hidden group" style={{ minHeight: 300 }}>
             {/* Скелетон до загрузки видео */}
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -960,23 +971,48 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
               whileHover={{ opacity: 1 }}
             />
             <div className="w-full flex items-center justify-center">
-              <video
-                src={getVibeImageUrl(vibe.media_url)}
-                controls
-                autoPlay
-                muted
-                playsInline
-                className={`w-full object-contain rounded-xl transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                style={{ maxHeight: 650 }}
-                onLoadedData={e => {
-                  setIsLoading(false);
-                  // Автоматически запускать видео после загрузки
-                  try { e.currentTarget.play(); } catch (err) {}
-                }}
-                onPlay={() => setIsLoading(false)}
-                onError={() => setIsLoading(false)}
-                poster="/images/placeholders/video-placeholder.png"
-              />
+              {!showVideo ? (
+                <div className="relative w-full h-full cursor-pointer" onClick={() => setShowVideo(true)}>
+                  <img
+                    src={getVideoThumbnailUrl(vibe)}
+                    alt={vibe.caption ? `Preview for video vibe: ${vibe.caption}` : 'Video preview'}
+                    className={`w-full object-cover rounded-xl transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                    style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
+                    onError={e => {
+                      const img = e.target as HTMLImageElement;
+                      if (!img.dataset.fallback) {
+                        img.src = '/images/placeholders/default-placeholder.svg';
+                        img.dataset.fallback = 'true';
+                      }
+                    }}
+                  />
+                  {/* Play icon overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-black/40 rounded-full p-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-white/90 drop-shadow-xl" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <polygon points="8,5 19,12 8,19" fill="#20DDBB" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <video
+                  src={getVibeImageUrl(vibe.media_url)}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  className={`w-full object-contain rounded-xl transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                  style={{ maxHeight: 650, minHeight: 300, background: '#181828' }}
+                  onLoadedData={e => {
+                    setIsLoading(false);
+                    try { e.currentTarget.play(); } catch (err) {}
+                  }}
+                  onPlay={() => setIsLoading(false)}
+                  onError={() => setIsLoading(false)}
+                  poster={getVideoThumbnailUrl(vibe)}
+                />
+              )}
             </div>
           </div>
         );

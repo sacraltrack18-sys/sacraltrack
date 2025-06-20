@@ -155,6 +155,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [commentsLoadTimeout, setCommentsLoadTimeout] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   
   // For storing like state locally
   const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
@@ -735,6 +736,22 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
+  // Новая функция для получения превью видео
+  function getVideoThumbnailUrl(vibe: VibePostWithProfile): string {
+    if (vibe.thumbnail_url && vibe.thumbnail_url.trim() !== '' && vibe.thumbnail_url !== 'null') {
+      // If thumbnail_url is a full URL, return it directly
+      if (vibe.thumbnail_url.startsWith('http')) {
+        return vibe.thumbnail_url;
+      }
+      // Otherwise, assume it's a file ID and construct the URL
+      return createBucketUrl(vibe.thumbnail_url, 'track');
+    }
+
+    // Fallback to a generic placeholder if no other option is available
+    console.warn(`[VIBE-CARD] No valid thumbnail for vibe ${vibe.id}, using placeholder.`);
+    return '/images/placeholders/default-placeholder.svg';
+  }
+  
   // Render vibe content based on type
   const renderVibeContent = () => {
     // Default type is 'photo' if not specified
@@ -743,27 +760,46 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       case 'video':
         if (!vibe.media_url) return null;
         return (
-          <div className="relative w-full group">
-            {isLoading && (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#2A2151]/50 to-[#1E1A36]/50 flex items-center justify-center">
-                <div className="animate-pulse">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
+          <div className="relative w-full group" style={{ minHeight: 300 }}>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            {!showVideo ? (
+              <div className="relative w-full h-full cursor-pointer" onClick={e => { e.stopPropagation(); setShowVideo(true); }}>
+                <img
+                  src={getVideoThumbnailUrl(vibe)}
+                  alt={vibe.caption ? `Preview for video vibe: ${vibe.caption}` : 'Video preview'}
+                  className={`w-full object-cover rounded-2xl transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                  style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
+                  onError={e => {
+                    const img = e.target as HTMLImageElement;
+                    if (!img.dataset.fallback) {
+                      img.src = '/images/placeholders/default-placeholder.svg';
+                      img.dataset.fallback = 'true';
+                    }
+                  }}
+                />
+                {/* Play icon overlay */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/40 rounded-full p-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-white/90 drop-shadow-xl" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <polygon points="8,5 19,12 8,19" fill="#20DDBB" />
+                    </svg>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <video
+                src={vibe.media_url}
+                controls
+                autoPlay
+                className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                width={500}
+                height={650}
+                onLoadedData={() => setIsLoading(false)}
+                onError={() => setIsLoading(false)}
+                style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
+                poster={getVideoThumbnailUrl(vibe)}
+              />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <video
-              src={vibe.media_url}
-              controls
-              className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-              width={500}
-              height={650}
-              onLoadedData={() => setIsLoading(false)}
-              onError={() => setIsLoading(false)}
-              style={{ width: '100%', height: 'auto', maxHeight: 650 }}
-            />
           </div>
         );
       case 'photo':
@@ -1317,4 +1353,4 @@ const EmojiButton: React.FC<EmojiButtonProps> = ({ emoji, idx, color, setPreview
   );
 };
 
-export default VibeCard; 
+export default VibeCard;

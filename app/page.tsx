@@ -72,7 +72,8 @@ function HomePageContent() {
     setAllPosts, 
     isLoading: isLoadingPosts = false, 
     hasMore: hasMorePosts = false,
-    selectedGenre = 'all' 
+    selectedGenre = 'all',
+    setGenre
   } = postStore || {};
 
   const {
@@ -90,6 +91,7 @@ function HomePageContent() {
   const [apiTracks, setApiTracks] = useState<ApiTrack[]>([]);
   const [isLoadingApiTracks, setIsLoadingApiTracks] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<{ id: string | null; type: 'post' | 'vibe' | 'api_track' | null }>({ id: null, type: null });
+  const prevActiveFilterRef = useRef(activeFilter);
   
   // Track if initial content has been loaded
   const [initialContentLoaded, setInitialContentLoaded] = useState(false);
@@ -144,13 +146,13 @@ function HomePageContent() {
         }
 
         // Include API tracks if filter allows
-        const shouldIncludeApiTracks = ['all', 'world'].includes(activeFilter);
-        console.log('[DEBUG PAGE] apiTracks before combine:', apiTracks); // DEBUG
-        if (shouldIncludeApiTracks && apiTracks.length > 0) {
-            combined.push(...apiTracks.map(track =>
-                createFeedItem('api_track', track, new Date().toISOString())
-            ));
-        }
+        // const shouldIncludeApiTracks = ['all', 'world'].includes(activeFilter);
+        // console.log('[DEBUG PAGE] apiTracks before combine:', apiTracks); // DEBUG
+        // if (shouldIncludeApiTracks && apiTracks.length > 0) {
+        //     combined.push(...apiTracks.map(track =>
+        //         createFeedItem('api_track', track, new Date().toISOString())
+        //     ));
+        // }
         
         combined.sort(sortByDate);
         console.log('[DEBUG PAGE] combinedFeed after combine:', combined); // DEBUG
@@ -216,8 +218,8 @@ function HomePageContent() {
        } else {
          console.error('fetchAllVibes is not a function');
        }
-       // Load API tracks
-       await loadApiTracks();
+       // Load API tracks (disabled)
+       // await loadApiTracks();
 
      } catch (error) {
        console.error("Error loading initial content:", error);
@@ -349,6 +351,23 @@ function HomePageContent() {
     });
   }, [postStore]);
 
+  // Добавляем useEffect для реакции на смену фильтра
+  useEffect(() => {
+    if (prevActiveFilterRef.current !== activeFilter) {
+      // Для фильтров, которые требуют загрузки всех постов
+      if (activeFilter === 'all' || activeFilter === 'tracks') {
+        if (typeof setAllPosts === 'function') {
+          setAllPosts();
+        }
+      } else if (activeFilter === 'stracks' || activeFilter === 'sacral') {
+        if (typeof setGenre === 'function') {
+          setGenre(activeFilter);
+        }
+      }
+      // Для других фильтров (например, 'vibe') не трогаем посты
+      prevActiveFilterRef.current = activeFilter;
+    }
+  }, [activeFilter, setAllPosts, setGenre]);
 
   return (
     <MainLayout>
