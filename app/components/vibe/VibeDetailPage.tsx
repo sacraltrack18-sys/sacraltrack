@@ -281,7 +281,7 @@ type ShareOptions = {
 // Add a function to handle vibe media URL properly
 function getVibeImageUrl(mediaUrl: string | undefined): string {
   if (!mediaUrl || mediaUrl.trim() === '') {
-    return '/images/placeholders/default-placeholder.svg';
+    return '';
   }
   // Если уже полный URL
     if (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) {
@@ -291,7 +291,7 @@ function getVibeImageUrl(mediaUrl: string | undefined): string {
   try {
     return createBucketUrl(mediaUrl, 'track');
   } catch (error) {
-    return '/images/placeholders/default-placeholder.svg';
+    return '';
   }
 }
 
@@ -890,15 +890,40 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
     } as any); // Use type assertion to bypass type checking
   };
 
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
 
   // Новая функция для получения превью видео
   function getVideoThumbnailUrl(vibe: VibePostWithProfile): string {
     if (vibe.thumbnail_url && vibe.thumbnail_url.trim() !== '') {
-      return vibe.thumbnail_url;
+      // Если thumbnail_url уже полный URL
+      if (vibe.thumbnail_url.startsWith('http')) {
+        return vibe.thumbnail_url;
+      }
+      
+      // Иначе предполагаем, что это ID файла и конструируем URL
+      try {
+        return createBucketUrl(vibe.thumbnail_url, 'track');
+      } catch (error) {
+        console.error(`Error creating bucket URL for thumbnail ${vibe.thumbnail_url}:`, error);
+      }
     }
-    // fallback на дефолтную картинку
-    return '/images/placeholders/video-placeholder.png';
+
+    // Если у нас есть media_url и это видео, попробуем использовать его
+    if (vibe.media_url && vibe.type === 'video') {
+      try {
+        // Для видео можно использовать тот же URL, что и для медиа
+        if (vibe.media_url.startsWith('http')) {
+          return vibe.media_url;
+        } else {
+          return createBucketUrl(vibe.media_url, 'track');
+        }
+      } catch (error) {
+        console.error(`Error creating bucket URL for media ${vibe.media_url}:`, error);
+      }
+    }
+    
+    // Возвращаем пустую строку вместо плейсхолдера
+    return '';
   }
 
   const renderVibeContent = () => {
@@ -979,11 +1004,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                     className={`w-full object-cover rounded-xl transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                     style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
                     onError={e => {
-                      const img = e.target as HTMLImageElement;
-                      if (!img.dataset.fallback) {
-                        img.src = '/images/placeholders/default-placeholder.svg';
-                        img.dataset.fallback = 'true';
-                      }
+                      console.error('Error loading thumbnail image');
+                      setIsLoading(false);
                     }}
                   />
                   {/* Play icon overlay */}
@@ -1000,13 +1022,16 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                   src={getVibeImageUrl(vibe.media_url)}
                   controls
                   autoPlay
-                  muted
+                  muted={false}
                   playsInline
                   className={`w-full object-contain rounded-xl transition-all duration-500 group-hover:scale-105 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                   style={{ maxHeight: 650, minHeight: 300, background: '#181828' }}
                   onLoadedData={e => {
                     setIsLoading(false);
-                    try { e.currentTarget.play(); } catch (err) {}
+                    try { 
+                      e.currentTarget.play(); 
+                      e.currentTarget.muted = false;
+                    } catch (err) {}
                   }}
                   onPlay={() => setIsLoading(false)}
                   onError={() => setIsLoading(false)}
@@ -1657,4 +1682,4 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
   );
 };
 
-export default VibeDetailPage; 
+export default VibeDetailPage;

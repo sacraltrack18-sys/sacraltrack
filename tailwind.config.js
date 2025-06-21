@@ -16,11 +16,19 @@ module.exports = {
         floatY: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-5px)' },
+        },
+        heartbeat: {
+          '0%': { transform: 'scale(1)' },
+          '25%': { transform: 'scale(1.2)' },
+          '50%': { transform: 'scale(1)' },
+          '75%': { transform: 'scale(1.1)' },
+          '100%': { transform: 'scale(1)' },
         }
       },
       animation: {
         shimmer: 'shimmer 2.5s infinite linear',
         floatY: 'floatY 3s ease-in-out infinite',
+        heartbeat: 'heartbeat 0.8s ease-in-out',
       },
       backgroundSize: {
         'size-200': '200% 100%',
@@ -32,4 +40,4 @@ module.exports = {
     },
   },
   plugins: [],
-} 
+}

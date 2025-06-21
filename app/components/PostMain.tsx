@@ -13,8 +13,6 @@ import { AudioPlayer } from '@/app/components/AudioPlayer';
 import Image from 'next/image';
 import { HiMusicNote } from 'react-icons/hi';
 import { FaPlay, FaPause, FaFire, FaStar, FaTrophy, FaHeadphones, FaHeart } from 'react-icons/fa';
-import { AiFillFire, AiFillStar } from 'react-icons/ai';
-import { BsStars } from 'react-icons/bs';
 import ShareModal from './ShareModal';
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";

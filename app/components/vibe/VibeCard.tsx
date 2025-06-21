@@ -155,7 +155,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [commentsLoadTimeout, setCommentsLoadTimeout] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
   
   // For storing like state locally
   const getVibeLocalStorageKey = (id: string) => `vibe_like_count_${id}`;
@@ -294,8 +294,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   // Новая функция для получения URL изображения vibe с обработкой ошибок
   function getVibeImageUrl(mediaUrl: string | undefined): string {
     if (!mediaUrl || mediaUrl.trim() === '') {
-      console.log('Empty media URL, using placeholder');
-      return '/images/placeholders/default-placeholder.svg';
+      console.log('Empty media URL, returning empty string');
+      return '';
     }
     
     // Если это уже полный URL, проверяем нужно ли добавить параметры
@@ -303,8 +303,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       try {
         // Проверяем на наличие двойного слеша в URL, что может вызвать ошибку
         if (mediaUrl.includes('/files//view')) {
-          console.warn('Invalid URL format detected (double slash), using placeholder');
-          return '/images/placeholders/default-placeholder.svg';
+          console.warn('Invalid URL format detected (double slash), returning empty string');
+          return '';
         }
         
         // Проверяем, есть ли уже параметр output в URL
@@ -315,7 +315,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         return mediaUrl;
       } catch (error) {
         console.error('Error processing URL:', error);
-        return '/images/placeholders/default-placeholder.svg';
+        return '';
       }
     }
     
@@ -335,8 +335,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       
       // Проверяем, что URL корректный
       if (imageUrl.includes('/files//view')) {
-        console.warn('Invalid URL generated with double slash, using placeholder');
-        return '/images/placeholders/default-placeholder.svg';
+        console.warn('Invalid URL generated with double slash, returning empty string');
+        return '';
       }
       
       // Добавляем параметр webp, если его еще нет
@@ -346,7 +346,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       return imageUrl;
     } catch (error) {
       console.error('Error in getVibeImageUrl:', error);
-      return '/images/placeholders/default-placeholder.svg';
+      return '';
     }
   }
   
@@ -736,20 +736,49 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
     }
   };
   
-  // Новая функция для получения превью видео
+  // Функция для получения превью видео
   function getVideoThumbnailUrl(vibe: VibePostWithProfile): string {
+    // Проверяем наличие thumbnail_url
     if (vibe.thumbnail_url && vibe.thumbnail_url.trim() !== '' && vibe.thumbnail_url !== 'null') {
-      // If thumbnail_url is a full URL, return it directly
+      // Если thumbnail_url уже полный URL (включая формат из примера пользователя)
       if (vibe.thumbnail_url.startsWith('http')) {
+        console.log(`[VIBE-CARD] Using existing thumbnail URL for vibe ${vibe.id}:`, vibe.thumbnail_url);
         return vibe.thumbnail_url;
       }
-      // Otherwise, assume it's a file ID and construct the URL
-      return createBucketUrl(vibe.thumbnail_url, 'track');
+      
+      // Иначе предполагаем, что это ID файла и конструируем URL
+      try {
+        // Используем createBucketUrl для создания правильного URL
+        const thumbnailUrl = createBucketUrl(vibe.thumbnail_url, 'track');
+        console.log(`[VIBE-CARD] Generated thumbnail URL for vibe ${vibe.id}:`, thumbnailUrl);
+        return thumbnailUrl;
+      } catch (error) {
+        console.error(`[VIBE-CARD] Error creating bucket URL for thumbnail ${vibe.thumbnail_url}:`, error);
+      }
     }
 
-    // Fallback to a generic placeholder if no other option is available
-    console.warn(`[VIBE-CARD] No valid thumbnail for vibe ${vibe.id}, using placeholder.`);
-    return '/images/placeholders/default-placeholder.svg';
+    // Если у нас есть media_url и это видео, попробуем использовать его
+    if (vibe.media_url && vibe.type === 'video') {
+      try {
+        // Для видео можно использовать тот же URL, что и для медиа
+        if (vibe.media_url.startsWith('http')) {
+          // Если это уже полный URL, используем его напрямую
+          console.log(`[VIBE-CARD] Using media URL as thumbnail for vibe ${vibe.id}:`, vibe.media_url);
+          return vibe.media_url;
+        } else {
+          // Иначе создаем URL через createBucketUrl
+          const mediaUrl = createBucketUrl(vibe.media_url, 'track');
+          console.log(`[VIBE-CARD] Generated media URL as thumbnail for vibe ${vibe.id}:`, mediaUrl);
+          return mediaUrl;
+        }
+      } catch (error) {
+        console.error(`[VIBE-CARD] Error creating bucket URL for media ${vibe.media_url}:`, error);
+      }
+    }
+
+    // Возвращаем пустую строку вместо плейсхолдера
+    console.warn(`[VIBE-CARD] No valid thumbnail for vibe ${vibe.id}`);
+    return '';
   }
   
   // Render vibe content based on type
@@ -770,11 +799,8 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                   className={`w-full object-cover rounded-2xl transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                   style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
                   onError={e => {
-                    const img = e.target as HTMLImageElement;
-                    if (!img.dataset.fallback) {
-                      img.src = '/images/placeholders/default-placeholder.svg';
-                      img.dataset.fallback = 'true';
-                    }
+                    console.error('Error loading thumbnail image');
+                    setIsLoading(false);
                   }}
                 />
                 {/* Play icon overlay */}
@@ -791,10 +817,18 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 src={vibe.media_url}
                 controls
                 autoPlay
+                muted={false}
+                playsInline
                 className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                 width={500}
                 height={650}
-                onLoadedData={() => setIsLoading(false)}
+                onLoadedData={(e) => {
+                  setIsLoading(false);
+                  try { 
+                    e.currentTarget.play();
+                    e.currentTarget.muted = false;
+                  } catch (err) {}
+                }}
                 onError={() => setIsLoading(false)}
                 style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
                 poster={getVideoThumbnailUrl(vibe)}

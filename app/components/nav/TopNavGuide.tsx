@@ -11,7 +11,7 @@ const steps = [
     id: 'intro',
     icon: <img src="/images/T-logo.svg" alt="Sacral Track Logo" className="w-8 h-8" />,
     label: 'Sacral Track',
-    description: 'Music social network with marketplace for artists and music listeners. *beta mode.. we are fixing bugs. If something does not work, write to support, thank you for your participation in the Sacral Track  evolution.',
+    description: 'Music social network with marketplace for artists and music listeners. *beta mode.. we are fixing bugs. If something does not work, write to support, thank you for your participation in the Sacral Track evolution.',
     selector: '#TopNav',
     customPosition: (logoRect) => {
       if (!logoRect) return { top: 70, left: 24 };
