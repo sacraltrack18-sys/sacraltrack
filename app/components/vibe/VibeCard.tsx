@@ -792,43 +792,117 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           <div className="relative w-full group" style={{ minHeight: 300 }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             {!showVideo ? (
-              <div className="relative w-full h-full cursor-pointer" onClick={e => { e.stopPropagation(); setShowVideo(true); }}>
-                <img
-                  src={getVideoThumbnailUrl(vibe)}
-                  alt={vibe.caption ? `Preview for video vibe: ${vibe.caption}` : 'Video preview'}
-                  className={`w-full object-cover rounded-2xl transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                  style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
-                  onError={e => {
-                    console.error('Error loading thumbnail image');
-                    setIsLoading(false);
+              <div className="relative w-full h-full cursor-pointer" onClick={handleThumbnailClick}>
+                {/* Стильная музыкальная заставка для видео */}
+                <div 
+                  className="w-full rounded-2xl overflow-hidden relative flex items-center justify-center"
+                  style={{ 
+                    minHeight: 300, 
+                    maxHeight: 650, 
+                    background: 'linear-gradient(135deg, #1A1A2E 0%, #2A2151 100%)',
+                    boxShadow: '0 8px 32px rgba(32, 221, 187, 0.15)'
                   }}
-                />
-                {/* Play icon overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="bg-black/40 rounded-full p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-white/90 drop-shadow-xl" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <polygon points="8,5 19,12 8,19" fill="#20DDBB" />
-                    </svg>
+                >
+                  {/* Фоновые элементы дизайна */}
+                  <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+                    {/* Верхний градиентный круг */}
+                    <div 
+                      className="absolute rounded-full blur-3xl opacity-20" 
+                      style={{
+                        width: '60%',
+                        height: '60%',
+                        top: '-20%',
+                        right: '-20%',
+                        background: 'linear-gradient(135deg, #20DDBB 0%, #3b82f6 100%)',
+                      }}
+                    />
+                    {/* Нижний градиентный круг */}
+                    <div 
+                      className="absolute rounded-full blur-3xl opacity-10" 
+                      style={{
+                        width: '50%',
+                        height: '50%',
+                        bottom: '-10%',
+                        left: '-10%',
+                        background: 'linear-gradient(135deg, #8B5CF6 0%, #20DDBB 100%)',
+                      }}
+                    />
+                    {/* Тонкие линии (имитация звуковых волн) */}
+                    <div className="absolute inset-0 opacity-20">
+                      <div className="absolute top-[20%] left-[10%] w-[80%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                      <div className="absolute top-[30%] left-[5%] w-[90%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                      <div className="absolute top-[40%] left-[15%] w-[70%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                      <div className="absolute top-[50%] left-[8%] w-[84%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                      <div className="absolute top-[60%] left-[12%] w-[76%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                      <div className="absolute top-[70%] left-[7%] w-[86%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Центральный элемент с музыкальной нотой */}
+                  <div className="relative z-10 flex flex-col items-center justify-center p-6 text-center">
+                    {/* Круг с градиентной обводкой */}
+                    <div className="relative w-24 h-24 mb-4 rounded-full flex items-center justify-center"
+                      style={{
+                        background: 'rgba(26, 26, 46, 0.8)',
+                        boxShadow: '0 0 20px rgba(32, 221, 187, 0.3)',
+                        border: '1px solid rgba(32, 221, 187, 0.3)'
+                      }}
+                    >
+                      {/* Музыкальная нота */}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[#20DDBB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                    </div>
+                    
+                    {/* Текст */}
+                    <h3 className="text-[#20DDBB] font-medium text-lg mb-1">Музыкальный вайб</h3>
+                    <p className="text-white/70 text-sm max-w-[80%]">
+                      {vibe.caption ? vibe.caption.substring(0, 60) + (vibe.caption.length > 60 ? '...' : '') : 'Нажмите для воспроизведения'}
+                    </p>
+                    
+                    {/* Кнопка воспроизведения */}
+                    <div className="mt-6 bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/10 hover:from-[#20DDBB]/30 hover:to-[#20DDBB]/20 border border-[#20DDBB]/30 hover:border-[#20DDBB]/50 rounded-xl px-5 py-2.5 flex items-center gap-2 transition-all duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <polygon points="8,5 19,12 8,19" fill="#20DDBB" />
+                      </svg>
+                      <span className="text-white text-sm font-medium">Воспроизвести</span>
+                    </div>
                   </div>
                 </div>
               </div>
             ) : (
               <video
+                ref={videoRef}
                 src={vibe.media_url}
                 controls
-                autoPlay
-                muted={false}
+                // autoPlay удален, теперь воспроизведение управляется через IntersectionObserver
+                muted={true} // Изначально видео будет без звука, звук включится после начала воспроизведения
                 playsInline
                 className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                 width={500}
                 height={650}
                 onLoadedData={(e) => {
                   setIsLoading(false);
-                  try { 
-                    e.currentTarget.play();
-                    e.currentTarget.muted = false;
-                  } catch (err) {}
+                  // Воспроизведение теперь управляется через IntersectionObserver
+                  if (isInViewport && !videoEnded) {
+                    try { 
+                      const playPromise = e.currentTarget.play();
+                      if (playPromise !== undefined) {
+                        playPromise
+                          .then(() => {
+                            console.log(`[VIBE-CARD] Video for vibe ${vibe.id} started playing on load`);
+                            e.currentTarget.muted = false;
+                          })
+                          .catch(error => {
+                            console.error(`[VIBE-CARD] Error playing video for vibe ${vibe.id} on load:`, error);
+                          });
+                      }
+                    } catch (err) {
+                      console.error(`[VIBE-CARD] Error playing video for vibe ${vibe.id} on load:`, err);
+                    }
+                  }
                 }}
+                onEnded={handleVideoEnded}
                 onError={() => setIsLoading(false)}
                 style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
                 poster={getVideoThumbnailUrl(vibe)}
@@ -880,11 +954,84 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
   };
+  
+  // Ref для видео элемента
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // Ref для карточки вайба
+  const vibeCardRef = useRef<HTMLDivElement>(null);
+  // Состояние для отслеживания, находится ли карточка в поле зрения
+  const [isInViewport, setIsInViewport] = useState(false);
+  // Состояние для отслеживания, закончилось ли воспроизведение видео
+  const [videoEnded, setVideoEnded] = useState(false);
+  
+  // Используем IntersectionObserver для определения видимости карточки
+  useEffect(() => {
+    if (!vibeCardRef.current || vibe.type !== 'video') return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        const isVisible = entry.isIntersecting;
+        console.log(`[VIBE-CARD] Vibe ${vibe.id} visibility changed to: ${isVisible}`);
+        setIsInViewport(isVisible);
+        
+        // Если карточка видима и видео загружено, но не воспроизводится
+        if (isVisible && videoRef.current && showVideo && !videoEnded) {
+          try {
+            // Попытка воспроизвести видео
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log(`[VIBE-CARD] Video for vibe ${vibe.id} started playing`);
+                  videoRef.current!.muted = false;
+                })
+                .catch(error => {
+                  console.error(`[VIBE-CARD] Error playing video for vibe ${vibe.id}:`, error);
+                });
+            }
+          } catch (error) {
+            console.error(`[VIBE-CARD] Error playing video for vibe ${vibe.id}:`, error);
+          }
+        } else if (!isVisible && videoRef.current) {
+          // Если карточка не видима, ставим видео на паузу
+          try {
+            videoRef.current.pause();
+            console.log(`[VIBE-CARD] Video for vibe ${vibe.id} paused due to visibility change`);
+          } catch (error) {
+            console.error(`[VIBE-CARD] Error pausing video for vibe ${vibe.id}:`, error);
+          }
+        }
+      },
+      { threshold: 0.5 } // Карточка считается видимой, когда видно не менее 50% её площади
+    );
+    
+    observer.observe(vibeCardRef.current);
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [vibe.id, vibe.type, showVideo, videoEnded]);
+  
+  // Обработчик события окончания воспроизведения видео
+  const handleVideoEnded = () => {
+    console.log(`[VIBE-CARD] Video for vibe ${vibe.id} ended`);
+    setVideoEnded(true);
+    setShowVideo(false); // Показываем миниатюру после окончания видео
+  };
+  
+  // Сбрасываем состояние videoEnded при клике на миниатюру
+  const handleThumbnailClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVideoEnded(false);
+    setShowVideo(true);
+  };
 
   return (
     <div className="mb-8 mx-auto w-full md:w-[450px]">
       <div 
         id={`vibe-card-${vibe.id}`}
+        ref={vibeCardRef}
         className="bg-[#1A1A2E] bg-opacity-50 rounded-xl overflow-hidden border border-white/5 group cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(32,221,187,0.15)] hover:border-[#20DDBB]/20"
         onClick={handleCardClick}
         itemScope

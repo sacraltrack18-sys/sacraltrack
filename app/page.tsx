@@ -160,7 +160,7 @@ function HomePageContent() {
         setCombinedFeed(combined);
         // For now, apiTracks are loaded once, so hasMore depends on posts and vibes
         setHasMore(
-            (activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral') && hasMorePosts ||
+            (activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'tracks') && hasMorePosts ||
             (activeFilter === 'all' || activeFilter === 'vibe') && hasMoreVibes
         );
     };
@@ -282,7 +282,7 @@ function HomePageContent() {
       try {
         // Загружаем следующие элементы в зависимости от фильтра
         // 'world' filter now targets api_tracks, which are not paginated in this example
-        if ((activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral') &&
+        if ((activeFilter === 'all' || activeFilter === 'stracks' || activeFilter === 'sacral' || activeFilter === 'tracks') &&
             hasMorePosts && typeof loadMorePosts === 'function') {
           await loadMorePosts();
         }
