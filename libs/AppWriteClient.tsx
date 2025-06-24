@@ -21,6 +21,10 @@ export const APPWRITE_CONFIG = {
   vibeCommentsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_COMMENTS || '67f2307500286019354c',
   vibeLikesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_LIKES || '67f22ff30010feacfd1b',
   
+  // Добавление коллекций для миксов
+  mixPostsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_MIX_POSTS || '6857da72002661f6e89b',
+  mixLikesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_MIX_LIKES || 'mix_likes',
+  
   // Для обратной совместимости с старыми ключами
   friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || '67f22b92000e12316e52',
 };

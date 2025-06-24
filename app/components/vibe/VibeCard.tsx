@@ -798,14 +798,14 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                   className="w-full rounded-2xl overflow-hidden relative flex items-center justify-center"
                   style={{ 
                     minHeight: 300, 
-                    maxHeight: 650, 
+                    maxHeight: 870, 
                     background: 'linear-gradient(135deg, #1A1A2E 0%, #2A2151 100%)',
                     boxShadow: '0 8px 32px rgba(32, 221, 187, 0.15)'
                   }}
                 >
-                  {/* Фоновые элементы дизайна */}
+                  {/* Background design elements */}
                   <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-                    {/* Верхний градиентный круг */}
+                    {/* Top gradient circle */}
                     <div 
                       className="absolute rounded-full blur-3xl opacity-20" 
                       style={{
@@ -816,7 +816,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         background: 'linear-gradient(135deg, #20DDBB 0%, #3b82f6 100%)',
                       }}
                     />
-                    {/* Нижний градиентный круг */}
+                    {/* Bottom gradient circle */}
                     <div 
                       className="absolute rounded-full blur-3xl opacity-10" 
                       style={{
@@ -827,7 +827,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         background: 'linear-gradient(135deg, #8B5CF6 0%, #20DDBB 100%)',
                       }}
                     />
-                    {/* Тонкие линии (имитация звуковых волн) */}
+                    {/* Sound wave lines */}
                     <div className="absolute inset-0 opacity-20">
                       <div className="absolute top-[20%] left-[10%] w-[80%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
                       <div className="absolute top-[30%] left-[5%] w-[90%] h-[1px] bg-gradient-to-r from-transparent via-[#20DDBB] to-transparent"></div>
@@ -838,7 +838,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     </div>
                   </div>
                   
-                  {/* Центральный элемент с музыкальной нотой */}
+                  {/* Central element with music note */}
                   <div className="relative z-10 flex flex-col items-center justify-center p-6 text-center">
                     {/* Круг с градиентной обводкой */}
                     <div className="relative w-24 h-24 mb-4 rounded-full flex items-center justify-center"
@@ -855,17 +855,17 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     </div>
                     
                     {/* Текст */}
-                    <h3 className="text-[#20DDBB] font-medium text-lg mb-1">Музыкальный вайб</h3>
+                    <h3 className="text-[#20DDBB] font-medium text-lg mb-1">Musical Vibe</h3>
                     <p className="text-white/70 text-sm max-w-[80%]">
-                      {vibe.caption ? vibe.caption.substring(0, 60) + (vibe.caption.length > 60 ? '...' : '') : 'Нажмите для воспроизведения'}
+                      {vibe.caption ? vibe.caption.substring(0, 60) + (vibe.caption.length > 60 ? '...' : '') : 'Click to play'}
                     </p>
                     
-                    {/* Кнопка воспроизведения */}
+                    {/* Play button */}
                     <div className="mt-6 bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/10 hover:from-[#20DDBB]/30 hover:to-[#20DDBB]/20 border border-[#20DDBB]/30 hover:border-[#20DDBB]/50 rounded-xl px-5 py-2.5 flex items-center gap-2 transition-all duration-300">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <polygon points="8,5 19,12 8,19" fill="#20DDBB" />
                       </svg>
-                      <span className="text-white text-sm font-medium">Воспроизвести</span>
+                      <span className="text-white text-sm font-medium">Play</span>
                     </div>
                   </div>
                 </div>
@@ -878,7 +878,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 // autoPlay удален, теперь воспроизведение управляется через IntersectionObserver
                 muted={true} // Изначально видео будет без звука, звук включится после начала воспроизведения
                 playsInline
-                className={`w-full transition-all duration-500 rounded-2xl ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full transition-all duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
                 width={500}
                 height={650}
                 onLoadedData={(e) => {
@@ -904,7 +904,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 }}
                 onEnded={handleVideoEnded}
                 onError={() => setIsLoading(false)}
-                style={{ width: '100%', height: 'auto', maxHeight: 650, minHeight: 300, background: '#181828' }}
+                style={{ width: '100%', height: '100%', maxHeight: 870, minHeight: 300, background: '#181828', objectFit: 'cover' }}
                 poster={getVideoThumbnailUrl(vibe)}
               />
             )}
@@ -937,7 +937,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                 setImageError(true);
               }}
               onLoad={() => setIsLoading(false)}
-              style={{ width: '100%', height: 'auto' }}
+              style={{ width: '100%', height: '100%', maxHeight: 870, objectFit: 'cover' }}
             />
           </div>
         );
@@ -1095,7 +1095,23 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
             </Link>
             
             {/* Options menu */}
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <motion.button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  router.push(`/vibe/${vibe.id}`);
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/10 hover:from-[#20DDBB]/30 hover:to-[#20DDBB]/20 border border-[#20DDBB]/30 hover:border-[#20DDBB]/50 transition-all duration-300 text-sm text-white/90 hover:text-white flex items-center gap-1.5 backdrop-blur-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                  <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+                Details
+              </motion.button>
+              
               <button 
                 onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }} 
                 className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
@@ -1378,7 +1394,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                         </motion.button>
                       </div>
                       
-                      {/* Всплывающая панель быстрых эмодзи */}
+                      {/* Quick emoji panel */}
                       <AnimatePresence>
                         {showQuickEmojis && (
                           <motion.div
@@ -1428,7 +1444,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                       whileTap={{ scale: 0.95 }}
                       className="bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/80 text-white px-3 py-2.5 rounded-r-xl font-medium text-sm hover:shadow-[0_0_10px_rgba(32,221,187,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px] relative touch-manipulation"
                     >
-                      {/* Анимация успешной вставки эмодзи */}
+                      {/* Successful emoji insertion animation */}
                       <AnimatePresence>
                         {previewEmoji && (
                           <motion.div
@@ -1451,7 +1467,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
                     </motion.button>
                   </div>
                   
-                  {/* Индикатор настроения */}
+                  {/* Mood indicator */}
                   {commentText && (
                     <motion.div 
                       initial={{ opacity: 0, y: 5 }}
@@ -1486,7 +1502,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   );
 };
 
-// Компонент кнопки эмодзи для повторного использования
+// Reusable emoji button component
 interface EmojiButtonProps {
   emoji: string;
   idx: number;

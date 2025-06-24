@@ -91,59 +91,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </header>
       
       {/* Main Content */}
-      <main className="flex-grow pb-20">
+      <main className="flex-grow">
         {children}
       </main>
-      
-      {/* Mobile Navigation Bar */}
-      <motion.nav 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ 
-          type: "spring", 
-          stiffness: 260, 
-          damping: 20,
-          duration: 0.5 
-        }}
-        className="fixed bottom-0 left-0 right-0 bg-[#1A1C2E]/90 backdrop-blur-md border-t border-purple-900/10 z-50 shadow-lg fixed-bottom-panel"
-      >
-        <div className="container mx-auto px-4 py-1">
-          <div className="flex justify-around">
-            <NavLink 
-              href="/" 
-              icon={<HomeIcon className="h-6 w-6" />} 
-              label="Home"
-              isActive={pathname === '/'}
-            />
-            <NavLink 
-              href="/discover" 
-              icon={<MusicalNoteIcon className="h-6 w-6" />} 
-              label="Discover"
-              isActive={pathname === '/discover'}
-            />
-            <NavLink 
-              href="/vibe" 
-              icon={<SparklesIcon className="h-6 w-6" />} 
-              label="Vibe"
-              isActive={pathname === '/vibe'}
-            />
-            <NavLink 
-              href="/chat" 
-              icon={<ChatBubbleOvalLeftEllipsisIcon className="h-6 w-6" />} 
-              label="Chat"
-              isActive={pathname === '/chat'}
-            />
-            <NavLink 
-              href="/people" 
-              icon={<UserIcon className="h-6 w-6" />} 
-              label="People"
-              isActive={pathname === '/people'}
-            />
-          </div>
-        </div>
-      </motion.nav>
     </div>
   );
 };
 
-export default Layout; 
+export default Layout;
