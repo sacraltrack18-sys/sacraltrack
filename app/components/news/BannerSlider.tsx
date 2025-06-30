@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { database } from '@/libs/AppWriteClient';
 import { Query, Models } from 'appwrite';
 import { getAppwriteImageUrl, fixAppwriteImageUrl } from '@/app/utils/appwriteImageUrl'; 
+import { useRouter } from 'next/navigation';
 
 // Типы для баннеров
 interface BannerSlide {
@@ -29,6 +30,7 @@ const BannerSlider = () => {
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number | null>(null);
+  const router = useRouter();
 
   // Получение баннеров из Appwrite
   const fetchBanners = useCallback(async () => {
@@ -203,6 +205,16 @@ const BannerSlider = () => {
     touchStartX.current = null;
   };
 
+  // Функция для открытия первой новости или перехода по ссылке баннера
+  const handleReadFirstNews = () => {
+    const currentBanner = banners[currentIndex];
+    if (currentBanner && currentBanner.link_url) {
+      router.push(currentBanner.link_url);
+    } else {
+      router.push('/news');
+    }
+  };
+
   if (banners.length === 0 && !isLoading) {
     return null; // Не показываем слайдер, если нет баннеров
   }
@@ -266,12 +278,18 @@ const BannerSlider = () => {
                   </p>
                 )}
                 {banners[currentIndex].link_url && (
-                  <Link 
-                    href={banners[currentIndex].link_url || '#'}
-                    className="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105"
+                  <button
+                    onClick={handleReadFirstNews}
+                    className="inline-block bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg backdrop-blur-md border border-white/20 glass-effect"
+                    style={{
+                      boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255,255,255,0.18)'
+                    }}
                   >
-                    {banners[currentIndex].action_text || 'Learn More'}
-                  </Link>
+                    {banners[currentIndex].action_text || 'Read More'}
+                  </button>
                 )}
               </div>
             </div>
@@ -324,4 +342,4 @@ const BannerSlider = () => {
   );
 };
 
-export default BannerSlider; 
+export default BannerSlider;

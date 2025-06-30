@@ -204,6 +204,8 @@ export type Action = {
     "Minimal / Deep Tech",
     "Deep / Hypnotic Techno",
     "Techno",
+    "Electro-Techno",
+    "Minimal-Techno",
    
     
     // Trance
@@ -226,6 +228,7 @@ export type Action = {
     "Bass / Club",
     "Bass Music",
     "UK Garage / Bassline",
+    "Drum'n'Bass",
     
     // Breaks
     "Breaks",

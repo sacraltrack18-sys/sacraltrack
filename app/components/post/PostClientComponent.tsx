@@ -17,6 +17,9 @@ import { FaHeart, FaMusic } from 'react-icons/fa'
 import { IoMusicalNotes } from 'react-icons/io5'
 import moment from 'moment'
 import TopNav from '@/app/layouts/includes/TopNav'
+import ShareModal from '@/app/components/ShareModal'
+import { ShareIcon } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 
 const PostImageFallback = () => (
     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-[#2E2469] to-[#351E43]">
@@ -62,6 +65,7 @@ export default function PostClientComponent() {
     const { setCommentsByPost, commentsByPost } = useCommentStore()
     const { currentAudioId, setCurrentAudioId } = usePlayerContext()
     const [imageError, setImageError] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
     const router = useRouter()
 
     const imageUrl = postById?.image_url ? useCreateBucketUrl(postById.image_url) : ''
@@ -92,6 +96,21 @@ export default function PostClientComponent() {
             img.onload = () => setImageError(false)
         }
     }, [imageUrl])
+
+    const handleShare = () => {
+        setIsShareModalOpen(true)
+        toast.success("Ready to share this awesome track!", {
+            style: {
+                background: 'rgba(46, 36, 105, 0.9)',
+                color: '#fff',
+                borderLeft: '4px solid #20DDBB',
+                padding: '16px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            },
+            icon: '🎵',
+            duration: 3000,
+        })
+    }
 
     return (
         <div className="min-h-screen bg-[#1A1A2E]">
@@ -201,6 +220,15 @@ export default function PostClientComponent() {
                             value={postById?.price || '1.99'}
                             label="USD"
                         />
+                        <div 
+                            onClick={handleShare}
+                            className="flex items-center gap-1 glass-effect rounded-lg px-2 py-1 hover-lift cursor-pointer"
+                        >
+                            <div className="animate-glow">
+                                <ShareIcon className="w-5 h-5 text-[#20DDBB]" />
+                            </div>
+                            <span className="gradient-text text-xs">Share</span>
+                        </div>
                     </div>
 
                     {/* Comments Section */}
@@ -217,6 +245,17 @@ export default function PostClientComponent() {
                     </div>
                 </div>
             </div>
+
+            {/* Share Modal */}
+            <ClientOnly>
+                {postById && (
+                    <ShareModal 
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        post={postById}
+                    />
+                )}
+            </ClientOnly>
         </div>
     )
 } 

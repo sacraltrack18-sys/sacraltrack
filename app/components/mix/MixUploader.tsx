@@ -33,6 +33,9 @@ const genres = [
   'disco',
   'house',
   'techno',
+  'electro-techno',
+  'minimal-techno',
+  'drum\'n\'bass',
   'trap',
   'drill',
   'other'

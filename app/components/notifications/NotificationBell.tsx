@@ -1,33 +1,34 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNotifications } from '@/app/hooks/useNotifications';
-import { useUser } from '@/app/context/user';
-import NotificationCenter from './NotificationCenter';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNotifications } from "@/app/hooks/useNotifications";
+import { useUser } from "@/app/context/user";
+import NotificationCenter from "./NotificationCenter";
+import { BellIcon } from "@heroicons/react/24/outline";
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const { getUserNotifications, unreadCount, markAllAsRead } = useNotifications();
-  const userContext = useUser();
-  const isLoggedIn = !!userContext?.user;
+  const { getUserNotifications, unreadCount, markAllAsRead } =
+    useNotifications();
+  const { user } = useUser() || {};
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
-      if (userContext?.user?.id) {
+      if (user?.id) {
         // Просто вызываем функцию для обновления состояния в хуке
-        await getUserNotifications(userContext.user.id);
+        await getUserNotifications(user.id);
       }
     };
 
     fetchUnreadCount();
-    
+
     // Update counter every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [userContext?.user?.id, getUserNotifications]);
+  }, [user?.id, getUserNotifications]);
 
   // Эффект для отслеживания изменений в количестве непрочитанных уведомлений
   useEffect(() => {
@@ -48,49 +49,57 @@ const NotificationBell = () => {
     <div className="relative">
       <button
         onClick={handleBellClick}
-        className={`relative p-1 md:p-2 ${isLoggedIn ? 'text-[#818BAC] hover:text-white' : 'text-gray-400 cursor-default'} transition-colors`}
+        className={`relative p-1 md:p-2 ${isLoggedIn ? "text-[#818BAC] hover:text-white" : "text-gray-400 cursor-default"} transition-colors`}
       >
         <motion.div
-          animate={isLoggedIn && hasNewNotification ? {
-            scale: [1, 1.2, 1],
-            rotate: [0, 15, -15, 0]
-          } : {}}
+          animate={
+            isLoggedIn && hasNewNotification
+              ? {
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 15, -15, 0],
+                }
+              : {}
+          }
           transition={{
             duration: 0.5,
-            repeat: 2
+            repeat: 2,
           }}
         >
-          <BellIcon className={`w-[20px] h-[20px] md:w-[24px] md:h-[24px] ${isLoggedIn ? 'text-amber-400' : 'text-gray-500'}`} />
+          <BellIcon
+            className={`w-[20px] h-[20px] md:w-[24px] md:h-[24px] ${isLoggedIn ? "text-amber-400" : "text-gray-500"}`}
+          />
         </motion.div>
-        
+
         <AnimatePresence>
           {isLoggedIn && unreadCount > 0 && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ 
-                scale: 1, 
+              animate={{
+                scale: 1,
                 opacity: 1,
-                boxShadow: hasNewNotification ? [
-                  "0 0 0 0 rgba(32, 221, 187, 0.4)",
-                  "0 0 0 10px rgba(32, 221, 187, 0)",
-                ] : "none"
+                boxShadow: hasNewNotification
+                  ? [
+                      "0 0 0 0 rgba(32, 221, 187, 0.4)",
+                      "0 0 0 10px rgba(32, 221, 187, 0)",
+                    ]
+                  : "none",
               }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{
                 boxShadow: {
                   duration: 1.5,
-                  repeat: Infinity
-                }
+                  repeat: Infinity,
+                },
               }}
               className="absolute -top-1 -right-1 min-w-[18px] md:min-w-[20px] h-4 md:h-5 bg-[#20DDBB] rounded-full flex items-center justify-center px-1"
             >
-              <motion.span 
+              <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
                 className="text-black text-[10px] md:text-xs font-bold"
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </motion.span>
             </motion.div>
           )}
@@ -120,8 +129,8 @@ const NotificationBell = () => {
               // Call a function to mark all notifications as read
               // Assuming useNotifications hook provides a markAllAsRead function
               // Replace with actual function name if different
-              if (userContext?.user?.id) {
-                markAllAsRead(userContext.user.id);
+              if (user?.id) {
+                markAllAsRead(user.id);
               }
             }}
           />
@@ -131,4 +140,4 @@ const NotificationBell = () => {
   );
 };
 
-export default NotificationBell; 
+export default NotificationBell;

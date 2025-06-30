@@ -1,17 +1,40 @@
 "use client";
 
-import { BsGraphUp, BsCashStack, BsClock, BsArrowUp, BsArrowDown, BsExclamationCircle, BsCalendar, BsPiggyBank, BsWallet2 } from 'react-icons/bs';
-import { format, formatDistance } from 'date-fns';
-import { useRoyaltyManagement } from '@/app/hooks/useRoyaltyManagement';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import WithdrawModal from './WithdrawModal';
-import { FaMoneyBillWave, FaChartLine, FaHandHoldingUsd, FaHistory, FaInfoCircle, FaCheckCircle, FaUniversity, FaPaypal, FaCreditCard, FaWaveSquare, FaVolumeUp, FaCompactDisc } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import {
+  BsGraphUp,
+  BsCashStack,
+  BsClock,
+  BsArrowUp,
+  BsArrowDown,
+  BsExclamationCircle,
+  BsCalendar,
+  BsPiggyBank,
+  BsWallet2,
+} from "react-icons/bs";
+import { format, formatDistance } from "@/app/utils/dateUtils";
+import { useRoyaltyManagement } from "@/app/hooks/useRoyaltyManagement";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import WithdrawModal from "./WithdrawModal";
+import {
+  FaMoneyBillWave,
+  FaChartLine,
+  FaHandHoldingUsd,
+  FaHistory,
+  FaInfoCircle,
+  FaCheckCircle,
+  FaUniversity,
+  FaPaypal,
+  FaCreditCard,
+  FaWaveSquare,
+  FaVolumeUp,
+  FaCompactDisc,
+} from "react-icons/fa";
+import { toast } from "react-hot-toast";
 import { useUser } from "@/app/context/user";
-import { Tooltip } from 'react-tooltip';
-import TransactionStatusBadge from '../ui/TransactionStatusBadge';
+import { Tooltip } from "react-tooltip";
+import TransactionStatusBadge from "../ui/TransactionStatusBadge";
 
 interface RoyaltyBalance {
   totalEarned: number;
@@ -38,14 +61,14 @@ const containerVariants = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
+  show: { opacity: 1, y: 0 },
 };
 
 // Updated gradient border styles with financial & music theme - more subtle version
@@ -58,7 +81,7 @@ const gradientBorderStyles = `
     transition: all 0.3s ease;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   }
-  
+
   .gradient-border::after {
     content: '';
     position: absolute;
@@ -70,12 +93,12 @@ const gradientBorderStyles = `
     background: linear-gradient(145deg, #1A2338, #1d2640);
     border-radius: 0.75rem;
   }
-  
+
   /* Very subtle border by default - more neutral color */
   .gradient-border {
     border: 1px solid rgba(255, 255, 255, 0.02);
   }
-  
+
   /* Add subtle box shadow on hover for additional effect - more neutral */
   .gradient-border:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -83,22 +106,26 @@ const gradientBorderStyles = `
   }
 `;
 
-const StatsCard = ({ 
-  icon, 
-  title, 
-  value, 
-  description = '', 
-  trend, 
-  onClick, 
+const StatsCard = ({
+  icon,
+  title,
+  value,
+  description = "",
+  trend,
+  onClick,
   tooltip,
-  className = ''
+  className = "",
 }: StatsCardProps) => (
   <motion.div
     variants={itemVariants}
     whileHover={{ y: -2 }}
-    className={`gradient-border transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+    className={`gradient-border transition-all duration-300 ${onClick ? "cursor-pointer" : ""} ${className}`}
     onClick={onClick}
-    data-tooltip-id={tooltip ? `tooltip-${title.replace(/\s+/g, '-').toLowerCase()}` : undefined}
+    data-tooltip-id={
+      tooltip
+        ? `tooltip-${title.replace(/\s+/g, "-").toLowerCase()}`
+        : undefined
+    }
     data-tooltip-content={tooltip}
   >
     <div className="bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 p-6 rounded-xl h-full">
@@ -107,29 +134,35 @@ const StatsCard = ({
           <div className="p-3 rounded-lg bg-gradient-to-br from-[#20DDBB]/5 to-[#3f2d63]/5 text-[#20DDBB] text-xl">
             {icon}
           </div>
-          <h3 className="text-white font-medium text-sm tracking-wide uppercase">{title}</h3>
+          <h3 className="text-white font-medium text-sm tracking-wide uppercase">
+            {title}
+          </h3>
         </div>
-        
+
         {trend && (
-          <div className={`flex items-center text-xs px-2 py-1 rounded-full ${
-            trend.isPositive ? 'bg-[#20DDBB]/5 text-[#20DDBB]' : 'bg-red-500/5 text-red-400'
-          }`}>
-            {trend.isPositive ? <BsArrowUp className="mr-1" /> : <BsArrowDown className="mr-1" />}
+          <div
+            className={`flex items-center text-xs px-2 py-1 rounded-full ${
+              trend.isPositive
+                ? "bg-[#20DDBB]/5 text-[#20DDBB]"
+                : "bg-red-500/5 text-red-400"
+            }`}
+          >
+            {trend.isPositive ? (
+              <BsArrowUp className="mr-1" />
+            ) : (
+              <BsArrowDown className="mr-1" />
+            )}
             {Math.abs(trend.value)}%
           </div>
         )}
       </div>
-      
-      <p className="text-3xl font-semibold text-white mb-1">
-        {value}
-      </p>
-      
-      {description && (
-        <p className="text-[#9BA3BF] text-sm">{description}</p>
-      )}
+
+      <p className="text-3xl font-semibold text-white mb-1">{value}</p>
+
+      {description && <p className="text-[#9BA3BF] text-sm">{description}</p>}
 
       {tooltip && (
-        <Tooltip id={`tooltip-${title.replace(/\s+/g, '-').toLowerCase()}`} />
+        <Tooltip id={`tooltip-${title.replace(/\s+/g, "-").toLowerCase()}`} />
       )}
     </div>
   </motion.div>
@@ -179,22 +212,24 @@ interface RoyaltyDashboardProps {
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
-  
+
   try {
     // If it's today, display time, otherwise display date
     if (date.toDateString() === now.toDateString()) {
-      return `Today, ${format(date, 'h:mm a')}`;
+      return `Today, ${format(date, "h:mm a")}`;
     } else {
       // If it's within the last 7 days, show relative time
-      const daysAgo = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      const daysAgo = Math.floor(
+        (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+      );
       if (daysAgo < 7) {
         return formatDistance(date, now, { addSuffix: true });
       } else {
-        return format(date, 'MMM d, yyyy');
+        return format(date, "MMM d, yyyy");
       }
     }
   } catch (error) {
-    console.error('Date formatting error:', error);
+    console.error("Date formatting error:", error);
     return dateString;
   }
 };
@@ -206,72 +241,83 @@ export default function RoyaltyDashboard({
   withdrawnAmount,
   tracksSold,
   transactions = [],
-  withdrawalHistory
-}: Omit<RoyaltyDashboardProps, 'userId'>) {
+  withdrawalHistory,
+}: Omit<RoyaltyDashboardProps, "userId">) {
   const contextUser = useUser();
-  const { requestWithdrawal, getRoyaltyBalance, isLoading, refreshRoyaltyData } = useRoyaltyManagement();
+  const {
+    requestWithdrawal,
+    getRoyaltyBalance,
+    isLoading,
+    refreshRoyaltyData,
+  } = useRoyaltyManagement();
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [statsBalance, setStatsBalance] = useState<RoyaltyBalance>({
     totalEarned: 0,
-    availableBalance: 0
+    availableBalance: 0,
   });
-  const [activeTab, setActiveTab] = useState<'sales' | 'withdrawals'>('sales');
-  const [tableView, setTableView] = useState<'grid' | 'list'>('list');
+  const [activeTab, setActiveTab] = useState<"sales" | "withdrawals">("sales");
+  const [tableView, setTableView] = useState<"grid" | "list">("list");
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
   useEffect(() => {
-    console.log('RoyaltyDashboard initialized with props:', { 
-      balance: balance, 
+    console.log("RoyaltyDashboard initialized with props:", {
+      balance: balance,
       totalEarned: totalEarned,
       balanceType: typeof balance,
       isBalanceNull: balance === null,
-      isBalanceUndefined: balance === undefined
+      isBalanceUndefined: balance === undefined,
     });
-    
+
     fetchCurrentBalance();
-    
+
     const balanceUpdateInterval = setInterval(() => {
-      console.log('Running scheduled balance update...');
+      console.log("Running scheduled balance update...");
       fetchCurrentBalance(false);
     }, 30000);
 
     // Add event listener for withdrawal-processed event
     const handleWithdrawalProcessed = (event: CustomEvent) => {
-      console.log('Withdrawal processed event received:', event.detail);
+      console.log("Withdrawal processed event received:", event.detail);
       if (event.detail.userId === contextUser?.user?.id) {
         updateDashboardData();
       }
     };
 
-    window.addEventListener('withdrawal-processed', handleWithdrawalProcessed as EventListener);
-    
+    window.addEventListener(
+      "withdrawal-processed",
+      handleWithdrawalProcessed as EventListener,
+    );
+
     return () => {
       clearInterval(balanceUpdateInterval);
-      window.removeEventListener('withdrawal-processed', handleWithdrawalProcessed as EventListener);
+      window.removeEventListener(
+        "withdrawal-processed",
+        handleWithdrawalProcessed as EventListener,
+      );
     };
   }, []);
 
   const updateDashboardData = async () => {
     if (!contextUser?.user?.id) return;
-    
+
     try {
       setIsRefreshingBalance(true);
-      console.log('🔄 Updating dashboard data...');
-      
+      console.log("🔄 Updating dashboard data...");
+
       // Refresh royalty data which includes withdrawal history
       await refreshRoyaltyData();
-      
+
       // Fetch current balance
       await fetchCurrentBalance(false);
-      
+
       // Update last update time
       setLastUpdateTime(new Date());
-      
-      console.log('✅ Dashboard data updated successfully');
+
+      console.log("✅ Dashboard data updated successfully");
     } catch (error) {
-      console.error('❌ Failed to update dashboard data:', error);
-      toast.error('Failed to update dashboard data. Please refresh the page.');
+      console.error("❌ Failed to update dashboard data:", error);
+      toast.error("Failed to update dashboard data. Please refresh the page.");
     } finally {
       setIsRefreshingBalance(false);
     }
@@ -279,29 +325,29 @@ export default function RoyaltyDashboard({
 
   const fetchCurrentBalance = async (showLoading = true) => {
     if (!contextUser?.user?.id) {
-      console.log('Cannot fetch balance: User ID not available');
+      console.log("Cannot fetch balance: User ID not available");
       return;
     }
-    
+
     try {
       if (showLoading) {
         setIsRefreshingBalance(true);
       }
-      console.log('Fetching current balance from the database...');
-      
+      console.log("Fetching current balance from the database...");
+
       const currentBalance = await getRoyaltyBalance(contextUser.user.id);
-      
-      console.log('Received current balance from DB:', currentBalance);
-      
+
+      console.log("Received current balance from DB:", currentBalance);
+
       setStatsBalance({
         totalEarned: currentBalance.totalEarned || 0,
-        availableBalance: currentBalance.availableBalance || 0
+        availableBalance: currentBalance.availableBalance || 0,
       });
-      
-      console.log('Updated state with fresh balance data from DB');
+
+      console.log("Updated state with fresh balance data from DB");
       setLastUpdateTime(new Date());
     } catch (error) {
-      console.error('Failed to fetch current balance:', error);
+      console.error("Failed to fetch current balance:", error);
     } finally {
       if (showLoading) {
         setIsRefreshingBalance(false);
@@ -310,37 +356,39 @@ export default function RoyaltyDashboard({
   };
 
   useEffect(() => {
-    console.log('Balance data from props changed:', { 
-      balance, 
+    console.log("Balance data from props changed:", {
+      balance,
       totalEarned,
       balanceType: typeof balance,
       isBalanceNull: balance === null,
-      isBalanceUndefined: balance === undefined
+      isBalanceUndefined: balance === undefined,
     });
     loadBalance();
   }, [balance, totalEarned]);
 
   const loadBalance = async () => {
     try {
-      console.log('Loading balance into state - Before update:', { 
+      console.log("Loading balance into state - Before update:", {
         currentState: statsBalance,
-        newValues: { totalEarned, balance }
+        newValues: { totalEarned, balance },
       });
-      
-      const safeBalance = balance !== undefined && balance !== null ? balance : 0;
-      const safeTotalEarned = totalEarned !== undefined && totalEarned !== null ? totalEarned : 0;
-      
+
+      const safeBalance =
+        balance !== undefined && balance !== null ? balance : 0;
+      const safeTotalEarned =
+        totalEarned !== undefined && totalEarned !== null ? totalEarned : 0;
+
       setStatsBalance({
         totalEarned: safeTotalEarned,
-        availableBalance: safeBalance
+        availableBalance: safeBalance,
       });
-      
-      console.log('Updated state balance - After update:', {
+
+      console.log("Updated state balance - After update:", {
         totalEarned: safeTotalEarned,
-        availableBalance: safeBalance
+        availableBalance: safeBalance,
       });
     } catch (error) {
-      console.error('Failed to load balance:', error);
+      console.error("Failed to load balance:", error);
     }
   };
 
@@ -354,27 +402,31 @@ export default function RoyaltyDashboard({
     await updateDashboardData();
   };
 
-  const handleWithdraw = async (amount: number, method: string, details: any) => {
+  const handleWithdraw = async (
+    amount: number,
+    method: string,
+    details: any,
+  ) => {
     try {
       await requestWithdrawal(amount, method, details);
       setIsWithdrawModalOpen(false);
-      
+
       await updateDashboardData();
-      
-      toast.success('Withdrawal request submitted successfully!', {
+
+      toast.success("Withdrawal request submitted successfully!", {
         style: {
-          borderRadius: '10px',
-          background: '#333',
-          color: '#fff',
+          borderRadius: "10px",
+          background: "#333",
+          color: "#fff",
         },
         iconTheme: {
-          primary: '#20DDBB',
-          secondary: '#000',
+          primary: "#20DDBB",
+          secondary: "#000",
         },
       });
     } catch (error: any) {
-      console.error('Withdrawal failed:', error);
-      toast.error(error.message || 'Failed to process withdrawal');
+      console.error("Withdrawal failed:", error);
+      toast.error(error.message || "Failed to process withdrawal");
       await fetchCurrentBalance();
     }
   };
@@ -384,7 +436,9 @@ export default function RoyaltyDashboard({
       <div className="bg-[#1A2338] p-6 rounded-2xl">
         <div className="flex flex-col items-center justify-center h-[400px] space-y-4">
           <div className="w-12 h-12 border-t-2 border-b-2 border-[#20DDBB] rounded-full animate-spin"></div>
-          <p className="text-[#818BAC] animate-pulse">Loading your earnings data...</p>
+          <p className="text-[#818BAC] animate-pulse">
+            Loading your earnings data...
+          </p>
         </div>
       </div>
     );
@@ -392,18 +446,24 @@ export default function RoyaltyDashboard({
 
   // Sort transactions by date (newest first)
   const sortedTransactions = [...transactions].sort(
-    (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+    (a, b) =>
+      new Date(b.transaction_date).getTime() -
+      new Date(a.transaction_date).getTime(),
   );
 
   // Sort withdrawal history by date (newest first)
   const sortedWithdrawals = [...withdrawalHistory].sort(
-    (a, b) => new Date(b.withdrawal_date).getTime() - new Date(a.withdrawal_date).getTime()
+    (a, b) =>
+      new Date(b.withdrawal_date).getTime() -
+      new Date(a.withdrawal_date).getTime(),
   );
 
   return (
     <>
-      <style jsx global>{gradientBorderStyles}</style>
-      <motion.div 
+      <style jsx global>
+        {gradientBorderStyles}
+      </style>
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -416,20 +476,22 @@ export default function RoyaltyDashboard({
               <FaChartLine className="mr-2 text-violet-300" />
               Your Earnings Dashboard
             </h2>
-            <p className="text-[#9BA3BF] text-sm md:text-base">Track your revenue, withdrawals and transaction history</p>
+            <p className="text-[#9BA3BF] text-sm md:text-base">
+              Track your revenue, withdrawals and transaction history
+            </p>
           </div>
           <div className="flex flex-wrap gap-3 mt-2 lg:mt-0">
             <motion.button
-              whileHover={{ 
-                scale: 1.05, 
-                boxShadow: '0 0 25px 5px rgba(32, 221, 187, 0.4)',
-                transition: { duration: 0.3 }
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 0 25px 5px rgba(32, 221, 187, 0.4)",
+                transition: { duration: 0.3 },
               }}
               whileTap={{ scale: 0.95 }}
               onClick={handleOpenWithdrawModal}
-              className="inline-flex items-center px-6 py-3.5 rounded-full shadow-xl transition-all duration-300 
-                bg-gradient-to-r from-[#20DDBB] via-[#f06ef2] to-[#20DDBB] 
-                text-white border border-[#20DDBB]/50 backdrop-blur-sm 
+              className="inline-flex items-center px-6 py-3.5 rounded-full shadow-xl transition-all duration-300
+                bg-gradient-to-r from-[#20DDBB] via-[#f06ef2] to-[#20DDBB]
+                text-white border border-[#20DDBB]/50 backdrop-blur-sm
                 hover:shadow-[0_0_30px_rgba(32,221,187,0.5)] relative overflow-hidden group
                 bg-size-200 bg-pos-0 hover:bg-pos-100"
               data-tooltip-id="withdraw-tooltip"
@@ -455,12 +517,16 @@ export default function RoyaltyDashboard({
             tooltip="Total amount earned from all your track sales"
             className="backdrop-blur-xl bg-[#1A2338]/40"
           />
-          
+
           <StatsCard
             icon={<BsWallet2 size={24} />}
             title="Available Balance"
             value={`$${(statsBalance.availableBalance || 0).toFixed(2)}`}
-            description={isRefreshingBalance ? "Updating balance..." : `Ready to withdraw • Last updated: ${formatDistance(lastUpdateTime, new Date(), { addSuffix: true })}`} 
+            description={
+              isRefreshingBalance
+                ? "Updating balance..."
+                : `Ready to withdraw • Last updated: ${formatDistance(lastUpdateTime, new Date(), { addSuffix: true })}`
+            }
             className="backdrop-blur-xl bg-[#1A2338]/40"
             tooltip="Amount available for withdrawal"
             onClick={handleOpenWithdrawModal}
@@ -473,74 +539,116 @@ export default function RoyaltyDashboard({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
               <div className="flex space-x-2 items-center">
                 <button
-                  onClick={() => setActiveTab('sales')}
+                  onClick={() => setActiveTab("sales")}
                   className={`px-4 py-2 rounded-lg transition-all ${
-                    activeTab === 'sales' 
-                      ? 'bg-[#3f2d63]/70 text-white' 
-                      : 'text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40'
+                    activeTab === "sales"
+                      ? "bg-[#3f2d63]/70 text-white"
+                      : "text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40"
                   }`}
                 >
                   Sales History
                 </button>
                 <button
-                  onClick={() => setActiveTab('withdrawals')}
+                  onClick={() => setActiveTab("withdrawals")}
                   className={`px-4 py-2 rounded-lg transition-all ${
-                    activeTab === 'withdrawals' 
-                      ? 'bg-[#3f2d63]/70 text-white' 
-                      : 'text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40'
+                    activeTab === "withdrawals"
+                      ? "bg-[#3f2d63]/70 text-white"
+                      : "text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40"
                   }`}
                 >
                   Withdrawals
                 </button>
               </div>
-              
-              {activeTab === 'sales' && (
+
+              {activeTab === "sales" && (
                 <div className="flex space-x-2 items-center self-end sm:self-auto mt-2 sm:mt-0">
-                <button
-                  onClick={() => setTableView('list')}
+                  <button
+                    onClick={() => setTableView("list")}
                     className={`p-2 rounded transition-all ${
-                    tableView === 'list' 
-                        ? 'bg-[#3f2d63]/70 text-white' 
-                        : 'text-[#9BA3BF] hover:text-white'
-                  }`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setTableView('grid')}
-                    className={`p-2 rounded transition-all ${
-                    tableView === 'grid' 
-                        ? 'bg-[#3f2d63]/70 text-white' 
-                        : 'text-[#9BA3BF] hover:text-white'
+                      tableView === "list"
+                        ? "bg-[#3f2d63]/70 text-white"
+                        : "text-[#9BA3BF] hover:text-white"
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                </button>
-              </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 12h16M4 18h16"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setTableView("grid")}
+                    className={`p-2 rounded transition-all ${
+                      tableView === "grid"
+                        ? "bg-[#3f2d63]/70 text-white"
+                        : "text-[#9BA3BF] hover:text-white"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
             {/* Sales History */}
-            {activeTab === 'sales' && (
+            {activeTab === "sales" && (
               <>
                 {transactions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <FaInfoCircle className="text-[#818BAC] text-3xl mb-4" />
-                    <h3 className="text-white text-lg font-medium mb-1">No sales yet</h3>
+                    <h3 className="text-white text-lg font-medium mb-1">
+                      No sales yet
+                    </h3>
                     <p className="text-[#818BAC] max-w-md">
-                      When users purchase your tracks, your sales will appear here.
+                      When users purchase your tracks, your sales will appear
+                      here.
                     </p>
                   </div>
                 ) : (
-                  <div className={`overflow-x-auto ${tableView === 'list' ? '-mx-4 sm:mx-0 pb-4' : ''}`}>
-                    {tableView === 'list' ? (
+                  <div
+                    className={`overflow-x-auto ${tableView === "list" ? "-mx-4 sm:mx-0 pb-4" : ""}`}
+                  >
+                    {tableView === "list" ? (
                       <div className="min-w-full">
                         <table className="min-w-full text-white">
                           <thead>
@@ -561,23 +669,32 @@ export default function RoyaltyDashboard({
                           </thead>
                           <tbody className="divide-y divide-[#3f2d63]/30">
                             {sortedTransactions.map((transaction) => (
-                              <tr key={transaction.purchase_id} className="hover:bg-[#3f2d63]/10 transition-colors">
+                              <tr
+                                key={transaction.purchase_id}
+                                className="hover:bg-[#3f2d63]/10 transition-colors"
+                              >
                                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                                   <div className="flex items-center space-x-3">
                                     <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden bg-[#3f2d63]/50 flex items-center justify-center">
                                       {transaction.buyer_image ? (
-                                        <img 
-                                          src={transaction.buyer_image} 
+                                        <img
+                                          src={transaction.buyer_image}
                                           alt={transaction.buyer_name}
                                           className="h-full w-full object-cover"
                                           onError={(e) => {
                                             e.currentTarget.onerror = null;
-                                            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239BA3BF'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
+                                            e.currentTarget.src =
+                                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239BA3BF'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
                                           }}
                                         />
                                       ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#9BA3BF" className="w-5 h-5">
-                                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          viewBox="0 0 24 24"
+                                          fill="#9BA3BF"
+                                          className="w-5 h-5"
+                                        >
+                                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
                                         </svg>
                                       )}
                                     </div>
@@ -589,7 +706,9 @@ export default function RoyaltyDashboard({
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                  <span className="text-violet-300 font-medium">${transaction.amount}</span>
+                                  <span className="text-violet-300 font-medium">
+                                    ${transaction.amount}
+                                  </span>
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-[#818BAC]">
                                   {formatDate(transaction.transaction_date)}
@@ -609,7 +728,7 @@ export default function RoyaltyDashboard({
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {sortedTransactions.map((transaction) => (
-                          <div 
+                          <div
                             key={transaction.purchase_id}
                             className="gradient-border rounded-lg"
                           >
@@ -618,18 +737,24 @@ export default function RoyaltyDashboard({
                                 <div className="flex items-center space-x-3">
                                   <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden bg-[#3f2d63]/50 flex items-center justify-center">
                                     {transaction.buyer_image ? (
-                                      <img 
-                                        src={transaction.buyer_image} 
+                                      <img
+                                        src={transaction.buyer_image}
                                         alt={transaction.buyer_name}
                                         className="h-full w-full object-cover"
                                         onError={(e) => {
                                           e.currentTarget.onerror = null;
-                                          e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239BA3BF'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
+                                          e.currentTarget.src =
+                                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239BA3BF'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
                                         }}
                                       />
                                     ) : (
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#9BA3BF" className="w-5 h-5">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="#9BA3BF"
+                                        className="w-5 h-5"
+                                      >
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
                                       </svg>
                                     )}
                                   </div>
@@ -644,12 +769,20 @@ export default function RoyaltyDashboard({
                                 />
                               </div>
                               <div className="flex justify-between items-center my-3">
-                                <span className="text-[#818BAC] text-sm">Amount:</span>
-                                <span className="text-violet-300 font-medium">${transaction.amount}</span>
+                                <span className="text-[#818BAC] text-sm">
+                                  Amount:
+                                </span>
+                                <span className="text-violet-300 font-medium">
+                                  ${transaction.amount}
+                                </span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="text-[#818BAC] text-sm">Date:</span>
-                                <span className="text-white text-sm">{formatDate(transaction.transaction_date)}</span>
+                                <span className="text-[#818BAC] text-sm">
+                                  Date:
+                                </span>
+                                <span className="text-white text-sm">
+                                  {formatDate(transaction.transaction_date)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -662,12 +795,14 @@ export default function RoyaltyDashboard({
             )}
 
             {/* Withdrawals History */}
-            {activeTab === 'withdrawals' && (
+            {activeTab === "withdrawals" && (
               <>
                 {withdrawalHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <FaInfoCircle className="text-[#818BAC] text-3xl mb-4" />
-                    <h3 className="text-white text-lg font-medium mb-1">No withdrawals yet</h3>
+                    <h3 className="text-white text-lg font-medium mb-1">
+                      No withdrawals yet
+                    </h3>
                     <p className="text-[#818BAC] max-w-md">
                       When you withdraw your royalties, they will appear here.
                     </p>
@@ -694,27 +829,35 @@ export default function RoyaltyDashboard({
                         </thead>
                         <tbody className="divide-y divide-[#3f2d63]/30">
                           {sortedWithdrawals.map((withdrawal) => (
-                            <tr key={withdrawal.id} className="hover:bg-[#3f2d63]/10 transition-colors">
+                            <tr
+                              key={withdrawal.id}
+                              className="hover:bg-[#3f2d63]/10 transition-colors"
+                            >
                               <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                <span className="text-violet-300 font-medium">${withdrawal.amount}</span>
-                                {withdrawal.processing_fee && Number(withdrawal.processing_fee) > 0 && (
-                                  <span className="text-xs text-[#818BAC] ml-1">
-                                    (fee: ${withdrawal.processing_fee})
-                                  </span>
-                                )}
+                                <span className="text-violet-300 font-medium">
+                                  ${withdrawal.amount}
+                                </span>
+                                {withdrawal.processing_fee &&
+                                  Number(withdrawal.processing_fee) > 0 && (
+                                    <span className="text-xs text-[#818BAC] ml-1">
+                                      (fee: ${withdrawal.processing_fee})
+                                    </span>
+                                  )}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                {withdrawal.withdrawal_method === 'bank_transfer' && (
+                                {withdrawal.withdrawal_method ===
+                                  "bank_transfer" && (
                                   <span className="flex items-center">
-                                    <FaUniversity className="mr-1" /> Bank Transfer
+                                    <FaUniversity className="mr-1" /> Bank
+                                    Transfer
                                   </span>
                                 )}
-                                {withdrawal.withdrawal_method === 'paypal' && (
+                                {withdrawal.withdrawal_method === "paypal" && (
                                   <span className="flex items-center">
                                     <FaPaypal className="mr-1" /> PayPal
                                   </span>
                                 )}
-                                {withdrawal.withdrawal_method === 'card' && (
+                                {withdrawal.withdrawal_method === "card" && (
                                   <span className="flex items-center">
                                     <FaCreditCard className="mr-1" /> Card
                                   </span>
@@ -747,10 +890,10 @@ export default function RoyaltyDashboard({
       <WithdrawModal
         isOpen={isWithdrawModalOpen}
         onClose={handleCloseWithdrawModal}
-        userId={contextUser?.user?.id || ''}
+        userId={contextUser?.user?.id || ""}
         availableBalance={statsBalance.availableBalance}
         onWithdraw={handleWithdraw}
       />
     </>
   );
-} 
+}

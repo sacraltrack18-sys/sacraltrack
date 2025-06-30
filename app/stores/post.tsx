@@ -39,7 +39,7 @@ interface PostStore {
   setPage: (page: number) => void;
   setCurrentPlayingPostId: (id: string | null) => void; // Added setter
   loadMorePosts: () => Promise<void>;
-  searchTracksByName: (query: string) => Promise<{ id: string; name: string; image: string; type: string }[]>;
+  searchTracksByName: (query: string) => Promise<{ id: string; name: string; image: string; type: string; matchType?: string; user_id: string }[]>;
 }
 
 export const usePostStore = create<PostStore>()(
@@ -175,40 +175,71 @@ export const usePostStore = create<PostStore>()(
       
         searchTracksByName: async (query: string) => {
           try {
-            console.log("Searching for tracks with query:", query);
+            console.log("Searching for tracks and content with query:", query);
             let allPosts = await get().allPosts;
-        
+
             // If allPosts is empty, fetch all posts
             if (!allPosts || allPosts.length === 0) {
               await get().setAllPosts();
               allPosts = await get().allPosts;
             }
-        
+
             // Normalize the search term
             const normalizedQuery = query.trim().toLowerCase();
-            
+
             if (!normalizedQuery) return [];
-            
-            // Enhanced search algorithm for tracks
+
+            // Enhanced search algorithm for tracks and content
             const filteredPosts = allPosts
               .filter((post: PostWithProfile) => {
-                // Safety check in case trackname is null or undefined
-                if (!post.trackname) return false;
-                
-                const trackName = post.trackname.toLowerCase();
-                
-                // Check for match in track name
-                return trackName.includes(normalizedQuery);
+                // Get all searchable text fields
+                const trackName = post.trackname?.toLowerCase() || '';
+                const postText = post.text?.toLowerCase() || '';
+                const description = post.description?.toLowerCase() || '';
+                const artistName = post.profile?.name?.toLowerCase() || '';
+
+                // Check for match in any of the text fields
+                return trackName.includes(normalizedQuery) ||
+                       postText.includes(normalizedQuery) ||
+                       description.includes(normalizedQuery) ||
+                       artistName.includes(normalizedQuery);
               })
-              .map((post) => ({
-                id: post.id,
-                name: post.trackname,
-                image: post.image_url,
-                type: "track",
-              }))
+              .map((post) => {
+                // Determine what matched for better display
+                const trackName = post.trackname?.toLowerCase() || '';
+                const postText = post.text?.toLowerCase() || '';
+                const description = post.description?.toLowerCase() || '';
+                const artistName = post.profile?.name?.toLowerCase() || '';
+
+                let matchType = "track";
+                let displayName = post.trackname;
+
+                if (trackName.includes(normalizedQuery)) {
+                  matchType = "track";
+                  displayName = post.trackname;
+                } else if (artistName.includes(normalizedQuery)) {
+                  matchType = "artist";
+                  displayName = `${post.trackname} by ${post.profile?.name}`;
+                } else if (postText.includes(normalizedQuery)) {
+                  matchType = "content";
+                  displayName = `${post.trackname} (content match)`;
+                } else if (description.includes(normalizedQuery)) {
+                  matchType = "description";
+                  displayName = `${post.trackname} (description match)`;
+                }
+
+                return {
+                  id: post.id,
+                  name: displayName,
+                  image: post.image_url,
+                  type: "track",
+                  matchType: matchType,
+                  user_id: post.user_id
+                };
+              })
               .slice(0, 10); // Limit results to 10
-        
-            console.log("Filtered tracks:", filteredPosts);
+
+            console.log("Filtered tracks and content:", filteredPosts);
             return filteredPosts;
           } catch (error) {
             console.error("Error searching tracks:", error);

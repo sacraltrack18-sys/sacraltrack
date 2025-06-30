@@ -13,6 +13,7 @@ import { GenreContext } from "@/app/context/GenreContext"
 import { useProfileStore } from "@/app/stores/profile"
 import ClientOnly from "@/app/components/ClientOnly"
 import { usePostStore } from "@/app/stores/post"
+import { useVibeStore } from "@/app/stores/vibeStore"
 import { motion, AnimatePresence } from "framer-motion"
 import dynamic from "next/dynamic"
 import "@/app/styles/nav-animations.css"
@@ -52,6 +53,7 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
     {/*SEARCH*/}
    
    const { searchTracksByName } = usePostStore();
+   const vibeStore = useVibeStore();
    const [searchProfiles, setSearchProfiles] = useState<(RandomUsers | Post)[]>([]);
    const [showSearch, setShowSearch] = useState(false);
    const [searchQuery, setSearchQuery] = useState("");
@@ -71,26 +73,71 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
             };
         }
 
+        // Search for vibes based on caption or mood
+        const searchVibesByText = useCallback(async (query: string) => {
+            const normalizedQuery = query.trim().toLowerCase();
+
+            if (!normalizedQuery) return [];
+
+            try {
+                // Ensure we have vibe data
+                if (vibeStore.allVibePosts.length === 0) {
+                    await vibeStore.fetchAllVibes();
+                }
+
+                // Search through vibes
+                return vibeStore.allVibePosts
+                    .filter(vibe => {
+                        const caption = vibe.caption?.toLowerCase() || '';
+                        const mood = vibe.mood?.toLowerCase() || '';
+                        const profileName = vibe.profile?.name?.toLowerCase() || '';
+
+                        return caption.includes(normalizedQuery) ||
+                               mood.includes(normalizedQuery) ||
+                               profileName.includes(normalizedQuery);
+                    })
+                    .slice(0, 8) // Limit vibe results
+                    .map(vibe => ({
+                        id: vibe.id,
+                        type: 'vibe',
+                        name: vibe.caption || 'Untitled Vibe',
+                        image: vibe.media_url,
+                        user_id: vibe.user_id,
+                        description: vibe.profile?.name || 'Unknown Artist'
+                    }));
+            } catch (error) {
+                console.error('Error searching vibes:', error);
+                return [];
+            }
+        }, [vibeStore]);
+
         // Define the handleSearchName function
         const handleSearch = useCallback(
             debounce(async (query: string) => {
                 if (!query.trim()) {
-            setSearchProfiles([]);
-            return;
-            }
-        
-            try {
-            const [profileResults, trackResults] = await Promise.all([
+                    setSearchProfiles([]);
+                    return;
+                }
+
+                try {
+                    console.log(`[SEARCH] Searching for: "${query}"`);
+
+                    const [profileResults, trackResults, vibeResults] = await Promise.all([
                         useSearchProfilesByName(query),
-                        searchTracksByName(query)
+                        searchTracksByName(query),
+                        searchVibesByText(query)
                     ]);
+
+                    console.log(`[SEARCH] Found profiles: ${profileResults?.length || 0}`);
+                    console.log(`[SEARCH] Found tracks: ${trackResults?.length || 0}`);
+                    console.log(`[SEARCH] Found vibes: ${vibeResults?.length || 0}`);
 
                     const formattedResults = [
                         ...(profileResults?.map(profile => ({
-                        id: profile.id,
+                            id: profile.id,
                             type: 'profile',
-                        name: profile.name,
-                        image: profile.image,
+                            name: profile.name,
+                            image: profile.image,
                             user_id: profile.id
                         })) || []),
                         ...(trackResults?.map(track => ({
@@ -98,7 +145,15 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                             type: 'track',
                             name: track.name,
                             image: track.image,
-                          
+                            user_id: track.user_id || track.id
+                        })) || []),
+                        ...(vibeResults?.map(vibe => ({
+                            id: vibe.id,
+                            type: 'vibe',
+                            name: vibe.name,
+                            image: vibe.image,
+                            user_id: vibe.user_id,
+                            description: vibe.description
                         })) || [])
                     ];
 
@@ -108,16 +163,21 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                     setSearchProfiles([]);
                 }
             }, 300),
-            []
+            [searchVibesByText]
         );
 
         // Обработчик клика по результату поиска
         const handleSearchResultClick = (result: any) => {
+            console.log(`[SEARCH] Clicking on result:`, result);
+
             if (result.type === 'profile') {
                 router.push(`/profile/${result.user_id}`);
-            } else {
+            } else if (result.type === 'track') {
                 router.push(`/post/${result.user_id}/${result.id}`);
+            } else if (result.type === 'vibe') {
+                router.push(`/vibe/${result.id}`);
             }
+
             setShowSearch(false);
             setSearchQuery("");
             setSearchProfiles([]);

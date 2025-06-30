@@ -1,13 +1,13 @@
 "use client";
 
-import { Fragment } from 'react';
-import { Transition } from '@headlessui/react';
-import { FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
-import { format } from 'date-fns';
+import { Fragment } from "react";
+import { Transition } from "@headlessui/react";
+import { FaCheckCircle, FaClock, FaTimesCircle } from "react-icons/fa";
+import { format } from "@/app/utils/dateUtils";
 
 interface WithdrawalNotification {
-  type: 'withdrawal';
-  status: 'pending' | 'completed' | 'failed';
+  type: "withdrawal";
+  status: "pending" | "completed" | "failed";
   amount: string;
   method: string;
   date: string;
@@ -19,14 +19,17 @@ interface WithdrawalNotificationsProps {
   onDismiss: (index: number) => void;
 }
 
-export default function WithdrawalNotifications({ notifications, onDismiss }: WithdrawalNotificationsProps) {
-  const getIcon = (status: WithdrawalNotification['status']) => {
+export default function WithdrawalNotifications({
+  notifications,
+  onDismiss,
+}: WithdrawalNotificationsProps) {
+  const getIcon = (status: WithdrawalNotification["status"]) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <FaCheckCircle className="text-green-500 text-xl" />;
-      case 'pending':
+      case "pending":
         return <FaClock className="text-yellow-500 text-xl" />;
-      case 'failed':
+      case "failed":
         return <FaTimesCircle className="text-red-500 text-xl" />;
     }
   };
@@ -59,7 +62,7 @@ export default function WithdrawalNotifications({ notifications, onDismiss }: Wi
                     {notification.message}
                   </p>
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    {format(new Date(notification.date), 'MMM d, yyyy HH:mm')}
+                    {format(new Date(notification.date), "MMM d, yyyy HH:mm")}
                   </p>
                 </div>
                 <div className="ml-4 flex-shrink-0 flex">
@@ -68,21 +71,34 @@ export default function WithdrawalNotifications({ notifications, onDismiss }: Wi
                     onClick={() => onDismiss(index)}
                   >
                     <span className="sr-only">Close</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </button>
                 </div>
               </div>
             </div>
-            <div className={`h-1 ${
-              notification.status === 'completed' ? 'bg-green-500' :
-              notification.status === 'pending' ? 'bg-yellow-500' :
-              'bg-red-500'
-            }`} />
+            <div
+              className={`h-1 ${
+                notification.status === "completed"
+                  ? "bg-green-500"
+                  : notification.status === "pending"
+                    ? "bg-yellow-500"
+                    : "bg-red-500"
+              }`}
+            />
           </div>
         </Transition>
       ))}
     </div>
   );
-} 
+}

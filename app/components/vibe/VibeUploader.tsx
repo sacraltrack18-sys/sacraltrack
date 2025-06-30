@@ -383,18 +383,51 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  // Check if camera is available only when needed
-  const checkCameraAvailability = useCallback(() => {
-    if (!cameraPermissionChecked && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(() => {
-          setHasCamera(true);
-          setCameraPermissionChecked(true);
-        })
-        .catch(() => {
-          setHasCamera(false);
-          setCameraPermissionChecked(true);
+  // Проверка доступности камеры и запрос разрешений
+  const checkCameraAvailability = useCallback(async () => {
+    if (cameraPermissionChecked) return;
+
+    try {
+      // Сначала проверяем, есть ли камеры
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      if (videoDevices.length === 0) {
+        setHasCamera(false);
+        setWebcamPermission(false);
+        setCameraPermissionChecked(true);
+        return;
+      }
+
+      // Запрашиваем разрешение на использование камеры
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: VIBE_PHOTO_WIDTH },
+            height: { ideal: VIBE_PHOTO_HEIGHT }
+          }
         });
+
+        // Если получили поток, значит разрешение есть
+        setHasCamera(true);
+        setWebcamPermission(true);
+
+        // Останавливаем поток, так как он нам пока не нужен
+        stream.getTracks().forEach(track => track.stop());
+
+      } catch (permissionError) {
+        console.log('Camera permission denied or not available:', permissionError);
+        setHasCamera(false);
+        setWebcamPermission(false);
+      }
+
+      setCameraPermissionChecked(true);
+    } catch (error) {
+      console.error('Error checking camera availability:', error);
+      setHasCamera(false);
+      setWebcamPermission(false);
+      setCameraPermissionChecked(true);
     }
   }, [cameraPermissionChecked]);
 
@@ -661,7 +694,11 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
         musicToast.info('🎵 Musical Sticker Vibes - Coming Soon! Express your musical emotions with animated stickers in the next update!');
         return;
       }
-      if ((selectedTab === 'photo' || selectedTab === 'video') && !photoFile && !caption.trim()) {
+      if (useCameraMode && !photoFile) {
+        musicToast.error('Please take a selfie first!');
+        return;
+      }
+      if (!useCameraMode && (selectedTab === 'photo' || selectedTab === 'video') && !photoFile && !caption.trim()) {
         musicToast.error('Please add a file or write some text for your vibe!');
         return;
       }
@@ -707,7 +744,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             }
           const result = await createVibePost({
             user_id: user.id,
-            type: selectedTab,
+            type: useCameraMode ? 'photo' : selectedTab, // В режиме камеры всегда фото
             media: photoFile || undefined,
             caption,
             mood: selectedMood,
@@ -722,6 +759,12 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
             clearInterval(progressInterval);
             musicToast.success('Your musical vibe has been published! 🎵');
             if (onSuccess && vibeId) onSuccess(vibeId);
+
+            // Сбрасываем состояние камеры
+            setUseCameraMode(false);
+            setPhotoPreview(null);
+            setPhotoFile(null);
+
             setTimeout(() => onClose(), 800);
           }, 500);
         } catch (createError: any) {
@@ -766,7 +809,11 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
 
   // Проверка на валидность формы для активации кнопки
   useEffect(() => {
-    if (selectedTab === 'photo') {
+    if (useCameraMode) {
+      // В режиме камеры нужно фото с камеры
+      const hasCameraPhoto = photoFile && photoPreview;
+      setIsValid(!!hasCameraPhoto);
+    } else if (selectedTab === 'photo') {
       const hasImage = selectedFile && selectedFile.type.startsWith('image/');
       const hasCaption = caption ? caption.trim().length > 0 : false;
       setIsValid(!!hasImage || hasCaption);
@@ -775,7 +822,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
       const hasCaption = caption ? caption.trim().length > 0 : false;
       setIsValid(!!hasVideo || hasCaption);
     }
-  }, [selectedFile, imagePreview, photoFile, caption, selectedTab]);
+  }, [selectedFile, imagePreview, photoFile, caption, selectedTab, useCameraMode, photoPreview]);
 
   // Теперь объявляю renderGlassShareButton:
   const renderGlassShareButton = () => (
@@ -822,15 +869,262 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     </motion.button>
   );
 
+  const renderCameraInterface = () => {
+    return (
+      <div className="px-[5px] pt-2 pb-2">
+        <form onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit(e);
+          }}
+          className="space-y-3">
+
+          {/* Camera Area */}
+          <div className="relative w-full h-64 rounded-2xl overflow-hidden bg-gradient-to-br from-[#2a2151] to-[#1a1635] border border-[#4b3470]/30">
+            {photoPreview ? (
+              // Показываем сделанное фото
+              <div className="relative w-full h-full">
+                <img
+                  src={photoPreview}
+                  alt="Captured selfie"
+                  className="w-full h-full object-cover rounded-2xl"
+                />
+                <div className="absolute top-3 right-3 flex gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      setPhotoPreview(null);
+                      setPhotoFile(null);
+                    }}
+                    className="p-2.5 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-all duration-200 border border-white/10"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <TrashIcon className="w-5 h-5 text-white" />
+                  </motion.button>
+                </div>
+                {/* Overlay с градиентом для лучшей читаемости */}
+                <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl" />
+                <div className="absolute bottom-3 left-3 text-white">
+                  <div className="text-sm font-medium">📸 Selfie captured!</div>
+                  <div className="text-xs text-gray-300">Ready to share your vibe</div>
+                </div>
+              </div>
+            ) : hasCamera && webcamPermission !== false ? (
+              // Показываем камеру
+              <div className="relative w-full h-full">
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  className="w-full h-full object-cover rounded-2xl"
+                  videoConstraints={{
+                    width: VIBE_PHOTO_WIDTH,
+                    height: VIBE_PHOTO_HEIGHT,
+                    facingMode: "user"
+                  }}
+                />
+                {/* Кнопка захвата фото */}
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
+                  <motion.button
+                    type="button"
+                    onClick={handleCapturePhoto}
+                    className="w-20 h-20 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full flex items-center justify-center shadow-2xl border-4 border-white/20"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <CameraIcon className="w-10 h-10 text-white" />
+                  </motion.button>
+                </div>
+
+                {/* Кнопка назад */}
+                <div className="absolute top-3 left-3">
+                  <motion.button
+                    type="button"
+                    onClick={() => setUseCameraMode(false)}
+                    className="p-2.5 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-all duration-200 border border-white/10"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <ArrowLeftIcon className="w-5 h-5 text-white" />
+                  </motion.button>
+                </div>
+
+                {/* Индикатор камеры */}
+                <div className="absolute top-3 right-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full border border-white/10">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-white text-xs font-medium">LIVE</span>
+                  </div>
+                </div>
+
+                {/* Подсказка */}
+                <div className="absolute bottom-28 left-1/2 transform -translate-x-1/2">
+                  <div className="px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/10">
+                    <span className="text-white text-sm font-medium">Tap to capture</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Камера недоступна или нет разрешения
+              <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col items-center"
+                >
+                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mb-4">
+                    <ExclamationTriangleIcon className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="text-white font-bold text-lg mb-2">Camera Access Needed</div>
+                  <div className="text-gray-300 text-sm mb-6 max-w-xs leading-relaxed">
+                    To take selfies, please allow camera access in your browser settings and refresh the page
+                  </div>
+                  <div className="flex gap-3">
+                    <motion.button
+                      type="button"
+                      onClick={() => setUseCameraMode(false)}
+                      className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl font-medium hover:from-gray-500 hover:to-gray-600 transition-all duration-200 border border-gray-500/30"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Back to Upload
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={checkCameraAvailability}
+                      className="px-6 py-3 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 border border-[#20DDBB]/30"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Try Again
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </div>
+
+          {/* Mood Selection - только если есть фото */}
+          {photoPreview && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="space-y-3 px-[5px]"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full flex items-center justify-center">
+                  <FaceSmileIcon className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-white font-bold text-lg">How are you feeling?</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['Happy', 'Excited', 'Chill', 'Creative', 'Inspired', 'Focused', 'Relaxed'].map((mood) => (
+                  <MoodChip
+                    key={mood}
+                    mood={mood as MoodType}
+                    selected={selectedMood === mood}
+                    onClick={() => setSelectedMood(mood as MoodType)}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Caption - только если есть фото */}
+          {photoPreview && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="space-y-3 px-[5px]"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                  <PencilIcon className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-white font-bold text-lg">Caption</span>
+              </div>
+              <div className="relative">
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder="Share your vibe... ✨"
+                  className="w-full p-4 bg-gradient-to-br from-[#2a2151] to-[#1a1635] text-white rounded-xl border border-[#4b3470]/50 focus:border-[#20DDBB] focus:outline-none resize-none transition-all duration-200 placeholder-gray-400"
+                  rows={3}
+                  maxLength={500}
+                />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400 bg-black/30 px-2 py-1 rounded-full">
+                  {caption.length}/500
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Location - только если есть фото */}
+          {photoPreview && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+              className="space-y-3 px-[5px]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <MapPinIcon className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-white font-bold text-lg">Location</span>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={handleDetectLocation}
+                  disabled={isDetectingLocation}
+                  className="px-3 py-1.5 bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-all duration-200 disabled:opacity-50 border border-[#20DDBB]/30"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isDetectingLocation ? (
+                    <div className="flex items-center gap-2">
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      Detecting...
+                    </div>
+                  ) : (
+                    'Auto-detect'
+                  )}
+                </motion.button>
+              </div>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Add location... 📍"
+                className="w-full p-4 bg-gradient-to-br from-[#2a2151] to-[#1a1635] text-white rounded-xl border border-[#4b3470]/50 focus:border-[#20DDBB] focus:outline-none transition-all duration-200 placeholder-gray-400"
+                maxLength={100}
+              />
+            </motion.div>
+          )}
+        </form>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
+    // Если включен режим камеры, показываем интерфейс камеры
+    if (useCameraMode) {
+      return renderCameraInterface();
+    }
+
     switch (selectedTab) {
       case 'photo':
         return (
           <div className="px-[5px] pt-2 pb-2">
-            <form onSubmit={(e) => { 
-                e.preventDefault(); 
-                handleSubmit(e); 
-              }} 
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                handleSubmit(e);
+              }}
               className="space-y-3">
             {/* Image Upload Area */}
             <div
@@ -1307,7 +1601,22 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
               active={useCameraMode}
               icon={<BsCamera className="w-[18px] h-[18px] text-[#20DDBB]" />}
               label="Selfie"
-              onClick={() => { setUseCameraMode(true); checkCameraAvailability(); }}
+              onClick={async () => {
+                console.log('[CAMERA] Selfie button clicked');
+
+                // Сначала проверяем и запрашиваем разрешения
+                await checkCameraAvailability();
+
+                // Если камера доступна, переключаемся в режим камеры
+                if (hasCamera && webcamPermission !== false) {
+                  console.log('[CAMERA] Switching to camera mode');
+                  setUseCameraMode(true);
+                } else {
+                  console.log('[CAMERA] Camera not available or permission denied');
+                  // Показываем сообщение об ошибке
+                  musicToast.error('Camera access is required for selfies. Please allow camera access and try again.');
+                }
+              }}
             />
           )}
         </div>
@@ -1316,7 +1625,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           {renderTabContent()}
         </div>
         {/* Фиксированная главная кнопка Share Vibe */}
-        {user && (selectedTab === 'photo' || selectedTab === 'video') && (
+        {user && (selectedTab === 'photo' || selectedTab === 'video' || useCameraMode) && (
           <motion.button
             type="submit"
             disabled={!isValid || isLoading}

@@ -1003,4 +1003,3 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
 };
 
 export default PostUser;
-

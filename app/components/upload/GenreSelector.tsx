@@ -27,6 +27,7 @@ const genres = [
     // Dubstep / Bass
     "Bass",
     "D'n'B",
+    "Drum'n'Bass",
     "Dubstep",
     "Future Bass",
     "Melodic Dubstep",
@@ -105,10 +106,12 @@ const genres = [
     "Street music",
 
     // Techno
+    "Electro-Techno",
     "Hypnotic Techno",
     "Deep Techno",
     "Melodic Techno",
     "Minimal", // Note: Minimal is also under its own category. Kept here as per original structure if it's a sub-genre of Techno.
+    "Minimal-Techno",
     "Techno",
     "Techno (Peak Time / Driving)",
 

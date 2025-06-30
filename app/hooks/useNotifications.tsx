@@ -2,13 +2,22 @@
 
 import { database, client, ID, Query } from "@/libs/AppWriteClient";
 import { useUser } from "@/app/context/user";
-import { useState, useEffect, useCallback } from 'react';
-import { Models } from 'appwrite';
+import { useState, useEffect, useCallback } from "react";
+import { Models } from "appwrite";
 
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'sale' | 'royalty' | 'withdrawal' | 'welcome' | 'release' | 'purchase' | 'terms' | 'friend_request' | 'friend_accepted';
+  type:
+    | "sale"
+    | "royalty"
+    | "withdrawal"
+    | "welcome"
+    | "release"
+    | "purchase"
+    | "terms"
+    | "friend_request"
+    | "friend_accepted";
   title: string;
   message: string;
   amount?: string;
@@ -36,40 +45,43 @@ interface NotificationData {
 export const NOTIFICATION_MESSAGES = {
   welcome: {
     title: "Welcome to Sacral Track! 🎵",
-    message: "We're excited to have you join our community of music creators and enthusiasts."
+    message:
+      "We're excited to have you join our community of music creators and enthusiasts.",
   },
   terms: {
     title: "Terms of Service",
-    message: "Please take a moment to review our terms of service and usage guidelines."
+    message:
+      "Please take a moment to review our terms of service and usage guidelines.",
   },
   release: {
     title: "New Release Added! 🎉",
-    message: "Your track has been successfully uploaded and is now live on Sacral Track."
+    message:
+      "Your track has been successfully uploaded and is now live on Sacral Track.",
   },
   purchase: (trackName: string) => ({
     title: "Track Purchased! 🎵",
-    message: `You've successfully purchased "${trackName}". Enjoy the music!`
+    message: `You've successfully purchased "${trackName}". Enjoy the music!`,
   }),
   sale: (buyerName: string, trackName: string) => ({
     title: "New Track Sale! 💰",
-    message: `${buyerName} just purchased your track "${trackName}"`
+    message: `${buyerName} just purchased your track "${trackName}"`,
   }),
   royalty: (amount: string, trackName: string) => ({
     title: "Royalty Payment Received! 💎",
-    message: `You've received ${amount} in royalties for "${trackName}"`
+    message: `You've received ${amount} in royalties for "${trackName}"`,
   }),
   withdrawal: (amount: string) => ({
     title: "Withdrawal Successful! 🎉",
-    message: `Your withdrawal of ${amount} has been processed and sent to your account.`
+    message: `Your withdrawal of ${amount} has been processed and sent to your account.`,
   }),
   friend_request: (senderName: string) => ({
     title: "New Friend Request! 👋",
-    message: `${senderName} sent you a friend request. Check your profile to respond.`
+    message: `${senderName} sent you a friend request. Check your profile to respond.`,
   }),
   friend_accepted: (acceptorName: string) => ({
     title: "Friend Request Accepted! 🎉",
-    message: `${acceptorName} accepted your friend request. You are now connected!`
-  })
+    message: `${acceptorName} accepted your friend request. You are now connected!`,
+  }),
 };
 
 export const useNotifications = () => {
@@ -83,43 +95,42 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await database.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
-        [
-          Query.equal('user_id', userId),
-          Query.orderDesc('created_at')
-        ]
+        [Query.equal("user_id", userId), Query.orderDesc("created_at")],
       );
-      
+
       if (response.documents) {
-        const formattedNotifications: Notification[] = response.documents.map((doc: Models.Document) => ({
-          id: doc.$id,
-          user_id: doc.user_id,
-          type: doc.type,
-          title: doc.title,
-          message: doc.message,
-          amount: doc.amount,
-          track_id: doc.track_id,
-          sender_id: doc.sender_id,
-          action_url: doc.action_url,
-          related_document_id: doc.related_document_id,
-          created_at: doc.created_at,
-          createdAt: doc.created_at,
-          read: doc.read,
-          isRead: doc.read,
-          data: doc.data ? JSON.parse(doc.data) : {}
-        }));
-        
+        const formattedNotifications: Notification[] = response.documents.map(
+          (doc: Models.Document) => ({
+            id: doc.$id,
+            user_id: doc.user_id,
+            type: doc.type,
+            title: doc.title,
+            message: doc.message,
+            amount: doc.amount,
+            track_id: doc.track_id,
+            sender_id: doc.sender_id,
+            action_url: doc.action_url,
+            related_document_id: doc.related_document_id,
+            created_at: doc.created_at,
+            createdAt: doc.created_at,
+            read: doc.read,
+            isRead: doc.read,
+            data: doc.data ? JSON.parse(doc.data) : {},
+          }),
+        );
+
         setNotifications(formattedNotifications);
-        setUnreadCount(formattedNotifications.filter(n => !n.read).length);
+        setUnreadCount(formattedNotifications.filter((n) => !n.read).length);
       }
-      
+
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
-      setError('Failed to load notifications');
+      console.error("Error fetching notifications:", err);
+      setError("Failed to load notifications");
       setLoading(false);
     }
   }, []);
@@ -128,21 +139,21 @@ export const useNotifications = () => {
   useEffect(() => {
     if (userContext?.user?.id) {
       getUserNotifications(userContext.user.id);
-      
+
       // Periodically check for new notifications
       const intervalId = setInterval(() => {
         if (userContext?.user?.id) {
           getUserNotifications(userContext.user.id);
         }
       }, 60000); // check every minute
-      
+
       return () => clearInterval(intervalId);
     }
   }, [userContext?.user?.id, getUserNotifications]);
 
   const createNotification = async (
     userId: string,
-    type: Notification['type'],
+    type: Notification["type"],
     data: {
       title?: string;
       message?: string;
@@ -156,53 +167,67 @@ export const useNotifications = () => {
       action_url?: string;
       related_document_id?: string;
       data?: any;
-    }
+    },
   ) => {
     try {
       let notificationData: NotificationData;
 
       switch (type) {
-        case 'welcome':
+        case "welcome":
           notificationData = NOTIFICATION_MESSAGES.welcome;
           break;
-        case 'terms':
+        case "terms":
           notificationData = NOTIFICATION_MESSAGES.terms;
           break;
-        case 'release':
+        case "release":
           notificationData = NOTIFICATION_MESSAGES.release;
           break;
-        case 'purchase':
-          notificationData = NOTIFICATION_MESSAGES.purchase(data.trackName || 'Unknown Track');
+        case "purchase":
+          notificationData = NOTIFICATION_MESSAGES.purchase(
+            data.trackName || "Unknown Track",
+          );
           break;
-        case 'sale':
-          notificationData = NOTIFICATION_MESSAGES.sale(data.buyerName || 'Someone', data.trackName || 'Unknown Track');
+        case "sale":
+          notificationData = NOTIFICATION_MESSAGES.sale(
+            data.buyerName || "Someone",
+            data.trackName || "Unknown Track",
+          );
           break;
-        case 'royalty':
-          notificationData = NOTIFICATION_MESSAGES.royalty(data.amount || '0', data.trackName || 'Unknown Track');
+        case "royalty":
+          notificationData = NOTIFICATION_MESSAGES.royalty(
+            data.amount || "0",
+            data.trackName || "Unknown Track",
+          );
           break;
-        case 'withdrawal':
-          notificationData = NOTIFICATION_MESSAGES.withdrawal(data.amount || '0');
+        case "withdrawal":
+          notificationData = NOTIFICATION_MESSAGES.withdrawal(
+            data.amount || "0",
+          );
           break;
-        case 'friend_request':
-          notificationData = NOTIFICATION_MESSAGES.friend_request(data.senderName || 'Unknown Sender');
+        case "friend_request":
+          notificationData = NOTIFICATION_MESSAGES.friend_request(
+            data.senderName || "Unknown Sender",
+          );
           break;
-        case 'friend_accepted':
-          notificationData = NOTIFICATION_MESSAGES.friend_accepted(data.acceptorName || 'Unknown Acceptor');
+        case "friend_accepted":
+          notificationData = NOTIFICATION_MESSAGES.friend_accepted(
+            data.acceptorName || "Unknown Acceptor",
+          );
           break;
         default:
           notificationData = {
-            title: data.title || 'Notification',
-            message: data.message || '',
+            title: data.title || "Notification",
+            message: data.message || "",
           };
       }
 
-      console.log('Creating notification:', {
+      console.log("Creating notification:", {
         user_id: userId,
         type,
         title: notificationData.title,
         message: notificationData.message,
         amount: data.amount,
-        track_id: data.track_id
+        track_id: data.track_id,
       });
 
       const notification = await database.createDocument(
@@ -220,26 +245,26 @@ export const useNotifications = () => {
           action_url: data.action_url,
           related_document_id: data.related_document_id,
           created_at: new Date().toISOString(),
-          data: data.data ? JSON.stringify(data.data) : '{}',
-          read: false
-        }
+          data: data.data ? JSON.stringify(data.data) : "{}",
+          read: false,
+        },
       );
 
-      console.log('✅ Notification created successfully:', notification.$id);
+      console.log("✅ Notification created successfully:", notification.$id);
 
       // Play notification sound
-      const audio = new Audio('/sounds/notification.mp3');
+      const audio = new Audio("/sounds/notification.mp3");
       audio.play().catch(console.error);
 
       return notification;
     } catch (error) {
-      console.error('❌ Error creating notification:', error);
+      console.error("❌ Error creating notification:", error);
       return null;
     }
   };
 
   const getUnreadCount = () => {
-    return notifications.filter(notification => !notification.read).length;
+    return notifications.filter((notification) => !notification.read).length;
   };
 
   const markAsRead = async (notificationId: string) => {
@@ -249,43 +274,41 @@ export const useNotifications = () => {
         process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
         notificationId,
         {
-          read: true
-        }
+          read: true,
+        },
       );
 
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error("Error marking notification as read:", error);
       throw error;
     }
   };
 
   const markAllAsRead = async (userId: string) => {
     try {
-      const unreadNotifications = notifications.filter(n => !n.read);
-      
+      const unreadNotifications = notifications.filter((n) => !n.read);
+
       await Promise.all(
-        unreadNotifications.map(notification =>
+        unreadNotifications.map((notification) =>
           database.updateDocument(
             process.env.NEXT_PUBLIC_DATABASE_ID!,
             process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
             notification.id,
             {
-              read: true
-            }
-          )
-        )
+              read: true,
+            },
+          ),
+        ),
       );
 
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, read: true }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error("Error marking all notifications as read:", error);
       throw error;
     }
   };
@@ -295,19 +318,18 @@ export const useNotifications = () => {
       await database.deleteDocument(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS!,
-        notificationId
+        notificationId,
       );
 
-      setNotifications(prev =>
-        prev.filter(n => n.id !== notificationId)
-      );
-      
-      const wasUnread = notifications.find(n => n.id === notificationId)?.read === false;
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+      const wasUnread =
+        notifications.find((n) => n.id === notificationId)?.read === false;
       if (wasUnread) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.error("Error deleting notification:", error);
       throw error;
     }
   };
@@ -315,17 +337,17 @@ export const useNotifications = () => {
   const createWithdrawalNotification = async (
     userId: string,
     amount: string,
-    method: string
+    method: string,
   ) => {
     try {
       const notificationData = NOTIFICATION_MESSAGES.withdrawal(amount);
-      await createNotification(userId, 'withdrawal', {
+      await createNotification(userId, "withdrawal", {
         title: notificationData.title,
         message: notificationData.message,
         amount,
       });
     } catch (error) {
-      console.error('Error creating withdrawal notification:', error);
+      console.error("Error creating withdrawal notification:", error);
     }
   };
 
@@ -336,16 +358,20 @@ export const useNotifications = () => {
     const unsubscribe = client.subscribe(
       `databases.${process.env.NEXT_PUBLIC_DATABASE_ID}.collections.${process.env.NEXT_PUBLIC_COLLECTION_ID_NOTIFICATIONS}.documents`,
       (response: any) => {
-        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+        if (
+          response.events.includes(
+            "databases.*.collections.*.documents.*.create",
+          )
+        ) {
           const newNotification = response.payload as Notification;
           if (newNotification.user_id === userContext.user?.id) {
-            setNotifications(prev => [newNotification, ...prev]);
+            setNotifications((prev) => [newNotification, ...prev]);
             if (!newNotification.read) {
-              setUnreadCount(prev => prev + 1);
+              setUnreadCount((prev) => prev + 1);
             }
           }
         }
-      }
+      },
     );
 
     // Initial fetch
@@ -367,6 +393,6 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    createWithdrawalNotification
+    createWithdrawalNotification,
   };
-}; 
+};

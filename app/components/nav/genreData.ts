@@ -32,6 +32,8 @@ export const genres: Genre[] = [
   { id: "genre-24", name: "Techno" },
   { id: "genre-25", name: "Techno (Peak Time / Driving)" },
   { id: "genre-26", name: "Techno (Melodic)" },
+  { id: "genre-new-3", name: "Electro-Techno" },
+  { id: "genre-new-4", name: "Minimal-Techno" },
   
   // Trance
   { id: "genre-27", name: "Uplifting Trance" },
@@ -53,6 +55,7 @@ export const genres: Genre[] = [
   { id: "genre-43", name: "UK Garage" },
   { id: "genre-44", name: "D'n'B" },
   { id: "genre-new-2", name: "Neurofunk" },
+  { id: "genre-new-5", name: "Drum'n'Bass" },
   
   // Breaks
   { id: "genre-44", name: "Breaks" },

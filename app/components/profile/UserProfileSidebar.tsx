@@ -1,22 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
-import { FaEdit } from 'react-icons/fa';
-import { BsLink45Deg, BsGlobe } from 'react-icons/bs';
-import { IoMdMusicalNotes } from 'react-icons/io';
+import { FaEdit } from "react-icons/fa";
+import { BsLink45Deg, BsGlobe } from "react-icons/bs";
+import { IoMdMusicalNotes } from "react-icons/io";
 import { useUser } from "@/app/context/user";
 import { useGeneralStore } from "@/app/stores/general";
-import { FaTwitter, FaInstagram, FaSoundcloud, FaYoutube, FaTelegram } from 'react-icons/fa';
-import { format } from 'date-fns';
-import { MdVerified, MdOutlineWorkOutline } from 'react-icons/md';
-import { CiLocationOn } from 'react-icons/ci';
-import { ProfileType } from '@/app/types';
-import { useFriendsStore } from '@/app/stores/friends';
-import { usePostStore } from '@/app/stores/post';
-import { useLikedStore } from '@/app/stores/likedStore';
-import { Profile } from '@/app/types';
+import {
+  FaTwitter,
+  FaInstagram,
+  FaSoundcloud,
+  FaYoutube,
+  FaTelegram,
+} from "react-icons/fa";
+import { format } from "@/app/utils/dateUtils";
+import { MdVerified, MdOutlineWorkOutline } from "react-icons/md";
+import { CiLocationOn } from "react-icons/ci";
+import { ProfileType } from "@/app/types";
+import { useFriendsStore } from "@/app/stores/friends";
+import { usePostStore } from "@/app/stores/post";
+import { useLikedStore } from "@/app/stores/likedStore";
+import { Profile } from "@/app/types";
 
 interface SocialLinks {
   twitter?: string;
@@ -27,29 +33,31 @@ interface SocialLinks {
 }
 
 interface UserProfileSidebarProps {
-  profile: ProfileType | {
-    $id: string;
-    user_id: string;
-    name: string;
-    image: string;
-    bio: string;
-    stats?: any;
-    created_at?: string;
-    [key: string]: any;
-  };
+  profile:
+    | ProfileType
+    | {
+        $id: string;
+        user_id: string;
+        name: string;
+        image: string;
+        bio: string;
+        stats?: any;
+        created_at?: string;
+        [key: string]: any;
+      };
 }
 
 const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   // Helper function to safely get profile properties
   const getProfileProperty = <T,>(key: string, defaultValue: T): T => {
     // Special case for id
-    if (key === 'id' && (profile as any)['$id'] !== undefined) {
-      return (profile as any)['$id'] as T;
+    if (key === "id" && (profile as any)["$id"] !== undefined) {
+      return (profile as any)["$id"] as T;
     }
-    
+
     // Handle nested properties
-    if (key.includes('.')) {
-      const parts = key.split('.');
+    if (key.includes(".")) {
+      const parts = key.split(".");
       let obj = profile as any;
       for (const part of parts) {
         if (obj === undefined || obj === null) return defaultValue;
@@ -57,20 +65,26 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
       }
       return obj !== undefined ? obj : defaultValue;
     }
-    
-    return (profile as any)[key] !== undefined ? (profile as any)[key] : defaultValue;
+
+    return (profile as any)[key] !== undefined
+      ? (profile as any)[key]
+      : defaultValue;
   };
 
   // Get profile ID safely
-  const profileId = getProfileProperty('id', '') || getProfileProperty('$id', '');
-  const userId = getProfileProperty('user_id', '');
-  const name = getProfileProperty('name', 'User');
-  const imageUrl = getProfileProperty('image', '') || getProfileProperty('image_url', '');
-  const bio = getProfileProperty('bio', '');
-  const hasStats = !!(getProfileProperty('stats', null) || getProfileProperty('$stats', null));
+  const profileId =
+    getProfileProperty("id", "") || getProfileProperty("$id", "");
+  const userId = getProfileProperty("user_id", "");
+  const name = getProfileProperty("name", "User");
+  const imageUrl =
+    getProfileProperty("image", "") || getProfileProperty("image_url", "");
+  const bio = getProfileProperty("bio", "");
+  const hasStats = !!(
+    getProfileProperty("stats", null) || getProfileProperty("$stats", null)
+  );
 
   // Закомментируем избыточный вывод в консоль
-  // console.log('UserProfileSidebar received profile:', 
+  // console.log('UserProfileSidebar received profile:',
   //   profile ? JSON.stringify({
   //     id: profileId,
   //     user_id: userId,
@@ -90,23 +104,27 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const { friends, loadFriends } = useFriendsStore();
   const { postsByUser } = usePostStore();
   const { likedPosts } = useLikedStore();
-  const [rank, setRank] = useState({ name: 'Beginner', color: 'from-gray-400 to-gray-500', score: 0 });
-  
+  const [rank, setRank] = useState({
+    name: "Beginner",
+    color: "from-gray-400 to-gray-500",
+    score: 0,
+  });
+
   // Track when profile data changes for re-rendering
   const [profileVersion, setProfileVersion] = useState(0);
-  
+
   // Update profileVersion when profile changes
   useEffect(() => {
-    setProfileVersion(prev => prev + 1);
+    setProfileVersion((prev) => prev + 1);
   }, [profile]);
-  
+
   // Check if the current user is the profile owner
   const isOwner = contextUser?.user?.id === userId;
-  
+
   // Get profile image URL
-  const profileImageUrl = imageUrl 
+  const profileImageUrl = imageUrl
     ? useCreateBucketUrl(imageUrl)
-    : '/images/placeholders/user-placeholder.svg';
+    : "/images/placeholders/user-placeholder.svg";
 
   // Handler to open profile editor
   const handleOpenProfileEditor = () => {
@@ -114,25 +132,25 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
       setIsEditProfileOpen(true);
     }
   };
-  
+
   // Format joined date if available
-  const formattedJoinedDate = getProfileProperty('joined_date', null) 
-    ? format(new Date(getProfileProperty('joined_date', '')), 'MMMM yyyy')
+  const formattedJoinedDate = getProfileProperty("joined_date", null)
+    ? format(new Date(getProfileProperty("joined_date", "")), "MMMM yyyy")
     : null;
 
   // Получаем социальные ссылки из профиля
   const getSocialLinks = (profile: any) => {
     if (!profile || !profile.social_links) return null;
-    
+
     try {
       // Если social_links - строка, пытаемся распарсить JSON
-      if (typeof profile.social_links === 'string') {
+      if (typeof profile.social_links === "string") {
         return JSON.parse(profile.social_links);
       }
       // Если это уже объект, просто возвращаем его
       return profile.social_links;
     } catch (error) {
-      console.error('Error parsing social links:', error);
+      console.error("Error parsing social links:", error);
       return null;
     }
   };
@@ -141,19 +159,44 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   const renderSocialLinks = () => {
     const socialLinks = getSocialLinks(profile);
     if (!socialLinks) return null;
-    
+
     const socialIcons = [
-      { key: 'twitter', Icon: FaTwitter, link: socialLinks.twitter, color: '#1DA1F2' },
-      { key: 'instagram', Icon: FaInstagram, link: socialLinks.instagram, color: '#E1306C' },
-      { key: 'soundcloud', Icon: FaSoundcloud, link: socialLinks.soundcloud, color: '#FF5500' },
-      { key: 'youtube', Icon: FaYoutube, link: socialLinks.youtube, color: '#FF0000' },
-      { key: 'telegram', Icon: FaTelegram, link: socialLinks.telegram, color: '#0088CC' },
-    ].filter(item => item.link);
-    
+      {
+        key: "twitter",
+        Icon: FaTwitter,
+        link: socialLinks.twitter,
+        color: "#1DA1F2",
+      },
+      {
+        key: "instagram",
+        Icon: FaInstagram,
+        link: socialLinks.instagram,
+        color: "#E1306C",
+      },
+      {
+        key: "soundcloud",
+        Icon: FaSoundcloud,
+        link: socialLinks.soundcloud,
+        color: "#FF5500",
+      },
+      {
+        key: "youtube",
+        Icon: FaYoutube,
+        link: socialLinks.youtube,
+        color: "#FF0000",
+      },
+      {
+        key: "telegram",
+        Icon: FaTelegram,
+        link: socialLinks.telegram,
+        color: "#0088CC",
+      },
+    ].filter((item) => item.link);
+
     if (socialIcons.length === 0) return null;
-    
+
     return (
-      <motion.div 
+      <motion.div
         className="mt-3 border-t border-white/10 pt-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -163,7 +206,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           {socialIcons.map(({ key, Icon, link, color }) => (
             <motion.a
               key={key}
-              href={link?.startsWith('http') ? link : `https://${link}`}
+              href={link?.startsWith("http") ? link : `https://${link}`}
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.1, y: -2 }}
@@ -181,24 +224,32 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
 
   // Stats section
   const renderStats = () => {
-    if (!getProfileProperty('followers_count', null) && !getProfileProperty('tracks_count', null)) return null;
-    
+    if (
+      !getProfileProperty("followers_count", null) &&
+      !getProfileProperty("tracks_count", null)
+    )
+      return null;
+
     return (
-      <motion.div 
+      <motion.div
         className="flex gap-4 mt-4 pt-3 border-t border-white/10"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        {getProfileProperty('followers_count', null) !== undefined && (
+        {getProfileProperty("followers_count", null) !== undefined && (
           <div className="text-center">
-            <span className="block text-white font-bold">{getProfileProperty('followers_count', null)}</span>
+            <span className="block text-white font-bold">
+              {getProfileProperty("followers_count", null)}
+            </span>
             <span className="text-xs text-[#A6B1D0]">Followers</span>
           </div>
         )}
-        {getProfileProperty('tracks_count', null) !== undefined && (
+        {getProfileProperty("tracks_count", null) !== undefined && (
           <div className="text-center">
-            <span className="block text-white font-bold">{getProfileProperty('tracks_count', null)}</span>
+            <span className="block text-white font-bold">
+              {getProfileProperty("tracks_count", null)}
+            </span>
             <span className="text-xs text-[#A6B1D0]">Tracks</span>
           </div>
         )}
@@ -212,30 +263,30 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
     const friendsScore = friends.length * 10;
     const tracksScore = postsByUser?.length * 15 || 0;
     const likesScore = likedPosts?.length * 5 || 0;
-    
+
     const totalScore = friendsScore + tracksScore + likesScore;
-    
+
     // Determining rank based on total score
-    let rankName = 'Beginner';
-    let color = 'from-gray-400 to-gray-500';
-    
+    let rankName = "Beginner";
+    let color = "from-gray-400 to-gray-500";
+
     if (totalScore >= 500) {
-      rankName = 'Legend';
-      color = 'from-purple-400 to-pink-500';
+      rankName = "Legend";
+      color = "from-purple-400 to-pink-500";
     } else if (totalScore >= 300) {
-      rankName = 'Master';
-      color = 'from-blue-400 to-purple-500';
+      rankName = "Master";
+      color = "from-blue-400 to-purple-500";
     } else if (totalScore >= 150) {
-      rankName = 'Advanced';
-      color = 'from-cyan-400 to-blue-500';
+      rankName = "Advanced";
+      color = "from-cyan-400 to-blue-500";
     } else if (totalScore >= 50) {
-      rankName = 'Experienced';
-      color = 'from-green-400 to-teal-500';
+      rankName = "Experienced";
+      color = "from-green-400 to-teal-500";
     }
-    
+
     setRank({ name: rankName, color, score: totalScore });
   }, [friends.length, postsByUser, likedPosts]);
-  
+
   // Load friends for rating calculation
   useEffect(() => {
     if (userId) {
@@ -245,12 +296,18 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
 
   // Get stats from profile
   const getStats = () => {
-    const stats = getProfileProperty('stats', {}) as any;
-    
+    const stats = getProfileProperty("stats", {}) as any;
+
     return {
-      followers: (stats?.totalFollowers || stats?.followers || getProfileProperty('followers_count', 0)) as number,
-      tracks: (stats?.totalTracks || stats?.tracks || getProfileProperty('tracks_count', 0)) as number,
-      likes: (stats?.totalLikes || stats?.likes || getProfileProperty('likes_count', 0)) as number
+      followers: (stats?.totalFollowers ||
+        stats?.followers ||
+        getProfileProperty("followers_count", 0)) as number,
+      tracks: (stats?.totalTracks ||
+        stats?.tracks ||
+        getProfileProperty("tracks_count", 0)) as number,
+      likes: (stats?.totalLikes ||
+        stats?.likes ||
+        getProfileProperty("likes_count", 0)) as number,
     };
   };
 
@@ -263,43 +320,45 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
     >
       <div className="glass-profile-card bg-gradient-to-br from-[#24183D]/70 to-[#1A1E36]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_25px_rgba(32,221,187,0.15)] rounded-2xl overflow-hidden">
         {/* Profile Image Section - Clickable for owners */}
-        <div 
-          className={`relative w-full aspect-square overflow-hidden group ${isOwner ? 'cursor-pointer' : ''}`}
+        <div
+          className={`relative w-full aspect-square overflow-hidden group ${isOwner ? "cursor-pointer" : ""}`}
           onClick={isOwner ? handleOpenProfileEditor : undefined}
         >
           {/* Adding rating directly on the profile image */}
-          <motion.div 
+          <motion.div
             className="absolute top-3 left-3 z-20 glass-rating px-2 py-1 rounded-full flex items-center gap-1"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <motion.div 
+            <motion.div
               className={`h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-r ${rank.color} text-xs font-bold text-white`}
-              animate={{ 
+              animate={{
                 scale: [1, 1.1, 1],
               }}
-              transition={{ 
-                duration: 1.5, 
-                repeat: Infinity, 
-                repeatType: "reverse"
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                repeatType: "reverse",
               }}
             >
               {rank.score}
             </motion.div>
-            <span className="text-white text-xs font-bold">
-              {rank.name}
-            </span>
+            <span className="text-white text-xs font-bold">{rank.name}</span>
           </motion.div>
 
           <motion.div
             className="absolute inset-0 bg-gradient-to-b from-[#20DDBB]/0 to-[#20DDBB]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
             whileHover={{ opacity: 1 }}
           />
-          
+
           <motion.img
-            src={imageError ? "/images/placeholders/user-placeholder.svg" : profileImageUrl}
-            alt={name || 'Profile'}
+            src={
+              imageError
+                ? "/images/placeholders/user-placeholder.svg"
+                : profileImageUrl
+            }
+            alt={name || "Profile"}
             className="w-full h-full object-cover transition-transform duration-500"
             initial={{ scale: 1 }}
             whileHover={{ scale: 1.05 }}
@@ -307,7 +366,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             onHoverEnd={() => setIsHovered(false)}
             onError={() => setImageError(true)}
           />
-          
+
           {isOwner && (
             <AnimatePresence>
               {isHovered && (
@@ -327,16 +386,16 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
             </AnimatePresence>
           )}
         </div>
-        
+
         {/* Profile Info Section - Clickable texts for owners */}
         <div className="p-6">
-          <div 
-            className={`relative group ${isOwner ? 'cursor-pointer hover:text-[#20DDBB] transition-colors' : ''}`}
+          <div
+            className={`relative group ${isOwner ? "cursor-pointer hover:text-[#20DDBB] transition-colors" : ""}`}
             onClick={isOwner ? handleOpenProfileEditor : undefined}
-            onMouseEnter={() => setHoveredElement('name')}
+            onMouseEnter={() => setHoveredElement("name")}
             onMouseLeave={() => setHoveredElement(null)}
           >
-            <motion.h2 
+            <motion.h2
               className="text-2xl font-bold text-white mb-2 flex items-center gap-2"
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -345,8 +404,8 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               {name && name.toString() !== "Artist Name" ? (
                 <>
                   <span>{name}</span>
-                  {getProfileProperty('verified', false) && (
-                    <motion.span 
+                  {getProfileProperty("verified", false) && (
+                    <motion.span
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       className="text-[#20DDBB]"
                     >
@@ -359,9 +418,9 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                   Enter your name
                 </span>
               ) : (
-                'Artist Name'
+                "Artist Name"
               )}
-              {isOwner && hoveredElement === 'name' && (
+              {isOwner && hoveredElement === "name" && (
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -373,21 +432,21 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               )}
             </motion.h2>
           </div>
-          
+
           {/* Role - if available */}
-          {getProfileProperty('role', null) && (
+          {getProfileProperty("role", null) && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className={`flex items-center gap-2 text-sm text-[#20DDBB]/80 mb-3 ${isOwner ? 'cursor-pointer hover:text-[#20DDBB] transition-colors' : ''}`}
+              className={`flex items-center gap-2 text-sm text-[#20DDBB]/80 mb-3 ${isOwner ? "cursor-pointer hover:text-[#20DDBB] transition-colors" : ""}`}
               onClick={isOwner ? handleOpenProfileEditor : undefined}
-              onMouseEnter={() => setHoveredElement('role')}
+              onMouseEnter={() => setHoveredElement("role")}
               onMouseLeave={() => setHoveredElement(null)}
             >
               <MdOutlineWorkOutline className="text-[#20DDBB]" />
-              <span>{getProfileProperty('role', '')}</span>
-              {isOwner && hoveredElement === 'role' && (
+              <span>{getProfileProperty("role", "")}</span>
+              {isOwner && hoveredElement === "role" && (
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -398,15 +457,15 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               )}
             </motion.div>
           )}
-          
+
           {/* Genre - always displayed */}
-          <div 
-            className={`flex items-center gap-2 group ${isOwner ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+          <div
+            className={`flex items-center gap-2 group ${isOwner ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
             onClick={isOwner ? handleOpenProfileEditor : undefined}
-            onMouseEnter={() => setHoveredElement('genre')}
+            onMouseEnter={() => setHoveredElement("genre")}
             onMouseLeave={() => setHoveredElement(null)}
           >
-            {getProfileProperty('genre', null) && (
+            {getProfileProperty("genre", null) && (
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -414,8 +473,8 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 className="flex items-center gap-2 text-sm text-[#20DDBB] mb-4"
               >
                 <IoMdMusicalNotes />
-                <span>{getProfileProperty('genre', '')}</span>
-                {isOwner && hoveredElement === 'genre' && (
+                <span>{getProfileProperty("genre", "")}</span>
+                {isOwner && hoveredElement === "genre" && (
                   <motion.span
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -427,7 +486,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               </motion.div>
             )}
           </div>
-          
+
           {/* Joined date - if available */}
           {formattedJoinedDate && (
             <motion.div
@@ -439,12 +498,12 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               Joined {formattedJoinedDate}
             </motion.div>
           )}
-          
+
           {/* Biography - always displayed */}
-          <div 
-            className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''}`}
+          <div
+            className={`group ${isOwner ? "cursor-pointer hover:text-white transition-colors" : ""}`}
             onClick={isOwner ? handleOpenProfileEditor : undefined}
-            onMouseEnter={() => setHoveredElement('bio')}
+            onMouseEnter={() => setHoveredElement("bio")}
             onMouseLeave={() => setHoveredElement(null)}
           >
             <motion.p
@@ -456,14 +515,13 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               {bio ? (
                 bio
               ) : isOwner ? (
-                <span className="italic text-[#A6B1D0]/50 hover:text-[#20DDBB]/70 transition-colors">
-                </span>
+                <span className="italic text-[#A6B1D0]/50 hover:text-[#20DDBB]/70 transition-colors"></span>
               ) : (
                 <span className="italic text-[#A6B1D0]/50">
                   User has not added any information yet
                 </span>
               )}
-              {isOwner && hoveredElement === 'bio' && (
+              {isOwner && hoveredElement === "bio" && (
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -475,30 +533,30 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
               )}
             </motion.p>
           </div>
-          
+
           <div className="space-y-3">
             {/* Location - always displayed for owner */}
-            <div 
+            <div
               className="hidden"
               onClick={isOwner ? handleOpenProfileEditor : undefined}
-              onMouseEnter={() => setHoveredElement('location')}
+              onMouseEnter={() => setHoveredElement("location")}
               onMouseLeave={() => setHoveredElement(null)}
             >
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 className="flex items-center gap-3 text-sm text-[#A6B1D0]"
               >
                 <BsGlobe className="text-[#20DDBB]" />
-                {getProfileProperty('location', null) ? (
-                  <span>{getProfileProperty('location', '')}</span>
+                {getProfileProperty("location", null) ? (
+                  <span>{getProfileProperty("location", "")}</span>
                 ) : isOwner ? (
                   <span className="italic text-[#A6B1D0]/50 hover:text-white/70 transition-colors">
                     Add your location
                   </span>
                 ) : null}
-                {isOwner && hoveredElement === 'location' && (
+                {isOwner && hoveredElement === "location" && (
                   <motion.span
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -509,12 +567,12 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 )}
               </motion.div>
             </div>
-            
+
             {/* Website - always displayed for owner */}
             <div
-              className={`group ${isOwner ? 'cursor-pointer hover:text-white transition-colors' : ''} ${!getProfileProperty('website', null) && !isOwner ? 'hidden' : ''}`}
+              className={`group ${isOwner ? "cursor-pointer hover:text-white transition-colors" : ""} ${!getProfileProperty("website", null) && !isOwner ? "hidden" : ""}`}
               onClick={isOwner ? handleOpenProfileEditor : undefined}
-              onMouseEnter={() => setHoveredElement('website')}
+              onMouseEnter={() => setHoveredElement("website")}
               onMouseLeave={() => setHoveredElement(null)}
             >
               <motion.div
@@ -524,17 +582,23 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                 className="flex items-center gap-3 text-sm text-[#A6B1D0]"
               >
                 <BsLink45Deg className="text-[#20DDBB]" />
-                {getProfileProperty('website', null) ? (
+                {getProfileProperty("website", null) ? (
                   isOwner ? (
-                    <span className="truncate">{getProfileProperty('website', '')}</span>
+                    <span className="truncate">
+                      {getProfileProperty("website", "")}
+                    </span>
                   ) : (
-                    <a 
-                      href={getProfileProperty('website', '').startsWith('http') ? getProfileProperty('website', '') : `https://${getProfileProperty('website', '')}`}
+                    <a
+                      href={
+                        getProfileProperty("website", "").startsWith("http")
+                          ? getProfileProperty("website", "")
+                          : `https://${getProfileProperty("website", "")}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="truncate hover:text-[#20DDBB] transition-colors"
                     >
-                      {getProfileProperty('website', '')}
+                      {getProfileProperty("website", "")}
                     </a>
                   )
                 ) : isOwner ? (
@@ -542,7 +606,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
                     Add a link to your website
                   </span>
                 ) : null}
-                {isOwner && hoveredElement === 'website' && (
+                {isOwner && hoveredElement === "website" && (
                   <motion.span
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -557,31 +621,35 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
 
           {/* Social links section */}
           {renderSocialLinks()}
-          
+
           {/* User stats */}
           {renderStats()}
         </div>
       </div>
-      
+
       {/* Custom CSS for glass effect */}
       <style jsx global>{`
         .glass-profile-card {
           position: relative;
           z-index: 1;
         }
-        
+
         .glass-profile-card::before {
-          content: '';
+          content: "";
           position: absolute;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
           z-index: -1;
-          background: radial-gradient(circle at top right, rgba(32,221,187,0.1), transparent 70%);
+          background: radial-gradient(
+            circle at top right,
+            rgba(32, 221, 187, 0.1),
+            transparent 70%
+          );
           pointer-events: none;
         }
-        
+
         .glass-rating {
           background: rgba(26, 30, 54, 0.7);
           backdrop-filter: blur(4px);
@@ -593,4 +661,4 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   );
 };
 
-export default UserProfileSidebar; 
+export default UserProfileSidebar;

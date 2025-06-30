@@ -1100,7 +1100,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
             />
 
             <div className="px-4 py-2 border-t border-white/5">
-                <AudioPlayer 
+                <AudioPlayer
                     m3u8Url={m3u8UrlRef.current}
                     isPlaying={isPlaying}
                     onPlay={() => {
@@ -1110,7 +1110,6 @@ const PostMain = memo(({ post }: PostMainProps) => {
                     onPause={() => {
                         stopAllPlayback();
                     }}
-                    preload={true}
                 />
             </div>
 

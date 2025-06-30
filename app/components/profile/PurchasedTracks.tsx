@@ -387,12 +387,11 @@ export default function PurchasedTracks() {
 
               <div className="px-3 py-2 w-full">
                 {purchase.track?.m3u8_url && (
-                  <AudioPlayer 
-                    m3u8Url={useCreateBucketUrl(purchase.track.m3u8_url)} 
+                  <AudioPlayer
+                    m3u8Url={useCreateBucketUrl(purchase.track.m3u8_url)}
                     isPlaying={isPlaying[purchase.track_id] || false}
                     onPlay={() => setIsPlaying(prev => ({ ...prev, [purchase.track_id]: true }))}
                     onPause={() => setIsPlaying(prev => ({ ...prev, [purchase.track_id]: false }))}
-                    preload={true}
                   />
                 )}
               </div>
