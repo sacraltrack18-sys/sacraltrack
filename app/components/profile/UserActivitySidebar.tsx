@@ -88,9 +88,9 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
         >
             <div className="relative h-12 w-12 flex-shrink-0">
                 <Image
-                    src={imageError ? '/images/placeholders/user-placeholder.svg' : 
-                        (item.image && item.image.trim() ? useCreateBucketUrl(item.image, item.type === 'track' ? 'track' : 'user') : 
-                        '/images/placeholders/user-placeholder.svg')}
+                    src={imageError ? '/images/placeholders/music-user-placeholder-static.svg' :
+                        (item.image && item.image.trim() ? useCreateBucketUrl(item.image, item.type === 'track' ? 'track' : 'user') :
+                        '/images/placeholders/music-user-placeholder-static.svg')}
                     alt={item.title}
                     width={48}
                     height={48}

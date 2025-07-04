@@ -71,18 +71,37 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
     saveState(true, !isMinimized);
   };
 
-  if (!isVisible) return null;
+  // Проверяем, включена ли реклама
+  const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
+  const adsEnvironment = process.env.NEXT_PUBLIC_ADS_ENVIRONMENT || 'development';
+
+  // Проверяем окружение
+  const isProduction = adsEnvironment === 'production' ||
+    (typeof window !== 'undefined' &&
+     !window.location.hostname.includes('localhost') &&
+     !window.location.hostname.includes('127.0.0.1'));
+
+  // Не показываем баннер если:
+  // 1. Пользователь его скрыл
+  // 2. Реклама отключена и мы не в продакшене
+  if (!isVisible || (!adsEnabled && !isProduction)) return null;
 
   // Конфигурация для разных размеров
   const adConfig = isMobile
     ? {
-        adKey: adsterraId || "0654df9f27dd77270cf8f1aaeed1818a", // AdsTerra ID для мобильных
+        adKey: adsterraId ||
+               process.env.NEXT_PUBLIC_ADSTERRA_MOBILE_KEY ||
+               process.env.NEXT_PUBLIC_ADSTERRA_BANNER_KEY ||
+               "0654df9f27dd77270cf8f1aaeed1818a",
         adWidth: 300,
         adHeight: 100,
         adFormat: "banner"
       }
     : {
-        adKey: adsterraId || "0654df9f27dd77270cf8f1aaeed1818a", // AdsTerra ID для десктопа (правый сайдбар 300px)
+        adKey: adsterraId ||
+               process.env.NEXT_PUBLIC_ADSTERRA_DESKTOP_KEY ||
+               process.env.NEXT_PUBLIC_ADSTERRA_BANNER_KEY ||
+               "0654df9f27dd77270cf8f1aaeed1818a",
         adWidth: 300,
         adHeight: 250,
         adFormat: "rectangle"

@@ -16,6 +16,18 @@ const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
     // Проверяем, что код выполняется на клиенте (в браузере)
     if (typeof window === 'undefined' || !adKey || !containerRef.current) return;
 
+    // Проверяем, что мы не на localhost
+    const isLocalhost = window.location.hostname === 'localhost' ||
+                       window.location.hostname === '127.0.0.1' ||
+                       window.location.hostname.includes('localhost');
+
+    if (isLocalhost) {
+      console.log(`[AdsTerra] Skipping AdsTerra on localhost`);
+      setIsLoading(false);
+      setAdError(true);
+      return;
+    }
+
     try {
       // Reset error state when attempting to load a new ad
       setAdError(false);
@@ -132,10 +144,23 @@ const Banner: React.FC<AdBannerProps> = ({ adKey, adHeight, adWidth }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-white font-semibold text-sm mb-2">Ad Space Available</div>
+          <div className="text-white font-semibold text-sm mb-2">
+            {typeof window !== 'undefined' &&
+             (window.location.hostname === 'localhost' ||
+              window.location.hostname === '127.0.0.1' ||
+              window.location.hostname.includes('localhost')) ?
+              'AdsTerra Disabled on Localhost' :
+              'Ad Space Available'
+            }
+          </div>
           <div className="text-white/70 text-xs mb-3 leading-relaxed">
-            Support SacralTrack by allowing ads<br/>
-            or upgrade to Premium for ad-free experience
+            {typeof window !== 'undefined' &&
+             (window.location.hostname === 'localhost' ||
+              window.location.hostname === '127.0.0.1' ||
+              window.location.hostname.includes('localhost')) ?
+              'Ads will work in production environment' :
+              <>Support SacralTrack by allowing ads<br/>or upgrade to Premium for ad-free experience</>
+            }
           </div>
           <div className="flex gap-2 justify-center">
             <button

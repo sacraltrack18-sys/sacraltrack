@@ -102,7 +102,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
     if (!user?.id) return;
 
     const dbId = process.env.NEXT_PUBLIC_DATABASE_ID;
-    const collectionId = process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE;
+    const collectionId = process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE || '67db665e002906c5c567';
 
     try {
       // Check if user has already liked this news using centralized database client
@@ -145,7 +145,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
     setIsLikeProcessing(true);
 
     const dbId = process.env.NEXT_PUBLIC_DATABASE_ID;
-    const collectionId = process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE;
+    const collectionId = process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE || '67db665e002906c5c567';
 
     // Debug information
     console.log("Using database ID:", dbId);

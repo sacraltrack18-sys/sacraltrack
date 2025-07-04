@@ -275,8 +275,8 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
             {/* Background image with darkening */}
             <div className="absolute inset-0 w-full h-full">
                 <Image
-                    src={imageError ? '/images/placeholders/music-user-placeholder.svg' : 
-                        (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/music-user-placeholder.svg')}
+                    src={imageError ? '/images/placeholders/music-user-placeholder-static.svg' :
+                        (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/music-user-placeholder-static.svg')}
                     alt={user.name}
                     fill
                     className="object-cover"
@@ -383,60 +383,69 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
 const MemoizedUserCard = React.memo(UserCard);
 
 // Обновленный компонент FilterDropdown
-const FilterDropdown = ({ 
-    options, 
-    value, 
-    onChange, 
+const FilterDropdown = ({
+    options,
+    value,
+    onChange,
     label,
-    isMobile 
-}: { 
-    options: {value: string, label: string}[], 
-    value: string, 
+    isMobile
+}: {
+    options: {value: string, label: string}[],
+    value: string,
     onChange: (val: string) => void,
     label: string,
     isMobile?: boolean
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     return (
         <div className="relative">
-            <button 
-                className={`flex items-center gap-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all duration-200 shadow-sm h-[50px] ${
-                    isMobile ? 'px-3 text-xs' : 'px-3.5 text-sm'
+            <motion.button
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                className={`${styles.filterDropdown} flex items-center gap-2 ${
+                    isMobile ? 'px-3 text-xs min-w-[100px]' : 'px-4 text-sm min-w-[140px]'
                 }`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                {!isMobile && <span className="text-purple-300">{label}:</span>}
-                <span className="font-medium text-white/90">{options.find(opt => opt.value === value)?.label}</span>
-                <ChevronDownIcon className={`w-4 h-4 text-purple-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isOpen && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 min-w-[120px] bg-gradient-to-br from-[#1E2136] to-[#141625] rounded-xl py-1 shadow-xl border border-white/10 z-50"
-                >
-                    {options.map(option => (
-                        <button
-                            key={option.value}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors ${
-                                option.value === value 
-                                    ? 'text-[#20DDBB] font-medium bg-[#20DDBB]/10' 
-                                    : 'text-white/80'
-                            }`}
-                            onClick={() => {
-                                onChange(option.value);
-                                setIsOpen(false);
-                            }}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </motion.div>
-            )}
+                {!isMobile && <span className="text-[#20DDBB]/80 font-medium">{label}:</span>}
+                <span className="font-semibold text-white flex-1 text-left">{options.find(opt => opt.value === value)?.label}</span>
+                <ChevronDownIcon className={`w-4 h-4 text-[#20DDBB] transition-all duration-300 ${isOpen ? 'rotate-180 scale-110' : ''}`} />
+            </motion.button>
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute top-full left-0 mt-3 min-w-full bg-gradient-to-br from-[#1E2136]/95 to-[#141625]/95 backdrop-blur-md rounded-2xl py-2 shadow-2xl border border-[#20DDBB]/20 z-50"
+                        style={{ boxShadow: '0 20px 40px rgba(32, 221, 187, 0.1)' }}
+                    >
+                        {options.map((option, index) => (
+                            <motion.button
+                                key={option.value}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-[#20DDBB]/10 transition-all duration-200 ${
+                                    option.value === value
+                                        ? 'text-[#20DDBB] bg-[#20DDBB]/15 border-l-2 border-[#20DDBB]'
+                                        : 'text-white/90 hover:text-white'
+                                } ${index === 0 ? 'rounded-t-2xl' : ''} ${index === options.length - 1 ? 'rounded-b-2xl' : ''}`}
+                                onClick={() => {
+                                    onChange(option.value);
+                                    setIsOpen(false);
+                                }}
+                                whileHover={{ x: 4 }}
+                            >
+                                {option.label}
+                            </motion.button>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
@@ -664,16 +673,21 @@ export default function People() {
         handleSearchSubmit
     } = useSearch(profiles);
 
-    // Mobile touch handlers
+    // Mobile touch handlers with improved scroll detection
     const handleTouchStart = (e: React.TouchEvent) => {
         setLastTouchY(e.touches[0].clientY);
     };
 
-    const handleTouchMove = (e: React.TouchEvent) => {
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
         const currentY = e.touches[0].clientY;
-        setIsScrollingUp(currentY > lastTouchY);
-        setLastTouchY(currentY);
-    };
+        const deltaY = currentY - lastTouchY;
+
+        // Only update scroll direction if movement is significant (reduces jitter)
+        if (Math.abs(deltaY) > 5) {
+            setIsScrollingUp(deltaY > 0);
+            setLastTouchY(currentY);
+        }
+    }, [lastTouchY]);
 
     // Swipe handlers for mobile
     const swipeHandlers = useSwipeable({
@@ -724,18 +738,23 @@ export default function People() {
         });
     };
 
-    // Handle scroll for showing/hiding scroll-to-top button
-    const handleScroll = useCallback(() => {
-        if (!containerRef.current) return;
-        
-        const { scrollTop } = containerRef.current;
-        setShowScrollToTop(scrollTop > 1000);
-        
-        // Hide mobile filters when scrolling down
-        if (!isScrollingUp && showMobileFilters) {
-            setShowMobileFilters(false);
-        }
-    }, [isScrollingUp, showMobileFilters]);
+    // Improved scroll handler with debouncing and smooth behavior
+    const handleScroll = useCallback(
+        debounce(() => {
+            if (!containerRef.current) return;
+
+            const { scrollTop } = containerRef.current;
+
+            // Show/hide scroll to top button
+            setShowScrollToTop(scrollTop > 800);
+
+            // Smooth mobile filters behavior - only hide when scrolling down significantly
+            if (isMobile && showMobileFilters && !isScrollingUp && scrollTop > 100) {
+                setShowMobileFilters(false);
+            }
+        }, 100),
+        [isScrollingUp, showMobileFilters, isMobile]
+    );
 
     useEffect(() => {
         const container = containerRef.current;
@@ -745,23 +764,29 @@ export default function People() {
         return () => container.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
 
-    // Обновленная нижняя навигация только с Top Ranked
+    // Improved mobile navigation with stable positioning
     const MobileNav = () => (
-        <motion.nav 
-            className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#1A1A2E] to-[#1A1A2E]/95 backdrop-blur-lg border-t border-white/5 px-4 py-2 z-50 lg:hidden"
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        <motion.nav
+            className={styles.mobileNav}
+            initial={{ y: 100, opacity: 0 }}
+            animate={{
+                y: 0,
+                opacity: 1,
+                transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 40,
+                    opacity: { duration: 0.3 }
+                }
+            }}
         >
-            <div className="flex items-center justify-center">
-                <button
-                    onClick={() => setShowTopRanked(true)}
-                    className="p-3 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
-                >
-                    <FaTrophy className="w-6 h-6" />
-                    <span className="text-xs mt-1">Top</span>
-                </button>
-            </div>
+            <button
+                onClick={() => setShowTopRanked(true)}
+                className="p-2 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
+            >
+                <FaTrophy className="w-5 h-5" />
+                <span className="text-xs mt-0.5">Top</span>
+            </button>
         </motion.nav>
     );
 
@@ -925,29 +950,39 @@ export default function People() {
         }
     }, [setCache, getCache]);
 
-    // Effect to update visible profiles when search results or sorting changes
+    // Effect to update visible profiles when search results, sorting, or filtering changes
     useEffect(() => {
-        const sortedProfiles = [...searchResults].sort((a, b) => {
+        // First apply filtering
+        let filteredProfiles = [...searchResults];
+
+        if (filterBy === 'friends') {
+            // Filter to show only friends (users with is_friend: true)
+            filteredProfiles = filteredProfiles.filter(user => user.is_friend === true);
+        }
+        // 'all' shows all users, so no additional filtering needed
+
+        // Then apply sorting
+        const sortedProfiles = filteredProfiles.sort((a, b) => {
             if (sortBy === 'name') {
-                return sortDirection === 'asc' 
+                return sortDirection === 'asc'
                     ? a.name.localeCompare(b.name)
                     : b.name.localeCompare(a.name);
             }
             if (sortBy === 'rating') {
-                const aRating = parseFloat(a.average_rating);
-                const bRating = parseFloat(b.average_rating);
+                const aRating = parseFloat(a.average_rating || '0');
+                const bRating = parseFloat(b.average_rating || '0');
                 return sortDirection === 'asc' ? aRating - bRating : bRating - aRating;
             }
             if (sortBy === 'followers') {
-                const aFollowers = parseInt(a.total_followers);
-                const bFollowers = parseInt(b.total_followers);
+                const aFollowers = parseInt(a.total_followers || '0');
+                const bFollowers = parseInt(b.total_followers || '0');
                 return sortDirection === 'asc' ? aFollowers - bFollowers : bFollowers - aFollowers;
             }
             return 0;
         });
-        
+
         setVisibleProfiles(sortedProfiles);
-    }, [searchResults, sortBy, sortDirection]);
+    }, [searchResults, sortBy, sortDirection, filterBy]);
 
     // Добавим useEffect для отслеживания состояния навигации
     useEffect(() => {
@@ -1325,30 +1360,29 @@ export default function People() {
                     <div className={styles.searchWrapper}>
                         <div className={styles.searchInputWrapper}>
                             <div className="relative h-full">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <MagnifyingGlassIcon className="h-5 w-5 text-[#20DDBB]" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder="Search people..."
+                                <MagnifyingGlassIcon className={`h-5 w-5 ${styles.searchIcon}`} />
+                                <input
+                                    type="text"
+                                    placeholder="Search amazing people..."
                                     value={query}
-                                            onChange={(e) => handleSearchInput(e.target.value)}
-                                    className="w-full h-full bg-white/5 backdrop-blur-md text-white border border-[#20DDBB]/20 rounded-xl pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:border-transparent"
-                                        />
+                                    onChange={(e) => handleSearchInput(e.target.value)}
+                                    className={styles.searchInput}
+                                />
                                 {searching && (
-                                            <div className="absolute inset-y-0 right-3 flex items-center">
+                                    <div className="absolute inset-y-0 right-4 flex items-center">
                                         <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full" />
-                                            </div>
-                                        )}
                                     </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Desktop Filters */}
                         <div className={`${styles.filterGroup} hidden lg:flex`}>
-                                    <FilterDropdown 
+                                    <FilterDropdown
                                         options={[
                                             { value: 'name', label: 'Name' },
-                                            { value: 'rating', label: 'Rating' }
+                                            { value: 'rating', label: 'Rating' },
+                                            { value: 'followers', label: 'Followers' }
                                         ]}
                                         value={sortBy}
                                         onChange={setSortBy}
@@ -1368,17 +1402,16 @@ export default function People() {
                                     />
                                     
                                     <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
+                                        whileHover={{ scale: 1.02, y: -1 }}
+                                        whileTap={{ scale: 0.98 }}
                                         onClick={toggleSortDirection}
-                                className={`flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all h-[50px] ${
-                                    isMobile ? 'w-[50px]' : 'w-[50px]'
-                                }`}
+                                        className={styles.filterButton}
+                                        title={`Sort ${sortDirection === 'asc' ? 'Descending' : 'Ascending'}`}
                                     >
                                         {sortDirection === 'asc' ? (
-                                            <ArrowUpIcon className="w-5 h-5 text-white/80" />
+                                            <ArrowUpIcon className="w-5 h-5 text-[#20DDBB]" />
                                         ) : (
-                                            <ArrowDownIcon className="w-5 h-5 text-white/80" />
+                                            <ArrowDownIcon className="w-5 h-5 text-[#20DDBB]" />
                                         )}
                                     </motion.button>
                                 </div>

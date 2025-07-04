@@ -24,7 +24,11 @@ export const APPWRITE_CONFIG = {
   // Добавление коллекций для миксов
   mixPostsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_MIX_POSTS || '6857da72002661f6e89b',
   mixLikesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_MIX_LIKES || 'mix_likes',
-  
+
+  // Добавление коллекций для новостей
+  newsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS || '68285239000757a15e82',
+  newsLikesCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE || '67db665e002906c5c567',
+
   // Для обратной совместимости с старыми ключами
   friendsCollectionId: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || '67f22b92000e12316e52',
 };
@@ -41,6 +45,8 @@ export const clientConfig = {
     likes: process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE || 'likes',
     comments: process.env.NEXT_PUBLIC_COLLECTION_ID_COMMENT || 'comments',
     friends: process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS || '67f22b92000e12316e52',
+    news: process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS || '68285239000757a15e82',
+    newsLikes: process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE || '67db665e002906c5c567',
   }
 };
 
@@ -271,6 +277,8 @@ export const checkAppwriteConfig = () => {
     vibeCommentsCollectionId: APPWRITE_CONFIG.vibeCommentsCollectionId,
     vibeLikesCollectionId: APPWRITE_CONFIG.vibeLikesCollectionId,
     friendsCollectionId: APPWRITE_CONFIG.friendsCollectionId,
+    newsCollectionId: APPWRITE_CONFIG.newsCollectionId,
+    newsLikesCollectionId: APPWRITE_CONFIG.newsLikesCollectionId,
     bucketId: APPWRITE_CONFIG.storageId
   };
   

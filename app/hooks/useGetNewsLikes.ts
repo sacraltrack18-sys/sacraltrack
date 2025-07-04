@@ -18,7 +18,7 @@ export default async function useGetNewsLikes(newsId: string) {
         // Get all likes for this news item
         const response = await databases.listDocuments(
             process.env.NEXT_PUBLIC_DATABASE_ID as string,
-            process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string || '67db665e002906c5c567',
             [Query.equal("news_id", newsId)]
         );
         

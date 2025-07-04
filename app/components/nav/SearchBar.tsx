@@ -388,8 +388,8 @@ const SearchResultItem = React.memo(({ result, getImageUrl, onClick }: SearchRes
           alt={result.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            e.currentTarget.src = result.type === 'profile' 
-              ? '/images/placeholders/user-placeholder.svg'
+            e.currentTarget.src = result.type === 'profile'
+              ? '/images/placeholders/music-user-placeholder-static.svg'
               : '/images/placeholders/default-placeholder.svg';
           }}
         />

@@ -1,28 +1,37 @@
 /* Base styles */
 .container {
-  @apply max-w-7xl mx-auto px-4 py-6;
+  @apply max-w-7xl mx-auto;
 }
 
 .pageContent {
-  @apply space-y-6;
+  @apply space-y-0;
 }
 
 /* Grid container with improved scrolling */
 .gridContainer {
-  @apply space-y-6 pb-20 lg:pb-6;
-  height: calc(100vh - 60px);
+  @apply pb-20 lg:pb-6;
+  height: calc(100vh - 70px);
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gridContainer::-webkit-scrollbar {
+  display: none;
 }
 
 .gridLayout {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 1rem;
+  padding: 0 10px;
 }
 
 @media (min-width: 640px) {
   .gridLayout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 1rem;
   }
 }
 
@@ -30,6 +39,7 @@
   .gridLayout {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.5rem;
+    padding: 0 1.5rem;
   }
 }
 
@@ -47,8 +57,16 @@
 }
 
 .searchContainer {
-  @apply sticky top-0 z-30 bg-[#1A1A2E]/80 backdrop-blur-md border-b border-white/5;
+  @apply sticky top-0 z-30 backdrop-blur-md;
   height: 60px;
+  margin-bottom: 10px;
+  background: linear-gradient(to bottom,
+    rgba(26, 26, 46, 0.95) 0%,
+    rgba(26, 26, 46, 0.8) 70%,
+    rgba(26, 26, 46, 0.4) 90%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .searchWrapper {
@@ -56,14 +74,88 @@
 }
 
 .searchInputWrapper {
-  @apply flex-1 lg:flex-none;
-  max-width: 400px;
-  height: 50px;
+  @apply flex-1 lg:flex-none relative;
+  max-width: 450px;
+  height: 48px;
+}
+
+.searchInput {
+  @apply w-full h-full backdrop-blur-md text-white border rounded-2xl pl-12 pr-4 text-sm font-medium;
+  @apply focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ease-in-out;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(32, 221, 187, 0.3);
+  box-shadow: 0 4px 20px rgba(32, 221, 187, 0.1);
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.searchInput:focus {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(32, 221, 187, 0.5);
+  --tw-ring-color: rgba(32, 221, 187, 0.6);
+}
+
+.searchInput:focus {
+  box-shadow: 0 8px 32px rgba(32, 221, 187, 0.2);
+  transform: translateY(-1px);
+}
+
+.searchIcon {
+  @apply absolute left-4 top-1/2 transform -translate-y-1/2 text-[#20DDBB] transition-all duration-300;
+}
+
+.searchInput:focus + .searchIcon {
+  @apply text-[#20DDBB] scale-110;
 }
 
 .filterGroup {
   @apply flex items-center gap-3;
-  height: 50px;
+  height: 48px;
+}
+
+.filterButton {
+  @apply flex items-center justify-center rounded-2xl border transition-all duration-300;
+  @apply hover:shadow-lg;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  height: 48px;
+  min-width: 48px;
+}
+
+.filterButton:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(32, 221, 187, 0.4);
+  box-shadow: 0 10px 25px rgba(32, 221, 187, 0.1);
+}
+
+.filterButton:hover {
+  transform: translateY(-1px);
+}
+
+.filterDropdown {
+  @apply backdrop-blur-md border rounded-2xl px-4 py-2 text-white text-sm font-medium;
+  @apply transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  height: 48px;
+  min-width: 120px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.filterDropdown:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(32, 221, 187, 0.4);
+}
+
+.filterDropdown:focus {
+  --tw-ring-color: rgba(32, 221, 187, 0.6);
+}
+
+.filterDropdown:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(32, 221, 187, 0.15);
 }
 
 .loadingPulse {
@@ -74,21 +166,55 @@
   @apply bg-white/5 rounded-2xl aspect-[4/5];
 }
 
+/* Mobile navigation improvements */
+.mobileNav {
+  @apply fixed bottom-0 left-0 right-0 z-50 lg:hidden flex items-center justify-center;
+  background: linear-gradient(to top,
+    rgba(26, 26, 46, 1) 0%,
+    rgba(26, 26, 46, 0.98) 70%,
+    rgba(26, 26, 46, 0.95) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 -10px 30px rgba(0, 0, 0, 0.3),
+    0 -1px 0 rgba(32, 221, 187, 0.1),
+    0 -20px 40px rgba(32, 221, 187, 0.05);
+  transform: translateZ(0); /* Force hardware acceleration */
+  will-change: transform;
+  height: 50px; /* Уменьшена высота на 10px */
+  padding: 0 1rem;
+}
+
 /* Mobile-first responsive container sizes */
 @media (max-width: 480px) {
   .gridContainer {
     max-width: 100%;
-    padding: 0.5rem;
-    height: calc(100vh - 112px); /* Adjusted for mobile header */
+    padding: 0;
+    height: calc(100vh - 120px); /* Adjusted for mobile header, nav height and filter margin */
+    /* Improve scroll performance */
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+    will-change: scroll-position;
   }
-  
+
   .pageContent {
-    padding: 0 0.5rem;
+    padding: 0;
   }
 
   .gridLayout {
-    padding: 0.5rem;
+    padding: 0 10px;
     gap: 0.75rem;
+  }
+
+  /* Prevent layout shifts on mobile */
+  .searchContainer {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    transform: translateZ(0);
+    will-change: transform;
   }
 }
 
@@ -106,8 +232,8 @@
 @media (min-width: 769px) {
   .gridContainer {
     max-width: 100%;
-    padding: 1.5rem;
-    height: calc(100vh - 64px);
+    padding: 0;
+    height: calc(100vh - 70px);
   }
 }
 
@@ -154,14 +280,15 @@
   }
 }
 
-@media (max-width: 480px) {
-  .custom-scrollbar {
-    scrollbar-width: none;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
+/* Убираем скроллбары на всех устройствах */
+.custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 480px) {
@@ -197,15 +324,7 @@
   }
 }
 
-.mobileNav {
-  display: none;
-}
-
-@media (max-width: 480px) {
-  .mobileNav {
-    @apply fixed bottom-0 left-0 right-0 flex bg-[#1A1A2E]/95 backdrop-blur-lg border-t border-white/5 p-2 z-50;
-  }
-}
+/* Дублирующиеся стили удалены - используется основной .mobileNav выше */
 
 @media (max-width: 480px) {
   .touchFeedback {
@@ -311,29 +430,7 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-.custom-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  border: none;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
+/* Убираем дублирующиеся стили - уже определены выше */
 
 @keyframes shimmer {
   0% {
@@ -355,16 +452,7 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* Custom scrollbar for mobile */
-.custom-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  display: none;
-}
+/* Убираем дублирующиеся стили - уже определены выше */
 
 /* Mobile top ranked modal */
 @media (max-width: 480px) {

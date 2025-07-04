@@ -79,10 +79,10 @@ export default function NewsDetail() {
             // Check if user has already liked this news
             const response = await databases.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID as string,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE as string,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string || '67db665e002906c5c567',
                 [
                     `user_id=${user.id}`,
-                    `post_id=${id}`
+                    `news_id=${id}`
                 ]
             );
             
@@ -126,10 +126,10 @@ export default function NewsDetail() {
                 // Add like
                 await databases.createDocument(
                     process.env.NEXT_PUBLIC_DATABASE_ID as string,
-                    process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE as string,
+                    process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string || '67db665e002906c5c567',
                     ID.unique(),
                     {
-                        post_id: id,
+                        news_id: id,
                         user_id: user.id
                     }
                 );
@@ -141,17 +141,17 @@ export default function NewsDetail() {
                 // Remove like
                 const response = await databases.listDocuments(
                     process.env.NEXT_PUBLIC_DATABASE_ID as string,
-                    process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE as string,
+                    process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string || '67db665e002906c5c567',
                     [
                         `user_id=${user.id}`,
-                        `post_id=${id}`
+                        `news_id=${id}`
                     ]
                 );
-                
+
                 if (response.documents.length > 0) {
                     await databases.deleteDocument(
                         process.env.NEXT_PUBLIC_DATABASE_ID as string,
-                        process.env.NEXT_PUBLIC_COLLECTION_ID_LIKE as string,
+                        process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS_LIKE as string || '67db665e002906c5c567',
                         response.documents[0].$id
                     );
                 }

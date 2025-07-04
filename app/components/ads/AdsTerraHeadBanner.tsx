@@ -23,6 +23,19 @@ const AdsTerraHeadBanner: React.FC<AdsTerraHeadBannerProps> = ({
   useEffect(() => {
     if (!adKey) return;
 
+    // Проверяем, что мы не на localhost
+    const isLocalhost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+       window.location.hostname === '127.0.0.1' ||
+       window.location.hostname.includes('localhost'));
+
+    if (isLocalhost) {
+      console.log(`[AdsTerraHeadBanner] Skipping AdsTerra on localhost`);
+      setIsLoading(false);
+      setHasError(true);
+      return;
+    }
+
     console.log(`[AdsTerraHeadBanner] Loading ad with key: ${adKey}`);
     setIsLoading(true);
     setHasError(false);

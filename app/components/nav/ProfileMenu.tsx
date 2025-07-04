@@ -215,7 +215,7 @@ const ProfileMenu = () => {
                       src={
                         userContext?.user?.image
                           ? getProfileImageUrl(userContext.user.image)
-                          : "/images/placeholders/user-placeholder.svg"
+                          : "/images/placeholders/music-user-placeholder-static.svg"
                       }
                       alt={userContext?.user?.name || "User avatar"}
                     />

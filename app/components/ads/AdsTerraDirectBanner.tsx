@@ -22,6 +22,24 @@ const AdsTerraDirectBanner: React.FC<AdsTerraDirectBannerProps> = ({
   useEffect(() => {
     if (!adKey || !containerRef.current) return;
 
+    // Проверяем окружение
+    const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
+    const adsEnvironment = process.env.NEXT_PUBLIC_ADS_ENVIRONMENT || 'development';
+
+    const isProduction = adsEnvironment === 'production' ||
+      (typeof window !== 'undefined' &&
+       !window.location.hostname.includes('localhost') &&
+       !window.location.hostname.includes('127.0.0.1') &&
+       window.location.hostname !== '127.0.0.1');
+
+    // Пропускаем загрузку AdsTerra если реклама отключена и мы не в продакшене
+    if (!adsEnabled && !isProduction) {
+      console.log(`[AdsTerraDirectBanner] Ads disabled in development environment`);
+      setIsLoading(false);
+      setHasError(true);
+      return;
+    }
+
     console.log(`[AdsTerraDirectBanner] Loading ad with key: ${adKey}`);
     setIsLoading(true);
     setHasError(false);
@@ -111,22 +129,34 @@ const AdsTerraDirectBanner: React.FC<AdsTerraDirectBannerProps> = ({
   }, [adKey, adWidth, adHeight]);
 
   if (hasError) {
+    const isLocalhost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+       window.location.hostname === '127.0.0.1' ||
+       window.location.hostname.includes('localhost'));
+
     return (
-      <div 
+      <div
         className={`flex items-center justify-center bg-gray-800/50 rounded-lg border border-gray-600 ${className}`}
         style={{ width: adWidth, height: adHeight }}
       >
         <div className="text-center p-4">
-          <div className="text-red-400 text-sm font-medium mb-2">Ad Failed to Load</div>
-          <div className="text-gray-400 text-xs">
-            Key: {adKey.substring(0, 8)}...
+          <div className="text-yellow-400 text-sm font-medium mb-2">
+            {isLocalhost ? 'AdsTerra Disabled on Localhost' : 'Ad Failed to Load'}
           </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
-          >
-            Retry
-          </button>
+          <div className="text-gray-400 text-xs mb-2">
+            {isLocalhost ?
+              'Ads will work in production environment' :
+              `Key: ${adKey.substring(0, 8)}...`
+            }
+          </div>
+          {!isLocalhost && (
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     );

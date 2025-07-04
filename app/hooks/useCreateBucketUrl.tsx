@@ -53,9 +53,9 @@ export const clearUrlCache = () => {
 
 // Стильные заглушки для разных типов контента
 const stylishPlaceholders = {
-  user: '/images/placeholders/user-placeholder.svg',
+  user: '/images/placeholders/music-user-placeholder-static.svg',
   track: '/images/placeholders/track-placeholder.svg',
-  default: '/images/placeholders/user-placeholder.svg',
+  default: '/images/placeholders/music-user-placeholder-static.svg',
 };
 
 // Функция для получения соответствующего изображения-заглушки

@@ -21,9 +21,9 @@ interface UserProfileCardProps {
 
 const UserProfileCard: React.FC<UserProfileCardProps> = ({ profile, compact = false }) => {
   // Get profile image URL
-  const profileImageUrl = profile?.image 
+  const profileImageUrl = profile?.image
     ? useCreateBucketUrl(profile.image)
-    : '/images/placeholders/user-placeholder.svg';
+    : '/images/placeholders/music-user-placeholder-static.svg';
 
   // Друзья/запросы
   const contextUser = useUser();
