@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from "@/app/context/user";
 import Head from 'next/head';
+import NewsAdBanner from '../components/ads/NewsAdBanner';
 
 // Login prompt modal component
 const LoginPromptModal = ({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) => (
@@ -130,9 +131,15 @@ export default function NewsLayout({ children, title = "Latest News", descriptio
                         initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                        className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8"
+                        className="w-full"
             >
-				{children}
+                    {/* Main Content Layout */}
+                    <div className="w-full">
+                        {/* Main content area */}
+                        <div className="w-full">
+                            {children}
+                        </div>
+                    </div>
 			</motion.div>
 			</div>
 

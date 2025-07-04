@@ -8,8 +8,16 @@ import { toast } from "react-hot-toast";
 import useGetNewsLikes from "@/app/hooks/useGetNewsLikes";
 import Link from "next/link";
 import {
+  FaTwitter,
+  FaFacebook,
+  FaTelegram,
+  FaVk
+} from 'react-icons/fa';
+import { DocumentDuplicateIcon } from "@heroicons/react/24/outline";
+import {
   recordFailedImageRequest,
   fixAppwriteImageUrl,
+  getAppwriteImageUrl,
 } from "@/app/utils/appwriteImageUrl";
 
 interface NewsCardProps {
@@ -49,15 +57,45 @@ const NewsCard: React.FC<NewsCardProps> = ({
   // Placeholder image if img_url is missing
   const fallbackImageUrl = "/images/placeholders/news-placeholder.svg";
   const rawImageUrl = img_url || fallbackImageUrl;
-  // Fix the image URL if it has the problematic format
-  const imageUrl = fixAppwriteImageUrl(rawImageUrl, fallbackImageUrl);
 
-  // Check if user has liked this news
+  // Debug logging
+  console.log(`[NEWS-IMAGE] News ID: ${$id}, img_url: ${img_url}, rawImageUrl: ${rawImageUrl}`);
+
+  // Try to get proper Appwrite image URL first, then fix if needed
+  let imageUrl = rawImageUrl;
+  if (img_url && !img_url.startsWith('http') && !img_url.startsWith('/')) {
+    // This looks like a file ID, use getAppwriteImageUrl
+    imageUrl = getAppwriteImageUrl(img_url, fallbackImageUrl);
+    console.log(`[NEWS-IMAGE] Generated Appwrite URL: ${imageUrl}`);
+  } else {
+    // This is already a URL, just fix it if needed
+    imageUrl = fixAppwriteImageUrl(rawImageUrl, fallbackImageUrl);
+    console.log(`[NEWS-IMAGE] Fixed existing URL: ${imageUrl}`);
+  }
+
+  // Load likes data when component mounts
+  React.useEffect(() => {
+    if ($id) {
+      loadLikesData();
+    }
+  }, [$id]);
+
+  // Check if user has liked this news when user changes
   React.useEffect(() => {
     if (user && $id) {
       checkUserLike();
     }
   }, [user, $id]);
+
+  // Function to load current likes data
+  const loadLikesData = async () => {
+    try {
+      const likesData = await useGetNewsLikes($id);
+      setLikeCount(likesData.likesCount);
+    } catch (error) {
+      console.error("Error loading likes data:", error);
+    }
+  };
 
   // Function to check if user has liked this post
   const checkUserLike = async () => {
@@ -82,22 +120,6 @@ const NewsCard: React.FC<NewsCardProps> = ({
       }
     } catch (error: any) {
       console.error("Error checking like status:", error);
-      // Don't show error toast for checking since it's a background operation
-      // but log details for debugging
-      if (
-        error.message &&
-        error.message.includes(
-          "Collection with the requested ID could not be found",
-        )
-      ) {
-        console.warn(
-          "The news likes collection does not exist: " + collectionId,
-        );
-      } else if (error.message && error.message.includes("not authorized")) {
-        console.warn(
-          "Ошибка прав доступа: В коллекции news_like нужно настроить разрешения для чтения документов.",
-        );
-      }
     }
   };
 
@@ -152,8 +174,24 @@ const NewsCard: React.FC<NewsCardProps> = ({
           ],
         );
 
+        // Update local state
         setLikeCount((prev) => prev + 1);
         setIsLiked(true);
+
+        // Update the news document with new like count
+        try {
+          await database.updateDocument(
+            dbId as string,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS as string,
+            $id,
+            {
+              likes: likeCount + 1
+            }
+          );
+        } catch (updateError) {
+          console.warn("Failed to update news like count:", updateError);
+        }
+
         toast.success("Added to liked news!");
       } else {
         // Remove like using centralized database client
@@ -174,8 +212,24 @@ const NewsCard: React.FC<NewsCardProps> = ({
           );
         }
 
+        // Update local state
         setLikeCount((prev) => prev - 1);
         setIsLiked(false);
+
+        // Update the news document with new like count
+        try {
+          await database.updateDocument(
+            dbId as string,
+            process.env.NEXT_PUBLIC_COLLECTION_ID_NEWS as string,
+            $id,
+            {
+              likes: Math.max(0, likeCount - 1) // Ensure likes don't go below 0
+            }
+          );
+        } catch (updateError) {
+          console.warn("Failed to update news like count:", updateError);
+        }
+
         toast.success("Removed from liked news");
       }
     } catch (error: any) {
@@ -213,10 +267,30 @@ const NewsCard: React.FC<NewsCardProps> = ({
   };
 
   // Fallback share method (copy to clipboard)
-  const fallbackShare = () => {
-    const url = `${window.location.origin}/news/${$id}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Link copied to clipboard!");
+  const fallbackShare = async () => {
+    try {
+      const url = `${window.location.origin}/news/${$id}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!', {
+        icon: '🔗',
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
+    } catch (err) {
+      console.error('Error copying link:', err);
+      toast.error('Could not copy link', {
+        duration: 3000,
+        style: {
+          background: '#333',
+          color: '#fff',
+          borderRadius: '10px'
+        }
+      });
+    }
+    setIsShareModalOpen(false);
   };
 
   // Function to share in specific social network
@@ -244,8 +318,8 @@ const NewsCard: React.FC<NewsCardProps> = ({
       case "linkedin":
         shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
         break;
-      case "pinterest":
-        shareUrl = `https://pinterest.com/pin/create/button/?url=${url}&description=${titleEncoded}&media=${encodeURIComponent(imageUrl)}`;
+      case "vk":
+        shareUrl = `https://vk.com/share.php?url=${url}&title=${titleEncoded}&description=${descriptionEncoded}`;
         break;
       default:
         fallbackShare();
@@ -297,12 +371,14 @@ const NewsCard: React.FC<NewsCardProps> = ({
               style={{ objectFit: "cover" }}
               className="transition-transform duration-700 hover:scale-110"
               onError={(e) => {
+                console.error(`[NEWS-IMAGE] Failed to load image: ${imageUrl} for news ${$id}`);
+
                 // Check if max retries reached
-                const shouldUseDefaultImage =
-                  recordFailedImageRequest(imageUrl);
+                const shouldUseDefaultImage = recordFailedImageRequest(imageUrl);
 
                 // Always use fallback image on error to prevent infinite retries
                 (e.target as HTMLImageElement).src = fallbackImageUrl;
+                console.log(`[NEWS-IMAGE] Using fallback image: ${fallbackImageUrl}`);
               }}
               priority
             />
@@ -445,13 +521,14 @@ const NewsCard: React.FC<NewsCardProps> = ({
         {isModalOpen && (
           <motion.div
             className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto"
+            style={{ paddingTop: '50px' }}
             onClick={() => setIsModalOpen(false)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-[#1E2136] rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl"
+              className="bg-gradient-to-br from-[#1E2136] to-[#2A2F4A] rounded-2xl w-full max-w-4xl max-h-[calc(90vh-50px)] overflow-hidden shadow-2xl border border-purple-500/20"
               onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -466,12 +543,14 @@ const NewsCard: React.FC<NewsCardProps> = ({
                   style={{ objectFit: "cover" }}
                   className="w-full"
                   onError={(e) => {
+                    console.error(`[NEWS-IMAGE] Failed to load modal image: ${imageUrl} for news ${$id}`);
+
                     // Check if max retries reached
-                    const shouldUseDefaultImage =
-                      recordFailedImageRequest(imageUrl);
+                    const shouldUseDefaultImage = recordFailedImageRequest(imageUrl);
 
                     // Always use fallback image on error to prevent infinite retries
                     (e.target as HTMLImageElement).src = fallbackImageUrl;
+                    console.log(`[NEWS-IMAGE] Using fallback image in modal: ${fallbackImageUrl}`);
                   }}
                   priority
                 />
@@ -608,31 +687,32 @@ const NewsCard: React.FC<NewsCardProps> = ({
       <AnimatePresence>
         {isShareModalOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-            onClick={() => setIsShareModalOpen(false)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            style={{ paddingTop: '50px' }}
+            onClick={() => setIsShareModalOpen(false)}
           >
             <motion.div
-              className="bg-[#1E2136] rounded-xl w-full max-w-md p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-gradient-to-br from-[#24183D] to-[#0F172A] rounded-2xl w-full max-w-md max-h-[calc(90vh-50px)] overflow-y-auto p-6 shadow-xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white">
-                  Share this news
-                </h3>
-                <button
-                  className="text-gray-400 hover:text-white"
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white">Share this News</h2>
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setIsShareModalOpen(false)}
+                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
+                    className="h-6 w-6 text-gray-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -644,124 +724,82 @@ const NewsCard: React.FC<NewsCardProps> = ({
                       d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                {/* Facebook */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("facebook")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#1877F2] flex items-center justify-center mb-2">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">Facebook</span>
-                </motion.button>
-
-                {/* Twitter */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#1DA1F2]/10 hover:bg-[#1DA1F2]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("twitter")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-black flex items-center justify-center mb-2">
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">Twitter</span>
-                </motion.button>
-
-                {/* Telegram */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#0088cc]/10 hover:bg-[#0088cc]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("telegram")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#0088cc] flex items-center justify-center mb-2">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M22.162 6.657c.615-.615.615-1.607 0-2.222l-2.222-2.222c-.615-.615-1.607-.615-2.222 0l-8.485 8.485-3.536-3.536c-.615-.615-1.607-.615-2.222 0l-2.222 2.222c-.615.615-.615 1.607 0 2.222l2.222 2.222c.615.615 1.607.615 2.222 0l3.536-3.536 8.485 8.485c.615.615 1.607.615 2.222 0l2.222-2.222c.615-.615.615-1.607 0-2.222l-2.222-2.222z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">Telegram</span>
-                </motion.button>
-
-                {/* WhatsApp */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("whatsapp")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center mb-2">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 2.485.738 4.785 2.004 6.686l-1.447 4.841a1 1 0 00.293 1.054 1.007 1.007 0 001.054.293l4.841-1.447A11.963 11.963 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm4.293 14.293a1 1 0 01-1.414 0l-2.829-2.828a1 1 0 010-1.414l2.829-2.829a1 1 0 011.414 1.414L13.414 12l2.879 2.879a1 1 0 010 1.414z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">WhatsApp</span>
-                </motion.button>
-
-                {/* LinkedIn */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#0077b5]/10 hover:bg-[#0077b5]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("linkedin")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#0077b5] flex items-center justify-center mb-2">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M4.98 3.5C3.78 3.5 2.5 4.78 2.5 6v12c0 1.22 1.28 2.5 2.48 2.5h12c1.2 0 2.52-1.28 2.52-2.5V6c0-1.22-1.32-2.5-2.52-2.5H4.98zM9 17.27V12H7v5.27C7 18.11 8.9 20 11.27 20H12v-2h-.73C9.84 18 9 17.16 9 16.27zM17 17h-2v-5h2v5zm-1-7.5c-.83 0-1.5-.67-1.5-1.5S15.17 7 16 7s1.5.67 1.5 1.5S16.83 9 16 9z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">LinkedIn</span>
-                </motion.button>
-
-                {/* Pinterest */}
-                <motion.button
-                  className="flex flex-col items-center p-3 bg-[#bd081c]/10 hover:bg-[#bd081c]/20 rounded-xl text-white"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => shareToSocialMedia("pinterest")}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#bd081c] flex items-center justify-center mb-2">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">Pinterest</span>
                 </motion.button>
               </div>
+
+              <div className="mb-6 bg-black/20 rounded-xl p-3 border border-white/5 flex items-center space-x-3">
+                <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                  <Image
+                    src={imageUrl}
+                    alt={title || 'News preview'}
+                    className="object-cover w-full h-full"
+                    width={64}
+                    height={64}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-white font-medium text-sm mb-1 truncate">
+                    {title}
+                  </h4>
+                  <p className="text-gray-400 text-xs truncate">
+                    {description?.substring(0, 60)}...
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => shareToSocialMedia('vk')}
+                  className="flex flex-col items-center p-4 rounded-xl bg-[#4C75A3]/10 hover:bg-[#4C75A3]/20 border border-[#4C75A3]/30 transition-all"
+                >
+                  <FaVk className="text-[#4C75A3] text-2xl mb-2" />
+                  <span className="text-white text-sm font-medium">VK</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => shareToSocialMedia('telegram')}
+                  className="flex flex-col items-center p-4 rounded-xl bg-[#0088cc]/10 hover:bg-[#0088cc]/20 border border-[#0088cc]/30 transition-all"
+                >
+                  <FaTelegram className="text-[#0088cc] text-2xl mb-2" />
+                  <span className="text-white text-sm font-medium">Telegram</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => shareToSocialMedia('twitter')}
+                  className="flex flex-col items-center p-4 rounded-xl bg-[#1DA1F2]/10 hover:bg-[#1DA1F2]/20 border border-[#1DA1F2]/30 transition-all"
+                >
+                  <FaTwitter className="text-[#1DA1F2] text-2xl mb-2" />
+                  <span className="text-white text-sm font-medium">Twitter</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => shareToSocialMedia('facebook')}
+                  className="flex flex-col items-center p-4 rounded-xl bg-[#4267B2]/10 hover:bg-[#4267B2]/20 border border-[#4267B2]/30 transition-all"
+                >
+                  <FaFacebook className="text-[#4267B2] text-2xl mb-2" />
+                  <span className="text-white text-sm font-medium">Facebook</span>
+                </motion.button>
+              </div>
+
+              {/* Copy link button */}
+              <motion.button
+                whileHover={{ scale: 1.03, backgroundColor: 'rgba(32, 221, 187, 0.9)' }}
+                whileTap={{ scale: 0.97 }}
+                onClick={fallbackShare}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#20DDBB] to-[#20DDBB]/90 text-white font-medium shadow-lg shadow-[#20DDBB]/20 flex items-center justify-center"
+              >
+                <DocumentDuplicateIcon className="w-5 h-5 mr-2" />
+                Copy Link to Clipboard
+              </motion.button>
+
             </motion.div>
           </motion.div>
         )}
