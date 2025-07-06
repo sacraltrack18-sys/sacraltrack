@@ -212,7 +212,7 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
               className="overflow-hidden"
             >
               <motion.div
-                className="p-4 relative"
+                className="relative"
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.1 }}
@@ -249,7 +249,7 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-4 text-center relative"
+            className="text-center relative"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-b-xl"></div>
             <motion.span

@@ -226,9 +226,9 @@ const BannerModal: React.FC<BannerModalProps> = ({ isOpen, onClose, banner }) =>
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-19rem)]">
+          <div className="overflow-y-auto max-h-[calc(90vh-19rem)]">
             {/* Title and meta */}
-            <div className="mb-6">
+            <div className="mb-6 px-6">
               <h1 className="text-3xl font-bold text-white mb-3">{banner.title}</h1>
               {banner.subtitle && (
                 <h2 className="text-xl text-gray-300 mb-4">{banner.subtitle}</h2>
@@ -296,8 +296,8 @@ const BannerModal: React.FC<BannerModalProps> = ({ isOpen, onClose, banner }) =>
             </div>
 
             {/* Article content */}
-            <div 
-              className="prose prose-invert max-w-none"
+            <div
+              className="prose prose-invert max-w-none px-6"
               dangerouslySetInnerHTML={{ __html: dummyData.content }}
             />
           </div>
