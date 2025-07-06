@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { NewsItem } from "@/app/stores/newsStore";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Portal from "../ui/Portal";
 import { useUser } from "@/app/context/user";
 import { database, ID, Query, Permission } from "@/libs/AppWriteClient";
 import { toast } from "react-hot-toast";
@@ -334,7 +335,13 @@ const NewsCard: React.FC<NewsCardProps> = ({
   };
 
   // Function to handle card click
-  const handleCardClick = () => {
+  const handleCardClick = (e?: React.MouseEvent) => {
+    // Allow middle-click and ctrl+click to open in new tab
+    if (e && (e.ctrlKey || e.metaKey || e.button === 1)) {
+      window.open(`/news/${$id}`, '_blank');
+      return;
+    }
+
     if (navigateOnClick) {
       // Use client-side navigation to the individual news page
       window.location.href = `/news/${$id}`;
@@ -349,15 +356,57 @@ const NewsCard: React.FC<NewsCardProps> = ({
     }
   };
 
+  // Generate structured data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": title,
+    "description": description,
+    "image": img_url ? getAppwriteImageUrl(img_url) : "/default-news-image.jpg",
+    "datePublished": created,
+    "dateModified": created,
+    "author": {
+      "@type": "Person",
+      "name": author || "SacralTrack News"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "SacralTrack",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "/logo.png"
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://sacraltrack.com/news/${$id}`
+    },
+    "interactionStatistic": {
+      "@type": "InteractionCounter",
+      "interactionType": "https://schema.org/LikeAction",
+      "userInteractionCount": likeCount
+    }
+  };
+
   return (
     <>
-      <motion.div
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      <motion.article
         className="bg-[#1E2136] rounded-xl overflow-hidden shadow-lg mb-6 w-full transition-all duration-300 hover:shadow-purple-500/20 cursor-pointer"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         whileHover={{ y: -5 }}
-        onClick={() => handleCardClick()}
+        onClick={(e) => handleCardClick(e)}
+        itemScope
+        itemType="https://schema.org/NewsArticle"
+        role="article"
+        aria-label={`News article: ${title}`}
       >
         <div className="relative overflow-hidden h-48">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#1E2136]/70 z-10" />
@@ -366,7 +415,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
           <div className="relative h-full w-full bg-[#272B43]">
             <Image
               src={imageUrl}
-              alt={title}
+              alt={`${title} - SacralTrack News`}
               fill
               style={{ objectFit: "cover" }}
               className="transition-transform duration-700 hover:scale-110"
@@ -381,6 +430,9 @@ const NewsCard: React.FC<NewsCardProps> = ({
                 console.log(`[NEWS-IMAGE] Using fallback image: ${fallbackImageUrl}`);
               }}
               priority
+              itemProp="image"
+              loading="eager"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
 
             {/* Likes indicator */}
@@ -416,13 +468,32 @@ const NewsCard: React.FC<NewsCardProps> = ({
             )}
           </div>
 
-          <h3 className="text-white font-bold text-lg mb-2 line-clamp-2 leading-tight">
+          <h3
+            className="text-white font-bold text-lg mb-2 line-clamp-2 leading-tight"
+            itemProp="headline"
+          >
             {title}
           </h3>
 
-          <p className="text-gray-300 text-sm mb-4 line-clamp-2">
+          <p
+            className="text-gray-300 text-sm mb-4 line-clamp-2"
+            itemProp="description"
+          >
             {description}
           </p>
+
+          {/* Hidden SEO metadata */}
+          <meta itemProp="datePublished" content={created} />
+          <meta itemProp="dateModified" content={created} />
+          <div itemProp="author" itemScope itemType="https://schema.org/Person" style={{ display: 'none' }}>
+            <meta itemProp="name" content={author || "SacralTrack News"} />
+          </div>
+          <div itemProp="publisher" itemScope itemType="https://schema.org/Organization" style={{ display: 'none' }}>
+            <meta itemProp="name" content="SacralTrack" />
+            <div itemProp="logo" itemScope itemType="https://schema.org/ImageObject">
+              <meta itemProp="url" content="/logo.png" />
+            </div>
+          </div>
 
           <div
             className="flex items-center justify-between"
@@ -514,11 +585,12 @@ const NewsCard: React.FC<NewsCardProps> = ({
             </div>
           </div>
         </div>
-      </motion.div>
+      </motion.article>
 
       {/* News reading modal */}
-      <AnimatePresence>
-        {isModalOpen && (
+      <Portal>
+        <AnimatePresence>
+          {isModalOpen && (
           <motion.div
             className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto"
             style={{ paddingTop: '50px' }}
@@ -577,7 +649,10 @@ const NewsCard: React.FC<NewsCardProps> = ({
                 </button>
 
                 <div className="absolute bottom-6 left-6 right-6">
-                  <h1 className="text-white font-bold text-2xl md:text-3xl mb-2 drop-shadow-lg">
+                  <h1
+                    className="text-white font-bold text-2xl md:text-3xl mb-2 drop-shadow-lg"
+                    itemProp="headline"
+                  >
                     {title}
                   </h1>
                   <div className="flex items-center text-sm text-gray-200">
@@ -680,12 +755,14 @@ const NewsCard: React.FC<NewsCardProps> = ({
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </Portal>
 
       {/* Share Modal */}
-      <AnimatePresence>
-        {isShareModalOpen && (
+      <Portal>
+        <AnimatePresence>
+          {isShareModalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -802,8 +879,9 @@ const NewsCard: React.FC<NewsCardProps> = ({
 
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </Portal>
     </>
   );
 };

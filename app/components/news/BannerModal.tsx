@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Portal from "../ui/Portal";
 import {
   XMarkIcon,
   HeartIcon,
@@ -182,7 +183,8 @@ const BannerModal: React.FC<BannerModalProps> = ({ isOpen, onClose, banner }) =>
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <Portal>
+      <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -409,6 +411,7 @@ const BannerModal: React.FC<BannerModalProps> = ({ isOpen, onClose, banner }) =>
         </AnimatePresence>
       </motion.div>
     </AnimatePresence>
+    </Portal>
   );
 };
 

@@ -18,6 +18,21 @@ const BLACKLISTED_FILES = new Set([
 // Track file ids that have already been replaced with fallbacks
 const replacedWithFallback: Set<string> = new Set();
 
+// Initialize by clearing any corrupted URLs from cache
+if (typeof window !== 'undefined') {
+  // Only run on client side
+  setTimeout(() => {
+    // Clear corrupted URLs after a short delay to ensure everything is loaded
+    const keysToDelete: string[] = [];
+    urlFixCache.forEach((value, key) => {
+      if (value.includes('/viewew')) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => urlFixCache.delete(key));
+  }, 100);
+}
+
 /**
  * Формирует URL для изображения из Appwrite Storage или возвращает fallback, если это внешняя ссылка
  * @param imageUrl URL изображения или ID файла в Appwrite
@@ -33,8 +48,16 @@ export function getAppwriteImageUrl(imageUrl: string, fallbackUrl: string = '/im
     if (imageUrl.includes('6828535c00307e6dd701')) {
       return fallbackUrl;
     }
-    
-    return fixAppwriteImageUrl(imageUrl, fallbackUrl);
+
+    // Специальная обработка для URL с mode=admin - убираем этот параметр
+    let cleanUrl = imageUrl;
+    if (cleanUrl.includes('mode=admin')) {
+      cleanUrl = cleanUrl.replace(/[&?]mode=admin/g, '');
+      // Очищаем лишние символы
+      cleanUrl = cleanUrl.replace(/\?&/, '?').replace(/&&/, '&').replace(/[?&]$/, '');
+    }
+
+    return fixAppwriteImageUrl(cleanUrl, fallbackUrl);
   }
   
   // Если это относительный путь к локальному файлу в приложении
@@ -88,6 +111,7 @@ export function getAppwriteImageUrl(imageUrl: string, fallbackUrl: string = '/im
           formattedEndpoint = 'https://' + formattedEndpoint;
         }
         
+        // Создаем URL без mode=admin для публичного доступа
         const url = `${formattedEndpoint}/storage/buckets/${bucketId}/files/${imageUrl}/view?project=${projectId}`;
         return url;
       }
@@ -193,17 +217,31 @@ export function fixAppwriteImageUrl(url: string, fallbackUrl: string = '/images/
       }
     }
     
-    // 3. Check if the URL has the problematic '/vi' suffix and fix it
-    if (fixedUrl.includes('/files/') && fixedUrl.match(/\/files\/[^\/]+\/vi/)) {
-      fixedUrl = fixedUrl.replace(/\/files\/([^\/]+)\/vi/, '/files/$1/view');
-    } 
-    
-    // 4. If URL has no path suffix after the file ID, ensure it has /view
+    // 3. Remove problematic parameters like mode=admin that can cause access issues
+    if (fixedUrl.includes('mode=admin')) {
+      fixedUrl = fixedUrl.replace(/[&?]mode=admin/g, '');
+      // Clean up any double ampersands or question marks that might result
+      fixedUrl = fixedUrl.replace(/\?&/, '?').replace(/&&/, '&');
+      // Remove trailing ? or & if they exist
+      fixedUrl = fixedUrl.replace(/[?&]$/, '');
+    }
+
+    // 4. Fix corrupted '/viewew' back to '/view'
+    if (fixedUrl.includes('/viewew')) {
+      fixedUrl = fixedUrl.replace(/\/viewew/g, '/view');
+    }
+
+    // 5. Check if the URL has the problematic '/vi' suffix (but not '/view') and fix it
+    if (fixedUrl.includes('/files/') && fixedUrl.match(/\/files\/[^\/]+\/vi(?!ew)/)) {
+      fixedUrl = fixedUrl.replace(/\/files\/([^\/]+)\/vi(?!ew)/, '/files/$1/view');
+    }
+
+    // 6. If URL has no path suffix after the file ID, ensure it has /view
     if (fixedUrl.includes('/files/') && !fixedUrl.match(/\/files\/[^\/]+\/[a-z]+/)) {
       fixedUrl = fixedUrl.replace(/\/files\/([^\/]+)([\/\?]|$)/, '/files/$1/view$2');
     }
     
-    // 5. Replace non-v1 URL if it's still missing after our fixes
+    // 7. Replace non-v1 URL if it's still missing after our fixes
     if (fixedUrl.includes('appwrite.io/storage/') && !fixedUrl.includes('/v1/')) {
       fixedUrl = fixedUrl.replace(
         /(https?:\/\/[^\/]+)\/storage\//,
@@ -370,4 +408,41 @@ export function recordFailedImageRequest(imageUrl: string): boolean {
   }
   
   return newCount >= MAX_RETRY_ATTEMPTS;
-} 
+}
+
+/**
+ * Очищает кэш для поврежденных URL
+ */
+export function clearCorruptedUrlCache(): void {
+  // Очищаем кэш URL с /viewew
+  const keysToDelete: string[] = [];
+  urlFixCache.forEach((value, key) => {
+    if (value.includes('/viewew')) {
+      keysToDelete.push(key);
+      console.log('Cleared corrupted URL from cache:', key);
+    }
+  });
+  keysToDelete.forEach(key => urlFixCache.delete(key));
+
+  // Очищаем кэш успешных URL с /viewew
+  const urlsToDelete: string[] = [];
+  successfulImageCache.forEach((url) => {
+    if (url.includes('/viewew')) {
+      urlsToDelete.push(url);
+      console.log('Cleared corrupted URL from success cache:', url);
+    }
+  });
+  urlsToDelete.forEach(url => successfulImageCache.delete(url));
+}
+
+/**
+ * Тестовая функция для проверки исправления URL
+ * @param url URL для тестирования
+ * @returns Исправленный URL
+ */
+export function testUrlFix(url: string): string {
+  console.log('Original URL:', url);
+  const fixed = fixAppwriteImageUrl(url);
+  console.log('Fixed URL:', fixed);
+  return fixed;
+}

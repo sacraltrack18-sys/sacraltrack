@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import Banner from './Banner';
-import TestAdBanner from './TestAdBanner';
-import AdsTerraDirectBanner from './AdsTerraDirectBanner';
-import AdsTerraHeadBanner from './AdsTerraHeadBanner';
 
 interface NewsAdBannerProps {
   className?: string;
   isMobile?: boolean;
-  adsterraId?: string;
 }
 
-const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = false, adsterraId }) => {
+const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = false }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [bannerType, setBannerType] = useState<'adsterra' | 'direct' | 'head' | 'test'>('direct'); // Начинаем с прямого метода
-
-  console.log(`[NewsAdBanner] Rendering with adsterraId: ${adsterraId}, isMobile: ${isMobile}`);
+  const adContainerRef = useRef<HTMLDivElement>(null);
+  const [adLoaded, setAdLoaded] = useState(false);
 
   // Проверяем localStorage для состояния баннера
   useEffect(() => {
@@ -29,28 +23,49 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
       setIsVisible(state.isVisible);
       setIsMinimized(state.isMinimized);
     }
+  }, []);
 
-    // Слушаем события ошибок AdsTerra
-    const handleAdsTerraError = () => {
-      console.log('[NewsAdBanner] AdsTerra error detected, switching to test banner');
-      setBannerType('test');
+  // Загружаем AdsTerra скрипт
+  useEffect(() => {
+    if (!isVisible || isMinimized || !adContainerRef.current) return;
+
+    // Проверяем, не добавлен ли уже скрипт в этот контейнер
+    if (adContainerRef.current.firstChild) {
+      setAdLoaded(true);
+      return;
+    }
+
+    const atOptions = {
+      key: '0654df9f27dd77270cf8f1aaeed1818a',
+      format: 'iframe',
+      height: isMobile ? 100 : 250,
+      width: 300,
+      params: {}
     };
 
-    window.addEventListener('adsterra-error', handleAdsTerraError as EventListener);
+    // Создаем скрипт конфигурации
+    const conf = document.createElement('script');
+    conf.innerHTML = `atOptions = ${JSON.stringify(atOptions)}`;
 
-    // Автоматически переключаемся на тестовый баннер через 8 секунд, если AdsTerra не загрузился
-    const fallbackTimer = setTimeout(() => {
-      if (bannerType === 'direct' || bannerType === 'head' || bannerType === 'adsterra') {
-        console.log('[NewsAdBanner] Switching to test banner due to AdsTerra timeout');
-        setBannerType('test');
-      }
-    }, 8000);
+    // Создаем скрипт загрузки
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = `//www.highperformanceformat.com/${atOptions.key}/invoke.js`;
 
-    return () => {
-      clearTimeout(fallbackTimer);
-      window.removeEventListener('adsterra-error', handleAdsTerraError as EventListener);
+    script.onload = () => {
+      setAdLoaded(true);
     };
-  }, [bannerType]);
+
+    script.onerror = () => {
+      console.log('[NewsAdBanner] AdsTerra script failed to load');
+      setAdLoaded(false);
+    };
+
+    // Добавляем скрипты в контейнер
+    adContainerRef.current.appendChild(conf);
+    adContainerRef.current.appendChild(script);
+
+  }, [isVisible, isMinimized, isMobile]);
 
   // Сохраняем состояние в localStorage
   const saveState = (visible: boolean, minimized: boolean) => {
@@ -71,41 +86,8 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
     saveState(true, !isMinimized);
   };
 
-  // Проверяем, включена ли реклама
-  const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
-  const adsEnvironment = process.env.NEXT_PUBLIC_ADS_ENVIRONMENT || 'development';
-
-  // Проверяем окружение
-  const isProduction = adsEnvironment === 'production' ||
-    (typeof window !== 'undefined' &&
-     !window.location.hostname.includes('localhost') &&
-     !window.location.hostname.includes('127.0.0.1'));
-
-  // Не показываем баннер если:
-  // 1. Пользователь его скрыл
-  // 2. Реклама отключена и мы не в продакшене
-  if (!isVisible || (!adsEnabled && !isProduction)) return null;
-
-  // Конфигурация для разных размеров
-  const adConfig = isMobile
-    ? {
-        adKey: adsterraId ||
-               process.env.NEXT_PUBLIC_ADSTERRA_MOBILE_KEY ||
-               process.env.NEXT_PUBLIC_ADSTERRA_BANNER_KEY ||
-               "0654df9f27dd77270cf8f1aaeed1818a",
-        adWidth: 300,
-        adHeight: 100,
-        adFormat: "banner"
-      }
-    : {
-        adKey: adsterraId ||
-               process.env.NEXT_PUBLIC_ADSTERRA_DESKTOP_KEY ||
-               process.env.NEXT_PUBLIC_ADSTERRA_BANNER_KEY ||
-               "0654df9f27dd77270cf8f1aaeed1818a",
-        adWidth: 300,
-        adHeight: 250,
-        adFormat: "rectangle"
-      };
+  // Не показываем баннер если пользователь его скрыл
+  if (!isVisible) return null;
 
   return (
     <motion.div
@@ -239,79 +221,22 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-lg"></div>
 
                 <div className="relative">
-                  {bannerType === 'test' ? (
-                    <TestAdBanner
-                      adWidth={adConfig.adWidth}
-                      adHeight={adConfig.adHeight}
-                      showAdsTerraInfo={true}
-                    />
-                  ) : bannerType === 'direct' ? (
-                    <AdsTerraDirectBanner
-                      adKey={adConfig.adKey}
-                      adWidth={adConfig.adWidth}
-                      adHeight={adConfig.adHeight}
-                    />
-                  ) : bannerType === 'head' ? (
-                    <AdsTerraHeadBanner
-                      adKey={adConfig.adKey}
-                      adWidth={adConfig.adWidth}
-                      adHeight={adConfig.adHeight}
-                    />
-                  ) : (
-                    <Banner
-                      adKey={adConfig.adKey}
-                      adWidth={adConfig.adWidth}
-                      adHeight={adConfig.adHeight}
-                      adFormat={adConfig.adFormat}
-                    />
-                  )}
-
-                  {/* Кнопки переключения для тестирования */}
-                  <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
-                    <button
-                      onClick={() => setBannerType('direct')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        bannerType === 'direct'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-black/50 hover:bg-black/70 text-white'
-                      }`}
-                      title="Direct AdsTerra (Container)"
-                    >
-                      Direct
-                    </button>
-                    <button
-                      onClick={() => setBannerType('head')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        bannerType === 'head'
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-black/50 hover:bg-black/70 text-white'
-                      }`}
-                      title="Head AdsTerra (Document Head)"
-                    >
-                      Head
-                    </button>
-                    <button
-                      onClick={() => setBannerType('adsterra')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        bannerType === 'adsterra'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-black/50 hover:bg-black/70 text-white'
-                      }`}
-                      title="Original AdsTerra"
-                    >
-                      Original
-                    </button>
-                    <button
-                      onClick={() => setBannerType('test')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        bannerType === 'test'
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-black/50 hover:bg-black/70 text-white'
-                      }`}
-                      title="Test Banner"
-                    >
-                      Test
-                    </button>
+                  {/* AdsTerra Banner Container */}
+                  <div
+                    ref={adContainerRef}
+                    className="flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700"
+                    style={{
+                      width: 300,
+                      height: isMobile ? 100 : 250,
+                      minHeight: isMobile ? 100 : 250
+                    }}
+                  >
+                    {!adLoaded && (
+                      <div className="text-center text-gray-400">
+                        <div className="animate-spin w-6 h-6 border-2 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-2"></div>
+                        <div className="text-sm">Loading ad...</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

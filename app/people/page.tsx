@@ -9,7 +9,6 @@ import { checkAppwriteConfig } from '@/libs/AppWriteClient';
 import Image from 'next/image';
 import Link from 'next/link';
 import TopRankingUsers from '@/app/components/profile/TopRankingUsers';
-import Banner from '@/app/components/ads/Banner';
 import dynamic from 'next/dynamic';
 import styles from './styles.module.css';
 import { 

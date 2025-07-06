@@ -13,6 +13,12 @@ import Head from 'next/head';
 export default function News() {
     const { allNews, setAllNews, isLoading, error } = useNewsStore();
     const [searchQuery, setSearchQuery] = useState("");
+
+    // SEO metadata
+    const pageTitle = "Music News | SacralTrack - Latest Music Industry Updates";
+    const pageDescription = "Stay updated with the latest music news, artist updates, and industry insights on SacralTrack. Discover trending music stories and exclusive content.";
+    const pageUrl = "https://sacraltrack.com/news";
+    const pageImage = "https://sacraltrack.com/news-og-image.jpg";
     
     // Filtered news based on search query
     const filteredNews = allNews.filter((news) => 
@@ -48,7 +54,11 @@ export default function News() {
             <Head>
                 <title>Latest News & Updates | SacralTrack - Music News & Industry Updates</title>
                 <meta name="description" content="Stay updated with the latest music news, industry updates, and announcements from SacralTrack. Discover trending topics, new releases, and exclusive content." />
-                <meta name="keywords" content="music news, industry updates, SacralTrack news, music trends, new releases, music industry, electronic music news" />
+                <meta name="keywords" content="music news, industry updates, SacralTrack news, music trends, new releases, music industry, electronic music news, artist updates, music stories" />
+                <meta name="author" content="SacralTrack" />
+                <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+                <meta name="googlebot" content="index, follow" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <meta property="og:title" content="Latest News & Updates | SacralTrack" />
                 <meta property="og:description" content="Stay updated with the latest music news, industry updates, and announcements from SacralTrack." />
                 <meta property="og:type" content="website" />
@@ -95,7 +105,8 @@ export default function News() {
             <div className="w-full px-[10px] md:px-6 lg:px-8">
                 <div className="flex gap-8">
                     {/* Main Content */}
-                    <div className="flex-1">
+                    <main className="flex-1" role="main" aria-label="News articles"
+                          itemScope itemType="https://schema.org/CollectionPage">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -208,16 +219,15 @@ export default function News() {
                                 )}
                             </ClientOnly>
                         </motion.div>
-                    </div>
+                    </main>
 
                     {/* Right Sidebar - 300px width */}
-                    <div className="hidden lg:block w-[300px] flex-shrink-0">
+                    <aside className="hidden lg:block w-[300px] flex-shrink-0" role="complementary" aria-label="News sidebar">
                         <div className="sticky top-24 space-y-6">
                             {/* AdsTerra Banner */}
                             <ClientOnly>
                                 <NewsAdBanner
                                     className="w-full"
-                                    adsterraId="0654df9f27dd77270cf8f1aaeed1818a"
                                 />
                             </ClientOnly>
 
@@ -283,7 +293,7 @@ export default function News() {
                                 </div>
                             </motion.div>
                         </div>
-                    </div>
+                    </aside>
 
                 </div>
             </div>
@@ -294,7 +304,6 @@ export default function News() {
                     <NewsAdBanner
                         isMobile={true}
                         className="w-full"
-                        adsterraId="0654df9f27dd77270cf8f1aaeed1818a"
                     />
                 </ClientOnly>
             </div>
