@@ -19,51 +19,115 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
   useEffect(() => {
     const bannerState = localStorage.getItem('newsAdBannerState');
     if (bannerState) {
-      const state = JSON.parse(bannerState);
-      setIsVisible(state.isVisible);
-      setIsMinimized(state.isMinimized);
+      try {
+        const state = JSON.parse(bannerState);
+        console.log('[NewsAdBanner] Loaded state from localStorage:', state);
+
+        // Проверяем, не слишком ли старое состояние (сбрасываем через 24 часа)
+        const now = Date.now();
+        const stateAge = now - (state.timestamp || 0);
+        const maxAge = 24 * 60 * 60 * 1000; // 24 часа
+
+        if (stateAge > maxAge) {
+          console.log('[NewsAdBanner] State is too old, resetting to visible');
+          localStorage.removeItem('newsAdBannerState');
+          setIsVisible(true);
+          setIsMinimized(false);
+        } else {
+          setIsVisible(state.isVisible);
+          setIsMinimized(state.isMinimized);
+        }
+      } catch (error) {
+        console.error('[NewsAdBanner] Error parsing localStorage state:', error);
+        localStorage.removeItem('newsAdBannerState');
+        setIsVisible(true);
+        setIsMinimized(false);
+      }
+    } else {
+      console.log('[NewsAdBanner] No saved state, showing banner');
     }
   }, []);
 
-  // Загружаем AdsTerra скрипт
+  // Загружаем AdsTerra Static Banner согласно официальной документации
   useEffect(() => {
-    if (!isVisible || isMinimized || !adContainerRef.current) return;
+    console.log('[NewsAdBanner] useEffect triggered:', { isVisible, isMinimized, hasContainer: !!adContainerRef.current });
+
+    if (!isVisible || isMinimized || !adContainerRef.current) {
+      console.log('[NewsAdBanner] Skipping script load due to conditions');
+      return;
+    }
 
     // Проверяем, не добавлен ли уже скрипт в этот контейнер
-    if (adContainerRef.current.firstChild) {
+    if (adContainerRef.current.children.length > 0) {
+      console.log('[NewsAdBanner] Script already exists, setting loaded to true');
       setAdLoaded(true);
       return;
     }
 
-    const atOptions = {
-      key: '0654df9f27dd77270cf8f1aaeed1818a',
-      format: 'iframe',
-      height: isMobile ? 100 : 250,
-      width: 300,
-      params: {}
-    };
+    console.log('[NewsAdBanner] Loading AdsTerra Static Banner...');
 
-    // Создаем скрипт конфигурации
-    const conf = document.createElement('script');
-    conf.innerHTML = `atOptions = ${JSON.stringify(atOptions)}`;
+    try {
+      // Очищаем контейнер
+      adContainerRef.current.innerHTML = '';
 
-    // Создаем скрипт загрузки
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = `//www.highperformanceformat.com/${atOptions.key}/invoke.js`;
+      // Создаем скрипт конфигурации (точно как в документации AdsTerra)
+      const configScript = document.createElement('script');
+      configScript.type = 'text/javascript';
+      configScript.innerHTML = `
+        atOptions = {
+          'key' : '0654df9f27dd77270cf8f1aaeed1818a',
+          'format' : 'iframe',
+          'height' : ${isMobile ? 100 : 250},
+          'width' : 300,
+          'params' : {}
+        };
+      `;
 
-    script.onload = () => {
-      setAdLoaded(true);
-    };
+      // Создаем скрипт загрузки (точно как в документации AdsTerra)
+      const invokeScript = document.createElement('script');
+      invokeScript.type = 'text/javascript';
+      invokeScript.src = '//www.highperformanceformat.com/0654df9f27dd77270cf8f1aaeed1818a/invoke.js';
+      invokeScript.async = true;
 
-    script.onerror = () => {
-      console.log('[NewsAdBanner] AdsTerra script failed to load');
+      // Добавляем обработчики событий
+      invokeScript.onload = () => {
+        console.log('[NewsAdBanner] ✅ AdsTerra script loaded successfully');
+        setAdLoaded(true);
+      };
+
+      invokeScript.onerror = (error) => {
+        console.error('[NewsAdBanner] ❌ AdsTerra script failed to load:', error);
+        setAdLoaded(false);
+      };
+
+      // Добавляем скрипты в контейнер (точно как в документации)
+      adContainerRef.current.appendChild(configScript);
+      adContainerRef.current.appendChild(invokeScript);
+
+      console.log('[NewsAdBanner] AdsTerra Static Banner scripts added (following official docs)');
+
+      // Устанавливаем загрузку через задержку
+      setTimeout(() => {
+        setAdLoaded(true);
+        console.log('[NewsAdBanner] Banner marked as loaded');
+
+        // Проверяем появление iframe
+        setTimeout(() => {
+          const iframe = adContainerRef.current?.querySelector('iframe');
+          if (iframe) {
+            console.log('[NewsAdBanner] ✅ AdsTerra iframe found:', iframe.src);
+          } else {
+            console.log('[NewsAdBanner] ⚠️ No iframe found, checking for other ad elements...');
+            const allElements = adContainerRef.current?.querySelectorAll('*');
+            console.log('[NewsAdBanner] Container elements:', allElements?.length || 0);
+          }
+        }, 2000);
+      }, 1000);
+
+    } catch (error) {
+      console.error('[NewsAdBanner] Error adding AdsTerra script:', error);
       setAdLoaded(false);
-    };
-
-    // Добавляем скрипты в контейнер
-    adContainerRef.current.appendChild(conf);
-    adContainerRef.current.appendChild(script);
+    }
 
   }, [isVisible, isMinimized, isMobile]);
 
@@ -77,17 +141,58 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
   };
 
   const handleClose = () => {
+    console.log('[NewsAdBanner] Closing banner');
     setIsVisible(false);
     saveState(false, false);
   };
 
   const handleMinimize = () => {
+    console.log('[NewsAdBanner] Toggling minimize:', !isMinimized);
     setIsMinimized(!isMinimized);
     saveState(true, !isMinimized);
   };
 
+  // Функция для принудительного показа баннера (для отладки)
+  const forceShow = () => {
+    console.log('[NewsAdBanner] Force showing banner');
+    localStorage.removeItem('newsAdBannerState');
+    setIsVisible(true);
+    setIsMinimized(false);
+  };
+
+  // Функция для перезагрузки AdsTerra скрипта
+  const reloadAdScript = () => {
+    console.log('[NewsAdBanner] Reloading AdsTerra script');
+    if (adContainerRef.current) {
+      adContainerRef.current.innerHTML = '';
+      setAdLoaded(false);
+
+      // Принудительно перезапускаем useEffect
+      setTimeout(() => {
+        if (adContainerRef.current && isVisible && !isMinimized) {
+          const event = new Event('reload-ad');
+          adContainerRef.current.dispatchEvent(event);
+        }
+      }, 100);
+    }
+  };
+
+  // Добавляем глобальные функции для отладки
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).showNewsAdBanner = forceShow;
+      (window as any).reloadAdScript = reloadAdScript;
+      console.log('[NewsAdBanner] Added global functions: window.showNewsAdBanner(), window.reloadAdScript()');
+    }
+  }, []);
+
   // Не показываем баннер если пользователь его скрыл
-  if (!isVisible) return null;
+  if (!isVisible) {
+    console.log('[NewsAdBanner] Banner is not visible, returning null');
+    return null;
+  }
+
+  console.log('[NewsAdBanner] Rendering banner, isVisible:', isVisible, 'isMinimized:', isMinimized);
 
   return (
     <motion.div
@@ -224,7 +329,7 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
                   {/* AdsTerra Banner Container */}
                   <div
                     ref={adContainerRef}
-                    className="flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700"
+                    className="flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 relative overflow-hidden"
                     style={{
                       width: 300,
                       height: isMobile ? 100 : 250,
@@ -232,11 +337,23 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
                     }}
                   >
                     {!adLoaded && (
-                      <div className="text-center text-gray-400">
+                      <div className="text-center text-gray-400 z-10">
                         <div className="animate-spin w-6 h-6 border-2 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-2"></div>
-                        <div className="text-sm">Loading ad...</div>
+                        <div className="text-sm">Loading AdsTerra...</div>
+                        <div className="text-xs mt-1 opacity-70">Key: 0654df9f27dd77270cf8f1aaeed1818a</div>
+                        <div className="text-xs mt-1 opacity-50">Size: 300x{isMobile ? 100 : 250}</div>
                       </div>
                     )}
+
+                    {/* Отладочная информация */}
+                    <div className="absolute top-1 left-1 text-xs text-green-400 bg-black/50 px-1 rounded z-20">
+                      {adLoaded ? '✅ Script Loaded' : '⏳ Loading Script'}
+                    </div>
+
+                    {/* Дополнительная отладочная информация */}
+                    <div className="absolute bottom-1 left-1 text-xs text-blue-400 bg-black/50 px-1 rounded z-20">
+                      Container: {adContainerRef.current?.children.length || 0} children
+                    </div>
                   </div>
                 </div>
               </motion.div>
