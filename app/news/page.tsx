@@ -170,7 +170,7 @@ export default function News() {
                                             onClick={() => setAllNews()}
                                         >
                                             Try Again
-                                        </button>
+                                        </button> 
                                     </motion.div>
                                 ) : filteredNews.length === 0 ? (
                                     <motion.div

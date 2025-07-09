@@ -29,10 +29,10 @@ const AdsTerraTest: React.FC = () => {
     addLog('🚀 Starting AdsTerra test...');
 
     const atOptions = {
-      key: '0654df9f27dd77270cf8f1aaeed1818a',
+      key: '4385a5a6b91cfc53c3cdf66ea55b3291',
       format: 'iframe',
-      height: 250,
-      width: 300,
+      height: 50,
+      width: 320,
       params: {}
     };
 

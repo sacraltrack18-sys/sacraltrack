@@ -22,10 +22,12 @@ import toast from "react-hot-toast"
 import { useNotifications, Notification } from "@/app/hooks/useNotifications"
 import { MusicalNoteIcon } from "@heroicons/react/24/outline"
 import TopNavGuide from '@/app/components/nav/TopNavGuide'
+import { usePeopleSearch } from '@/app/context/PeopleSearchContext'
 
 // Import the smaller components
 import GenreSelector from "@/app/components/nav/GenreSelector"
 import SearchBar from "@/app/components/nav/SearchBar"
+import PeopleSearchBar from "@/app/components/nav/PeopleSearchBar"
 import ProfileMenu from "@/app/components/nav/ProfileMenu"
 import ReleaseButton from "@/app/components/nav/ReleaseButton"
 import VibeButton from "@/app/components/nav/VibeButton"
@@ -46,9 +48,14 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
     const userContext = useUser()
     const router = useRouter()
     const pathname = usePathname()
+    const isHomePage = pathname === '/'
+    const isPeoplePage = pathname === '/people'
     const [isVideoMode, setIsAudioMode] = useState(false);
     const languageMenuRef = useRef<HTMLDivElement>(null);
     const [showVibeUploader, setShowVibeUploader] = useState(false);
+
+    // Get people search context
+    const peopleSearchContext = usePeopleSearch();
 
     {/*SEARCH*/}
    
@@ -299,8 +306,6 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
         setAnimationDots(dots);
     }, []);
 
-    const isHomePage = pathname === '/';
-
     // Handle welcome modal close
     const handleWelcomeModalClose = () => {
         setShowWelcomeModal(false);
@@ -371,9 +376,13 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                         )}
                     </div>
 
-                    {/* Search Bar - Only visible on home page */}
+                    {/* Search Bar - Conditional based on page */}
                     <div className="md:-ml-[140px]">
-                        <SearchBar isHomePage={isHomePage} />
+                        {isPeoplePage && peopleSearchContext ? (
+                            <PeopleSearchBar onSearch={peopleSearchContext.onSearch} />
+                        ) : (
+                            <SearchBar isHomePage={isHomePage} />
+                        )}
                     </div>
 
                     {/* Right Side Actions */}

@@ -766,96 +766,171 @@ export default function TermsOfUse() {
               <TermsSection id="ranking" title="Ranking System">
                 <div className="space-y-6">
                   <p className="text-white/80 leading-relaxed">
-                    Sacral Track employs a sophisticated ranking system for both users and artists to enhance
-                    platform engagement and reward active participation. These ranks determine visibility,
-                    platform benefits, and revenue opportunities.
+                    Sacral Track features a comprehensive ranking system that showcases the most active and popular
+                    users and artists on the platform. Our "Top Rankings" section helps users discover the best
+                    content creators and most engaged community members through a fair and transparent scoring system.
                   </p>
 
+                  <div className="p-5 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10 mb-6">
+                    <h3 className="text-[#20DDBB] font-medium mb-4">How Top Rankings Work</h3>
+                    <p className="text-white/80 leading-relaxed mb-4">
+                      The Top Rankings feature displays the highest-rated users and artists in two separate categories.
+                      Users can switch between "Users" and "Artists" tabs to see different types of top performers on the platform.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80"><strong>Users:</strong> People who primarily listen to music and engage with the community (no published tracks)</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">•</span>
+                        <p className="text-white/80"><strong>Artists:</strong> Content creators who have published at least one track on the platform</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-5">
-                    <InfoCard icon="👑" title="Artist Ranking">
-                      <p className="text-white/80 mb-4">Artists are ranked based on multiple factors that evaluate popularity and engagement:</p>
+                    <InfoCard icon="⭐" title="Primary Ranking Factor: Star Ratings">
+                      <p className="text-white/80 mb-4">
+                        The most important factor in our ranking system is the star ratings that users receive from other community members:
+                      </p>
                       <div className="space-y-3">
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Listens and streams of released tracks</p>
+                          <p className="text-white/80"><strong>Rating Quality:</strong> Average star rating (1-5 stars) from other users</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Purchases of released tracks</p>
+                          <p className="text-white/80"><strong>Rating Quantity:</strong> Total number of ratings received</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Comments and social engagement</p>
+                          <p className="text-white/80"><strong>Combined Score:</strong> Both quality and quantity are multiplied together for the primary score</p>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Consistency and frequency of releases</p>
+                      </div>
+                      <div className="mt-4 p-3 bg-yellow-900/20 rounded-lg border border-yellow-500/20">
+                        <p className="text-yellow-200 text-sm">
+                          <strong>Example:</strong> A user with 10 ratings averaging 4.5 stars gets a higher score than someone with 5 ratings at 5.0 stars.
+                        </p>
+                      </div>
+                    </InfoCard>
+
+                    <InfoCard icon="👑" title="Artist Ranking Factors">
+                      <p className="text-white/80 mb-4">For artists (users who have published tracks), the ranking considers:</p>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-[#20DDBB] font-medium mb-2">1. Star Ratings (Primary Factor - 10x weight)</h4>
+                          <p className="text-white/80 text-sm mb-2">Total ratings × Average rating × 10</p>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Follower count and growth</p>
+                        <div>
+                          <h4 className="text-[#20DDBB] font-medium mb-2">2. Content Creation (Secondary Factor)</h4>
+                          <div className="ml-4 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <span className="text-[#20DDBB] mt-1">•</span>
+                              <p className="text-white/80">Published tracks/releases (3x weight)</p>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <span className="text-[#20DDBB] mt-1">•</span>
+                              <p className="text-white/80">Vibes shared (2x weight)</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-[#20DDBB] font-medium mb-2">3. Social Connections (Tertiary Factor)</h4>
+                          <div className="ml-4 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <span className="text-[#20DDBB] mt-1">•</span>
+                              <p className="text-white/80">Number of friends (1x weight)</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </InfoCard>
-                    
-                    <InfoCard icon="🏅" title="User Ranking">
-                      <p className="text-white/80 mb-4">Users are ranked based on their activity and contributions to the platform:</p>
-                      <div className="space-y-3">
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Track purchases and consumption</p>
+
+                    <InfoCard icon="🏅" title="User Ranking Factors">
+                      <p className="text-white/80 mb-4">For regular users (those who haven't published tracks), the ranking considers:</p>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-[#20DDBB] font-medium mb-2">1. Star Ratings (Primary Factor - 10x weight)</h4>
+                          <p className="text-white/80 text-sm mb-2">Total ratings × Average rating × 10</p>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Commenting and interaction frequency</p>
+                        <div>
+                          <h4 className="text-[#20DDBB] font-medium mb-2">2. Community Engagement (Secondary Factor)</h4>
+                          <div className="ml-4 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <span className="text-[#20DDBB] mt-1">•</span>
+                              <p className="text-white/80">Vibes shared (2.5x weight)</p>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <span className="text-[#20DDBB] mt-1">•</span>
+                              <p className="text-white/80">Number of friends (1.5x weight)</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Playlist creation and sharing</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Profile completeness</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <span className="text-[#20DDBB] mt-1">✓</span>
-                          <p className="text-white/80">Account age and activity consistency</p>
-                        </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-500/20">
+                        <p className="text-blue-200 text-sm">
+                          <strong>Note:</strong> Published tracks are not counted for regular users, as this would automatically move them to the "Artists" category.
+                        </p>
                       </div>
                     </InfoCard>
                   </div>
 
                   <div className="p-5 bg-purple-900/30 rounded-xl border border-purple-500/20">
-                    <h3 className="text-purple-400 font-medium mb-4">Rank Benefits and Calculation</h3>
+                    <h3 className="text-purple-400 font-medium mb-4">Ranking Calculation Example</h3>
                     <p className="text-white/80 mb-4">
-                      Ranks are calculated through an algorithm that assigns points to various activities.
-                      Higher ranks provide increased benefits:
+                      Here's how the final ranking score is calculated:
                     </p>
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <h4 className="text-white font-medium mb-2">For Artists:</h4>
-                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
-                          <li>Enhanced visibility in searches and recommendations</li>
-                          <li>Higher revenue share percentages</li>
-                          <li>Access to exclusive platform features</li>
-                          <li>Priority support and promotional opportunities</li>
-                        </ul>
+                    <div className="space-y-4">
+                      <div className="p-3 bg-black/20 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Artist Example:</h4>
+                        <p className="text-white/80 text-sm">
+                          • Star Ratings: 15 ratings × 4.2 average × 10 = 630 points<br/>
+                          • Content: 5 tracks × 3 + 8 vibes × 2 = 31 points<br/>
+                          • Friends: 12 friends × 1 = 12 points<br/>
+                          • <strong>Total Score: 673 points</strong>
+                        </p>
                       </div>
-                      <div>
-                        <h4 className="text-white font-medium mb-2">For Users:</h4>
-                        <ul className="ml-5 space-y-2 text-white/80 list-disc">
-                          <li>Discounts on purchases</li>
-                          <li>Early access to new releases</li>
-                          <li>Exclusive content and features</li>
-                          <li>Influence on platform recommendations</li>
-                        </ul>
+                      <div className="p-3 bg-black/20 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">User Example:</h4>
+                        <p className="text-white/80 text-sm">
+                          • Star Ratings: 8 ratings × 4.8 average × 10 = 384 points<br/>
+                          • Engagement: 12 vibes × 2.5 + 18 friends × 1.5 = 57 points<br/>
+                          • <strong>Total Score: 441 points</strong>
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <Notice type="warning" title="Rank Adjustments">
+                  <div className="p-5 bg-green-900/30 rounded-xl border border-green-500/20">
+                    <h3 className="text-green-400 font-medium mb-4">Fair and Transparent System</h3>
+                    <p className="text-white/80 mb-4">
+                      Our ranking system is designed to be fair and encourage genuine engagement:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Star ratings from real users carry the most weight</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Content creation and community participation are rewarded</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Rankings update dynamically as new ratings and content are added</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-[#20DDBB] mt-1">✓</span>
+                        <p className="text-white/80">Top 10 users/artists are displayed in each category</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Notice type="warning" title="Ranking Integrity">
                     Sacral Track reserves the right to adjust ranking algorithms and criteria to maintain platform integrity.
-                    Any artificial manipulation of rank factors may result in account penalties or termination.
+                    Any artificial manipulation of ranking factors (fake ratings, spam content, etc.) may result in account penalties or termination.
+                    The ranking system is designed to promote authentic engagement and quality content creation.
                   </Notice>
                 </div>
               </TermsSection>

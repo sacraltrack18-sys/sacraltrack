@@ -11,23 +11,19 @@ import Link from 'next/link';
 import TopRankingUsers from '@/app/components/profile/TopRankingUsers';
 import dynamic from 'next/dynamic';
 import styles from './styles.module.css';
-import { 
-  StarIcon, 
-  UserPlusIcon, 
-  UserMinusIcon, 
-  MagnifyingGlassIcon,
-  ArrowUpIcon, 
-  ArrowDownIcon,
+import {
+  StarIcon,
+  UserPlusIcon,
+  UserMinusIcon,
   XMarkIcon,
   ChevronDownIcon,
-  UsersIcon,
-  HeartIcon
+  UsersIcon
 } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { database, Query } from '@/libs/AppWriteClient';
 import { ID } from 'appwrite';
 import { useRouter, usePathname } from 'next/navigation';
-import { FaTrophy, FaStar, FaMedal, FaCrown } from 'react-icons/fa';
+import { FaTrophy } from 'react-icons/fa';
 import PeopleLayout from '@/app/layouts/PeopleLayout';
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
 import { useMediaQuery } from 'react-responsive';
@@ -37,6 +33,7 @@ import UserCardSkeleton from '@/app/components/skeletons/UserCardSkeleton';
 import { useSwipeable, SwipeableHandlers } from 'react-swipeable';
 import useInfiniteScroll from 'react-infinite-scroll-hook';
 import { useRefreshControl } from '@/app/hooks/useRefreshControl';
+import { PeopleSearchProvider } from '@/app/context/PeopleSearchContext';
 
 // Динамический импорт иконок
 const StarIconDynamic = dynamic(() => import('@heroicons/react/24/solid').then(mod => mod.StarIcon));
@@ -136,13 +133,14 @@ interface UserCardProps {
         };
     };
     isFriend: boolean;
+    totalFriends: number;
     onAddFriend: (userId: string) => void;
     onRemoveFriend: (userId: string) => void;
     onRateUser: (userId: string, rating: number) => void;
 }
 
 // Компонент UserCard - сделаем всю карточку кликабельной и упростим навигацию
-const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemoveFriend, onRateUser }) => {
+const UserCard: React.FC<UserCardProps> = ({ user, isFriend, totalFriends, onAddFriend, onRemoveFriend, onRateUser }) => {
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
@@ -174,7 +172,6 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
     
     // Обеспечиваем наличие статистики и корректно получаем данные рейтинга
     const totalFollowers = getNumericValue(user.total_followers || (user.stats?.totalFollowers || 0));
-    const totalLikes = getNumericValue(user.total_likes || (user.stats?.totalLikes || 0));
     const totalRatings = getNumericValue(user.total_ratings || (user.stats?.totalRatings || 0));
     const numericRating = getNumericRating(user.average_rating || (user.stats?.averageRating || 0));
     
@@ -274,8 +271,8 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
             {/* Background image with darkening */}
             <div className="absolute inset-0 w-full h-full">
                 <Image
-                    src={imageError ? '/images/placeholders/music-user-placeholder-static.svg' :
-                        (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/music-user-placeholder-static.svg')}
+                    src={imageError ? '/images/placeholders/music-user-placeholder-new.svg' :
+                        (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/music-user-placeholder-new.svg')}
                     alt={user.name}
                     fill
                     className="object-cover"
@@ -339,12 +336,8 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
                     
                     <div className="flex items-center gap-4 mt-3 text-white/80 text-sm">
                         <div className="flex items-center">
-                            <UsersIconDynamic className="w-4 h-4 mr-1 text-purple-400" />
-                            {totalFollowers}
-                        </div>
-                        <div className="flex items-center">
-                            <HeartIconDynamic className="w-4 h-4 mr-1 text-pink-400" />
-                            {totalLikes}
+                            <UserPlusIcon className="w-4 h-4 mr-1 text-green-400" />
+                            {totalFriends}
                         </div>
                         <div className="flex items-center">
                             <StarIconDynamic className="w-4 h-4 mr-1 text-yellow-400" />
@@ -379,75 +372,13 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, onAddFriend, onRemo
 };
 
 // Мемоизированная версия UserCard для предотвращения лишних ререндеров
-const MemoizedUserCard = React.memo(UserCard);
+const MemoizedUserCard = React.memo(UserCard, (prevProps, nextProps) => {
+    return prevProps.user.$id === nextProps.user.$id &&
+           prevProps.isFriend === nextProps.isFriend &&
+           prevProps.totalFriends === nextProps.totalFriends;
+});
 
-// Обновленный компонент FilterDropdown
-const FilterDropdown = ({
-    options,
-    value,
-    onChange,
-    label,
-    isMobile
-}: {
-    options: {value: string, label: string}[],
-    value: string,
-    onChange: (val: string) => void,
-    label: string,
-    isMobile?: boolean
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
 
-    return (
-        <div className="relative">
-            <motion.button
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.98 }}
-                className={`${styles.filterDropdown} flex items-center gap-2 ${
-                    isMobile ? 'px-3 text-xs min-w-[100px]' : 'px-4 text-sm min-w-[140px]'
-                }`}
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                {!isMobile && <span className="text-[#20DDBB]/80 font-medium">{label}:</span>}
-                <span className="font-semibold text-white flex-1 text-left">{options.find(opt => opt.value === value)?.label}</span>
-                <ChevronDownIcon className={`w-4 h-4 text-[#20DDBB] transition-all duration-300 ${isOpen ? 'rotate-180 scale-110' : ''}`} />
-            </motion.button>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-3 min-w-full bg-gradient-to-br from-[#1E2136]/95 to-[#141625]/95 backdrop-blur-md rounded-2xl py-2 shadow-2xl border border-[#20DDBB]/20 z-50"
-                        style={{ boxShadow: '0 20px 40px rgba(32, 221, 187, 0.1)' }}
-                    >
-                        {options.map((option, index) => (
-                            <motion.button
-                                key={option.value}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-[#20DDBB]/10 transition-all duration-200 ${
-                                    option.value === value
-                                        ? 'text-[#20DDBB] bg-[#20DDBB]/15 border-l-2 border-[#20DDBB]'
-                                        : 'text-white/90 hover:text-white'
-                                } ${index === 0 ? 'rounded-t-2xl' : ''} ${index === options.length - 1 ? 'rounded-b-2xl' : ''}`}
-                                onClick={() => {
-                                    onChange(option.value);
-                                    setIsOpen(false);
-                                }}
-                                whileHover={{ x: 4 }}
-                            >
-                                {option.label}
-                            </motion.button>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
 
 // Добавляем компонент загрузки для иконок
 const IconLoading = () => (
@@ -622,9 +553,7 @@ export default function People() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
-    const [sortBy, setSortBy] = useState('name');
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    const [filterBy, setFilterBy] = useState('all');
+
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>(TabTypes.USERS);
     const [showRanking, setShowRanking] = useState(false);
@@ -639,13 +568,14 @@ export default function People() {
     const parentRef = useRef<HTMLDivElement>(null);
     const allProfilesRef = useRef<any[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [showMobileFilters, setShowMobileFilters] = useState(false);
+
     const [lastTouchY, setLastTouchY] = useState(0);
     const [isScrollingUp, setIsScrollingUp] = useState(false);
-    const [showScrollToTop, setShowScrollToTop] = useState(false);
+
     const containerRef = useRef<HTMLDivElement>(null);
     const [showTopRanked, setShowTopRanked] = useState(false);
-    
+    const [friendsCountCache, setFriendsCountCache] = useState<{[userId: string]: number}>({});
+
     const { friends, loadFriends, addFriend, removeFriend, sentRequests, loadSentRequests } = useFriendsStore();
     const user = useUser();
     const router = useRouter();
@@ -729,30 +659,14 @@ export default function People() {
         }
     };
 
-    // Scroll to top handler
-    const scrollToTop = () => {
-        containerRef.current?.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    };
+
 
     // Improved scroll handler with debouncing and smooth behavior
     const handleScroll = useCallback(
         debounce(() => {
             if (!containerRef.current) return;
-
-            const { scrollTop } = containerRef.current;
-
-            // Show/hide scroll to top button
-            setShowScrollToTop(scrollTop > 800);
-
-            // Smooth mobile filters behavior - only hide when scrolling down significantly
-            if (isMobile && showMobileFilters && !isScrollingUp && scrollTop > 100) {
-                setShowMobileFilters(false);
-            }
         }, 100),
-        [isScrollingUp, showMobileFilters, isMobile]
+        [isScrollingUp, isMobile]
     );
 
     useEffect(() => {
@@ -809,7 +723,7 @@ export default function People() {
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#1A1A2E] z-10">
-                            <h2 className="text-xl font-bold text-white">Top Ranked</h2>
+                            <h2 className="text-xl font-bold text-white">Top</h2>
                             <button 
                                 onClick={() => setShowTopRanked(false)}
                                 className="p-2 rounded-full hover:bg-white/10"
@@ -818,7 +732,7 @@ export default function People() {
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <div className={`flex-1 overflow-y-auto p-4 ${styles.hideScrollbar}`}>
                             {topRankedUsers.map((user, index) => {
                                 const userId = user?.user_id || user?.id;
                                 if (!userId) return null;
@@ -861,9 +775,9 @@ export default function People() {
                                                         </div>
                                                         <span className="text-white/20">•</span>
                                                         <div className="flex items-center">
-                                                            <UsersIcon className="w-4 h-4 text-purple-400 mr-1" />
-                                                            <span className="text-sm text-purple-400">
-                                                                {user.stats?.totalFollowers || 0}
+                                                            <UserPlusIcon className="w-4 h-4 text-green-400 mr-1" />
+                                                            <span className="text-sm text-green-400">
+                                                                {getUserFriendsCount(userId)}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -882,22 +796,7 @@ export default function People() {
         </AnimatePresence>
     );
 
-    // Scroll to top button
-    const ScrollToTopButton: React.FC = () => (
-        <AnimatePresence>
-            {showScrollToTop && (
-                <motion.button
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                    onClick={scrollToTop}
-                    className="fixed bottom-20 right-4 z-40 p-3 rounded-full bg-[#20DDBB] text-white shadow-lg lg:hidden"
-                >
-                    <ArrowUpIcon className="w-6 h-6" />
-                </motion.button>
-            )}
-        </AnimatePresence>
-    );
+
 
     // Optimize profile loading
     const loadUsers = useCallback(async () => {
@@ -949,39 +848,30 @@ export default function People() {
         }
     }, [setCache, getCache]);
 
-    // Effect to update visible profiles when search results, sorting, or filtering changes
+    // Effect to update visible profiles when search results change
     useEffect(() => {
-        // First apply filtering
-        let filteredProfiles = [...searchResults];
+        // Simply use search results without additional filtering or sorting
+        setVisibleProfiles(searchResults);
+    }, [searchResults]);
 
-        if (filterBy === 'friends') {
-            // Filter to show only friends (users with is_friend: true)
-            filteredProfiles = filteredProfiles.filter(user => user.is_friend === true);
-        }
-        // 'all' shows all users, so no additional filtering needed
-
-        // Then apply sorting
-        const sortedProfiles = filteredProfiles.sort((a, b) => {
-            if (sortBy === 'name') {
-                return sortDirection === 'asc'
-                    ? a.name.localeCompare(b.name)
-                    : b.name.localeCompare(a.name);
+    // Effect to load friends count for visible profiles
+    useEffect(() => {
+        visibleProfiles.forEach(profile => {
+            if (profile.user_id && friendsCountCache[profile.user_id] === undefined) {
+                loadUserFriendsCount(profile.user_id);
             }
-            if (sortBy === 'rating') {
-                const aRating = parseFloat(a.average_rating || '0');
-                const bRating = parseFloat(b.average_rating || '0');
-                return sortDirection === 'asc' ? aRating - bRating : bRating - aRating;
-            }
-            if (sortBy === 'followers') {
-                const aFollowers = parseInt(a.total_followers || '0');
-                const bFollowers = parseInt(b.total_followers || '0');
-                return sortDirection === 'asc' ? aFollowers - bFollowers : bFollowers - aFollowers;
-            }
-            return 0;
         });
+    }, [visibleProfiles, friendsCountCache]);
 
-        setVisibleProfiles(sortedProfiles);
-    }, [searchResults, sortBy, sortDirection, filterBy]);
+    // Effect to load friends count for top ranked users
+    useEffect(() => {
+        topRankedUsers.forEach(user => {
+            const userId = user?.user_id || user?.id;
+            if (userId && friendsCountCache[userId] === undefined) {
+                loadUserFriendsCount(userId);
+            }
+        });
+    }, [topRankedUsers, friendsCountCache]);
 
     // Добавим useEffect для отслеживания состояния навигации
     useEffect(() => {
@@ -1013,15 +903,70 @@ export default function People() {
         };
     }, []);
     
-    // Toggle sort direction
-    const toggleSortDirection = () => {
-        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    };
+
     
     // Проверяем, является ли пользователь другом или есть ли отправленный запрос
     const isFriend = (userId: string) => {
-        return friends.some(friend => friend.friendId === userId) || 
+        return friends.some(friend => friend.friendId === userId) ||
                sentRequests.some(request => request.friendId === userId);
+    };
+
+    // Загружаем количество друзей для пользователя
+    const loadUserFriendsCount = async (userId: string) => {
+        if (friendsCountCache[userId] !== undefined) {
+            return; // Уже загружено
+        }
+
+        try {
+            // Получаем друзей, где пользователь является инициатором
+            const friendsAsInitiator = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
+                [
+                    Query.equal('user_id', userId),
+                    Query.equal('status', 'accepted')
+                ]
+            );
+
+            // Получаем друзей, где пользователь является получателем
+            const friendsAsReceiver = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
+                [
+                    Query.equal('friend_id', userId),
+                    Query.equal('status', 'accepted')
+                ]
+            );
+
+            const totalFriends = friendsAsInitiator.total + friendsAsReceiver.total;
+            setFriendsCountCache(prev => ({ ...prev, [userId]: totalFriends }));
+        } catch (error) {
+            console.error('Error getting friends count:', error);
+            setFriendsCountCache(prev => ({ ...prev, [userId]: 0 }));
+        }
+    };
+
+    // Получаем количество друзей из кеша (синхронно)
+    const getUserFriendsCount = (userId: string): number => {
+        return friendsCountCache[userId] ?? 0;
+    };
+
+    // Проверяем, есть ли у пользователя опубликованные посты
+    const checkUserHasPosts = async (userId: string): Promise<boolean> => {
+        try {
+            const posts = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
+                [
+                    Query.equal('user_id', userId),
+                    Query.limit(1) // Нужен только один пост для проверки
+                ]
+            );
+            return posts.total > 0;
+        } catch (error) {
+            console.error('Error checking user posts:', error);
+            return false;
+        }
     };
     
     // Рейтинг пользователя
@@ -1213,47 +1158,172 @@ export default function People() {
         loadTopUsers();
     }, [activeTab]);
     
-    // Загрузка рейтинга топ-пользователей с использованием реальных данных
-    const loadTopUsers = async () => {
+    // Функция для подсчета вайбов пользователя
+    const getUserVibesCount = async (userId: string): Promise<number> => {
         try {
-            // Выбираем коллекцию в зависимости от активного таба
-            const collectionId = activeTab === TabTypes.ARTISTS 
-                ? process.env.NEXT_PUBLIC_COLLECTION_ID_ARTIST_PROFILE! 
-                : process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!;
-            
-            // Сортируем по average_rating (строка в базе)
-            const sortField = 'average_rating';
-            
-            const response = await database.listDocuments(
+            const vibes = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
-                collectionId,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_VIBE_POSTS!,
                 [
-                    Query.orderDesc(sortField),
-                    Query.limit(10)
+                    Query.equal('user_id', userId),
+                    Query.limit(1000) // Достаточно для подсчета
                 ]
             );
-            
+            return vibes.total;
+        } catch (error) {
+            console.error('Error counting user vibes:', error);
+            return 0;
+        }
+    };
+
+    // Функция для подсчета друзей пользователя
+    const getUserFriendsCountForRanking = async (userId: string): Promise<number> => {
+        try {
+            // Получаем друзей, где пользователь является инициатором
+            const friendsAsInitiator = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
+                [
+                    Query.equal('user_id', userId),
+                    Query.equal('status', 'accepted'),
+                    Query.limit(1000)
+                ]
+            );
+
+            // Получаем друзей, где пользователь является получателем
+            const friendsAsReceiver = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_FRIENDS!,
+                [
+                    Query.equal('friend_id', userId),
+                    Query.equal('status', 'accepted'),
+                    Query.limit(1000)
+                ]
+            );
+
+            return friendsAsInitiator.total + friendsAsReceiver.total;
+        } catch (error) {
+            console.error('Error counting user friends:', error);
+            return 0;
+        }
+    };
+
+    // Функция для подсчета постов пользователя
+    const getUserPostsCount = async (userId: string): Promise<number> => {
+        try {
+            const posts = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_POST!,
+                [
+                    Query.equal('user_id', userId),
+                    Query.limit(1000)
+                ]
+            );
+            return posts.total;
+        } catch (error) {
+            console.error('Error counting user posts:', error);
+            return 0;
+        }
+    };
+
+    // Функция для расчета комплексного рейтинга
+    const calculateUserScore = async (doc: any, isArtist: boolean): Promise<number> => {
+        const totalRatings = typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : (doc.total_ratings || 0);
+        const averageRating = typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : (doc.average_rating || 0);
+
+        // 1. Основной фактор: количество поставленных звезд рейтингов
+        const ratingsScore = totalRatings * averageRating; // Учитываем и количество и качество рейтингов
+
+        // Получаем дополнительные метрики
+        const [vibesCount, friendsCount, postsCount] = await Promise.all([
+            getUserVibesCount(doc.user_id),
+            getUserFriendsCountForRanking(doc.user_id),
+            getUserPostsCount(doc.user_id)
+        ]);
+
+        let finalScore = ratingsScore * 10; // Основной вес для рейтингов
+
+        if (isArtist) {
+            // Для артистов: 2-й фактор - релизы (посты) и вайбы, 3-й фактор - друзья
+            finalScore += (postsCount * 3) + (vibesCount * 2) + (friendsCount * 1);
+        } else {
+            // Для пользователей: 2-й фактор - только вайбы и друзья (посты не учитываются)
+            finalScore += (vibesCount * 2.5) + (friendsCount * 1.5);
+        }
+
+        return finalScore;
+    };
+
+    // Загрузка рейтинга топ-пользователей с новой системой ранжирования
+    const loadTopUsers = async () => {
+        try {
+            // Загружаем больше пользователей для фильтрации и ранжирования
+            const response = await database.listDocuments(
+                process.env.NEXT_PUBLIC_DATABASE_ID!,
+                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                [
+                    Query.limit(100) // Увеличиваем лимит для лучшей выборки
+                ]
+            );
+
+            // Создаем массив пользователей с их рейтингами
+            const usersWithScores: any[] = [];
+
+            for (const doc of response.documents) {
+                const hasPosts = await checkUserHasPosts(doc.user_id);
+                const isArtist = hasPosts;
+
+                // Фильтруем по активному табу
+                if ((activeTab === TabTypes.USERS && !isArtist) ||
+                    (activeTab === TabTypes.ARTISTS && isArtist)) {
+
+                    // Рассчитываем комплексный рейтинг
+                    const score = await calculateUserScore(doc, isArtist);
+
+                    usersWithScores.push({
+                        ...doc,
+                        calculatedScore: score,
+                        isArtist: isArtist
+                    });
+                }
+            }
+
+            // Сортируем по рассчитанному рейтингу
+            usersWithScores.sort((a, b) => b.calculatedScore - a.calculatedScore);
+
+            // Берем топ-10
+            const filteredUsers = usersWithScores.slice(0, 10);
+
             // Преобразуем данные для отображения
-            const topUsers = response.documents.map(doc => ({
+            const topUsers = filteredUsers.map(doc => ({
                 $id: doc.$id,
                 user_id: doc.user_id,
                 name: doc.name,
                 username: doc.username,
                 image: doc.image,
                 bio: doc.bio || '',
+                calculatedScore: doc.calculatedScore, // Добавляем рассчитанный рейтинг
+                isArtist: doc.isArtist, // Добавляем флаг артиста
                 stats: {
                     totalLikes: typeof doc.total_likes === 'string' ? parseInt(doc.total_likes, 10) : (doc.total_likes || 0),
                     totalFollowers: typeof doc.total_followers === 'string' ? parseInt(doc.total_followers, 10) : (doc.total_followers || 0),
                     averageRating: typeof doc.average_rating === 'string' ? parseFloat(doc.average_rating) : (doc.average_rating || 0),
                     totalRatings: typeof doc.total_ratings === 'string' ? parseInt(doc.total_ratings, 10) : (doc.total_ratings || 0),
-                    artistScore: typeof doc.artistScore === 'string' ? parseFloat(doc.artistScore) : (doc.artistScore || 0)
+                    artistScore: doc.calculatedScore // Используем новый рассчитанный рейтинг
                 }
             }));
-            
+
             setTopRankedUsers(topUsers);
-            console.log('Loaded top users:', topUsers);
+            console.log(`Loaded top ${activeTab} with new ranking system:`, topUsers.map(u => ({
+                name: u.name,
+                score: u.calculatedScore,
+                ratings: u.stats.totalRatings,
+                avgRating: u.stats.averageRating,
+                isArtist: u.isArtist
+            })));
         } catch (error) {
             console.error('Error loading top users:', error);
+            setTopRankedUsers([]);
         }
     };
     
@@ -1347,75 +1417,15 @@ export default function People() {
     }
 
     return (
-        <PeopleLayout>
-            <div 
-                {...swipeHandlers}
-                className="min-h-screen bg-[#1A1A2E]"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-            >
-                {/* Search and Filters Bar - Mobile Optimized */}
-                <div className={styles.searchContainer}>
-                    <div className={styles.searchWrapper}>
-                        <div className={styles.searchInputWrapper}>
-                            <div className="relative h-full">
-                                <MagnifyingGlassIcon className={`h-5 w-5 ${styles.searchIcon}`} />
-                                <input
-                                    type="text"
-                                    placeholder="Search amazing people..."
-                                    value={query}
-                                    onChange={(e) => handleSearchInput(e.target.value)}
-                                    className={styles.searchInput}
-                                />
-                                {searching && (
-                                    <div className="absolute inset-y-0 right-4 flex items-center">
-                                        <div className="animate-spin h-4 w-4 border-2 border-[#20DDBB] border-t-transparent rounded-full" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+        <PeopleSearchProvider onSearch={handleSearchInput}>
+            <PeopleLayout>
+                <div
+                    {...swipeHandlers}
+                    className="min-h-screen bg-[#1A1A2E]"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                >
 
-                        {/* Desktop Filters */}
-                        <div className={`${styles.filterGroup} hidden lg:flex`}>
-                                    <FilterDropdown
-                                        options={[
-                                            { value: 'name', label: 'Name' },
-                                            { value: 'rating', label: 'Rating' },
-                                            { value: 'followers', label: 'Followers' }
-                                        ]}
-                                        value={sortBy}
-                                        onChange={setSortBy}
-                                        label="Sort by"
-                                        isMobile={isMobile}
-                                    />
-                                    
-                                    <FilterDropdown 
-                                        options={[
-                                            { value: 'all', label: 'All' },
-                                            { value: 'friends', label: 'Friends' }
-                                        ]}
-                                        value={filterBy}
-                                        onChange={setFilterBy}
-                                        label="Show"
-                                        isMobile={isMobile}
-                                    />
-                                    
-                                    <motion.button
-                                        whileHover={{ scale: 1.02, y: -1 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={toggleSortDirection}
-                                        className={styles.filterButton}
-                                        title={`Sort ${sortDirection === 'asc' ? 'Descending' : 'Ascending'}`}
-                                    >
-                                        {sortDirection === 'asc' ? (
-                                            <ArrowUpIcon className="w-5 h-5 text-[#20DDBB]" />
-                                        ) : (
-                                            <ArrowDownIcon className="w-5 h-5 text-[#20DDBB]" />
-                                        )}
-                                    </motion.button>
-                                </div>
-                            </div>
-                                    </div>
                                     
                 {/* Main Content */}
                 <div className={styles.container}>
@@ -1459,6 +1469,7 @@ export default function People() {
                                                         <MemoizedUserCard
                                                             user={profile}
                                                             isFriend={isFriend(profile.user_id)}
+                                                            totalFriends={getUserFriendsCount(profile.user_id)}
                                                             onAddFriend={handleAddFriend}
                                                             onRemoveFriend={handleRemoveFriend}
                                                             onRateUser={handleRateUser}
@@ -1487,7 +1498,7 @@ export default function People() {
                         >
                                     {/* Header */}
                                     <div className="p-5 border-b border-white/5">
-                                <h2 className="text-xl font-bold text-white text-center mb-3">Top Ranked</h2>
+                                <h2 className="text-xl font-bold text-white text-center mb-3">Top</h2>
                                         <div className="flex justify-center">
                                     <div className="inline-flex bg-gradient-to-r from-[#20DDBB]/10 to-[#5D59FF]/10 p-1 rounded-full">
                                         <button
@@ -1515,7 +1526,7 @@ export default function People() {
                                     </div>
 
                                     {/* Users List - with custom scrollbar */}
-                                    <div className="flex-1 overflow-y-auto px-2 py-3 custom-scrollbar">
+                                    <div className={`flex-1 overflow-y-auto px-2 py-3 ${styles.hideScrollbar}`}>
                                         {topRankedUsers.slice(0, 8).map((user, index) => {
                                             const userId = user?.user_id || user?.id;
                                             if (!userId) return null;
@@ -1589,9 +1600,9 @@ export default function People() {
                 </div>
                                                                     <span className="text-xs text-white/40">•</span>
                                                                     <div className="flex items-center">
-                                                                        <UsersIcon className="w-3.5 h-3.5 text-purple-400 mr-1" />
-                                                                        <span className="text-xs text-purple-400">
-                                                                            {user.stats?.totalFollowers || 0}
+                                                                        <UserPlusIcon className="w-3.5 h-3.5 text-green-400 mr-1" />
+                                                                        <span className="text-xs text-green-400">
+                                                                            {getUserFriendsCount(userId)}
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -1615,9 +1626,9 @@ export default function People() {
                 {/* Mobile-specific components */}
                 <MobileNav />
                 <TopRankedModal />
-                <ScrollToTopButton />
-            </div>
-        </PeopleLayout>
+                </div>
+            </PeopleLayout>
+        </PeopleSearchProvider>
     );
 }
 

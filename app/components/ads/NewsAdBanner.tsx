@@ -70,29 +70,76 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
       // Очищаем контейнер
       adContainerRef.current.innerHTML = '';
 
-      // Создаем скрипт конфигурации (точно как в документации AdsTerra)
+      // Создаем скрипт конфигурации (новый баннер 320x50)
       const configScript = document.createElement('script');
       configScript.type = 'text/javascript';
       configScript.innerHTML = `
         atOptions = {
-          'key' : '0654df9f27dd77270cf8f1aaeed1818a',
+          'key' : '4385a5a6b91cfc53c3cdf66ea55b3291',
           'format' : 'iframe',
-          'height' : ${isMobile ? 100 : 250},
-          'width' : 300,
+          'height' : 50,
+          'width' : 320,
           'params' : {}
         };
       `;
 
-      // Создаем скрипт загрузки (точно как в документации AdsTerra)
+      // Создаем скрипт загрузки (новый баннер)
       const invokeScript = document.createElement('script');
       invokeScript.type = 'text/javascript';
-      invokeScript.src = '//www.highperformanceformat.com/0654df9f27dd77270cf8f1aaeed1818a/invoke.js';
+      invokeScript.src = '//www.highperformanceformat.com/4385a5a6b91cfc53c3cdf66ea55b3291/invoke.js';
       invokeScript.async = true;
 
       // Добавляем обработчики событий
       invokeScript.onload = () => {
         console.log('[NewsAdBanner] ✅ AdsTerra script loaded successfully');
         setAdLoaded(true);
+
+        // Проверяем создание iframe через разные интервалы
+        const checkForAd = (attempt = 1) => {
+          setTimeout(() => {
+            const iframe = adContainerRef.current?.querySelector('iframe');
+            const allElements = adContainerRef.current?.querySelectorAll('*');
+            const scripts = adContainerRef.current?.querySelectorAll('script');
+
+            console.log(`[NewsAdBanner] Check ${attempt}: iframe=${!!iframe}, total elements=${allElements?.length}, scripts=${scripts?.length}`);
+
+            if (iframe) {
+              console.log('[NewsAdBanner] 🎯 AdsTerra iframe found!', {
+                src: iframe.src,
+                width: iframe.width,
+                height: iframe.height,
+                display: iframe.style.display,
+                visibility: iframe.style.visibility
+              });
+
+              // Убираем fallback если iframe найден
+              const fallback = adContainerRef.current?.querySelector('.fallback-ad');
+              if (fallback) {
+                fallback.remove();
+              }
+
+            } else if (attempt < 8) { // Увеличиваем количество попыток
+              checkForAd(attempt + 1);
+            } else {
+              console.log('[NewsAdBanner] ⚠️ No iframe created after 8 attempts, showing fallback');
+
+              // Показываем fallback изображение
+              if (adContainerRef.current && !adContainerRef.current.querySelector('.fallback-ad')) {
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.className = 'fallback-ad absolute inset-0 flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg';
+                fallbackDiv.innerHTML = `
+                  <div class="text-center">
+                    <div class="text-sm font-medium">Advertisement</div>
+                    <div class="text-xs opacity-80">320x50 Banner Space</div>
+                  </div>
+                `;
+                adContainerRef.current.appendChild(fallbackDiv);
+              }
+            }
+          }, attempt * 500); // 0.5s, 1s, 1.5s, 2s, 2.5s, 3s, 3.5s, 4s
+        };
+
+        checkForAd();
       };
 
       invokeScript.onerror = (error) => {
@@ -177,12 +224,40 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
     }
   };
 
+  // Альтернативный метод загрузки AdsTerra (для отладки)
+  const loadAdAlternative = () => {
+    console.log('[NewsAdBanner] 🔄 Trying alternative loading method...');
+    if (!adContainerRef.current) return;
+
+    // Очищаем контейнер
+    adContainerRef.current.innerHTML = '';
+
+    // Создаем iframe напрямую (для тестирования нового баннера)
+    const testIframe = document.createElement('iframe');
+    testIframe.src = `https://www.highperformanceformat.com/4385a5a6b91cfc53c3cdf66ea55b3291/invoke.js`;
+    testIframe.width = '320';
+    testIframe.height = '50';
+    testIframe.style.border = 'none';
+    testIframe.style.display = 'block';
+
+    testIframe.onload = () => {
+      console.log('[NewsAdBanner] 🎯 Test iframe loaded');
+    };
+
+    testIframe.onerror = () => {
+      console.log('[NewsAdBanner] ❌ Test iframe failed');
+    };
+
+    adContainerRef.current.appendChild(testIframe);
+  };
+
   // Добавляем глобальные функции для отладки
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).showNewsAdBanner = forceShow;
       (window as any).reloadAdScript = reloadAdScript;
-      console.log('[NewsAdBanner] Added global functions: window.showNewsAdBanner(), window.reloadAdScript()');
+      (window as any).loadAdAlternative = loadAdAlternative;
+      console.log('[NewsAdBanner] Added global functions: window.showNewsAdBanner(), window.reloadAdScript(), window.loadAdAlternative()');
     }
   }, []);
 
@@ -331,29 +406,54 @@ const NewsAdBanner: React.FC<NewsAdBannerProps> = ({ className = '', isMobile = 
                     ref={adContainerRef}
                     className="flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 relative overflow-hidden"
                     style={{
-                      width: 300,
-                      height: isMobile ? 100 : 250,
-                      minHeight: isMobile ? 100 : 250
+                      width: 320,    // Новый размер баннера
+                      height: 50,    // Новый размер баннера
+                      minHeight: 50  // Новый размер баннера
                     }}
                   >
                     {!adLoaded && (
-                      <div className="text-center text-gray-400 z-10">
+                      <div className="text-center text-gray-400 z-10 flex flex-col items-center justify-center h-full">
                         <div className="animate-spin w-6 h-6 border-2 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-2"></div>
-                        <div className="text-sm">Loading AdsTerra...</div>
-                        <div className="text-xs mt-1 opacity-70">Key: 0654df9f27dd77270cf8f1aaeed1818a</div>
-                        <div className="text-xs mt-1 opacity-50">Size: 300x{isMobile ? 100 : 250}</div>
+                        <div className="text-sm">Loading Advertisement...</div>
+                        <div className="text-xs mt-1 opacity-70">AdsTerra Banner</div>
+                        <div className="text-xs mt-1 opacity-50">320x50</div>
                       </div>
                     )}
 
-                    {/* Отладочная информация */}
-                    <div className="absolute top-1 left-1 text-xs text-green-400 bg-black/50 px-1 rounded z-20">
-                      {adLoaded ? '✅ Script Loaded' : '⏳ Loading Script'}
-                    </div>
 
-                    {/* Дополнительная отладочная информация */}
-                    <div className="absolute bottom-1 left-1 text-xs text-blue-400 bg-black/50 px-1 rounded z-20">
-                      Container: {adContainerRef.current?.children.length || 0} children
-                    </div>
+
+                    {/* Отладочная информация (только в development) */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <>
+                        <div className="absolute top-1 left-1 text-xs text-green-400 bg-black/50 px-1 rounded z-20">
+                          {adLoaded ? '✅ Script Loaded' : '⏳ Loading Script'}
+                        </div>
+
+                        <div className="absolute bottom-1 left-1 text-xs text-blue-400 bg-black/50 px-1 rounded z-20">
+                          Container: {adContainerRef.current?.children.length || 0} children
+                        </div>
+                      </>
+                    )}
+
+                    {/* Кнопки для отладки (только в development) */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="absolute top-1 right-1 flex gap-1 z-30">
+                        <button
+                          onClick={reloadAdScript}
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
+                          title="Reload Ad Script"
+                        >
+                          🔄
+                        </button>
+                        <button
+                          onClick={loadAdAlternative}
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                          title="Try Alternative Method"
+                        >
+                          🧪
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

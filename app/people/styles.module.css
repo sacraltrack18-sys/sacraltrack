@@ -9,8 +9,8 @@
 
 /* Grid container with improved scrolling */
 .gridContainer {
-  @apply pb-20 lg:pb-6;
-  height: calc(100vh - 70px);
+  @apply pt-5;
+  height: calc(100vh - 90px);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -19,6 +19,16 @@
 
 .gridContainer::-webkit-scrollbar {
   display: none;
+}
+
+/* Hide scrollbar for any element with this class */
+.hideScrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hideScrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .gridLayout {
@@ -191,8 +201,8 @@
 @media (max-width: 480px) {
   .gridContainer {
     max-width: 100%;
-    padding: 0;
-    height: calc(100vh - 120px); /* Adjusted for mobile header, nav height and filter margin */
+    padding: 20px 0 0 0;
+    height: calc(100vh - 140px); /* Adjusted for mobile header, nav height and added padding */
     /* Improve scroll performance */
     -webkit-overflow-scrolling: touch;
     transform: translateZ(0);
@@ -221,7 +231,7 @@
 @media (min-width: 481px) and (max-width: 768px) {
   .gridContainer {
     max-width: 100%;
-    padding: 1rem;
+    padding: 20px 1rem 1rem 1rem;
   }
   
   .pageContent {
@@ -232,8 +242,8 @@
 @media (min-width: 769px) {
   .gridContainer {
     max-width: 100%;
-    padding: 0;
-    height: calc(100vh - 70px);
+    padding: 20px 0 0 0;
+    height: calc(100vh - 90px);
   }
 }
 
