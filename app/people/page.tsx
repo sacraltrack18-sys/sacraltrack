@@ -17,7 +17,8 @@ import {
   UserMinusIcon,
   XMarkIcon,
   ChevronDownIcon,
-  UsersIcon
+  UsersIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { database, Query } from '@/libs/AppWriteClient';
@@ -550,6 +551,7 @@ export default function People() {
     const [visibleProfiles, setVisibleProfiles] = useState<any[]>([]);
     const [topRankedUsers, setTopRankedUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingTopUsers, setIsLoadingTopUsers] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
@@ -677,7 +679,7 @@ export default function People() {
         return () => container.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
 
-    // Improved mobile navigation with stable positioning
+    // Enhanced mobile navigation with smooth animations and no jerking
     const MobileNav = () => (
         <motion.nav
             className={styles.mobileNav}
@@ -687,23 +689,48 @@ export default function People() {
                 opacity: 1,
                 transition: {
                     type: "spring",
-                    stiffness: 400,
-                    damping: 40,
-                    opacity: { duration: 0.3 }
+                    stiffness: 300,
+                    damping: 30,
+                    mass: 0.8,
+                    opacity: { duration: 0.4 }
                 }
             }}
+            exit={{
+                y: 100,
+                opacity: 0,
+                transition: { duration: 0.3 }
+            }}
         >
-            <button
+            <motion.button
                 onClick={() => setShowTopRanked(true)}
-                className="p-2 rounded-xl flex flex-col items-center text-white/60 active:text-[#20DDBB] active:bg-[#20DDBB]/10 transition-all"
+                className="relative px-6 py-3 rounded-2xl flex flex-col items-center text-white/70 hover:text-white active:text-[#20DDBB] transition-all duration-300 group"
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
             >
-                <FaTrophy className="w-5 h-5" />
-                <span className="text-xs mt-0.5">Top</span>
-            </button>
+                {/* Background glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/0 to-[#5D59FF]/0 group-hover:from-[#20DDBB]/10 group-hover:to-[#5D59FF]/10 group-active:from-[#20DDBB]/20 group-active:to-[#5D59FF]/20 rounded-2xl transition-all duration-300"></div>
+
+                {/* Icon with enhanced styling */}
+                <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative">
+                        <FaTrophy className="w-6 h-6 group-hover:text-[#20DDBB] transition-colors duration-300" />
+                        {/* Subtle glow for icon */}
+                        <div className="absolute inset-0 w-6 h-6 bg-[#20DDBB]/0 group-hover:bg-[#20DDBB]/20 rounded-full blur-sm transition-all duration-300"></div>
+                    </div>
+                    <span className="text-xs mt-1 font-medium group-hover:text-[#20DDBB] transition-colors duration-300">
+                        Top Rankings
+                    </span>
+                </div>
+
+                {/* Ripple effect on tap */}
+                <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                    <div className="absolute inset-0 bg-white/0 group-active:bg-white/10 transition-all duration-150"></div>
+                </div>
+            </motion.button>
         </motion.nav>
     );
 
-    // Move TopRankedModal inside People component
+    // Enhanced TopRankedModal with better UX/UI
     const TopRankedModal = () => (
         <AnimatePresence>
             {showTopRanked && (
@@ -711,84 +738,197 @@ export default function People() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 lg:hidden"
+                    transition={{ duration: 0.3 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 lg:hidden"
                     onClick={() => setShowTopRanked(false)}
                 >
                     <motion.div
-                        initial={{ y: "100%" }}
-                        animate={{ y: 0 }}
-                        exit={{ y: "100%" }}
-                        transition={{ type: "spring", damping: 25 }}
-                        className="absolute bottom-0 left-0 right-0 bg-[#1A1A2E] rounded-t-3xl max-h-[80vh] overflow-hidden flex flex-col"
+                        initial={{ y: "100%", scale: 0.95 }}
+                        animate={{ y: 0, scale: 1 }}
+                        exit={{ y: "100%", scale: 0.95 }}
+                        transition={{
+                            type: "spring",
+                            damping: 30,
+                            stiffness: 300,
+                            mass: 0.8
+                        }}
+                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#1A1A2E] to-[#252840] rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border-t border-white/10"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#1A1A2E] z-10">
-                            <h2 className="text-xl font-bold text-white">Top</h2>
-                            <button 
-                                onClick={() => setShowTopRanked(false)}
-                                className="p-2 rounded-full hover:bg-white/10"
-                            >
-                                <XMarkIcon className="w-6 h-6 text-white" />
-                            </button>
+                        {/* Drag indicator */}
+                        <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-12 h-1.5 bg-white/20 rounded-full"></div>
                         </div>
 
-                        <div className={`flex-1 overflow-y-auto p-4 ${styles.hideScrollbar}`}>
-                            {topRankedUsers.map((user, index) => {
-                                const userId = user?.user_id || user?.id;
-                                if (!userId) return null;
+                        {/* Header with tabs */}
+                        <div className="px-5 pb-4 border-b border-white/5 sticky top-0 bg-gradient-to-t from-[#1A1A2E] to-[#252840] z-10 backdrop-blur-xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-2xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] bg-clip-text text-transparent">
+                                    Top Rankings
+                                </h2>
+                                <button
+                                    onClick={() => setShowTopRanked(false)}
+                                    className="p-2 rounded-xl hover:bg-white/10 active:bg-white/20 transition-all duration-200"
+                                >
+                                    <XMarkIcon className="w-6 h-6 text-white/80" />
+                                </button>
+                            </div>
 
-                                return (
-                                    <motion.div
-                                        key={`top-user-${index}`}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className="mb-3"
+                            {/* Tab selector */}
+                            <div className="flex justify-center">
+                                <div className="inline-flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                                    <button
+                                        onClick={() => setActiveTab(TabTypes.USERS)}
+                                        className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                                            activeTab === TabTypes.USERS
+                                            ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-lg border border-[#20DDBB]/20'
+                                            : 'text-white/60 hover:text-white hover:bg-white/5'
+                                        }`}
                                     >
-                                        <div 
-                                            className="p-4 rounded-xl bg-white/5 border border-white/10 active:bg-white/10 transition-all"
+                                        Users
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab(TabTypes.ARTISTS)}
+                                        className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                                            activeTab === TabTypes.ARTISTS
+                                            ? 'text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-lg border border-[#20DDBB]/20'
+                                            : 'text-white/60 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        Artists
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content area with smooth scrolling */}
+                        <div className={`flex-1 overflow-y-auto px-5 pb-6 space-y-3 ${styles.hideScrollbar}`}>
+                            {isLoadingTopUsers ? (
+                                // Loading skeleton
+                                <div className="space-y-3">
+                                    {[...Array(5)].map((_, index) => (
+                                        <div key={index} className="bg-white/5 rounded-2xl p-4 border border-white/5 animate-pulse">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-white/10"></div>
+                                                <div className="w-14 h-14 rounded-full bg-white/10"></div>
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-4 bg-white/10 rounded w-3/4"></div>
+                                                    <div className="h-3 bg-white/10 rounded w-1/2"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : topRankedUsers.length === 0 ? (
+                                // Empty state
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center mb-4">
+                                        <FaTrophy className="w-8 h-8 text-white/40" />
+                                    </div>
+                                    <h3 className="text-white/80 font-medium mb-2">No rankings yet</h3>
+                                    <p className="text-white/50 text-sm">Be the first to get rated!</p>
+                                </div>
+                            ) : (
+                                // User list
+                                topRankedUsers.map((user, index) => {
+                                    const userId = user?.user_id || user?.id;
+                                    if (!userId) return null;
+
+                                    const isTopThree = index < 3;
+                                    const rankEmojis = ['👑', '🥈', '🥉'];
+
+                                    return (
+                                        <motion.div
+                                            key={`top-user-${index}`}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.05, duration: 0.3 }}
+                                            className={`relative bg-gradient-to-r ${isTopThree ? 'from-white/10 to-white/5' : 'from-white/5 to-white/3'} rounded-2xl p-4 border ${isTopThree ? 'border-[#20DDBB]/20' : 'border-white/5'} hover:border-[#20DDBB]/30 transition-all duration-300 cursor-pointer group active:scale-[0.98]`}
                                             onClick={() => {
-                                                window.location.href = `/profile/${userId}`;
+                                                setShowTopRanked(false);
+                                                router.push(`/profile/${userId}`);
                                             }}
                                         >
-                                            <div className="flex items-center gap-4">
-                                                {/* Rank Badge */}
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
-                                                    index === 0 ? 'bg-gradient-to-br from-yellow-500/20 to-amber-600/20 text-yellow-400 border border-yellow-500/20' :
-                                                    index === 1 ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 text-slate-300 border border-slate-400/20' :
-                                                    index === 2 ? 'bg-gradient-to-br from-amber-600/20 to-amber-700/20 text-amber-500 border border-amber-600/20' :
-                                                    'bg-gradient-to-br from-purple-500/10 to-purple-600/10 text-purple-400 border border-purple-500/20'
+                                            {/* Top 3 glow effect */}
+                                            {isTopThree && (
+                                                <div className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/5 to-[#5D59FF]/5 rounded-2xl blur-xl"></div>
+                                            )}
+
+                                            <div className="relative flex items-center gap-4">
+                                                {/* Rank badge */}
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-lg ${
+                                                    index === 0 ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 text-yellow-300 border border-yellow-500/30' :
+                                                    index === 1 ? 'bg-gradient-to-br from-slate-400/30 to-slate-500/30 text-slate-200 border border-slate-400/30' :
+                                                    index === 2 ? 'bg-gradient-to-br from-amber-600/30 to-amber-700/30 text-amber-400 border border-amber-600/30' :
+                                                    'bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 text-[#20DDBB] border border-[#20DDBB]/20'
                                                 }`}>
-                                                    {index + 1}
+                                                    {isTopThree ? rankEmojis[index] : index + 1}
                                                 </div>
 
+                                                {/* Avatar */}
+                                                <div className="relative">
+                                                    <img
+                                                        src={user.image || '/default-avatar.png'}
+                                                        alt={user.name}
+                                                        className={`w-14 h-14 rounded-2xl object-cover border-2 ${isTopThree ? 'border-[#20DDBB]/40' : 'border-white/20'} group-hover:border-[#20DDBB]/60 transition-all duration-300`}
+                                                    />
+                                                    {isTopThree && (
+                                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] rounded-full flex items-center justify-center">
+                                                            <StarIcon className="w-3 h-3 text-white" />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* User info */}
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-medium text-white text-lg">
-                                                        {user.name || "Unknown User"}
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="text-white font-semibold truncate text-lg">{user.name || "Unknown User"}</h3>
+                                                        {user.isArtist && (
+                                                            <div className="px-2 py-0.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-purple-400/20">
+                                                                <span className="text-purple-300 text-xs font-medium">Artist</span>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="flex items-center gap-3 mt-1">
-                                                        <div className="flex items-center">
-                                                            <StarIcon className="w-4 h-4 text-yellow-400 mr-1" />
-                                                            <span className="text-sm text-yellow-400">
+                                                    <p className="text-white/60 text-sm truncate mb-2">@{user.username}</p>
+
+                                                    {/* Stats */}
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
+                                                                <StarIcon className="w-2.5 h-2.5 text-white" />
+                                                            </div>
+                                                            <span className="text-white/90 text-sm font-medium">
                                                                 {user.stats?.averageRating?.toFixed(1) || "0.0"}
                                                             </span>
+                                                            <span className="text-white/50 text-xs">
+                                                                ({user.stats?.totalRatings || 0})
+                                                            </span>
                                                         </div>
-                                                        <span className="text-white/20">•</span>
-                                                        <div className="flex items-center">
-                                                            <UserPlusIcon className="w-4 h-4 text-green-400 mr-1" />
-                                                            <span className="text-sm text-green-400">
+
+                                                        <div className="flex items-center gap-1.5">
+                                                            <UserGroupIcon className="w-4 h-4 text-[#20DDBB]" />
+                                                            <span className="text-white/80 text-sm">
                                                                 {getUserFriendsCount(userId)}
                                                             </span>
                                                         </div>
+
+                                                        {/* Score indicator */}
+                                                        <div className="ml-auto flex items-center gap-1">
+                                                            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#5D59FF]"></div>
+                                                            <span className="text-white/40 text-xs font-mono">
+                                                                {Math.round(user.calculatedScore || 0)}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <ChevronDownIcon className="w-5 h-5 text-white/40 rotate-[-90deg]" />
+                                                {/* Arrow indicator */}
+                                                <ChevronDownIcon className="w-5 h-5 text-white/30 rotate-[-90deg] group-hover:text-[#20DDBB]/60 transition-colors duration-300" />
                                             </div>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
+                                        </motion.div>
+                                    );
+                                })
+                            )}
                         </div>
                     </motion.div>
                 </motion.div>
@@ -1257,6 +1397,7 @@ export default function People() {
     // Загрузка рейтинга топ-пользователей с новой системой ранжирования
     const loadTopUsers = async () => {
         try {
+            setIsLoadingTopUsers(true);
             // Загружаем больше пользователей для фильтрации и ранжирования
             const response = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
@@ -1324,6 +1465,8 @@ export default function People() {
         } catch (error) {
             console.error('Error loading top users:', error);
             setTopRankedUsers([]);
+        } finally {
+            setIsLoadingTopUsers(false);
         }
     };
     

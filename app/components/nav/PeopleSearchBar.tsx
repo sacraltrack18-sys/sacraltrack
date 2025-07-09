@@ -106,11 +106,13 @@ const PeopleSearchBar = ({ onSearch, placeholder = "Search amazing people..." }:
       <AnimatePresence>
         {showSearch && (
           <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "min(280px, 80vw)", opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="absolute left-12 md:right-12 top-1/2 -translate-y-1/2 z-50 origin-left md:origin-right w-[calc(100vw-80px)] md:w-auto"
+            initial={{ width: 0, opacity: 0, scale: 0.95 }}
+            animate={{ width: "auto", opacity: 1, scale: 1 }}
+            exit={{ width: 0, opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="absolute top-1/2 -translate-y-1/2 z-50
+                      left-12 right-4 md:left-auto md:right-12 md:w-80
+                      max-w-[calc(100vw-4rem)] md:max-w-none"
           >
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
@@ -119,9 +121,10 @@ const PeopleSearchBar = ({ onSearch, placeholder = "Search amazing people..." }:
                 value={searchQuery}
                 onChange={handleInputChange}
                 placeholder={placeholder}
-                className="w-full px-4 py-3 bg-[#2E2469] text-white rounded-full 
-                        focus:outline-none focus:ring-2 focus:ring-[#20DDBB] 
-                        placeholder-gray-400 text-sm"
+                className="w-full px-4 py-3 bg-[#2E2469]/95 backdrop-blur-md text-white rounded-2xl
+                        focus:outline-none focus:ring-2 focus:ring-[#20DDBB]/50 focus:bg-[#2E2469]
+                        placeholder-gray-400 text-sm border border-white/10
+                        shadow-lg focus:shadow-xl transition-all duration-300"
               />
               
               {/* Loading indicator */}
