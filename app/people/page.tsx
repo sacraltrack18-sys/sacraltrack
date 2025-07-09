@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useContext, Suspense, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext, Suspense, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFriendsStore } from '@/app/stores/friends';
 import { useProfileStore } from '@/app/stores/profile';
@@ -140,8 +140,8 @@ interface UserCardProps {
     onRateUser: (userId: string, rating: number) => void;
 }
 
-// Компонент UserCard - сделаем всю карточку кликабельной и упростим навигацию
-const UserCard: React.FC<UserCardProps> = ({ user, isFriend, totalFriends, onAddFriend, onRemoveFriend, onRateUser }) => {
+// Мемоизированный компонент UserCard для оптимизации производительности
+const UserCard: React.FC<UserCardProps> = memo(({ user, isFriend, totalFriends, onAddFriend, onRemoveFriend, onRateUser }) => {
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
@@ -271,14 +271,24 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, totalFriends, onAdd
         >
             {/* Background image with darkening */}
             <div className="absolute inset-0 w-full h-full">
-                <Image
-                    src={imageError ? '/images/placeholders/music-user-placeholder-new.svg' :
-                        (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/music-user-placeholder-new.svg')}
-                    alt={user.name}
-                    fill
-                    className="object-cover"
-                    onError={() => setImageError(true)}
-                />
+                {user.image && !imageError ? (
+                    <Image
+                        src={useCreateBucketUrl(user.image, 'user')}
+                        alt={user.name}
+                        fill
+                        className="object-cover"
+                        onError={() => setImageError(true)}
+                    />
+                ) : (
+                    /* Beautiful placeholder when no image */
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A2E] via-[#252840] to-[#2E2469] flex items-center justify-center">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 border border-[#20DDBB]/30 flex items-center justify-center">
+                            <svg className="w-10 h-10 text-[#20DDBB]/60" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        </div>
+                    </div>
+                )}
                 <div className={styles.cardBackground} />
             </div>
             
@@ -370,7 +380,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isFriend, totalFriends, onAdd
             </div>
         </motion.div>
     );
-};
+});
 
 // Мемоизированная версия UserCard для предотвращения лишних ререндеров
 const MemoizedUserCard = React.memo(UserCard, (prevProps, nextProps) => {
@@ -955,7 +965,10 @@ export default function People() {
             const response = await database.listDocuments(
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                [Query.limit(50)] // Load more initially but show less
+                [
+                    Query.limit(50), // Optimized for faster loading
+                    Query.orderDesc('$createdAt') // Order by creation date for consistency
+                ]
             );
             
             const loadedProfiles = response.documents.map(doc => ({
@@ -988,11 +1001,18 @@ export default function People() {
         }
     }, [setCache, getCache]);
 
+    // Simplified visible profiles - show all immediately
+    const memoizedVisibleProfiles = useMemo(() => {
+        if (searchResults && searchResults.length > 0) {
+            return searchResults;
+        }
+        return profiles;
+    }, [searchResults, profiles]);
+
     // Effect to update visible profiles when search results change
     useEffect(() => {
-        // Simply use search results without additional filtering or sorting
-        setVisibleProfiles(searchResults);
-    }, [searchResults]);
+        setVisibleProfiles(memoizedVisibleProfiles);
+    }, [memoizedVisibleProfiles]);
 
     // Effect to load friends count for visible profiles
     useEffect(() => {
@@ -1155,26 +1175,27 @@ export default function People() {
                 })
             );
             
-            // Also update filtered profiles
-            setProfiles(prevProfiles => 
-                prevProfiles.map(profile => {
+            // Also update visible profiles for immediate UI feedback
+            setVisibleProfiles(prevVisible =>
+                prevVisible.map(profile => {
                     if (profile.user_id === userId) {
                         // Calculate new average rating
                         const prevTotalRatings = parseInt(profile.total_ratings as string) || profile.stats.totalRatings || 0;
                         const prevAverage = parseFloat(profile.average_rating as string) || profile.stats.averageRating || 0;
-                        
+
                         let newAverage = prevAverage;
                         let newTotalRatings = prevTotalRatings;
-                        
+
                         // If this is a new rating, calculate new average
                         if (prevTotalRatings === 0) {
                             newAverage = rating;
                             newTotalRatings = 1;
                         } else {
-                            // Assume this is an update to an existing rating
-                            newAverage = rating;
+                            // For existing ratings, calculate proper average
+                            newTotalRatings = prevTotalRatings + 1;
+                            newAverage = ((prevAverage * prevTotalRatings) + rating) / newTotalRatings;
                         }
-                        
+
                         // Update both the direct fields and the stats object
                         return {
                             ...profile,
@@ -1293,7 +1314,7 @@ export default function People() {
         }
     };
     
-    // Загрузка новых рейтингов при смене таба
+    // Immediate loading for tab changes - no debounce for faster response
     useEffect(() => {
         loadTopUsers();
     }, [activeTab]);
@@ -1397,20 +1418,37 @@ export default function People() {
     // Загрузка рейтинга топ-пользователей с новой системой ранжирования
     const loadTopUsers = async () => {
         try {
+            // Optimized loading with caching for top users
+            const cacheKey = `top_users_${activeTab}`;
+            const cached = getCache(cacheKey);
+
+            if (cached && cached.length > 0) {
+                setTopRankedUsers(cached);
+                return;
+            }
+
             setIsLoadingTopUsers(true);
-            // Загружаем больше пользователей для фильтрации и ранжирования
-            const response = await database.listDocuments(
-                process.env.NEXT_PUBLIC_DATABASE_ID!,
-                process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
-                [
-                    Query.limit(100) // Увеличиваем лимит для лучшей выборки
-                ]
-            );
+
+            // Use existing profiles if available for faster loading
+            let usersToProcess = profiles;
+
+            if (profiles.length === 0) {
+                // Only load from database if no profiles are cached
+                const response = await database.listDocuments(
+                    process.env.NEXT_PUBLIC_DATABASE_ID!,
+                    process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
+                    [
+                        Query.limit(30), // Reduced for faster loading
+                        Query.orderDesc('average_rating') // Pre-sort by rating
+                    ]
+                );
+                usersToProcess = response.documents;
+            }
 
             // Создаем массив пользователей с их рейтингами
             const usersWithScores: any[] = [];
 
-            for (const doc of response.documents) {
+            for (const doc of usersToProcess) {
                 const hasPosts = await checkUserHasPosts(doc.user_id);
                 const isArtist = hasPosts;
 
@@ -1453,6 +1491,9 @@ export default function People() {
                     artistScore: doc.calculatedScore // Используем новый рассчитанный рейтинг
                 }
             }));
+
+            // Cache results for faster subsequent loads
+            setCache(cacheKey, topUsers);
 
             setTopRankedUsers(topUsers);
             console.log(`Loaded top ${activeTab} with new ranking system:`, topUsers.map(u => ({
@@ -1499,12 +1540,14 @@ export default function People() {
                 // Check if Appwrite is configured
                 await checkAppwriteConfig();
                 
-                // Load data asynchronously
+                // Load data asynchronously - prioritize users first
+                await loadUsers();
+
+                // Load other data in parallel
                 await Promise.all([
-                    loadUsers(),
                     loadFriends(),
                     loadSentRequests(),
-                    loadTopUsers()
+                    loadTopUsers() // This will use cached users for faster loading
                 ]);
             } catch (error) {
                 console.error('Initialization error:', error);

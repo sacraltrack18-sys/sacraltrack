@@ -35,13 +35,13 @@
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 1rem;
-  padding: 0 10px;
+  padding: 0 10px 0 10px; /* No bottom padding */
 }
 
 @media (min-width: 640px) {
   .gridLayout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 0 1rem;
+    padding: 0 1rem 0 1rem; /* No bottom padding */
   }
 }
 
@@ -49,7 +49,7 @@
   .gridLayout {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.5rem;
-    padding: 0 1.5rem;
+    padding: 0 1.5rem 0 1.5rem; /* No bottom padding */
   }
 }
 
@@ -216,14 +216,17 @@
     overscroll-behavior: contain;
   }
 
+
+
   .pageContent {
     padding: 0;
+    margin: 0;
     /* Ensure smooth transitions */
     transition: all 0.3s ease;
   }
 
   .gridLayout {
-    padding: 0 10px 80px 10px; /* Add bottom padding for nav */
+    padding: 0 10px 0 10px; /* No bottom padding - cards go to edge */
     gap: 0.75rem;
   }
 
@@ -268,11 +271,12 @@
 @media (min-width: 481px) and (max-width: 768px) {
   .gridContainer {
     max-width: 100%;
-    padding: 20px 1rem 1rem 1rem;
+    padding: 20px 1rem 0 1rem; /* Remove bottom padding */
   }
-  
+
   .pageContent {
-    padding: 0 1rem;
+    padding: 0;
+    margin: 0;
   }
 }
 
@@ -558,44 +562,84 @@
   }
 }
 
-/* Enhanced mobile search bar positioning */
+/* Enhanced mobile search bar positioning and styling */
 @media (max-width: 768px) {
   .mobileSearchContainer {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    left: 3rem;
-    right: 1rem;
+    left: clamp(2rem, 10%, 3rem);
+    right: clamp(1rem, 5%, 2rem);
     z-index: 50;
+    min-width: 300px;
     max-width: calc(100vw - 4rem);
+    width: clamp(300px, 50vw, 600px);
   }
 
   .mobileSearchInput {
     width: 100%;
-    padding: 0.75rem 1rem;
-    background: rgba(46, 36, 105, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1rem;
+    padding: 1rem 3rem 1rem 1.25rem; /* More padding for better UX */
+    background: rgba(26, 26, 46, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 1.5rem;
     color: white;
-    font-size: 0.875rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    font-size: 1rem; /* Larger font for better readability */
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(32, 221, 187, 0.1);
   }
 
   .mobileSearchInput:focus {
     outline: none;
-    border-color: rgba(32, 221, 187, 0.5);
-    background: rgba(46, 36, 105, 1);
+    border-color: rgba(32, 221, 187, 0.6);
+    background: rgba(26, 26, 46, 1);
     box-shadow:
-      0 0 0 2px rgba(32, 221, 187, 0.2),
-      0 8px 32px rgba(0, 0, 0, 0.3);
-    transform: translateY(-1px);
+      0 0 0 2px rgba(32, 221, 187, 0.3),
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      0 0 30px rgba(32, 221, 187, 0.2);
+    transform: translateY(-2px) scale(1.02);
   }
 
   .mobileSearchInput::placeholder {
-    color: rgba(156, 163, 175, 1);
+    color: rgba(156, 163, 175, 0.8);
+    font-weight: 400;
+  }
+
+  /* Enhanced search button styles */
+  .searchButton {
+    padding: 0.75rem;
+    background: rgba(32, 221, 187, 0.1);
+    border: 1px solid rgba(32, 221, 187, 0.3);
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .searchButton:hover {
+    background: rgba(32, 221, 187, 0.2);
+    border-color: rgba(32, 221, 187, 0.5);
+    transform: scale(1.05);
+  }
+
+  .searchButton:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Extra small screens - adjust search field */
+@media (max-width: 400px) {
+  .mobileSearchContainer {
+    left: 1rem;
+    right: 0.5rem;
+    min-width: 280px;
+    width: calc(100vw - 2rem);
+  }
+
+  .mobileSearchInput {
+    padding: 0.875rem 2.5rem 0.875rem 1rem;
+    font-size: 0.875rem;
   }
 }
 
