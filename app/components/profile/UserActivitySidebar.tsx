@@ -143,14 +143,14 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                 // Загружаем нужные данные
                 if (isOwner) {
                     await Promise.all([
-                        loadFriends(),
+                        loadFriends(userId),
                         fetchLikedPosts(userId),
                         setPostsByUser(userId),
                         fetchVibesByUser(userId)
                     ]);
                 } else {
                     await Promise.all([
-                        loadFriends(),
+                        loadFriends(userId),
                         setPostsByUser(userId),
                         fetchVibesByUser(userId)
                     ]);

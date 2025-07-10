@@ -280,12 +280,10 @@ const UserCard: React.FC<UserCardProps> = memo(({ user, isFriend, totalFriends, 
                         onError={() => setImageError(true)}
                     />
                 ) : (
-                    /* Beautiful placeholder when no image */
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A2E] via-[#252840] to-[#2E2469] flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 border border-[#20DDBB]/30 flex items-center justify-center">
-                            <svg className="w-10 h-10 text-[#20DDBB]/60" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                            </svg>
+                    /* Simple placeholder - minimal design */
+                    <div className="absolute inset-0 bg-[#2A2A3E] flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-[#20DDBB]/20 flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-[#20DDBB]/40"></div>
                         </div>
                     </div>
                 )}
@@ -813,8 +811,92 @@ export default function People() {
 
                         {/* Content area with smooth scrolling */}
                         <div className={`flex-1 overflow-y-auto px-5 pb-6 space-y-3 ${styles.hideScrollbar}`}>
-                            {isLoadingTopUsers ? (
-                                // Loading skeleton
+                            {topRankedUsers.length > 0 ? (
+                                // Show top users immediately if available
+                                topRankedUsers.map((rankedUser, index) => (
+                                    <motion.div
+                                        key={rankedUser.$id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer group ${
+                                            index < 3
+                                                ? 'bg-gradient-to-r from-white/10 to-white/5 border-[#20DDBB]/30 hover:border-[#20DDBB]/50'
+                                                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                        }`}
+                                        onClick={() => navigateTo(`/profile/${rankedUser.user_id}`)}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {/* Ranking number */}
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                                index < 3
+                                                    ? 'bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white'
+                                                    : 'bg-white/10 text-white/70'
+                                            }`}>
+                                                {index + 1}
+                                            </div>
+
+                                            {/* User avatar */}
+                                            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20">
+                                                {rankedUser.image ? (
+                                                    <Image
+                                                        src={useCreateBucketUrl(rankedUser.image, 'user')}
+                                                        alt={rankedUser.name}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <UserGroupIcon className="w-6 h-6 text-[#20DDBB]/60" />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* User info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-semibold text-white truncate">
+                                                        {rankedUser.name}
+                                                    </h3>
+                                                    {index < 3 && (
+                                                        <FaTrophy className={`w-4 h-4 ${
+                                                            index === 0 ? 'text-yellow-400' :
+                                                            index === 1 ? 'text-gray-300' :
+                                                            'text-amber-600'
+                                                        }`} />
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-4 mt-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <StarIcon className="w-4 h-4 text-yellow-400" />
+                                                        <span className="text-sm text-white/80">
+                                                            {rankedUser.stats.averageRating.toFixed(1)}
+                                                        </span>
+                                                        <span className="text-xs text-white/60">
+                                                            ({rankedUser.stats.totalRatings})
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <UserGroupIcon className="w-4 h-4 text-[#20DDBB]" />
+                                                        <span className="text-sm text-white/80">
+                                                            {rankedUser.stats.totalFollowers}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Score indicator */}
+                                            <div className="text-right">
+                                                <div className="text-sm font-semibold text-[#20DDBB]">
+                                                    {rankedUser.calculatedScore?.toFixed(1) || '0.0'}
+                                                </div>
+                                                <div className="text-xs text-white/60">score</div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            ) : isLoadingTopUsers ? (
+                                // Loading skeleton only when actually loading
                                 <div className="space-y-3">
                                     {[...Array(5)].map((_, index) => (
                                         <div key={index} className="bg-white/5 rounded-2xl p-4 border border-white/5 animate-pulse">
@@ -829,7 +911,7 @@ export default function People() {
                                         </div>
                                     ))}
                                 </div>
-                            ) : topRankedUsers.length === 0 ? (
+                            ) : (
                                 // Empty state
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center mb-4">
@@ -838,106 +920,6 @@ export default function People() {
                                     <h3 className="text-white/80 font-medium mb-2">No rankings yet</h3>
                                     <p className="text-white/50 text-sm">Be the first to get rated!</p>
                                 </div>
-                            ) : (
-                                // User list
-                                topRankedUsers.map((user, index) => {
-                                    const userId = user?.user_id || user?.id;
-                                    if (!userId) return null;
-
-                                    const isTopThree = index < 3;
-                                    const rankEmojis = ['👑', '🥈', '🥉'];
-
-                                    return (
-                                        <motion.div
-                                            key={`top-user-${index}`}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.05, duration: 0.3 }}
-                                            className={`relative bg-gradient-to-r ${isTopThree ? 'from-white/10 to-white/5' : 'from-white/5 to-white/3'} rounded-2xl p-4 border ${isTopThree ? 'border-[#20DDBB]/20' : 'border-white/5'} hover:border-[#20DDBB]/30 transition-all duration-300 cursor-pointer group active:scale-[0.98]`}
-                                            onClick={() => {
-                                                setShowTopRanked(false);
-                                                router.push(`/profile/${userId}`);
-                                            }}
-                                        >
-                                            {/* Top 3 glow effect */}
-                                            {isTopThree && (
-                                                <div className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/5 to-[#5D59FF]/5 rounded-2xl blur-xl"></div>
-                                            )}
-
-                                            <div className="relative flex items-center gap-4">
-                                                {/* Rank badge */}
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-lg ${
-                                                    index === 0 ? 'bg-gradient-to-br from-yellow-500/30 to-amber-600/30 text-yellow-300 border border-yellow-500/30' :
-                                                    index === 1 ? 'bg-gradient-to-br from-slate-400/30 to-slate-500/30 text-slate-200 border border-slate-400/30' :
-                                                    index === 2 ? 'bg-gradient-to-br from-amber-600/30 to-amber-700/30 text-amber-400 border border-amber-600/30' :
-                                                    'bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 text-[#20DDBB] border border-[#20DDBB]/20'
-                                                }`}>
-                                                    {isTopThree ? rankEmojis[index] : index + 1}
-                                                </div>
-
-                                                {/* Avatar */}
-                                                <div className="relative">
-                                                    <img
-                                                        src={user.image || '/default-avatar.png'}
-                                                        alt={user.name}
-                                                        className={`w-14 h-14 rounded-2xl object-cover border-2 ${isTopThree ? 'border-[#20DDBB]/40' : 'border-white/20'} group-hover:border-[#20DDBB]/60 transition-all duration-300`}
-                                                    />
-                                                    {isTopThree && (
-                                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] rounded-full flex items-center justify-center">
-                                                            <StarIcon className="w-3 h-3 text-white" />
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* User info */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <h3 className="text-white font-semibold truncate text-lg">{user.name || "Unknown User"}</h3>
-                                                        {user.isArtist && (
-                                                            <div className="px-2 py-0.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-purple-400/20">
-                                                                <span className="text-purple-300 text-xs font-medium">Artist</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-white/60 text-sm truncate mb-2">@{user.username}</p>
-
-                                                    {/* Stats */}
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
-                                                                <StarIcon className="w-2.5 h-2.5 text-white" />
-                                                            </div>
-                                                            <span className="text-white/90 text-sm font-medium">
-                                                                {user.stats?.averageRating?.toFixed(1) || "0.0"}
-                                                            </span>
-                                                            <span className="text-white/50 text-xs">
-                                                                ({user.stats?.totalRatings || 0})
-                                                            </span>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-1.5">
-                                                            <UserGroupIcon className="w-4 h-4 text-[#20DDBB]" />
-                                                            <span className="text-white/80 text-sm">
-                                                                {getUserFriendsCount(userId)}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Score indicator */}
-                                                        <div className="ml-auto flex items-center gap-1">
-                                                            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#20DDBB] to-[#5D59FF]"></div>
-                                                            <span className="text-white/40 text-xs font-mono">
-                                                                {Math.round(user.calculatedScore || 0)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Arrow indicator */}
-                                                <ChevronDownIcon className="w-5 h-5 text-white/30 rotate-[-90deg] group-hover:text-[#20DDBB]/60 transition-colors duration-300" />
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })
                             )}
                         </div>
                     </motion.div>
@@ -966,8 +948,8 @@ export default function People() {
                 process.env.NEXT_PUBLIC_DATABASE_ID!,
                 process.env.NEXT_PUBLIC_COLLECTION_ID_PROFILE!,
                 [
-                    Query.limit(50), // Optimized for faster loading
-                    Query.orderDesc('$createdAt') // Order by creation date for consistency
+                    Query.limit(80), // Оптимальное количество для хорошего UX
+                    Query.orderDesc('$createdAt') // Сортировка по дате создания
                 ]
             );
             
@@ -1001,18 +983,32 @@ export default function People() {
         }
     }, [setCache, getCache]);
 
-    // Simplified visible profiles - show all immediately
+    // Оптимизированная пагинация - показываем 16 карточек, затем по 16 при скролле
+    const [displayedCount, setDisplayedCount] = useState(16);
+    const LOAD_INCREMENT = 16;
+
     const memoizedVisibleProfiles = useMemo(() => {
-        if (searchResults && searchResults.length > 0) {
-            return searchResults;
-        }
-        return profiles;
-    }, [searchResults, profiles]);
+        const sourceProfiles = searchResults && searchResults.length > 0 ? searchResults : profiles;
+        return sourceProfiles.slice(0, displayedCount);
+    }, [searchResults, profiles, displayedCount]);
 
     // Effect to update visible profiles when search results change
     useEffect(() => {
         setVisibleProfiles(memoizedVisibleProfiles);
-    }, [memoizedVisibleProfiles]);
+        // Reset displayed count when search changes
+        if (searchResults && searchResults.length > 0) {
+            setDisplayedCount(Math.min(16, searchResults.length));
+        } else {
+            setDisplayedCount(16);
+        }
+    }, [memoizedVisibleProfiles, searchResults]);
+
+    // Подгрузка при скролле
+    useEffect(() => {
+        if (inView && !isLoading && displayedCount < profiles.length) {
+            setDisplayedCount(prev => Math.min(prev + LOAD_INCREMENT, profiles.length));
+        }
+    }, [inView, isLoading, displayedCount, profiles.length]);
 
     // Effect to load friends count for visible profiles
     useEffect(() => {
@@ -1415,10 +1411,10 @@ export default function People() {
         return finalScore;
     };
 
-    // Загрузка рейтинга топ-пользователей с новой системой ранжирования
-    const loadTopUsers = async () => {
+    // Оптимизированная загрузка топ-пользователей для мгновенного отображения
+    const loadTopUsers = useCallback(async () => {
         try {
-            // Optimized loading with caching for top users
+            // Проверяем кэш первым делом для мгновенного отображения
             const cacheKey = `top_users_${activeTab}`;
             const cached = getCache(cacheKey);
 
@@ -1427,6 +1423,7 @@ export default function People() {
                 return;
             }
 
+            // Если нет кэша, используем уже загруженные профили для быстрой обработки
             setIsLoadingTopUsers(true);
 
             // Use existing profiles if available for faster loading
@@ -1509,8 +1506,15 @@ export default function People() {
         } finally {
             setIsLoadingTopUsers(false);
         }
-    };
-    
+    }, [activeTab, profiles, getCache, setCache]);
+
+    // Мгновенная загрузка топ-пользователей при смене табов
+    useEffect(() => {
+        if (profiles.length > 0) {
+            loadTopUsers();
+        }
+    }, [activeTab, loadTopUsers]);
+
     // Handle add friend
     const handleAddFriend = async (userId: string) => {
         try {
@@ -1607,7 +1611,7 @@ export default function People() {
             <PeopleLayout>
                 <div
                     {...swipeHandlers}
-                    className="min-h-screen bg-[#1A1A2E]"
+                    className="h-screen bg-[#1A1A2E] overflow-hidden"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                 >
@@ -1645,30 +1649,41 @@ export default function People() {
                                                 </div>
                                             ))
                                         ) : (
-                                            searchResults
-                                                .slice(visibleRange.start, visibleRange.end)
-                                                .map((profile) => (
-                                                    <div 
-                                                        key={profile.$id}
-                                                        className="transform-gpu"
-                                                    >
-                                                        <MemoizedUserCard
-                                                            user={profile}
-                                                            isFriend={isFriend(profile.user_id)}
-                                                            totalFriends={getUserFriendsCount(profile.user_id)}
-                                                            onAddFriend={handleAddFriend}
-                                                            onRemoveFriend={handleRemoveFriend}
-                                                            onRateUser={handleRateUser}
-                                                        />
-                                                    </div>
-                                                ))
+                                            visibleProfiles.map((profile) => (
+                                                <div
+                                                    key={profile.$id}
+                                                    className="transform-gpu"
+                                                >
+                                                    <MemoizedUserCard
+                                                        user={profile}
+                                                        isFriend={isFriend(profile.user_id)}
+                                                        totalFriends={getUserFriendsCount(profile.user_id)}
+                                                        onAddFriend={handleAddFriend}
+                                                        onRemoveFriend={handleRemoveFriend}
+                                                        onRateUser={handleRateUser}
+                                                    />
+                                                </div>
+                                            ))
                                         )}
                                     </div>
                                     
-                                    {/* Load more indicator */}
-                                    {!isLoading && hasMoreProfiles && (
-                                        <div ref={loadMoreRef} className="h-16 w-full flex items-center justify-center">
-                                            <div className="w-8 h-8 border-2 border-[#20DDBB] border-t-transparent rounded-full animate-spin" />
+                                    {/* Load more trigger with indicator */}
+                                    {!isLoading && displayedCount < profiles.length && (
+                                        <div className="flex flex-col items-center py-8">
+                                            <div ref={loadMoreRef} className="h-4 w-full"></div>
+                                            <div className="flex items-center gap-2 text-white/60">
+                                                <div className="w-4 h-4 border-2 border-[#20DDBB] border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="text-sm">Loading more...</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* End of list indicator */}
+                                    {!isLoading && displayedCount >= profiles.length && profiles.length > 16 && (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="text-white/40 text-sm">
+                                                You've reached the end! 🎉
+                                            </div>
                                         </div>
                                     )}
                                 </div>

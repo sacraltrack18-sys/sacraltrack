@@ -11,7 +11,7 @@ import { useProfileStore } from "@/app/stores/profile";
 import { useGeneralStore } from "@/app/stores/general";
 import { PostWithProfile } from "@/app/types";
 // import PaidPosts from "@/app/components/profile/PaidPosts";
-import ProfileComponents from "@/app/layouts/includes/ProfileComponents";
+
 import useDownloadsStore from '@/app/stores/downloadsStore';
 import React from 'react';
 import { useParams } from "next/navigation";
@@ -163,9 +163,11 @@ export default function ProfileClientComponent() {
   };
 
   useEffect(() => {
+    // Принудительно загружаем профиль и посты для конкретного пользователя
+    console.log(`[ProfileClientComponent] Loading profile and posts for user: ${userId}`);
     setCurrentProfile(userId);
     setPostsByUser(userId);
-  }, [userId, setCurrentProfile]);
+  }, [userId, setCurrentProfile, setPostsByUser]);
 
   useEffect(() => {
     if (postsByUser.length > 0) {

@@ -390,15 +390,15 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
     try {
       setIsLoading(true);
 
-      // Get the user ID from context
-      const userId = contextUser?.user?.id;
+      // Use profileId for the profile being viewed, not the logged-in user
+      const userId = profileId;
 
       // If viewing own profile, load all lists
       if (isOwner) {
         await Promise.all([
           loadFriends(userId),
-          loadPendingRequests(userId),
-          loadSentRequests(userId),
+          loadPendingRequests(contextUser?.user?.id), // Only logged-in user can see their pending requests
+          loadSentRequests(contextUser?.user?.id), // Only logged-in user can see their sent requests
         ]);
       } else {
         // If viewing another profile, only load friends list

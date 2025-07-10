@@ -164,10 +164,24 @@ const AuthObserver = () => {
         // Clear all user caches when auth state changes
         clearUserCache();
         
-        // Only update profile if user data changed
+        // Only update profile if user data changed and we're not viewing another user's profile
         if (userData && (!currentProfile || currentProfile.user_id !== userData.id)) {
-          setCurrentProfile(userData.id);
-          
+          // Check if we're on a profile page by looking at the URL
+          const currentPath = window.location.pathname;
+          const profileMatch = currentPath.match(/^\/profile\/(.+)$/);
+
+          if (profileMatch) {
+            const profileIdFromUrl = profileMatch[1];
+            // Only load logged-in user's profile if the URL matches their ID
+            if (profileIdFromUrl === userData.id) {
+              setCurrentProfile(userData.id);
+            }
+            // If viewing another user's profile, don't change currentProfile
+          } else {
+            // Not on a profile page, safe to load logged-in user's profile
+            setCurrentProfile(userData.id);
+          }
+
           // Load user likes after profile is set
           if (userData.id) {
             // Reset userLikesLoaded flag when user changes

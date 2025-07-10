@@ -6,7 +6,11 @@ import useDownloadsStore from '@/app/stores/downloadsStore';
 import { useUIStore } from '@/app/stores/uiStore';
 import { useLikedStore } from '@/app/stores/likedStore';
 
-const ProfileComponents = () => {
+interface ProfileComponentsProps {
+    userId?: string; // ID пользователя, чей профиль просматривается
+}
+
+const ProfileComponents: React.FC<ProfileComponentsProps> = ({ userId }) => {
     const userContext = useUser();
     const router = useRouter();
     const [isMobile, setIsMobile] = useState(false);
@@ -45,12 +49,15 @@ const ProfileComponents = () => {
     }, []);
 
     const toggleLiked = async () => {
-        if (userContext?.user?.id) {
+        // Используем userId профиля, если передан, иначе ID залогиненного пользователя
+        const targetUserId = userId || userContext?.user?.id;
+
+        if (targetUserId) {
             // Сначала загружаем посты
-            await fetchLikedPosts(userContext.user.id);
+            await fetchLikedPosts(targetUserId);
             // Затем переключаем отображение
             setShowLikedTracks(!showLikedTracks);
-            
+
             // Если открыты purchased треки, закрываем их
             if (showPurchases) {
                 toggleShowPurchases();

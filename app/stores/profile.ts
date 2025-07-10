@@ -87,8 +87,22 @@ export const useProfileStore = create<ProfileStore>()(
                             const userData = customEvent.detail?.user;
                             
                             if (userData && userData.id) {
-                                // User logged in, load their profile
-                                get().setCurrentProfile(userData.id);
+                                // User logged in, but only load their profile if we're not viewing another user's profile
+                                // Check if we're on a profile page by looking at the URL
+                                const currentPath = window.location.pathname;
+                                const profileMatch = currentPath.match(/^\/profile\/(.+)$/);
+
+                                if (profileMatch) {
+                                    const profileIdFromUrl = profileMatch[1];
+                                    // Only load logged-in user's profile if the URL matches their ID
+                                    if (profileIdFromUrl === userData.id) {
+                                        get().setCurrentProfile(userData.id);
+                                    }
+                                    // If viewing another user's profile, don't change currentProfile
+                                } else {
+                                    // Not on a profile page, safe to load logged-in user's profile
+                                    get().setCurrentProfile(userData.id);
+                                }
                             } else {
                                 // User logged out, clear current profile
                                 get().clearCurrentProfile();

@@ -77,7 +77,8 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
     }, [isMobile]);
 
     // Проверяем, является ли текущий пользователь владельцем профиля
-    const isProfileOwner = contextUser?.user?.id === currentProfile?.user_id;
+    // Сравниваем ID залогиненного пользователя с ID пользователя из URL
+    const isProfileOwner = contextUser?.user?.id === profileId;
 
     // Проверяем URL на наличие query параметра tab
     useEffect(() => {
@@ -112,12 +113,13 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
         const loadLikedPosts = async () => {
             if (showLikedTracks && currentProfile?.user_id) {
                 // Загружаем лайки пользователя, чей профиль просматривается
+                console.log(`[ProfileLayout] Loading liked posts for user: ${currentProfile.user_id}`);
                 await fetchLikedPosts(currentProfile.user_id);
             }
         };
 
         loadLikedPosts();
-    }, [currentProfile?.user_id, showLikedTracks]);
+    }, [currentProfile?.user_id, showLikedTracks, fetchLikedPosts]);
 
     // Обновляем проверку наличия релизов, используя реальные данные
     useEffect(() => {
