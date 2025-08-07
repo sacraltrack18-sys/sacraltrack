@@ -140,21 +140,19 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
             setIsLoading(true);
             
             try {
-                // Загружаем нужные данные
+                // Загружаем данные для любого пользователя
+                const promises = [
+                    loadFriends(userId),
+                    setPostsByUser(userId),
+                    fetchVibesByUser(userId)
+                ];
+
+                // Лайки загружаем только для владельца профиля (приватная информация)
                 if (isOwner) {
-                    await Promise.all([
-                        loadFriends(userId),
-                        fetchLikedPosts(userId),
-                        setPostsByUser(userId),
-                        fetchVibesByUser(userId)
-                    ]);
-                } else {
-                    await Promise.all([
-                        loadFriends(userId),
-                        setPostsByUser(userId),
-                        fetchVibesByUser(userId)
-                    ]);
+                    promises.push(fetchLikedPosts(userId));
                 }
+
+                await Promise.all(promises);
                 
                 const activities: ActivityItem[] = [];
                 
@@ -188,7 +186,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                             id: `friend_${lastFriend.id}`,
                             type: 'friend',
                         title: friendProfile?.name || `Friend ${lastFriend.friendId}`,
-                        subtitle: isOwner ? 'Your new friend' : 'User\'s new friend',
+                        subtitle: isOwner ? 'Your new friend' : 'New friend',
                             timestamp: new Date(lastFriend.createdAt),
                         image: friendProfile?.image || '',
                         link: `/profile/${lastFriend.friendId}`,
@@ -208,7 +206,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                         id: `track_${lastPost.id}`,
                         type: 'track',
                         title: lastPost.trackname || 'Unnamed Track',
-                        subtitle: 'Added new track',
+                        subtitle: isOwner ? 'You added new track' : 'Added new track',
                         timestamp: new Date(lastPost.created_at || Date.now()),
                         image: lastPost.image_url || lastPost.image || '',
                         link: `/track/${lastPost.id}`,
@@ -228,7 +226,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                         id: `vibe_${lastVibe.id}`,
                         type: 'vibe',
                         title: lastVibe.caption || 'Musical Vibe',
-                        subtitle: isOwner ? 'You shared a vibe' : 'Shared a musical vibe',
+                        subtitle: isOwner ? 'You shared a vibe' : 'Shared a vibe',
                         timestamp: new Date(lastVibe.created_at || Date.now()),
                         image: lastVibe.media_url || '',
                         link: `/vibe/${lastVibe.id}`,
@@ -339,7 +337,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
         >
             <div className="space-y-4 sticky-sidebar">
                 {/* Profile Stats Card */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
@@ -367,7 +365,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 {/* User Friends */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -376,14 +374,14 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         </div>
                                         <span className="text-sm text-white/70">Friends</span>
                                     </div>
-                                    <div 
+                                    <div
                                         className="text-sm text-white font-semibold cursor-pointer hover:text-blue-400 transition-colors"
                                         onClick={onShowFriends}
                                     >
                                         {friendsList.length}
                                     </div>
                                 </div>
-                                
+
                                 {/* User Releases */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -396,7 +394,7 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         {tracks?.length || 0}
                                     </div>
                                 </div>
-                                
+
                                 {/* User Likes */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -405,14 +403,14 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         </div>
                                         <span className="text-sm text-white/70">Likes</span>
                                     </div>
-                                    <div 
+                                    <div
                                         className="text-sm text-white font-semibold cursor-pointer hover:text-pink-400 transition-colors"
                                         onClick={onShowLikes}
                                     >
                                         {likes?.length || 0}
                                     </div>
                                 </div>
-                                
+
                                 {/* User Vibes */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -421,14 +419,14 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                                         </div>
                                         <span className="text-sm text-white/70">Vibes</span>
                                     </div>
-                                    <div 
+                                    <div
                                         className="text-sm text-white font-semibold cursor-pointer hover:text-purple-400 transition-colors"
                                         onClick={onShowVibes}
                                     >
                                         {vibes?.length || 0}
                                     </div>
                                 </div>
-                                
+
                                 {/* User Purchases - показываем только владельцу профиля */}
                                 {isOwner && (
                                     <div className="flex items-center justify-between mt-2">
@@ -450,28 +448,23 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
                         </>
                     )}
                 </motion.div>
-                
-                {/* Recent Activity Card */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                    className="p-4 rounded-xl border border-white/5 bg-[#251A3A]/50 backdrop-blur-lg w-full max-w-[270px] w-[270px] mx-auto"
-                >
-                    {isLoading ? (
-                        <ActivitySkeleton />
-                    ) : activityItems.length === 0 ? (
-                        <div className="text-center py-4">
-                            <div className="text-white/50 text-base">No recent activity</div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {activityItems.map((item, index) => (
-                                <ActivityCard key={index} item={{...item, title: item.title, subtitle: item.subtitle}} />
-                            ))}
-                        </div>
-                    )}
-                </motion.div>
+
+                {/* Activity Cards - максимум 2 карточки без фона */}
+                {!isLoading && activityItems.length > 0 && (
+                    <div className="space-y-4">
+                        {activityItems.slice(0, 2).map((item, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
+                                className="w-full max-w-[270px] w-[270px] mx-auto"
+                            >
+                                <ActivityCard item={{...item, title: item.title, subtitle: item.subtitle}} />
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
             </div>
         </motion.div>
     );

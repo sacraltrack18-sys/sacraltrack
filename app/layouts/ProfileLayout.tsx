@@ -281,24 +281,24 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                     </div>
                     
                     {/* Right sidebar with user activity */}
-                    {currentProfile && isProfileOwner && (
+                    {currentProfile && (
                         <div className="hidden lg:block w-[260px] flex-shrink-0 sticky top-[89px] h-[calc(100vh-89px)] mr-[60px] sm:mr-0">
                             <UserActivitySidebar
                                 userId={currentProfile.user_id}
                                 isOwner={isProfileOwner}
                                 onShowFriends={() => switchToTab('friends')}
-                                onShowLikes={() => switchToTab('likes')} 
+                                onShowLikes={() => switchToTab('likes')}
                                 onShowPurchases={() => switchToTab('purchases')}
                                 onShowVibes={() => switchToTab('vibes')}
                                 activeTab={
-                                    showFriends 
-                                        ? 'friends' 
-                                        : showLikedTracks 
-                                            ? 'likes' 
-                                            : showPurchases 
-                                                ? 'purchases' 
-                                                : showVibes 
-                                                    ? 'vibes' 
+                                    showFriends
+                                        ? 'friends'
+                                        : showLikedTracks
+                                            ? 'likes'
+                                            : showPurchases
+                                                ? 'purchases'
+                                                : showVibes
+                                                    ? 'vibes'
                                                     : 'main'
                                 }
                             />
@@ -358,7 +358,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                     </div>
 
                     {/* Navigation Icons - for both desktop and mobile */}
-                    <div className="flex items-center justify-between gap-2 w-full">
+                    <div className="relative flex items-center justify-between gap-2 w-full">
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -428,7 +428,8 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                             <span className={`text-[9px] font-medium ${showLikedTracks ? 'text-pink-400' : 'text-gray-400'}`}>Likes</span>
                         </motion.button>
                         
-                        <div className="relative flex flex-1 flex-col items-center justify-center">
+                        {/* Friends button with relative positioning for action buttons */}
+                        <div className="relative flex flex-1">
                             {/* Super Stylish Friend Button above Friends */}
                             {!isProfileOwner && isMobile && onFriendAction && (
                                 <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex gap-2 z-20">
@@ -498,6 +499,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     )}
                                 </div>
                             )}
+
                             {/* Friends button */}
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
