@@ -45,7 +45,7 @@ import {
 import { useShareVibeContext } from "./useShareVibe";
 import { getProfileImageUrl } from "@/app/utils/imageUtils";
 import TopNav from "@/app/layouts/includes/TopNav";
-import VibeLikeButton from "./VibeLikeButton";
+import VibeLikes from "./VibeLikes";
 
 interface VibeDetailPageProps {
   vibe: VibePostWithProfile;
@@ -1395,10 +1395,8 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
             <div className="flex-grow"></div>
 
             {/* Like button */}
-            <VibeLikeButton
-              vibeId={vibe.id}
-              initialLikeCount={likesCount}
-              initialLikeState={isLiked}
+            <VibeLikes
+              vibe={vibe}
               onLikeUpdated={handleLikeUpdate}
               className="flex items-center gap-2"
               size="lg"

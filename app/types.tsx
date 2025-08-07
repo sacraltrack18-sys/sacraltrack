@@ -10,6 +10,12 @@ export interface UserContextTypes {
     checkUser: () => Promise<void>;
 }
 
+export interface VibeLike {
+  id: string;
+  user_id: string;
+  vibe_id: string;
+}
+
 
 export interface Product {
     post: PostMainCompTypes;

@@ -40,7 +40,7 @@ export default function PeopleLayout({ children }: PeopleLayoutProps) {
             </div>
 
             {/* Основной контент с учетом z-index */}
-            <div className="flex mx-auto w-full px-0 relative z-[2] pt-[60px]">
+            <div className="flex mx-auto w-full px-[10px] md:px-0 relative z-[2] pt-[60px]">
                 <div className="flex justify-center w-full px-0 relative">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}

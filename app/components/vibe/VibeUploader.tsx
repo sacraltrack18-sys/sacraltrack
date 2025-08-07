@@ -1547,43 +1547,84 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
     );
   }
   
+  useEffect(() => {
+    // Блокируем скролл body при открытии попапа
+    document.body.style.overflow = 'hidden';
+    return () => {
+      // Возвращаем скролл при закрытии
+      document.body.style.overflow = '';
+    };
+  }, []);
+  
   return (
     <div 
-      className={`modal-overlay flex items-center justify-center overflow-y-auto ${isMobile ? 'fixed inset-0 w-full h-full bg-black/80 z-[99999] rounded-none p-0' : 'fixed inset-0 z-[99999]'}`}
-      style={{ zIndex: 99999 }}
+      className={`modal-overlay flex items-center justify-center ${isMobile ? 'fixed inset-0 w-full h-full bg-black/80 z-[99999]' : 'fixed inset-0 z-[99999]'}`}
+      style={{ 
+        zIndex: 999999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: isMobile ? '100vw' : undefined,
+        height: isMobile ? '100vh' : undefined,
+        padding: isMobile ? '0' : '1rem',
+        overflowY: 'auto',
+        ...(isMobile ? {
+          zIndex: 999999,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+        } : {})
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       {/* 1. Подложка под модальным окном: bg-black/70 + backdrop-blur-2xl всегда */}
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl" style={{ zIndex: 99998 }} />
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl" style={{ zIndex: 999998 }} />
       <motion.div 
-        initial={{ y: 100, opacity: 0 }} 
+        initial={{ y: isMobile ? 0 : 100, opacity: 0 }} 
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        className={`relative ${isMobile ? 'w-full p-0 rounded-none min-h-screen max-h-screen' : 'w-[95%] max-w-[500px] mx-auto rounded-2xl'} border border-white/10 shadow-2xl overflow-hidden`}
+        exit={{ y: isMobile ? 0 : 100, opacity: 0 }}
+        className={`relative ${isMobile ? 'w-full h-full rounded-none' : 'w-[95%] max-w-[500px] mx-auto rounded-2xl'} border border-white/10 shadow-2xl overflow-hidden`}
         style={{
-          padding: 5,
+          padding: isMobile ? 0 : 5,
           minHeight: isMobile ? '100vh' : undefined,
           maxHeight: isMobile ? '100vh' : '96vh',
           background: 'linear-gradient(120deg, #24143a 0%, #2a2151 100%)',
           backdropFilter: 'blur(36px) saturate(1.25)',
           WebkitBackdropFilter: 'blur(36px) saturate(1.25)',
-          zIndex: 99999,
+          zIndex: 999999,
+          width: isMobile ? '100vw' : '100%',
+          maxWidth: isMobile ? '100vw' : '500px',
+          margin: '0 auto',
+          position: isMobile ? 'fixed' : undefined,
+          top: isMobile ? 0 : undefined,
+          left: isMobile ? 0 : undefined,
+          right: isMobile ? 0 : undefined,
+          bottom: isMobile ? 0 : undefined,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 2. Кнопка закрытия светлая */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-[100] w-12 h-12 flex items-center justify-center rounded-full bg-white/30 text-black/80 hover:bg-white/60 hover:text-black transition duration-200 shadow-xl"
+          className={`absolute z-[100] w-12 h-12 flex items-center justify-center rounded-full bg-white/30 text-black/80 hover:bg-white/60 hover:text-black transition duration-200 shadow-xl ${isMobile ? 'top-4 right-4' : 'top-4 right-4'}`}
           style={{ fontSize: 26 }}
           aria-label="Close"
         >
           <XMarkIcon className="w-7 h-7" />
         </button>
         {/* Form content */}
-        <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start' : 'justify-center'} mt-[25px]`}>
+        <div className={`pt-2 pb-2 px-1 flex items-center space-x-4 ${isMobile ? 'justify-start overflow-x-auto' : 'justify-center'} mt-[25px]`}>
           <UploaderTabButton
             active={selectedTab === 'photo'}
             icon={<BsCamera className="w-[18px] h-[18px] text-[#20DDBB]" />}
@@ -1621,7 +1662,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           )}
         </div>
         {/* Content */}
-        <div className="pt-1 pb-1 px-1 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className={`pt-1 pb-1 px-1 overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-200px)]' : 'max-h-[calc(90vh-120px)]'}`}>
           {renderTabContent()}
         </div>
         {/* Фиксированная главная кнопка Share Vibe */}
@@ -1629,7 +1670,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           <motion.button
             type="submit"
             disabled={!isValid || isLoading}
-            className={`${isMobile ? 'fixed left-1/2 bottom-6 z-50 -translate-x-1/2' : 'mt-8 w-full'} px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-3 transition-all duration-200 shadow-2xl hover:scale-105 cursor-pointer border border-[#20DDBB]/40 bg-gradient-to-r from-[#20DDBB]/30 to-[#3b82f6]/20 text-white backdrop-blur-[18px]`}
+            className={`${isMobile ? 'fixed left-1/2 bottom-6 z-[99999] -translate-x-1/2' : 'mt-8 w-full'} px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-3 transition-all duration-200 shadow-2xl hover:scale-105 cursor-pointer border border-[#20DDBB]/40 bg-gradient-to-r from-[#20DDBB]/30 to-[#3b82f6]/20 text-white backdrop-blur-[18px]`}
             style={{
               color: '#fff',
               fontWeight: 800,
