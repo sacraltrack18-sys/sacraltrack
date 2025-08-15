@@ -28,6 +28,7 @@ import { useShareVibeContext } from "./useShareVibe";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
 import VibeLikes from "./VibeLikes";
+import QuickCommentModal from "./QuickCommentModal";
 
 // Интерфейс для комментариев
 interface VibeComment {
@@ -448,29 +449,86 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
 
   // Fix the handleOpenComments function
   const handleOpenComments = async () => {
-    // Toggle comments visibility
-    setShowComments((prev) => !prev);
+    if (!user?.id) {
+      setIsLoginOpen(true);
+      return;
+    }
 
-    // Reset timeout counter when toggling comments
-    setCommentsLoadTimeout(false);
+    // Open the quick comment modal
+    setShowComments(true);
+  };
 
-    if (!showComments) {
-      // If we're opening comments and none are loaded yet
-      if (commentsList.length === 0 && !commentsLoading) {
-        console.log(`[VIBE-CARD] Fetching comments for ${vibe.id}`);
-        await fetchComments();
+  // Handle quick comment submit
+  const handleQuickCommentSubmit = async (text: string) => {
+    if (!user?.id) {
+      setIsLoginOpen(true);
+      return;
+    }
 
-        // Set 5-second timeout to prevent infinite loading state
-        const timeoutId = setTimeout(() => {
-          setCommentsLoadTimeout(true);
-        }, 5000);
+    const trimmedComment = text.trim();
+    if (!trimmedComment) return;
 
-        // Store the timeout ID so we can clear it
-        return () => clearTimeout(timeoutId);
+    try {
+      setIsSubmittingComment(true);
+
+      // Create optimistic comment
+      const optimisticId = `temp-${Date.now()}`;
+      const optimisticComment = {
+        id: optimisticId,
+        user_id: user.id,
+        vibe_id: vibe.id,
+        text: trimmedComment,
+        created_at: new Date().toISOString(),
+        profile: {
+          user_id: user.id,
+          name: user.name || "You",
+          image: user.image || "/images/placeholders/user-placeholder.svg",
+          username: undefined,
+        },
+        isOptimistic: true,
+      };
+
+      // Add comment via hook
+      await addComment(optimisticComment);
+
+      // Update local stats counter
+      setVibeStats((prev) => ({
+        ...prev,
+        commentsCount: safeNumberConversion(prev.commentsCount) + 1,
+      }));
+
+      // Send to server
+      const response = await addVibeComment({
+        vibe_id: vibe.id,
+        user_id: user.id,
+        text: trimmedComment,
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to add comment");
       }
-    } else {
-      // When closing comments, ensure we update the stats
-      refreshVibeStats();
+
+      // Replace optimistic comment with real one if needed
+      if (response.data && addComment) {
+        const realComment = {
+          ...response.data,
+          profile: {
+            user_id: user.id,
+            name: user.name || "You",
+            image: user.image || "/images/placeholders/user-placeholder.svg",
+            username: undefined,
+          },
+        };
+        await addComment(realComment, optimisticId);
+      }
+
+      // Refresh stats
+      await refreshVibeStats();
+    } catch (error) {
+      console.error("Error adding quick comment:", error);
+      throw error;
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -1384,6 +1442,16 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         </div>
       </motion.div>
 
+      {/* Quick Comment Modal */}
+      <QuickCommentModal
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+        onSubmit={handleQuickCommentSubmit}
+        onDelete={deleteComment}
+        vibeId={vibe.id}
+        isSubmitting={isSubmittingComment}
+        comments={commentsList}
+      />
     </div>
   );
 };
