@@ -15,32 +15,28 @@ const animations = {
     y: [0, -15, 0],
     transition: {
       duration: 0.6,
-      repeat: Infinity,
-      ease: "easeInOut"
+      repeat: Infinity
     }
   },
   pulse: {
     scale: [1, 1.1, 1],
     transition: {
       duration: 0.7,
-      repeat: Infinity,
-      ease: "easeInOut"
+      repeat: Infinity
     }
   },
   shake: {
     x: [0, -5, 5, -5, 5, 0],
     transition: {
       duration: 0.5,
-      repeat: Infinity,
-      ease: "easeInOut"
+      repeat: Infinity
     }
   },
   rotate: {
     rotate: [0, 10, -10, 10, -10, 0],
     transition: {
       duration: 0.8,
-      repeat: Infinity,
-      ease: "easeInOut"
+      repeat: Infinity
     }
   }
 };
@@ -128,8 +124,7 @@ export const MusicSticker: React.FC<MusicStickerProps> = ({
                     transition: {
                       duration: 0.5,
                       repeat: Infinity,
-                      delay: i * 0.1,
-                      ease: "easeInOut"
+                      delay: i * 0.1
                     }
                   }}
                 />
