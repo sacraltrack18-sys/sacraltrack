@@ -65,17 +65,12 @@ export default function GlobalLoader() {
         visible: { 
             opacity: 1, 
             y: 0, 
-            scale: 1,
-            transition: { 
-                duration: 0.5,
-                ease: "easeOut"
-            }
+            scale: 1
         },
         exit: { 
             opacity: 0,
             y: -20,
-            scale: 0.8,
-            transition: { duration: 0.3 }
+            scale: 0.8
         }
     };
 
@@ -179,7 +174,11 @@ export default function GlobalLoader() {
                                             initial="hidden"
                                             animate="visible"
                                             exit="exit"
-                                            transition={{ delay: 0.1 }}
+                                            transition={{ 
+                                                delay: 0.1,
+                                                duration: 0.5,
+                                                ease: "easeOut"
+                                            }}
                                         >
                                             ♪
                                         </motion.div>
@@ -189,7 +188,11 @@ export default function GlobalLoader() {
                                             initial="hidden"
                                             animate="visible"
                                             exit="exit"
-                                            transition={{ delay: 0.3 }}
+                                            transition={{ 
+                                                delay: 0.3,
+                                                duration: 0.5,
+                                                ease: "easeOut"
+                                            }}
                                         >
                                             ♫
                                         </motion.div>
@@ -199,7 +202,11 @@ export default function GlobalLoader() {
                                             initial="hidden"
                                             animate="visible"
                                             exit="exit"
-                                            transition={{ delay: 0.5 }}
+                                            transition={{ 
+                                                delay: 0.5,
+                                                duration: 0.5,
+                                                ease: "easeOut"
+                                            }}
                                         >
                                             ♪
                                         </motion.div>
@@ -209,7 +216,11 @@ export default function GlobalLoader() {
                                             initial="hidden"
                                             animate="visible"
                                             exit="exit"
-                                            transition={{ delay: 0.7 }}
+                                            transition={{ 
+                                                delay: 0.7,
+                                                duration: 0.5,
+                                                ease: "easeOut"
+                                            }}
                                         >
                                             ♫
                                         </motion.div>
