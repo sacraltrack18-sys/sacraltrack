@@ -817,7 +817,24 @@ const PostMain = memo(({ post }: PostMainProps) => {
         if (post) {
             imageUrlRef.current = useCreateBucketUrl(post.image_url);
             avatarUrlRef.current = useCreateBucketUrl(post.profile?.image);
-            m3u8UrlRef.current = useCreateBucketUrl(post.m3u8_url);
+            
+            // Приоритет для аудио: m3u8_url -> mp3_url -> audio_url
+            let audioUrl = '';
+            if (post.m3u8_url && post.m3u8_url.trim() && !post.m3u8_url.includes('placeholder')) {
+                audioUrl = useCreateBucketUrl(post.m3u8_url);
+            } else if (post.mp3_url && post.mp3_url.trim()) {
+                audioUrl = useCreateBucketUrl(post.mp3_url);
+            } else if (post.audio_url && post.audio_url.trim()) {
+                audioUrl = useCreateBucketUrl(post.audio_url);
+            }
+            
+            // Проверяем, что URL не является изображением-заглушкой
+            if (audioUrl && !audioUrl.includes('/images/placeholders/')) {
+                m3u8UrlRef.current = audioUrl;
+            } else {
+                m3u8UrlRef.current = '';
+                console.warn('No valid audio URL found for post:', post.id);
+            }
         }
     }, [post]);
 
@@ -1099,19 +1116,29 @@ const PostMain = memo(({ post }: PostMainProps) => {
                 statsCounterRef={statsCounterRef}
             />
 
-            <div className="px-4 py-2 border-t border-white/5">
-                <AudioPlayer
-                    m3u8Url={m3u8UrlRef.current}
-                    isPlaying={isPlaying}
-                    onPlay={() => {
-                        setCurrentAudioId(post.id);
-                        if (!isPlaying) togglePlayPause();
-                    }}
-                    onPause={() => {
-                        stopAllPlayback();
-                    }}
-                />
-            </div>
+            {m3u8UrlRef.current && (
+                <div className="px-4 py-2 border-t border-white/5">
+                    <AudioPlayer
+                        m3u8Url={m3u8UrlRef.current}
+                        isPlaying={isPlaying}
+                        onPlay={() => {
+                            setCurrentAudioId(post.id);
+                            if (!isPlaying) togglePlayPause();
+                        }}
+                        onPause={() => {
+                            stopAllPlayback();
+                        }}
+                    />
+                </div>
+            )}
+            
+            {!m3u8UrlRef.current && (
+                <div className="px-4 py-2 border-t border-white/5">
+                    <div className="text-center text-white/50 text-sm py-2">
+                        <span>🎵 Audio not available</span>
+                    </div>
+                </div>
+            )}
 
             <div className="px-4 py-3 flex justify-between items-center w-full">
                 <div className="flex items-center gap-4 flex-shrink-0">
