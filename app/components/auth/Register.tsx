@@ -29,6 +29,7 @@ import {
   handleEnhancedAuth,
 } from "./googleOAuthUtils";
 import { clearAllAuthFlags } from "@/app/utils/authCleanup";
+import { showToast } from "@/app/utils/toast";
 
 // Password strength checker
 const checkPasswordStrength = (password: string) => {
@@ -49,40 +50,7 @@ const checkPasswordStrength = (password: string) => {
   return { checks, strength, score: passed };
 };
 
-// Custom toast styling function
-const showToast = (
-  type: "success" | "error" | "loading" | "warning",
-  message: string,
-  options = {},
-) => {
-  const baseStyle = {
-    background: "linear-gradient(135deg, #1E1F2E 0%, #272B43 100%)",
-    color: "#fff",
-    borderRadius: "16px",
-    border: "1px solid rgba(32, 221, 187, 0.2)",
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-    padding: "16px 20px",
-    fontSize: "14px",
-    fontWeight: "500",
-    maxWidth: "400px",
-    ...options,
-  };
 
-  const iconStyles = {
-    success: { borderLeft: "4px solid #20DDBB", icon: "✅" },
-    error: { borderLeft: "4px solid #EF4444", icon: "❌" },
-    loading: { borderLeft: "4px solid #8A2BE2", icon: "⏳" },
-    warning: { borderLeft: "4px solid #F59E0B", icon: "⚠️" },
-  };
-
-  return toast[type === "warning" ? "error" : type](message, {
-    duration: type === "loading" ? Infinity : 6000,
-    style: { ...baseStyle, ...iconStyles[type] },
-    icon: iconStyles[type].icon,
-    ...options,
-  });
-};
 
 export default function Register() {
   const { setIsLoginOpen, setIsRegisterOpen } = useGeneralStore();

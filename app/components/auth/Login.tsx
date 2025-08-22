@@ -24,39 +24,7 @@ import {
   buildGoogleOAuthUrl,
 } from "./googleOAuthUtils";
 import { clearAllAuthFlags } from "@/app/utils/authCleanup";
-
-// Custom toast styling function
-const showToast = (
-  type: "success" | "error" | "loading",
-  message: string,
-  options = {},
-) => {
-  const baseStyle = {
-    background: "linear-gradient(135deg, #1E1F2E 0%, #272B43 100%)",
-    color: "#fff",
-    borderRadius: "16px",
-    border: "1px solid rgba(32, 221, 187, 0.2)",
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-    padding: "16px 20px",
-    fontSize: "14px",
-    fontWeight: "500",
-    ...options,
-  };
-
-  const iconStyles = {
-    success: { borderLeft: "4px solid #20DDBB", icon: "✅" },
-    error: { borderLeft: "4px solid #EF4444", icon: "❌" },
-    loading: { borderLeft: "4px solid #8A2BE2", icon: "⏳" },
-  };
-
-  return toast[type](message, {
-    duration: type === "loading" ? Infinity : 5000,
-    style: { ...baseStyle, ...iconStyles[type] },
-    icon: iconStyles[type].icon,
-    ...options,
-  });
-};
+import { showToast } from "@/app/utils/toast";
 
 export default function Login() {
   const { setIsLoginOpen, setIsRegisterOpen } = useGeneralStore();
@@ -376,19 +344,22 @@ export default function Login() {
         id: "login-loading",
       });
 
-      // Закрываем модальное окно МГНОВЕННО при нажатии кнопки логина
-      setIsLoginOpen(false);
-
       await contextUser.login(email, password);
 
       toast.dismiss("login-loading");
       setLoading(false);
+
+      // Если мы дошли до этой точки, логин успешен
+      // Закрываем модальное окно
+      setIsLoginOpen(false);
+      
       setLoginAttempts(0);
       localStorage.removeItem("loginAttempts");
       localStorage.removeItem("loginBlockTime");
 
       console.log("Login completed successfully");
-      showToast("success", `Welcome back! 🎉`);
+      const userName = contextUser?.user?.name || 'User';
+      showToast("success", `Welcome back, ${userName}! 🎉`);
     } catch (error: any) {
       console.error("[Login Error]:", error);
       setLoading(false);
@@ -415,46 +386,37 @@ export default function Login() {
       // Handle specific error cases
       let errorMessage = "Login failed. Please try again.";
 
-      if (error.code === 401) {
-        if (error.message?.includes("Invalid credentials")) {
-          errorMessage =
-            "Invalid email or password. Please check your credentials.";
-        } else if (
-          error.message?.includes("user_not_found") ||
-          error.message?.includes("User not found")
-        ) {
-          errorMessage = `This email is not registered. Would you like to sign up instead?`;
-
-          // Show option to switch to register
-          setTimeout(() => {
-            const switchToRegister = confirm(
-              "This email is not registered. Would you like to create an account?",
-            );
-            if (switchToRegister) {
-              setIsRegisterOpen(true);
-            }
-          }, 2000);
-        } else {
-          errorMessage = "Invalid email or password.";
-        }
-      } else if (error.code === 429) {
-        errorMessage = "Too many login attempts. Please try again later.";
+      if (error.code === 401 || error.message?.includes("Invalid credentials") || error.message?.includes("invalid-email-password")) {
+        errorMessage = "❌ Invalid email or password. Please check your credentials and try again.";
+      } else if (error.code === 429 || error.message?.includes("Too many")) {
+        errorMessage = "⏰ Too many login attempts. Please wait a moment and try again.";
       } else if (error.code === 400) {
-        errorMessage = "Please enter valid email and password.";
-      } else if (
-        error.message?.includes("network") ||
-        error.message?.includes("fetch")
-      ) {
-        errorMessage =
-          "Network error. Please check your connection and try again.";
+        errorMessage = "⚠️ Please enter a valid email and password.";
+      } else if (error.message?.includes("network") || error.message?.includes("fetch")) {
+        errorMessage = "🌐 Network error. Please check your connection and try again.";
       } else if (error.message?.includes("email_not_verified")) {
-        errorMessage = "Please verify your email before logging in.";
+        errorMessage = "📧 Please verify your email before logging in.";
         setTimeout(() => {
           setError({
             type: "general",
             message: "Check your email for verification link",
           });
         }, 2000);
+      } else if (error.message?.includes("user_not_found") || error.message?.includes("User not found")) {
+        errorMessage = "👤 This email is not registered. Would you like to sign up instead?";
+        
+        // Show option to switch to register
+        setTimeout(() => {
+          const switchToRegister = confirm(
+            "This email is not registered. Would you like to create an account?",
+          );
+          if (switchToRegister) {
+            setIsLoginOpen(false);
+            setIsRegisterOpen(true);
+          }
+        }, 2000);
+      } else if (error.message?.includes("Login failed - no user data returned")) {
+        errorMessage = "❌ Login failed. Please check your email and password.";
       }
 
       showToast("error", errorMessage);
@@ -463,8 +425,8 @@ export default function Login() {
       if (newAttempts >= 3 && newAttempts < 5) {
         setTimeout(() => {
           showToast(
-            "error",
-            `Warning: ${5 - newAttempts} attempts remaining before temporary lockout.`,
+            "warning",
+            `⚠️ Warning: ${5 - newAttempts} attempts remaining before temporary lockout.`,
           );
         }, 1000);
       }

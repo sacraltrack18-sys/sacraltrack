@@ -10,6 +10,7 @@ if (typeof window !== 'undefined') {
 }
 
 import './globals.css';
+import './styles/toast.css';
 import { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
 import { Suspense } from 'react';
@@ -139,27 +140,53 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                         <Toaster
                                             position="top-center"
                                             containerStyle={{
-                                                zIndex: 10000000
+                                                zIndex: 10000000,
+                                                top: 80, // Позиционируем под TopNav
                                             }}
                                             toastOptions={{
-                                                duration: 3000,
+                                                duration: 4000,
                                                 style: {
-                                                    background: '#272B43',
+                                                    background: 'linear-gradient(135deg, #1E1F2E 0%, #272B43 100%)',
                                                     color: '#fff',
+                                                    borderRadius: '16px',
+                                                    border: '1px solid rgba(32, 221, 187, 0.2)',
+                                                    backdropFilter: 'blur(20px)',
+                                                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                                                    padding: '16px 20px',
+                                                    fontSize: '14px',
+                                                    fontWeight: '500',
+                                                    maxWidth: '90vw', // Адаптивная ширина для мобильных
+                                                    minWidth: '280px', // Минимальная ширина
+                                                    margin: '0 16px', // Отступы от краев экрана
                                                     zIndex: 10000000
                                                 },
-                                                // Custom success/error styles
+                                                // Unified success/error styles
                                                 success: {
                                                     iconTheme: {
-                                                        primary: '#8B5CF6',
+                                                        primary: '#20DDBB',
                                                         secondary: '#FFFAEE',
                                                     },
+                                                    style: {
+                                                        borderLeft: '4px solid #20DDBB'
+                                                    }
                                                 },
                                                 error: {
                                                     iconTheme: {
                                                         primary: '#EF4444',
                                                         secondary: '#FFFAEE',
                                                     },
+                                                    style: {
+                                                        borderLeft: '4px solid #EF4444'
+                                                    }
+                                                },
+                                                loading: {
+                                                    iconTheme: {
+                                                        primary: '#8A2BE2',
+                                                        secondary: '#FFFAEE',
+                                                    },
+                                                    style: {
+                                                        borderLeft: '4px solid #8A2BE2'
+                                                    }
                                                 },
                                             }}
                                         />

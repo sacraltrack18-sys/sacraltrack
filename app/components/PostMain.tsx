@@ -28,30 +28,22 @@ import useTrackInteraction from '../hooks/useTrackInteraction';
 import { database, ID } from "@/libs/AppWriteClient";
 import { APPWRITE_CONFIG } from "@/libs/AppWriteClient";
 
-// Toast styles
-const successToast = (message: string) => toast.success(message, {
-  style: {
-    background: 'rgba(46, 36, 105, 0.9)',
-    color: '#fff',
-    borderLeft: '4px solid #20DDBB',
-    padding: '16px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-  },
-  icon: '🎵',
-  duration: 3000,
-});
+import { successToast, errorToast } from '@/app/utils/toast';
 
-const errorToast = (message: string) => toast.error(message, {
-  style: {
-    background: 'rgba(46, 36, 105, 0.9)',
-    color: '#fff',
-    borderLeft: '4px solid #ff5e5b',
-    padding: '16px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-  },
-  icon: '❌',
-  duration: 4000,
-});
+// Legacy toast styles (keeping for backwards compatibility but using new utils)
+// const successToast = (message: string) => toast.success(message, {
+//   style: {
+//     background: 'rgba(46, 36, 105, 0.9)',
+//     color: '#fff',
+//     borderLeft: '4px solid #20DDBB',
+//     padding: '16px',
+//     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+//   },
+//   icon: '🎵',
+//   duration: 3000,
+// });
+
+
 
 interface Comment {
     id: string;

@@ -1,0 +1,27 @@
+/* Toast mobile styles */
+@media (max-width: 768px) {
+  .Toaster__toast {
+    font-size: 13px !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+    max-width: 85vw !important;
+    margin: 0 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .Toaster__toast {
+    font-size: 12px !important;
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+    max-width: 90vw !important;
+    margin: 0 8px !important;
+  }
+}
+
+/* Ensure toasts are positioned correctly on mobile */
+@media (max-width: 768px) {
+  .Toaster__container {
+    top: 70px !important;
+  }
+}
