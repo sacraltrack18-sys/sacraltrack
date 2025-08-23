@@ -1180,64 +1180,155 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           itemScope
           itemType="https://schema.org/SocialMediaPosting"
         >
-          {/* Скрытые метаданные для поисковых систем */}
+          {/* Enhanced SEO metadata for search engines */}
           <div className="hidden" aria-hidden="true">
             <h1 itemProp="headline">
               {vibe.caption ||
-                `Musical vibe by ${vibe.profile?.name || "artist"}`}
+                `Musical Vibe by ${vibe.profile?.name || "artist"} - SacralTrack`}
             </h1>
+            <h2>Discover Musical Moments on SacralTrack</h2>
+            <p itemProp="description">
+              {vibe.caption || 
+                `Experience this unique musical vibe shared by ${vibe.profile?.name || "an artist"} on SacralTrack. Join the community of music lovers sharing their favorite musical moments, discover new artists, and connect through the power of music.`}
+            </p>
             <meta
               itemProp="author"
-              content={vibe.profile?.name || "Unknown artist"}
+              content={vibe.profile?.name || "SacralTrack User"}
             />
             <meta
               itemProp="datePublished"
               content={vibe.created_at || new Date().toISOString()}
             />
             <meta itemProp="image" content={getVibeImageUrl(vibe.media_url)} />
+            <meta itemProp="url" content={`${typeof window !== 'undefined' ? window.location.origin : ''}/vibe/${vibe.id}`} />
+            <meta itemProp="interactionCount" content="0 likes, 0 comments" />
             <meta
               itemProp="keywords"
-              content={`music, vibe, ${vibe.profile?.name || "artist"}, musical moment, social media`}
+              content={`musical vibe, ${vibe.profile?.name || "artist"}, music community, SacralTrack, music sharing, social music, musical moments, music discovery, artist community, music platform, ${vibe.caption ? vibe.caption.split(' ').slice(0, 5).join(', ') : 'music content'}`}
             />
+            
+            {/* Enhanced Open Graph tags */}
             <meta
               property="og:title"
-              content={
-                vibe.caption ||
-                `Musical vibe by ${vibe.profile?.name || "artist"}`
-              }
+              content={`${vibe.caption || `Musical Vibe by ${vibe.profile?.name || "artist"}`} - SacralTrack`}
             />
-            <meta property="og:type" content="article" />
+            <meta property="og:type" content="music.song" />
+            <meta property="og:url" content={`${typeof window !== 'undefined' ? window.location.origin : ''}/vibe/${vibe.id}`} />
             <meta
               property="og:image"
               content={getVibeImageUrl(vibe.media_url)}
             />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+            <meta property="og:image:alt" content={`Musical vibe by ${vibe.profile?.name || "artist"} on SacralTrack`} />
             <meta
               property="og:description"
-              content={
-                vibe.caption ||
-                `Check out this musical vibe shared by ${vibe.profile?.name || "an artist"}`
-              }
+              content={vibe.caption || 
+                `Experience this unique musical vibe by ${vibe.profile?.name || "an artist"} on SacralTrack. Join our music community and discover amazing musical moments.`}
             />
+            <meta property="og:site_name" content="SacralTrack - Music Community" />
+            <meta property="og:locale" content="en_US" />
+            <meta property="article:published_time" content={vibe.created_at} />
+            <meta property="article:author" content={vibe.profile?.name || "SacralTrack User"} />
+            <meta property="article:section" content="Music Vibes" />
+            <meta property="article:tag" content="music" />
+            <meta property="article:tag" content="vibe" />
+            <meta property="article:tag" content="community" />
+            
+            {/* Enhanced Twitter Card tags */}
             <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:site" content="@SacralTrack" />
+            <meta name="twitter:creator" content={`@${vibe.profile?.name?.replace(/\s+/g, '') || 'SacralTrack'}`} />
             <meta
               name="twitter:title"
-              content={
-                vibe.caption ||
-                `Musical vibe by ${vibe.profile?.name || "artist"}`
-              }
+              content={vibe.caption ||
+                `Musical Vibe by ${vibe.profile?.name || "artist"}`}
             />
             <meta
               name="twitter:description"
-              content={
-                vibe.caption ||
-                `Check out this musical vibe shared by ${vibe.profile?.name || "an artist"}`
-              }
+              content={vibe.caption ||
+                `Experience this unique musical vibe by ${vibe.profile?.name || "an artist"} on SacralTrack. Join our music community!`}
             />
             <meta
               name="twitter:image"
               content={getVibeImageUrl(vibe.media_url)}
             />
+            <meta name="twitter:image:alt" content={`Musical vibe by ${vibe.profile?.name || "artist"}`} />
+            
+            {/* Additional SEO meta tags */}
+            <meta name="description" content={vibe.caption || `Musical vibe by ${vibe.profile?.name || "artist"} on SacralTrack - Join the music community`} />
+            <meta name="keywords" content={`musical vibe, ${vibe.profile?.name || "artist"}, music community, SacralTrack, music sharing, social music platform, music discovery, artist community, musical moments, music lovers`} />
+            <meta name="author" content={vibe.profile?.name || "SacralTrack User"} />
+            <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+            <meta name="googlebot" content="index, follow" />
+            <link rel="canonical" href={`${typeof window !== 'undefined' ? window.location.origin : ''}/vibe/${vibe.id}`} />
           </div>
+
+          {/* JSON-LD Structured Data for enhanced SEO */}
+          <script 
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "SocialMediaPosting",
+                "headline": vibe.caption || `Musical Vibe by ${vibe.profile?.name || "artist"}`,
+                "description": vibe.caption || `Experience this unique musical vibe shared by ${vibe.profile?.name || "an artist"} on SacralTrack`,
+                "datePublished": vibe.created_at,
+                "author": {
+                  "@type": "Person",
+                  "name": vibe.profile?.name || "SacralTrack User",
+                  "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${vibe.profile?.user_id}`,
+                  "image": vibe.profile?.image ? createBucketUrl(vibe.profile.image, 'user') : '/images/default-avatar.jpg'
+                },
+                "publisher": {
+                  "@type": "Organization",
+                  "name": "SacralTrack",
+                  "logo": {
+                    "@type": "ImageObject",
+                    "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/logo.png`
+                  }
+                },
+                "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/vibe/${vibe.id}`,
+                "image": {
+                  "@type": "ImageObject",
+                  "url": getVibeImageUrl(vibe.media_url),
+                  "width": 1200,
+                  "height": 630
+                },
+                "video": vibe.media_url ? {
+                  "@type": "VideoObject",
+                  "contentUrl": getVibeImageUrl(vibe.media_url),
+                  "thumbnailUrl": getVibeImageUrl(vibe.media_url),
+                  "uploadDate": vibe.created_at
+                } : undefined,
+                "mainEntityOfPage": {
+                  "@type": "WebPage",
+                  "@id": `${typeof window !== 'undefined' ? window.location.origin : ''}/vibe/${vibe.id}`
+                },
+                "interactionStatistic": [
+                  {
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/LikeAction",
+                    "userInteractionCount": 0
+                  },
+                  {
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/CommentAction",
+                    "userInteractionCount": 0
+                  }
+                ],
+                "genre": "Music",
+                "keywords": `musical vibe, ${vibe.profile?.name || "artist"}, music community, SacralTrack, music sharing, social music platform`,
+                "inLanguage": "en-US",
+                "isPartOf": {
+                  "@type": "WebSite",
+                  "name": "SacralTrack",
+                  "url": typeof window !== 'undefined' ? window.location.origin : ''
+                },
+
+              })
+            }}
+          />
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

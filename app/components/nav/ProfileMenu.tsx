@@ -156,7 +156,7 @@ const ProfileMenu = () => {
       >
         <motion.div
           whileHover={{ scale: 1.05 }}
-          className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30
+          className="w-[50px] h-[50px] rounded-xl overflow-hidden ring-[0.5px] ring-[#20DDBB]/30
                    transition-all duration-300 group-hover:ring-[#20DDBB]/50"
         >
           <img
@@ -206,7 +206,7 @@ const ProfileMenu = () => {
                   className="flex items-center gap-4 group/profile"
                 >
                   <div
-                    className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-[#20DDBB]/30
+                    className="w-12 h-12 rounded-xl overflow-hidden ring-[0.5px] ring-[#20DDBB]/30
                             group-hover/profile:ring-[#20DDBB]/50 transition-all duration-300
                             shadow-[0_0_15px_rgba(32,221,187,0.2)]"
                   >

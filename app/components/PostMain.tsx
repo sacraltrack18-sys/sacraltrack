@@ -198,10 +198,10 @@ const LazyImage = memo(({ src, alt, className, onError, fallback }: {
 LazyImage.displayName = 'LazyImage';
 
 const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text, genre }: PostHeaderProps) => (
-    <div className="p-4 flex items-center justify-between">
+    <div className="p-[5px] flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link href={`/profile/${profile.user_id}`} aria-label={`Visit ${profile.name}'s profile`}>
-                <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300 flex-shrink-0">
+                <div className="w-[50px] h-[50px] rounded-xl overflow-hidden border-[0.5px] border-[#20DDBB]/30 transition-all hover:border-[#20DDBB] duration-300 flex-shrink-0">
                     <LazyImage
                         src={avatarError ? '/images/placeholder-user.jpg' : avatarUrl}
                         alt={`${profile.name} - ${genre} music artist profile picture`}
@@ -374,7 +374,7 @@ const PostImage = memo(({ imageUrl, imageError, comments, isPlaying, onTogglePla
   }, []);
 
   return (
-    <div className="relative group" ref={imageRef}>
+    <div className="relative group px-[5px]" ref={imageRef}>
       {/* Clickable image container for desktop */}
       <div 
         className={`relative ${!isMobile ? 'cursor-pointer' : ''}`}
@@ -469,8 +469,8 @@ PostImage.displayName = 'PostImage';
 const PostMainSkeleton = memo(() => (
   <div className="rounded-lg overflow-hidden bg-[#1A2338]/80 backdrop-blur-md mb-4">
     {/* Заголовок скелетона с анимацией */}
-    <div className="p-4 flex items-center gap-3">
-      <div className="w-12 h-12 rounded-full bg-[#374151] animate-pulse"></div>
+    <div className="p-[5px] flex items-center gap-3">
+      <div className="w-[50px] h-[50px] rounded-xl bg-[#374151] animate-pulse"></div>
       <div className="flex-1">
         <div className="h-4 w-24 bg-[#374151] rounded mb-2 animate-pulse"></div>
         <div className="h-3 w-32 bg-[#374151] rounded animate-pulse"></div>
@@ -487,7 +487,7 @@ const PostMainSkeleton = memo(() => (
     </div>
     
     {/* Нижняя часть с текстом */}
-    <div className="p-4">
+    <div className="p-[5px]">
       <div className="h-4 w-full bg-[#374151] rounded mb-2 animate-pulse"></div>
       <div className="h-4 w-2/3 bg-[#374151] rounded animate-pulse"></div>
     </div>
@@ -1051,7 +1051,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto shadow-lg shadow-black/20"
+            className="bg-[#24183d] rounded-2xl overflow-hidden mb-6 w-full max-w-[100%] md:w-[450px] mx-auto shadow-lg shadow-black/20 p-[5px]"
             itemScope
             itemType="https://schema.org/MusicRecording"
         >
@@ -1065,27 +1065,153 @@ const PostMain = memo(({ post }: PostMainProps) => {
             <meta itemProp="datePublished" content={post.created_at || new Date().toISOString()} />
             {imageUrlRef.current && <meta itemProp="image" content={imageUrlRef.current} />}
             
-            {/* Hidden SEO metadata - only visible to search engines */}
+            {/* Enhanced SEO metadata - only visible to search engines */}
             <div className="hidden" aria-hidden="true">
-                <h1>{post.trackname} by {post.profile.name}</h1>
-                <p>Listen to {post.trackname} by {post.profile.name}. {post.genre} music.</p>
-                <span itemProp="duration">3:00</span>
+                <h1>{post.trackname} by {post.profile.name} - {post.genre} Music</h1>
+                <h2>Stream and Download {post.trackname} on SacralTrack</h2>
+                <p>Listen to {post.trackname} by {post.profile.name}. High-quality {post.genre} music streaming and download. {post.description || `Discover new ${post.genre.toLowerCase()} music on SacralTrack - the ultimate music platform for artists and listeners.`}</p>
+                <span itemProp="duration">{"3:00"}</span>
+                <span itemProp="recordingOf" content={post.trackname} />
+                <span itemProp="isrcCode" content={`SACRAL${post.id.slice(0, 8).toUpperCase()}`} />
                 <div itemProp="potentialAction" itemScope itemType="https://schema.org/ListenAction">
                     <meta itemProp="target" content={shareUrl} />
+                    <meta itemProp="actionStatus" content="PotentialActionStatus" />
                 </div>
-                <meta property="og:title" content={`${post.trackname} by ${post.profile.name}`} />
+                <div itemProp="potentialAction" itemScope itemType="https://schema.org/BuyAction">
+                    <meta itemProp="target" content={shareUrl} />
+                    <meta itemProp="price" content="2.99" />
+                    <meta itemProp="priceCurrency" content="USD" />
+                </div>
+                
+                {/* Enhanced Open Graph tags */}
+                <meta property="og:title" content={`${post.trackname} by ${post.profile.name} - Stream on SacralTrack`} />
                 <meta property="og:type" content="music.song" />
                 <meta property="og:url" content={shareUrl} />
-                <meta property="og:image" content={imageUrlRef.current} />
-                <meta property="og:description" content={post.description || `Listen to ${post.trackname} by ${post.profile.name}. ${post.genre} music.`} />
-                <meta property="og:site_name" content="Music Platform" />
+                <meta property="og:image" content={imageUrlRef.current || '/images/default-track-cover.jpg'} />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
+                <meta property="og:image:alt" content={`${post.trackname} by ${post.profile.name} album cover`} />
+                <meta property="og:description" content={post.description || `Stream ${post.trackname} by ${post.profile.name} on SacralTrack. High-quality ${post.genre} music with instant streaming and download options.`} />
+                <meta property="og:site_name" content="SacralTrack - Music Streaming Platform" />
+                <meta property="og:locale" content="en_US" />
+                <meta property="music:duration" content="180" />
+                <meta property="music:album" content={post.trackname} />
+                <meta property="music:musician" content={post.profile.name} />
+                <meta property="music:release_date" content={post.created_at} />
+                
+                {/* Enhanced Twitter Card tags */}
                 <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:site" content="@SacralTrack" />
+                <meta name="twitter:creator" content={`@${post.profile.name.replace(/\s+/g, '')}`} />
                 <meta name="twitter:title" content={`${post.trackname} by ${post.profile.name}`} />
-                <meta name="twitter:description" content={post.description || `Listen to ${post.trackname} by ${post.profile.name}. ${post.genre} music.`} />
-                <meta name="twitter:image" content={imageUrlRef.current} />
-                <meta name="keywords" content={`${post.trackname}, ${post.profile.name}, ${post.genre}, music, track, audio, song`} />
+                <meta name="twitter:description" content={post.description || `Stream ${post.trackname} by ${post.profile.name} on SacralTrack. High-quality ${post.genre} music.`} />
+                <meta name="twitter:image" content={imageUrlRef.current || '/images/default-track-cover.jpg'} />
+                <meta name="twitter:image:alt" content={`${post.trackname} by ${post.profile.name} album cover`} />
+                <meta name="twitter:player" content={shareUrl} />
+                <meta name="twitter:player:width" content="435" />
+                <meta name="twitter:player:height" content="251" />
+                
+                {/* Additional SEO meta tags */}
+                <meta name="description" content={post.description || `Stream and download ${post.trackname} by ${post.profile.name}. High-quality ${post.genre} music on SacralTrack.`} />
+                <meta name="keywords" content={`${post.trackname}, ${post.profile.name}, ${post.genre}, music streaming, download music, SacralTrack, ${post.genre.toLowerCase()} music, online music platform, high quality audio, ${post.genre.toLowerCase()} songs, new music 2024, indie music, music discovery`} />
+                <meta name="author" content={post.profile.name} />
+                <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+                <meta name="googlebot" content="index, follow" />
+                <link rel="canonical" href={shareUrl} />
             </div>
             
+            {/* JSON-LD Structured Data for enhanced SEO */}
+            <script 
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "MusicRecording",
+                        "name": post.trackname,
+                        "byArtist": {
+                            "@type": "MusicGroup",
+                            "name": post.profile.name,
+                            "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${post.profile.user_id}`,
+                            "image": post.profile.image || '/images/default-avatar.jpg'
+                        },
+                        "inAlbum": {
+                            "@type": "MusicAlbum",
+                            "name": post.trackname,
+                            "byArtist": post.profile.name
+                        },
+                        "genre": post.genre,
+                        "duration": "PT180S",
+                        "datePublished": post.created_at,
+                        "description": post.description || `Stream ${post.trackname} by ${post.profile.name} on SacralTrack`,
+                        "url": shareUrl,
+                        "image": imageUrlRef.current || '/images/default-track-cover.jpg',
+                        "audio": post.audio_url || "",
+                        "encodingFormat": "audio/mpeg",
+                        "recordingOf": {
+                            "@type": "MusicComposition",
+                            "name": post.trackname,
+                            "composer": post.profile.name
+                        },
+                        "recordLabel": {
+                            "@type": "Organization",
+                            "name": "SacralTrack",
+                            "url": typeof window !== 'undefined' ? window.location.origin : ''
+                        },
+                        "offers": {
+                            "@type": "Offer",
+                            "price": "2.99",
+                            "priceCurrency": "USD",
+                            "availability": "https://schema.org/InStock",
+                            "url": shareUrl
+                        },
+                        "potentialAction": [
+                            {
+                                "@type": "ListenAction",
+                                "target": shareUrl,
+                                "expectsAcceptanceOf": {
+                                    "@type": "Offer",
+                                    "price": "0",
+                                    "priceCurrency": "USD"
+                                }
+                            },
+                            {
+                                "@type": "BuyAction",
+                                "target": shareUrl,
+                                "price": "2.99",
+                                "priceCurrency": "USD"
+                            }
+                        ],
+                        "mainEntityOfPage": {
+                            "@type": "WebPage",
+                            "@id": shareUrl
+                        },
+                        "publisher": {
+                            "@type": "Organization",
+                            "name": "SacralTrack",
+                            "logo": {
+                                "@type": "ImageObject",
+                                "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/logo.png`
+                            }
+                        },
+                        "interactionStatistic": [
+                            {
+                                "@type": "InteractionCounter",
+                                "interactionType": "https://schema.org/LikeAction",
+                                "userInteractionCount": 0
+                            },
+                            {
+                                "@type": "InteractionCounter",
+                                "interactionType": "https://schema.org/CommentAction",
+                                "userInteractionCount": 0
+                            }
+                        ],
+
+                    })
+                }}
+            />
+            
+            {/* Content container with inner padding */}
+            <div className="bg-[#24183d] rounded-2xl overflow-hidden">
             <PostHeader 
                 profile={post.profile}
                 avatarUrl={avatarUrlRef.current}
@@ -1125,14 +1251,14 @@ const PostMain = memo(({ post }: PostMainProps) => {
             )}
             
             {!m3u8UrlRef.current && (
-                <div className="px-4 py-2 border-t border-white/5">
+                <div className="px-[5px] py-[5px] border-t border-white/5">
                     <div className="text-center text-white/50 text-sm py-2">
                         <span>🎵 Audio not available</span>
                     </div>
                 </div>
             )}
 
-            <div className="px-4 py-3 flex justify-between items-center w-full">
+            <div className="px-[5px] py-[5px] flex justify-between items-center w-full">
                 <div className="flex items-center gap-4 flex-shrink-0">
                     <PostMainLikes post={post} />
                 </div>
@@ -1220,6 +1346,8 @@ const PostMain = memo(({ post }: PostMainProps) => {
                         />
                     </motion.button>
                 </div>
+            </div>
+
             </div>
 
             <ShareModal 

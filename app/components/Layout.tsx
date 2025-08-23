@@ -76,7 +76,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             
             {user && (
               <Link href={`/profile/${user.id}`}>
-                <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-purple-500/30">
+                <div className="relative w-[50px] h-[50px] rounded-xl overflow-hidden border-[0.5px] border-purple-500/30">
                   <Image 
                     src={user.image || '/images/placeholders/user-placeholder.svg'} 
                     alt="Profile" 

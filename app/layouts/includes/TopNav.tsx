@@ -398,8 +398,12 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                             <NotificationBell />
                         </div>
                         
-                        {/* Profile Section */}
-                        <ProfileMenu />
+                        {/* Profile Section - Centered with 5px top/bottom padding */}
+                        <div className="flex items-center justify-center">
+                            <div className="mt-[5px] mb-[5px]">
+                                <ProfileMenu />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
