@@ -71,38 +71,24 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-// Updated gradient border styles with financial & music theme - more subtle version
-const gradientBorderStyles = `
-  .gradient-border {
-    position: relative;
-    z-index: 0;
-    border-radius: 0.75rem;
-    overflow: hidden;
+// Premium dark theme styles for royalty dashboard
+const premiumDarkStyles = `
+  .premium-card {
+    background: linear-gradient(135deg, rgba(36, 24, 61, 0.95) 0%, rgba(30, 20, 50, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
     transition: all 0.3s ease;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   }
 
-  .gradient-border::after {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    left: 0px;
-    top: 0px;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(145deg, #1A2338, #1d2640);
-    border-radius: 0.75rem;
+  .premium-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgba(32, 221, 187, 0.2);
   }
 
-  /* Very subtle border by default - more neutral color */
-  .gradient-border {
-    border: 1px solid rgba(255, 255, 255, 0.02);
-  }
-
-  /* Add subtle box shadow on hover for additional effect - more neutral */
-  .gradient-border:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+  .premium-glow {
+    box-shadow: 0 0 20px rgba(32, 221, 187, 0.1);
   }
 `;
 
@@ -118,8 +104,8 @@ const StatsCard = ({
 }: StatsCardProps) => (
   <motion.div
     variants={itemVariants}
-    whileHover={{ y: -2 }}
-    className={`gradient-border transition-all duration-300 ${onClick ? "cursor-pointer" : ""} ${className}`}
+    whileHover={{ y: -2, scale: 1.02 }}
+    className={`group relative overflow-hidden rounded-2xl transition-all duration-300 ${onClick ? "cursor-pointer" : ""} ${className}`}
     onClick={onClick}
     data-tooltip-id={
       tooltip
@@ -128,19 +114,27 @@ const StatsCard = ({
     }
     data-tooltip-content={tooltip}
   >
-    <div className="bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 p-6 rounded-xl h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-lg bg-gradient-to-br from-[#20DDBB]/5 to-[#3f2d63]/5 text-[#20DDBB] text-xl">
-            {icon}
+    {/* Premium background with glassmorphism effect */}
+    <div className="absolute inset-0 bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl"></div>
+    <div className="absolute inset-0 border border-white/10 rounded-2xl"></div>
+    
+    {/* Subtle glow effect on hover */}
+    <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+    
+    <div className="relative p-6 h-full">
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
+            <div className="text-[#20DDBB] text-xl">
+              {icon}
+            </div>
           </div>
-          <h3 className="text-white font-medium text-sm tracking-wide uppercase">
-            {title}
-          </h3>
-        </div>
-
-        {trend && (
-          <div
+          <div>
+            <h3 className="text-white/80 font-medium text-sm tracking-wide uppercase mb-1">
+              {title}
+            </h3>
+            {trend && (
+              <div
             className={`flex items-center text-xs px-2 py-1 rounded-full ${
               trend.isPositive
                 ? "bg-[#20DDBB]/5 text-[#20DDBB]"
@@ -154,12 +148,36 @@ const StatsCard = ({
             )}
             {Math.abs(trend.value)}%
           </div>
+            )}
+          </div>
+        </div>
+        
+        {trend && (
+          <div className={`flex items-center text-xs px-2 py-1 rounded-full ${
+            trend.isPositive
+              ? "bg-[#20DDBB]/10 text-[#20DDBB]"
+              : "bg-red-500/10 text-red-400"
+          }`}>
+            {trend.isPositive ? (
+              <BsArrowUp className="mr-1" />
+            ) : (
+              <BsArrowDown className="mr-1" />
+            )}
+            {Math.abs(trend.value)}%
+          </div>
         )}
       </div>
 
-      <p className="text-3xl font-semibold text-white mb-1">{value}</p>
+      {/* Value display */}
+      <div className="mb-4">
+        <p className="text-3xl font-bold text-white mb-2 leading-none">{value}</p>
+        {description && (
+          <p className="text-white/60 text-sm leading-relaxed">{description}</p>
+        )}
+      </div>
 
-      {description && <p className="text-[#9BA3BF] text-sm">{description}</p>}
+      {/* Premium indicator line */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-purple-500 opacity-50"></div>
 
       {tooltip && (
         <Tooltip id={`tooltip-${title.replace(/\s+/g, "-").toLowerCase()}`} />
@@ -461,7 +479,7 @@ export default function RoyaltyDashboard({
   return (
     <>
       <style jsx global>
-        {gradientBorderStyles}
+        {premiumDarkStyles}
       </style>
       <motion.div
         variants={containerVariants}
@@ -507,15 +525,14 @@ export default function RoyaltyDashboard({
           </div>
         </div>
 
-        {/* Main Stats Grid - Changed to floating cards with more spacing */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+        {/* Main Stats Grid - Premium cards with new design */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <StatsCard
             icon={<BsCashStack size={24} />}
             title="Total Earned"
             value={`$${(statsBalance.totalEarned || 0).toFixed(2)}`}
             description="Lifetime earnings from your tracks"
             tooltip="Total amount earned from all your track sales"
-            className="backdrop-blur-xl bg-[#1A2338]/40"
           />
 
           <StatsCard
@@ -527,33 +544,32 @@ export default function RoyaltyDashboard({
                 ? "Updating balance..."
                 : `Ready to withdraw • Last updated: ${formatDistance(lastUpdateTime, new Date(), { addSuffix: true })}`
             }
-            className="backdrop-blur-xl bg-[#1A2338]/40"
             tooltip="Amount available for withdrawal"
             onClick={handleOpenWithdrawModal}
           />
         </div>
 
-        {/* Sales & Withdrawals History Tabs - Improved with gradient border */}
-        <div className="gradient-border p-0.5 rounded-xl">
-          <div className="bg-[#1A2338]/40 p-4 rounded-xl backdrop-blur-xl">
+        {/* Sales & Withdrawals History Tabs - Premium dark design */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl">
+          <div className="p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
               <div className="flex space-x-2 items-center">
                 <button
                   onClick={() => setActiveTab("sales")}
-                  className={`px-4 py-2 rounded-lg transition-all ${
+                  className={`px-4 py-2 rounded-xl transition-all ${
                     activeTab === "sales"
-                      ? "bg-[#3f2d63]/70 text-white"
-                      : "text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40"
+                      ? "bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30"
+                      : "text-white/60 hover:text-white hover:bg-white/10 border border-transparent"
                   }`}
                 >
                   Sales History
                 </button>
                 <button
                   onClick={() => setActiveTab("withdrawals")}
-                  className={`px-4 py-2 rounded-lg transition-all ${
+                  className={`px-4 py-2 rounded-xl transition-all ${
                     activeTab === "withdrawals"
-                      ? "bg-[#3f2d63]/70 text-white"
-                      : "text-[#9BA3BF] hover:text-white hover:bg-[#3f2d63]/40"
+                      ? "bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30"
+                      : "text-white/60 hover:text-white hover:bg-white/10 border border-transparent"
                   }`}
                 >
                   Withdrawals
@@ -564,10 +580,10 @@ export default function RoyaltyDashboard({
                 <div className="flex space-x-2 items-center self-end sm:self-auto mt-2 sm:mt-0">
                   <button
                     onClick={() => setTableView("list")}
-                    className={`p-2 rounded transition-all ${
+                    className={`p-2 rounded-lg transition-all ${
                       tableView === "list"
-                        ? "bg-[#3f2d63]/70 text-white"
-                        : "text-[#9BA3BF] hover:text-white"
+                        ? "bg-[#20DDBB]/20 text-[#20DDBB]"
+                        : "text-white/60 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     <svg
@@ -587,10 +603,10 @@ export default function RoyaltyDashboard({
                   </button>
                   <button
                     onClick={() => setTableView("grid")}
-                    className={`p-2 rounded transition-all ${
+                    className={`p-2 rounded-lg transition-all ${
                       tableView === "grid"
-                        ? "bg-[#3f2d63]/70 text-white"
-                        : "text-[#9BA3BF] hover:text-white"
+                        ? "bg-[#20DDBB]/20 text-[#20DDBB]"
+                        : "text-white/60 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     <svg
