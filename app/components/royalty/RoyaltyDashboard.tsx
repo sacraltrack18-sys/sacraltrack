@@ -501,23 +501,26 @@ export default function RoyaltyDashboard({
           <div className="flex flex-wrap gap-3 mt-2 lg:mt-0">
             <motion.button
               whileHover={{
-                scale: 1.05,
-                boxShadow: "0 0 25px 5px rgba(32, 221, 187, 0.4)",
-                transition: { duration: 0.3 },
+                scale: 1.02,
+                y: -2,
+                transition: { duration: 0.2 },
               }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleOpenWithdrawModal}
-              className="inline-flex items-center px-6 py-3.5 rounded-full shadow-xl transition-all duration-300
-                bg-gradient-to-r from-[#20DDBB] via-[#f06ef2] to-[#20DDBB]
-                text-white border border-[#20DDBB]/50 backdrop-blur-sm
-                hover:shadow-[0_0_30px_rgba(32,221,187,0.5)] relative overflow-hidden group
-                bg-size-200 bg-pos-0 hover:bg-pos-100"
+              className="group relative overflow-hidden inline-flex items-center px-6 py-3 rounded-2xl transition-all duration-300
+                bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl
+                border border-white/10 hover:border-[#20DDBB]/30
+                text-white shadow-lg hover:shadow-xl"
               data-tooltip-id="withdraw-tooltip"
               data-tooltip-content="Withdraw your available funds"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-500"></span>
-              <div className="flex items-center relative z-10">
-                <FaMoneyBillWave className="text-lg mr-3 text-white" />
+              {/* Subtle glow effect on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
+              
+              <div className="flex items-center relative z-10 gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
+                  <FaMoneyBillWave className="text-[#20DDBB] text-sm" />
+                </div>
                 <span className="font-medium text-base">Withdraw Funds</span>
               </div>
             </motion.button>

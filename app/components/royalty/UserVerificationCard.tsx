@@ -652,34 +652,43 @@ export default function UserVerificationCard({
               {showPhoneVerification && <PhoneVerificationStep />}
               
               {isFullyVerified && (
-              <div className="gradient-border always-glow mt-6">
                   <motion.div 
-                    className="p-4 bg-[#1A2338]/80 backdrop-blur-sm rounded-lg text-center"
+                  className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl mt-4"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <FaStar className="text-violet-300 text-2xl mx-auto mb-2" />
-                    <h3 className="text-white font-medium mb-1">Account Secure</h3>
-                    <p className="text-xs sm:text-sm text-[#9BA3BF]">
+                  {/* Premium indicator line */}
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-purple-500 opacity-50"></div>
+                  
+                  <div className="relative p-2.5 text-center"> {/* Minimal 10px padding */}
+                    <div className="flex justify-center mb-2">
+                      <div className="p-2 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
+                        <FaStar className="text-[#20DDBB] text-lg" />
+                      </div>
+                    </div>
+                    <h3 className="text-white font-medium mb-2 text-base">Account Secure</h3>
+                    <p className="text-white/60 text-sm leading-relaxed">
                       Your account is fully verified. You can now withdraw your royalties safely.
                     </p>
+                  </div>
                   </motion.div>
-                </div>
               )}
               
-            <div className="gradient-border mt-6">
                 <motion.div 
-                  className="p-3 sm:p-4 bg-[#1A2338]/70 backdrop-blur-sm rounded-lg flex items-center gap-3"
+              className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#24183d]/80 to-[#1E1432]/85 backdrop-blur-xl mt-4"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <FaBell className="text-amber-400 text-lg flex-shrink-0" />
-                  <p className="text-xs text-[#9BA3BF]">
+              <div className="relative p-2.5 flex items-center gap-3"> {/* Minimal 10px padding */}
+                <div className="p-1.5 rounded-lg bg-amber-400/20 border border-amber-400/30">
+                  <FaBell className="text-amber-400 text-sm flex-shrink-0" />
+                </div>
+                <p className="text-white/60 text-xs leading-relaxed">
                     Verification is required to protect your funds and ensure secure withdrawals.
                   </p>
-                </motion.div>
               </div>
+            </motion.div>
             </div>
           </div>
       </div>
