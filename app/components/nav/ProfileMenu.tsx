@@ -185,14 +185,15 @@ const ProfileMenu = () => {
 
           <div
             ref={menuRef}
-            className="absolute right-0 mt-2 w-[280px] max-w-[90vw] bg-[#24183D] rounded-xl
-                     shadow-lg z-50 overflow-hidden border border-white/10 animate-menuEnter"
+            className="absolute right-0 mt-2 w-[300px] max-w-[90vw] bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 
+                     backdrop-blur-xl rounded-2xl shadow-2xl z-50 overflow-hidden border border-white/10 animate-menuEnter 
+                     mx-[10px]"
             style={{ transformOrigin: "top right" }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/3 to-transparent pointer-events-none opacity-30"></div>
 
             <div className="relative flex flex-col gap-2">
-              <div className="px-6 py-3 border-b border-white/5">
+              <div className="px-[10px] py-3 border-b border-white/5">
                 <Link
                   href={`/profile/${userContext?.user?.id}`}
                   onClick={(e) => {
@@ -234,7 +235,7 @@ const ProfileMenu = () => {
                 </Link>
               </div>
 
-              <div className="px-3 py-2">
+              <div className="px-[10px] py-2">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -465,7 +466,7 @@ const ProfileMenu = () => {
                 </button>
               </div>
 
-              <div className="px-6 pt-3 pb-3 mt-2 border-t border-white/10">
+              <div className="px-[10px] pt-3 pb-3 mt-2 border-t border-white/10">
                 <Link
                   href="/terms"
                   onClick={(e) => {
