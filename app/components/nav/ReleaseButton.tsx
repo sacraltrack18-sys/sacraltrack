@@ -19,7 +19,7 @@ const ReleaseButton = () => {
     router.push("/upload");
   };
 
-  const baseButtonClass = "relative flex flex-col sm:flex-row h-[42px] sm:h-9 md:h-10 items-center justify-center rounded-full md:rounded-2xl px-3 sm:px-2 md:px-4 group transition-all duration-300 mr-2 md:mr-4 cursor-pointer";
+  const baseButtonClass = "relative flex flex-col sm:flex-row h-[52px] sm:h-[46px] md:h-[50px] items-center justify-center rounded-full md:rounded-2xl px-3 sm:px-2 md:px-4 group transition-all duration-300 mr-2 md:mr-4 cursor-pointer";
   const baseIconClass = "z-10 flex h-4 md:h-5 w-4 md:w-5 items-center justify-center";
   const baseVinylClass = "h-4 w-4 md:h-5 md:w-5 text-blue-400 group-hover:text-indigo-400 transition-all duration-500";
 
@@ -105,17 +105,7 @@ const ReleaseButton = () => {
         )}
       </AnimatePresence>
       
-      <AnimatePresence>
-        {isHovered && (
-          <motion.div
-            className="absolute inset-0 rounded-full md:rounded-2xl border border-blue-500/50"
-            initial={{ opacity: 0.8, scale: 1 }}
-            animate={{ opacity: 0, scale: 1.5 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1, repeat: Infinity }}
-          />
-        )}
-      </AnimatePresence>
+
     </motion.button>
   );
 };
