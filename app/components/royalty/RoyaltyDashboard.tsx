@@ -90,6 +90,45 @@ const premiumDarkStyles = `
   .premium-glow {
     box-shadow: 0 0 20px rgba(32, 221, 187, 0.1);
   }
+
+  /* Super cool withdraw button animations */
+  @keyframes gradient-slide {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 20px rgba(32, 221, 187, 0.5), 0 0 40px rgba(32, 221, 187, 0.3);
+    }
+    50% { 
+      box-shadow: 0 0 30px rgba(32, 221, 187, 0.8), 0 0 60px rgba(32, 221, 187, 0.5);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Money icon bounce */
+  @keyframes money-bounce {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .animate-money-bounce {
+    animation: money-bounce 1.5s ease-in-out infinite;
+  }
 `;
 
 const StatsCard = ({
@@ -501,28 +540,42 @@ export default function RoyaltyDashboard({
           <div className="flex flex-wrap gap-3 mt-2 lg:mt-0">
             <motion.button
               whileHover={{
-                scale: 1.02,
-                y: -2,
-                transition: { duration: 0.2 },
+                scale: 1.05,
+                y: -3,
+                boxShadow: "0 0 40px rgba(32, 221, 187, 0.6), 0 0 80px rgba(240, 110, 242, 0.3)",
+                transition: { duration: 0.3 },
               }}
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleOpenWithdrawModal}
-              className="group relative overflow-hidden inline-flex items-center px-6 py-3 rounded-2xl transition-all duration-300
-                bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl
-                border border-white/10 hover:border-[#20DDBB]/30
-                text-white shadow-lg hover:shadow-xl"
+              className="group relative overflow-hidden inline-flex items-center px-8 py-4 rounded-2xl transition-all duration-300
+                bg-gradient-to-r from-[#20DDBB] via-[#00d4aa] to-[#20DDBB] 
+                hover:from-[#00d4aa] hover:via-[#20DDBB] hover:to-[#00d4aa]
+                border-2 border-[#20DDBB]/50 hover:border-[#20DDBB]
+                text-white shadow-2xl hover:shadow-[0_0_50px_rgba(32,221,187,0.8)]
+                animate-pulse-glow"
               data-tooltip-id="withdraw-tooltip"
-              data-tooltip-content="Withdraw your available funds"
+              data-tooltip-content="💰 Withdraw your available funds now!"
+              style={{
+                backgroundSize: '200% 100%',
+                animation: 'gradient-slide 3s ease infinite'
+              }}
             >
-              {/* Subtle glow effect on hover */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
+              {/* Animated shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transform -translate-x-full transition-all duration-1000 ease-out"></div>
+              
+              {/* Pulsing glow background */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#20DDBB]/50 to-purple-500/50 opacity-50 group-hover:opacity-80 transition-opacity duration-300 animate-pulse"></div>
               
               <div className="flex items-center relative z-10 gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
-                  <FaMoneyBillWave className="text-[#20DDBB] text-sm" />
+                <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <FaMoneyBillWave className="text-white text-lg drop-shadow-lg animate-money-bounce" />
                 </div>
-                <span className="font-medium text-base">Withdraw Funds</span>
+                <span className="font-bold text-lg tracking-wide drop-shadow-lg">💰 Withdraw Funds</span>
               </div>
+
+              {/* Corner highlights */}
+              <div className="absolute top-1 left-1 w-4 h-4 bg-white/40 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute bottom-1 right-1 w-3 h-3 bg-white/30 rounded-full opacity-40 group-hover:opacity-80 transition-opacity duration-300"></div>
             </motion.button>
             <Tooltip id="withdraw-tooltip" />
           </div>
