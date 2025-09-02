@@ -273,7 +273,10 @@ export default function RoyaltyPage() {
 
   return (
     <RoyaltyLayout>
-      <div className="w-full max-w-7xl pt-20"> {/* Увеличиваем отступ сверху, чтобы заголовки не залезали под навигацию */}
+      {/* Darker background overlay specifically for royalty page */}
+      <div className="fixed inset-0 bg-black/20 pointer-events-none z-0"></div>
+      
+      <div className="relative w-full max-w-7xl pt-20 z-10"> {/* Увеличиваем отступ сверху, чтобы заголовки не залезали под навигацию */}
         <div className="flex flex-col lg:flex-row-reverse w-full gap-6"> {/* Меняем направление flex, чтобы карточки верификации были справа */}
           {/* Verification Cards - Right side */}
           <motion.div 
@@ -296,24 +299,29 @@ export default function RoyaltyPage() {
 
               {/* Information Card */}
               <motion.div 
-                className="gradient-border"
+                className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.4 }}
               >
-                <div className="bg-gradient-to-br from-[#1A2338] to-[#1A2338]/90 p-5 rounded-lg">
+                <div className="relative p-2.5"> {/* Minimal 10px padding */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-                      <FaInfoCircle size={18} />
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
+                      <FaInfoCircle className="text-[#20DDBB] text-sm" />
                     </div>
-                    <h3 className="text-white font-medium">Information</h3>
+                    <h3 className="text-white font-medium text-base">Information</h3>
                   </div>
-                  <p className="text-[#9BA3BF] text-sm mb-2">
-                    Your earnings are updated in real-time as users purchase your tracks.
-                  </p>
-                  <p className="text-[#9BA3BF] text-sm mb-2">
-                    Withdrawals are processed within 3-5 business days.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-white/60 text-sm leading-relaxed">
+                      Your earnings are updated in real-time as users purchase your tracks.
+                    </p>
+                    <p className="text-white/60 text-sm leading-relaxed">
+                      Withdrawals are processed within 3-5 business days.
+                    </p>
+                  </div>
+                  
+                  {/* Premium indicator line */}
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-purple-500 opacity-50"></div>
                 </div>
               </motion.div>
             </div>

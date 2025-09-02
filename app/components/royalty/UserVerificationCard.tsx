@@ -483,43 +483,50 @@ export default function UserVerificationCard({
           animate={{ opacity: 1, y: 0 }}
       className="w-full"
     >
-      <div className="gradient-border">
-        <div className="bg-[#1A2338]/50 backdrop-blur-xl p-6 rounded-lg">
-          <div className="flex items-center gap-2 mb-6">
-            <FaUserShield className="text-violet-300 text-xl" />
-            <h2 className="text-white text-lg font-medium">Account Verification</h2>
+      {/* Premium card design matching the main dashboard cards */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#24183d]/95 to-[#1E1432]/98 backdrop-blur-xl">
+        {/* Subtle glow effect on hover */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+        
+        <div className="relative p-2.5"> {/* Minimal 10px padding */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-[#20DDBB]/20 to-purple-500/20 border border-white/10 backdrop-blur-sm">
+              <FaUserShield className="text-[#20DDBB] text-lg" />
+            </div>
+            <h2 className="text-white font-medium text-base">Account Verification</h2>
               </div>
               
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-violet-300 text-xs sm:text-sm">
-                <FaLock size={14} />
-                <span className="text-white font-medium">Security verification steps</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+                <FaLock className="text-[#20DDBB] text-sm" />
+                <span className="text-white/80 font-medium text-sm">Security verification steps</span>
               </div>
               
               {/* Email Verification Card */}
               <motion.div 
-                className={`gradient-border mb-3 transition-all duration-300 ${isEmailVerifiedLocal ? 'always-glow' : ''}`}
+                className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#24183d]/80 to-[#1E1432]/85 backdrop-blur-xl mb-3 transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={!isEmailVerifiedLocal ? { scale: 1.01, y: -2 } : {}}
               >
-                <div className={`relative p-5 rounded-lg transition-all duration-300 ${
-                  isEmailVerifiedLocal 
-                    ? 'bg-gradient-to-br from-[#1A2338]/80 to-[#1A2338]/75 backdrop-blur-xl' 
-                    : 'bg-gradient-to-br from-[#1A2338]/70 to-[#1A2338]/60 backdrop-blur-xl hover:from-[#1A2338]/75 hover:to-[#1f2942]/70'
-                }`}>
+                {/* Premium indicator line for verified state */}
+                {isEmailVerifiedLocal && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#20DDBB] to-purple-500 opacity-50"></div>
+                )}
+                
+                <div className="relative p-2.5"> {/* Minimal 10px padding */}
                   {isEmailVerifiedLocal && (
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent"></div>
                   )}
                   
                   <div className="flex justify-between items-start">
                     <div className="flex items-start gap-3">
-                      <div className={`p-2.5 rounded-lg ${
+                      <div className={`p-2 rounded-lg ${
                         isEmailVerifiedLocal 
-                          ? 'bg-[#20DDBB]/5 text-[#20DDBB]' 
-                          : 'bg-[#1A2338]/80 text-[#818BAC]'
+                          ? 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30' 
+                          : 'bg-white/5 text-white/60 border border-white/10'
                       }`}>
-                        <FaEnvelope />
+                        <FaEnvelope className="text-sm" />
                       </div>
                       <div>
                         <h3 className="text-white font-medium text-sm sm:text-base flex items-center">
@@ -564,17 +571,15 @@ export default function UserVerificationCard({
                           </div>
                         ) : (
                           <motion.button
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={handleVerifyEmail}
                             disabled={isVerifyingEmail}
-                            className={`
-                              relative overflow-hidden group flex items-center gap-1.5 text-xs py-1.5 px-3.5 rounded-full transition-all duration-300
-                            ${isVerifyingEmail
-                                ? 'bg-[#1A2338]/50 text-[#818BAC] cursor-not-allowed opacity-70' 
-                                : 'bg-gradient-to-r from-[#20DDBB]/70 to-[#20DDBB]/50 text-white hover:shadow-lg hover:shadow-[#1A2338]/20'
-                              }
-                            `}
+                            className={`flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-lg transition-all duration-300 max-w-fit ${
+                              isVerifyingEmail
+                                ? 'bg-white/5 text-white/40 cursor-not-allowed' 
+                                : 'bg-[#20DDBB]/20 text-[#20DDBB] border border-[#20DDBB]/30 hover:bg-[#20DDBB]/30'
+                            }`}
                           >
                             {isVerifyingEmail ? (
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
