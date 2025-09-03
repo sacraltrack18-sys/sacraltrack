@@ -7,6 +7,7 @@ import { useUser } from '@/app/context/user';
 import VibeCard, { VibeCardSkeleton } from '@/app/components/vibe/VibeCard';
 import VibeUploader from '@/app/components/vibe/VibeUploader';
 import Layout from '@/app/components/Layout';
+import UniversalLoader from '@/app/components/ui/UniversalLoader';
 import { 
   PhotoIcon, 
   VideoCameraIcon, 
@@ -209,10 +210,18 @@ export default function VibePage() {
         {/* Load more indicator */}
         {hasMore && (
           <div ref={ref} className="flex justify-center mt-8 pb-8">
-            <div className="flex items-center text-gray-400">
-              <ArrowPathIcon className={`h-5 w-5 mr-2 ${isLoadingVibes ? 'animate-spin' : ''}`} />
-              <span>{isLoadingVibes ? 'Loading more vibes...' : 'Load more vibes'}</span>
-            </div>
+            {isLoadingVibes ? (
+              <UniversalLoader 
+                size="md" 
+                variant="pulse" 
+                message="Loading more vibes..."
+              />
+            ) : (
+              <div className="flex items-center text-gray-400">
+                <ArrowPathIcon className="h-5 w-5 mr-2" />
+                <span>Load more vibes</span>
+              </div>
+            )}
           </div>
         )}
         

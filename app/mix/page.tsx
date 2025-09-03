@@ -10,6 +10,7 @@ import Layout from '../components/Layout';
 import { useInView } from 'react-intersection-observer';
 import MixCardSkeleton from '../components/mix/MixCardSkeleton';
 import { database, Query, APPWRITE_CONFIG } from '@/libs/AppWriteClient';
+import UniversalLoader from '../components/ui/UniversalLoader';
 
 const FilterButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
   <motion.button
@@ -231,18 +232,11 @@ export default function MixPage() {
         {/* Индикатор загрузки дополнительных миксов */}
         {(isLoadingMixes && allMixPosts.length > 0) && (
           <div className="flex justify-center mt-10">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="flex flex-col items-center gap-3"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 blur-md opacity-50 animate-pulse"></div>
-                <div className="relative animate-spin rounded-full h-10 w-10 border-4 border-purple-300/20 border-t-purple-600"></div>
-              </div>
-              <p className="text-sm text-purple-300/70">Loading more mixes...</p>
-            </motion.div>
+            <UniversalLoader 
+              size="lg" 
+              variant="pulse" 
+              message="Loading more mixes..."
+            />
           </div>
         )}
         

@@ -5,6 +5,7 @@ import { useUser } from "@/app/context/user"
 import { Suspense } from 'react'
 import useCreatePurchase from "@/app/hooks/useCreatePurchase";
 import { motion, AnimatePresence } from "framer-motion";
+import UniversalLoader from "@/app/components/ui/UniversalLoader";
 
 // Компонент музыкального лоадера
 const MusicLoader = () => {
@@ -51,12 +52,8 @@ export default function SuccessPage() {
   // Страница только для успеха покупки трека
   return (
     <Suspense fallback={<div className="flex justify-center items-center h-screen">
-      <div className="bg-[#1E2136] rounded-2xl p-2 w-full max-w-md shadow-2xl">
-        <div className="animate-pulse space-y-4">
-          <div className="h-40 bg-gray-700 rounded-xl"></div>
-          <div className="h-8 bg-gray-700 rounded-xl w-3/4"></div>
-          <div className="h-4 bg-gray-700 rounded-xl w-1/2"></div>
-        </div>
+      <div className="bg-[#1E2136] rounded-2xl p-8 w-full max-w-md shadow-2xl">
+        <UniversalLoader size="xl" variant="spinner" message="Loading..." />
       </div>
     </div>}>
       <SuccessPageContent />

@@ -81,7 +81,6 @@
         rgba(26, 26, 46, 0.4) 90%,
         transparent 100%
     );
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .searchWrapper {

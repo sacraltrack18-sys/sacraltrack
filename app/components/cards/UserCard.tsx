@@ -112,20 +112,16 @@ export const UserCard: React.FC<UserCardProps> = ({
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#20DDBB]/30 to-[#5D59FF]/30 flex items-center justify-center">
-            <div className="relative">
-              {/* Musical character with headphones */}
-              <div className="w-20 h-20 rounded-full bg-[#20DDBB] flex items-center justify-center">
-                <div className="w-10 h-5 bg-[#172339] rounded-full absolute top-4"></div>
-                <div className="w-14 h-4 bg-[#172339] rounded-full absolute bottom-5 transform rotate-[10deg]"></div>
+          <div className="w-full h-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center">
+            <motion.div 
+              className="w-24 h-24 rounded-full bg-gradient-to-br from-[#20DDBB] to-[#5D59FF] flex items-center justify-center shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full bg-white/40"></div>
               </div>
-              {/* Headphones */}
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-24 h-10">
-                <div className="absolute top-0 left-0 w-4 h-10 bg-[#5D59FF] rounded-l-full"></div>
-                <div className="absolute top-0 right-0 w-4 h-10 bg-[#5D59FF] rounded-r-full"></div>
-                <div className="absolute top-0 left-4 right-4 h-3 bg-[#5D59FF] rounded-full"></div>
-              </div>
-            </div>
+            </motion.div>
           </div>
         )}
       </div>
@@ -159,10 +155,10 @@ export const UserCard: React.FC<UserCardProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowRatingPanel(true)}
-              className="flex items-center bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 cursor-pointer"
+              className="flex items-center bg-black/50 backdrop-blur-md rounded-full px-4 py-2 md:px-3 md:py-1.5 border border-white/30 cursor-pointer shadow-lg min-w-[60px] min-h-[36px] md:min-w-[auto] md:min-h-[auto] active:bg-black/70 transition-all duration-200"
             >
-              <StarIcon className="h-4 w-4 mr-1 text-[#20DDBB]" />
-              <span className="text-white text-sm font-semibold">
+              <StarIcon className="h-5 w-5 md:h-4 md:w-4 mr-1.5 md:mr-1 text-[#20DDBB]" />
+              <span className="text-white text-base md:text-sm font-semibold">
                 {user.rating?.toFixed(1) || "0.0"}
               </span>
             </motion.div>
@@ -232,19 +228,19 @@ export const UserCard: React.FC<UserCardProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute inset-x-3 bottom-3 p-3 bg-black/80 backdrop-blur-md rounded-xl border border-white/20 z-30"
+            className="absolute inset-x-2 bottom-2 p-4 md:p-3 bg-black/90 backdrop-blur-md rounded-xl border border-white/30 z-30 shadow-2xl"
           >
             {!ratingSubmitted ? (
               <>
-                <p className="text-xs text-gray-300 mb-2">Rate user:</p>
-                <div className="flex justify-center space-x-1">
+                <p className="text-sm md:text-xs text-gray-300 mb-3 md:mb-2 text-center font-medium">Rate this user:</p>
+                <div className="flex justify-center space-x-3 md:space-x-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <motion.button
                       key={star}
                       whileHover={{ scale: 1.2 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => handleRating(star)}
-                      className={`text-lg ${star <= currentRating ? "text-[#20DDBB]" : "text-gray-500"}`}
+                      className={`text-2xl md:text-lg min-w-[40px] min-h-[40px] md:min-w-[auto] md:min-h-[auto] flex items-center justify-center rounded-full active:bg-white/10 transition-all duration-200 ${star <= currentRating ? "text-[#20DDBB]" : "text-gray-500"}`}
                     >
                       ★
                     </motion.button>

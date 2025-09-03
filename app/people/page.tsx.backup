@@ -43,7 +43,14 @@ import DefaultAvatar from "@/app/components/ui/DefaultAvatar";
 import UniversalSkeleton from "@/app/components/ui/UniversalSkeleton";
 import SimpleSidebarLoading from "@/app/components/ui/SimpleSidebarLoading";
 
-// Используем внутренний компонент UserCard (определен ниже)
+// Динамический импорт компонентов для оптимизации
+const UserCard = dynamic(() => import("@/app/components/cards/UserCard").then((mod) => ({ default: mod.UserCard })), {
+  loading: () => <UniversalSkeleton variant="user" />,
+  ssr: false
+});
+
+// Memoized UserCard для предотвращения лишних ре-рендеров
+const MemoizedUserCard = memo(UserCard);
 
 // Динамический импорт иконок
 const StarIconDynamic = dynamic(() =>
@@ -1207,8 +1214,8 @@ export default function People() {
     }
   };
 
-  // Рейтинг пользователя (первый вариант - переименован)
-  const handleRateUserFirst = async (userId: string, rating: number) => {
+  // Рейтинг пользователя
+  const handleRateUser = async (userId: string, rating: number) => {
     if (!user?.user?.id) {
       // Silently return if user is not logged in
       return;
@@ -1888,10 +1895,10 @@ export default function People() {
   const handleAddFriend = useCallback(async (userId: string) => {
     try {
       await addFriend(userId);
-      // Toast уже показывается в friends store, не дублируем
+      toast.success("Friend request sent!");
     } catch (error) {
       console.error("Error adding friend:", error);
-      // Toast ошибки тоже уже показывается в friends store
+      toast.error("Failed to send friend request. Please try again.");
     }
   }, [addFriend]);
 
@@ -1899,10 +1906,10 @@ export default function People() {
   const handleRemoveFriend = useCallback(async (userId: string) => {
     try {
       await removeFriend(userId);
-      // Toast уже показывается в friends store, не дублируем
+      toast.success("Friend removed successfully.");
     } catch (error) {
       console.error("Error removing friend:", error);
-      // Toast ошибки тоже уже показывается в friends store
+      toast.error("Failed to remove friend. Please try again.");
     }
   }, [removeFriend]);
 
@@ -2026,16 +2033,18 @@ export default function People() {
                         ? Array.from({ length: INITIAL_PAGE_SIZE }).map(
                             (_, index) => (
                               <div key={index}>
-                                <UniversalSkeleton variant="user" />
+                                <UserCardSkeleton />
                               </div>
                             ),
                           )
                         : visibleProfiles.map((profile) => (
                             <div key={profile.$id} className="transform-gpu">
-                              <UserCard
+                              <MemoizedUserCard
                                 user={profile}
                                 isFriend={isFriend(profile.user_id)}
-                                totalFriends={getUserFriendsCount(profile.user_id)}
+                                totalFriends={getUserFriendsCount(
+                                  profile.user_id,
+                                )}
                                 onAddFriend={handleAddFriend}
                                 onRemoveFriend={handleRemoveFriend}
                                 onRateUser={handleRateUser}

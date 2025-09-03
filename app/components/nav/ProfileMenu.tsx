@@ -108,7 +108,8 @@ const ProfileMenu = () => {
       <motion.button
         onClick={() => setIsLoginOpen(true)}
         className="relative flex items-center justify-center overflow-hidden bg-gradient-to-r
-                 from-blue-500 to-indigo-600 text-white rounded-2xl px-2 md:px-4 py-[10px]
+                 from-blue-500 to-indigo-600 text-white rounded-2xl px-2 md:px-4 
+                 h-[52px] sm:h-[46px] md:h-[50px]
                  shadow-lg shadow-blue-500/25 group"
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Head from 'next/head';
 import RoyaltyLayout from "@/app/layouts/RoyaltyLayout";
 import RoyaltyDashboard from "@/app/components/royalty/RoyaltyDashboard";
 import PurchaseNotification from "@/app/components/notifications/PurchaseNotification";
