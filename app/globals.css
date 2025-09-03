@@ -1,8 +1,8 @@
+@import './styles/animations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import './styles/animations.css';
 
 /* 3D Fire Icon Animation Styles */
 .fire-icon-3d {
@@ -271,40 +271,43 @@ body.welcome-modal-open {
     animation-delay: 200ms;
 }
 
+/* Optimized border-glow - reduced frequency for performance */
 @keyframes border-glow {
   0% {
     border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 0 20px rgba(32, 221, 187, 0.1);
+    box-shadow: 0 0 15px rgba(32, 221, 187, 0.08);
   }
   50% {
-    border-color: rgba(32, 221, 187, 0.3);
-    box-shadow: 0 0 25px rgba(32, 221, 187, 0.2);
+    border-color: rgba(32, 221, 187, 0.25);
+    box-shadow: 0 0 20px rgba(32, 221, 187, 0.15);
   }
   100% {
     border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 0 20px rgba(32, 221, 187, 0.1);
+    box-shadow: 0 0 15px rgba(32, 221, 187, 0.08);
   }
 }
 
 .animate-border-glow {
-  animation: border-glow 3s ease-in-out infinite;
+  animation: border-glow 4s ease-in-out infinite;
+  will-change: border-color, box-shadow;
 }
 
-/* Добавляем анимацию свечения для элементов */
+/* Optimized glow - reduced intensity for performance */
 @keyframes glow {
   0% {
-    filter: drop-shadow(0 0 3px rgba(32, 221, 187, 0.3));
+    filter: drop-shadow(0 0 2px rgba(32, 221, 187, 0.2));
   }
   50% {
-    filter: drop-shadow(0 0 10px rgba(32, 221, 187, 0.7));
+    filter: drop-shadow(0 0 6px rgba(32, 221, 187, 0.4));
   }
   100% {
-    filter: drop-shadow(0 0 3px rgba(32, 221, 187, 0.3));
+    filter: drop-shadow(0 0 2px rgba(32, 221, 187, 0.2));
   }
 }
 
 .animate-glow {
-  animation: glow 3s ease-in-out infinite;
+  animation: glow 4s ease-in-out infinite;
+  will-change: filter;
 }
 
 /* Анимация для hover-эффекта подъема элементов */
@@ -332,13 +335,13 @@ body.welcome-modal-open {
   background-size: 200% 100%;
 }
 
-/* Анимация плавного движения вверх-вниз */
+/* Optimized floatY - reduced movement for performance */
 @keyframes floatY {
   0% {
     transform: translateY(0px);
   }
   50% {
-    transform: translateY(-5px);
+    transform: translateY(-3px);
   }
   100% {
     transform: translateY(0px);
@@ -346,7 +349,8 @@ body.welcome-modal-open {
 }
 
 .animate-floatY {
-  animation: floatY 4s ease-in-out infinite;
+  animation: floatY 5s ease-in-out infinite;
+  will-change: transform;
 }
 
 /* Анимация появления с масштабированием */

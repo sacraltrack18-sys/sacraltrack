@@ -8,6 +8,10 @@ interface SafeImageProps {
     height: number;
     className?: string;
     priority?: boolean;
+    quality?: number;
+    sizes?: string;
+    placeholder?: 'blur' | 'empty';
+    fill?: boolean;
 }
 
 const SafeImage: React.FC<SafeImageProps> = ({ 
@@ -16,7 +20,11 @@ const SafeImage: React.FC<SafeImageProps> = ({
     width, 
     height, 
     className,
-    priority = false 
+    priority = false,
+    quality = 75,
+    sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw",
+    placeholder = 'blur',
+    fill = false
 }) => {
     const [error, setError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -52,17 +60,19 @@ const SafeImage: React.FC<SafeImageProps> = ({
             <Image
                 src={src}
                 alt={alt}
-                width={width}
-                height={height}
+                width={fill ? undefined : width}
+                height={fill ? undefined : height}
+                fill={fill}
                 className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
                 onError={handleError}
                 onLoad={handleLoad}
                 loading={priority ? 'eager' : 'lazy'}
                 priority={priority}
-                placeholder="blur"
-                blurDataURL={blurDataURL}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                quality={75}
+                placeholder={placeholder}
+                blurDataURL={placeholder === 'blur' ? blurDataURL : undefined}
+                sizes={sizes}
+                quality={quality}
+                unoptimized={false} // Enable Next.js optimization
             />
             {isLoading && (
                 <div 

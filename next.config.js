@@ -17,6 +17,40 @@ const nextConfig = {
     productionBrowserSourceMaps: false,
     output: 'standalone',
     trailingSlash: false,
+    poweredByHeader: false,
+    compress: true,
+    
+    // Performance optimizations
+    experimental: {
+        optimizeCss: true,
+        optimizePackageImports: ['framer-motion', 'react-icons'],
+        scrollRestoration: true,
+    },
+    
+    // Bundle analysis and optimization
+    webpack: (config, { dev, isServer }) => {
+        // Production optimizations
+        if (!dev && !isServer) {
+            // Enable chunk splitting for better caching
+            config.optimization.splitChunks = {
+                chunks: 'all',
+                cacheGroups: {
+                  vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'all',
+                  },
+                  framerMotion: {
+                    test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+                    name: 'framer-motion',
+                    chunks: 'all',
+                  },
+                },
+            };
+        }
+        
+        return config;
+    },
     // External packages for server components
     serverExternalPackages: ['@ffmpeg/core', '@ffmpeg/ffmpeg'],
     // CORS and security headers

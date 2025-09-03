@@ -16,7 +16,7 @@ import { Toaster } from 'react-hot-toast';
 import { Suspense } from 'react';
 import Background from '@/app/components/Background'; 
 import { PlayerProvider } from '@/app/context/playerContext'; 
-import GlobalLoader from './components/GlobalLoader'
+import LazyGlobalLoader from './components/lazy/LazyGlobalLoader'
 import ClientWelcomeModal from './components/ClientWelcomeModal';
 import Script from 'next/script';
 import { OnboardingProvider } from './context/OnboardingContext';
@@ -26,6 +26,8 @@ import AuthErrorHandler from './components/AuthErrorHandler';
 import { clsx } from 'clsx';
 import { inter } from '@/app/fonts/inter';
 import YandexMetrika from './components/YandexMetrika';
+import PerformanceMonitor from './components/PerformanceMonitor';
+import ResourcePreloader from './components/ResourcePreloader';
 
 export const metadata: Metadata = {
     title: 'Sacral Track',
@@ -63,6 +65,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
                 <link rel="icon" href="/favicon.ico" sizes="any" />
                 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+                
+                {/* PWA Manifest */}
+                <link rel="manifest" href="/manifest.json" />
+                <meta name="theme-color" content="#20DDBB" />
+                <meta name="apple-mobile-web-app-capable" content="yes" />
+                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
                 
                 {/* SEO Keywords - дополнительные ключевые слова для поисковых систем */}
                 <meta name="keywords" content="music marketplace, artist platform, music streaming, music genres, pop, rock, hip hop, rap, electronic, EDM, classical, jazz, blues, country, R&B, soul, folk, indie, alternative, metal, punk, reggae, funk, disco, techno, house, ambient, lo-fi, trap, dubstep, trance, drum and bass, instrumental, vocal, beats, producers, musicians, songs, albums, singles, playlists, new music, underground, independent music, royalties, music community" />
@@ -108,9 +116,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 ` }} />
             </head>
             <body className={clsx(inter.variable, 'bg-[#0F1122]')}>
-                <GlobalLoader />
+                <LazyGlobalLoader />
                 <Suspense fallback={<></>}>
                     <YandexMetrika />
+                    <PerformanceMonitor />
+                    <ResourcePreloader />
                 </Suspense>
                 {/*  <Background /> */}
                 
@@ -231,16 +241,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </noscript>
                 
                 {/* Добавляем скрипт для отключения Service Worker как клиентский скрипт */}
-                <Script id="disable-service-worker" strategy="afterInteractive">
+                <Script id="register-service-worker" strategy="afterInteractive">
                     {`
                     if ('serviceWorker' in navigator) {
-                      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                        registrations.forEach(registration => {
-                          registration.unregister();
-                          console.log('ServiceWorker unregistered');
-                        });
-                      }).catch(error => {
-                        console.error('Error unregistering service worker:', error);
+                      window.addEventListener('load', function() {
+                        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                          .then(function(registration) {
+                            console.log('🚀 ServiceWorker registered:', registration.scope);
+                          })
+                          .catch(function(error) {
+                            console.log('❌ ServiceWorker registration failed:', error);
+                          });
                       });
                     }
                     `}
