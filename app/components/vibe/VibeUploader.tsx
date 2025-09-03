@@ -1588,7 +1588,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* 1. Подложка под модальным окном: bg-black/70 + backdrop-blur-2xl всегда */}
+      {/* 1. Подложка под модальным окном: полупрозрачный черный фон с блюром */}
       <div className="fixed inset-0 bg-black/70 backdrop-blur-2xl" style={{ zIndex: 999998 }} />
       <motion.div 
         initial={{ y: isMobile ? 0 : 100, opacity: 0 }} 
@@ -1598,7 +1598,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
         style={{
           padding: isMobile ? 0 : 5,
           minHeight: isMobile ? '100vh' : undefined,
-          maxHeight: isMobile ? '100vh' : '96vh',
+          maxHeight: isMobile ? '100vh' : '75vh', // Уменьшил высоту на десктопе с 96vh до 75vh
           background: 'linear-gradient(120deg, #24143a 0%, #2a2151 100%)',
           backdropFilter: 'blur(36px) saturate(1.25)',
           WebkitBackdropFilter: 'blur(36px) saturate(1.25)',
@@ -1662,7 +1662,7 @@ export const VibeUploader: React.FC<VibeUploaderProps> = ({ onClose, onSuccess }
           )}
         </div>
         {/* Content */}
-        <div className={`pt-1 pb-1 px-1 overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-200px)]' : 'max-h-[calc(90vh-120px)]'}`}>
+        <div className={`pt-1 pb-1 px-1 overflow-y-auto ${isMobile ? 'max-h-[calc(100vh-200px)]' : 'max-h-[calc(75vh-120px)]'}`}>
           {renderTabContent()}
         </div>
         {/* Фиксированная главная кнопка Share Vibe */}
