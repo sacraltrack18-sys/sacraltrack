@@ -19,6 +19,7 @@ import { PostMainSkeleton } from "./components/PostMain";
 import { ErrorBoundary } from "react-error-boundary";
 import SafeVibeCard from "./components/vibe/SafeVibeCard";
 import PostApiCard, { ApiTrack } from "./components/cards/PostApiCard"; // Импортируем PostApiCard и его тип
+import UniversalLoader from "./components/ui/UniversalLoader";
 
 // Import app initialization to disable console logs
 import '@/app/utils/initApp';
@@ -442,60 +443,11 @@ function HomePageContent() {
           <ClientOnly>
             {(isLoading || isLoadingPosts || isLoadingVibes) && initialContentLoaded && (
               <div className="py-8 flex flex-col items-center justify-center">
-                <div className="relative">
-                  {/* Main loader circle */}
-                  <div className="w-12 h-12 rounded-full bg-[#24183D] border border-[#20DDBB]/30 flex items-center justify-center relative">
-                    <div className="absolute inset-0 rounded-full border-2 border-[#20DDBB] border-t-transparent animate-spin"></div>
-                    
-                    {/* Inner pulsing circle */}
-                    <motion.div
-                      className="w-6 h-6 rounded-full bg-[#20DDBB]/20"
-                      animate={{ 
-                        scale: [1, 1.2, 1],
-                        opacity: [0.6, 0.8, 0.6]
-                      }}
-                      transition={{ 
-                        repeat: Infinity, 
-                        duration: 1.5,
-                        ease: "easeInOut" 
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Animated particles around the loader */}
-                  <motion.div
-                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#20DDBB]/60"
-                    animate={{ 
-                      y: [0, -10, 0],
-                      x: [0, 5, 0],
-                      opacity: [0.6, 1, 0.6]
-                    }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 2,
-                      ease: "easeInOut" 
-                    }}
-                  />
-                  
-                  <motion.div
-                    className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-[#8A2BE2]/60"
-                    animate={{ 
-                      y: [0, 8, 0],
-                      x: [0, -5, 0],
-                      opacity: [0.6, 1, 0.6]
-                    }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 1.8,
-                      ease: "easeInOut",
-                      delay: 0.3
-                    }}
-                  />
-                </div>
-                
-                <p className="mt-4 text-[#20DDBB] text-sm font-medium tracking-wide animate-pulse">
-                  Loading more tracks...
-                </p>
+                <UniversalLoader 
+                  size="lg" 
+                  variant="pulse" 
+                  message="Loading more tracks..."
+                />
               </div>
             )}
           </ClientOnly>

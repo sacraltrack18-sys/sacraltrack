@@ -117,6 +117,8 @@ function CheckoutRedirectContent() {
   );
 }
 
+import UniversalLoader from '../components/ui/UniversalLoader';
+
 // Loading fallback component
 function LoadingFallback() {
   return (
@@ -126,15 +128,11 @@ function LoadingFallback() {
           <div className="flex items-center justify-center mb-6">
             <div className="text-[#20DDBB] text-3xl font-bold">SacralTrack</div>
           </div>
-          <div className="text-white text-xl font-semibold mb-4">
-            Loading checkout...
-          </div>
-          <div className="relative h-2 bg-[#39316A] rounded-full overflow-hidden mb-6">
-            <div 
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] animate-pulse"
-              style={{ width: '70%' }}
-            ></div>
-          </div>
+          <UniversalLoader 
+            size="lg" 
+            variant="spinner" 
+            message="Loading checkout..."
+          />
         </div>
       </div>
     </div>

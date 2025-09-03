@@ -31,13 +31,14 @@ import PeopleSearchBar from "@/app/components/nav/PeopleSearchBar"
 import ProfileMenu from "@/app/components/nav/ProfileMenu"
 import ReleaseButton from "@/app/components/nav/ReleaseButton"
 import VibeButton from "@/app/components/nav/VibeButton"
+import UniversalLoader from "@/app/components/ui/UniversalLoader"
 
 // Dynamically import components that are not needed immediately
 const NotificationBell = dynamic(() => import("@/app/components/notifications/NotificationBell"), { 
   ssr: false,
   loading: () => (
-    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center animate-pulse">
-      <div className="w-4 h-4 rounded-full bg-white/10"></div>
+    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+      <UniversalLoader size="sm" variant="dots" />
     </div>
   )
 })

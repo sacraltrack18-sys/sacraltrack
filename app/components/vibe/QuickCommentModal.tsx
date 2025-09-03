@@ -49,7 +49,20 @@ const QuickCommentModal: React.FC<QuickCommentModalProps> = ({
   const [commentText, setCommentText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [localComments, setLocalComments] = useState<VibeComment[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile on client side
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Update local comments when props change
   useEffect(() => {
@@ -200,13 +213,13 @@ const QuickCommentModal: React.FC<QuickCommentModalProps> = ({
             }}
           />
 
-          {/* Centered Modal */}
+          {/* Mobile-first responsive modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            initial={{ opacity: 0, y: isMobile ? 100 : 50, scale: isMobile ? 1 : 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isMobile ? 100 : 50, scale: isMobile ? 1 : 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed inset-2 sm:inset-4 md:inset-8 lg:inset-16 z-50 flex items-center justify-center"
+            className="fixed inset-x-0 top-[70px] bottom-[70px] sm:inset-4 md:inset-8 lg:inset-16 z-50 flex items-center justify-center"
             onClick={(e) => {
               // Only close if clicking on the modal container itself, not its children
               if (e.target === e.currentTarget) {
@@ -216,7 +229,7 @@ const QuickCommentModal: React.FC<QuickCommentModalProps> = ({
           >
             {/* Modal Content */}
             <div 
-              className="w-full max-w-2xl lg:max-w-4xl h-full max-h-[85vh] sm:max-h-[90vh] bg-gradient-to-br from-[#24183d]/98 to-[#1E1432]/98 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col relative"
+              className="w-full max-w-none sm:max-w-2xl lg:max-w-4xl h-full max-h-full sm:max-h-[90vh] bg-gradient-to-br from-[#24183d]/98 to-[#1E1432]/98 backdrop-blur-xl rounded-none sm:rounded-2xl border-0 sm:border border-white/20 shadow-2xl overflow-hidden flex flex-col relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Top-right close button */}

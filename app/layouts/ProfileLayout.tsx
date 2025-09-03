@@ -30,6 +30,7 @@ import { MdOutlineMusicNote } from 'react-icons/md';
 import UserVibes from "@/app/components/profile/UserVibes";
 import { useEditContext } from "@/app/context/editContext";
 import { FaUserPlus, FaUserCheck, FaUserMinus, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
+import UniversalLoader from "@/app/components/ui/UniversalLoader";
 
 export default function ProfileLayout({ children, params, isFriend, pendingRequest, isLoading, onFriendAction }: { children: React.ReactNode, params: { params: { id: string } }, isFriend?: boolean, pendingRequest?: any, isLoading?: boolean, onFriendAction?: (action?: 'accept' | 'reject' | 'reset') => void }) {
     const profileId = params.params.id;
@@ -264,7 +265,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                 >
                                     {isProfileLoading ? (
                                         <div className="flex justify-center items-center min-h-[300px]">
-                                            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#20DDBB]"></div>
+                                            <UniversalLoader size="lg" variant="spinner" message="Loading profile..." />
                                         </div>
                                     ) : hasUserReleases || (postsByUser && postsByUser.length > 0) ? (
                                         <div className="flex justify-center">

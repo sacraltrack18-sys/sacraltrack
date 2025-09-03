@@ -1,10 +1,14 @@
 import React from 'react';
+import UniversalLoader from './ui/UniversalLoader';
 
 const Preloader = () => {
     return (
         <div className="preloader bg-[#000] items-center w-full flex flex-col justify-center h-screen">
-            <img className="w-[100px] h-auto items-center" src="/images/loader.gif" alt="sacraltrack preloader" />
-            {/*<p className="text-center mt-4">Loading...</p>*/}
+            <UniversalLoader 
+                size="xl" 
+                variant="spinner" 
+                message="Loading Sacral Track..."
+            />
         </div>
     );
 };
