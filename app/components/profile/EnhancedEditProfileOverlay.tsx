@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cropper } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
@@ -25,31 +25,42 @@ import { IoCheckmarkCircle, IoImageOutline } from 'react-icons/io5';
 import { HiOutlineSparkles } from 'react-icons/hi';
 import { FaMicrophone, FaHeadphones } from 'react-icons/fa';
 
-// Animation variants
+// Debounce функция для оптимизации валидации
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// Упрощенные анимации для лучшей производительности
 const overlayVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.3 } },
-  exit: { opacity: 0, transition: { duration: 0.2 } }
+  visible: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.15 } }
 };
 
 const modalVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 20 },
+  hidden: { opacity: 0, scale: 0.98 },
   visible: { 
     opacity: 1, 
-    scale: 1, 
-    y: -20,
-    transition: { damping: 25, stiffness: 300 }
+    scale: 1,
+    transition: { duration: 0.2 }
   },
   exit: { 
     opacity: 0, 
-    scale: 0.95, 
-    y: 20, 
-    transition: { duration: 0.2 } 
+    scale: 0.98, 
+    transition: { duration: 0.15 } 
   }
 };
 
 const tabVariants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
   exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
 };
@@ -266,9 +277,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                   // Mark as uploaded and show success
                   setImageUploaded(true);
                   
-                  toast.custom(() => (
-                    <SuccessToast message="Profile image updated successfully" />
-                  ), { duration: 3000 });
+                  // Убираем toast здесь, так как он будет показан в handleSave
                 } catch (error) {
                   console.error('Error saving image:', error);
                   toast.error('Failed to save profile image');
@@ -276,9 +285,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
               } else {
                 // Just mark as uploaded if we don't have a profile yet
                 setImageUploaded(true);
-                toast.custom(() => (
-                  <SuccessToast message="Image cropped successfully" />
-                ), { duration: 3000 });
+                // Убираем toast здесь, так как он будет показан в handleSave
               }
             }
             setIsSavingImage(false);
@@ -293,10 +300,10 @@ const EnhancedEditProfileOverlay: React.FC = () => {
   };
   
   // Handle social link change
-  const handleSocialLinkChange = (platform: keyof SocialLinks, value: string) => {
+  const handleSocialLinkChange = useCallback((platform: keyof SocialLinks, value: string) => {
     setSocialLinks(prev => ({ ...prev, [platform]: value }));
     setFormTouched(true);
-  };
+  }, [setFormTouched]);
   
   // Reset image state
   const resetImageState = () => {
@@ -345,8 +352,8 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     }
   }, [isEditProfileOpen, currentProfile, location]);
   
-  // Handle form submission
-  const handleSave = async () => {
+  // Мемоизированные обработчики событий
+  const handleSave = useCallback(async () => {
     setIsLoading(true);
     setError('');
     
@@ -419,8 +426,12 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         await setCurrentProfile(currentProfile.$id);
         
         // Show success toast
+        const successMessage = file && !imageUploaded 
+          ? "Profile and image updated successfully" 
+          : "Profile updated successfully";
+        
         toast.custom(() => (
-          <SuccessToast message="Profile updated successfully" />
+          <SuccessToast message={successMessage} />
         ), { duration: 3000 });
         
         // Reset form state
@@ -448,19 +459,19 @@ const EnhancedEditProfileOverlay: React.FC = () => {
       setIsLoading(false);
       setUploadingImage(false);
     }
-  };
+  }, [name, bio, location, website, role, socialLinks, file, imageUploaded, currentProfile, setCurrentProfile, setIsEditProfileOpen, setFormTouched]);
   
   // Close modal
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (formTouched) {
       // Could add confirmation dialog here
     }
     setIsEditProfileOpen(false);
     // Не сбрасываем форму при закрытии, чтобы сохранить данные для следующего открытия
-  };
+  }, [formTouched, setIsEditProfileOpen]);
   
   // Reset form state
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setImagePreview('');
     setFile(null);
     setImageUploaded(false);
@@ -469,10 +480,10 @@ const EnhancedEditProfileOverlay: React.FC = () => {
     setError('');
     setActiveTab('basic');
     setFormTouched(false);
-  };
+  }, []);
   
   // Get profile image
-  const getProfileImage = () => {
+  const getProfileImage = useCallback(() => {
     if (imagePreview) return imagePreview;
     if (currentProfile?.image && currentProfile.image.trim()) {
       try {
@@ -483,7 +494,48 @@ const EnhancedEditProfileOverlay: React.FC = () => {
       }
     }
     return '/images/placeholders/user-placeholder.svg';
-  };
+  }, [imagePreview, currentProfile?.image]);
+  
+  // Мемоизированные вычисляемые значения
+  const profileImageUrl = useMemo(() => getProfileImage(), [getProfileImage]);
+  
+  const isFormValid = useMemo(() => {
+    return name.trim().length > 0;
+  }, [name]);
+  
+  // Debounced валидация для полей формы
+  const debouncedValidation = useCallback(
+    debounce((fieldName: string, value: string) => {
+      // Здесь можно добавить дополнительную валидацию
+      console.log(`Validating ${fieldName}:`, value);
+    }, 300),
+    []
+  );
+  
+  // Debounced обработчики для полей ввода
+  const handleNameChange = useCallback((value: string) => {
+    setName(value);
+    setFormTouched(true);
+    debouncedValidation('name', value);
+  }, [debouncedValidation]);
+  
+  const handleBioChange = useCallback((value: string) => {
+    setBio(value);
+    setFormTouched(true);
+    debouncedValidation('bio', value);
+  }, [debouncedValidation]);
+  
+  const handleLocationChange = useCallback((value: string) => {
+    setLocation(value);
+    setFormTouched(true);
+    debouncedValidation('location', value);
+  }, [debouncedValidation]);
+  
+  const handleWebsiteChange = useCallback((value: string) => {
+    setWebsite(value);
+    setFormTouched(true);
+    debouncedValidation('website', value);
+  }, [debouncedValidation]);
   
   if (!isEditProfileOpen) return null;
   
@@ -517,8 +569,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                     className={`px-4 py-2 mx-1 rounded-xl font-semibold text-base transition-all backdrop-blur-md bg-white/10 hover:bg-white/20 border-none shadow-lg ${activeTab === tab ? 'ring-2 ring-white/60 text-white' : 'text-white/70'}`}
                     style={{ boxShadow: '0 2px 16px 0 rgba(255,255,255,0.08)' }}
                     onClick={() => setActiveTab(tab)}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ y: 0 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     {tab === 'basic' ? 'Profile' : 'Social Links'}
                   </motion.button>
@@ -526,8 +577,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
               </div>
               <motion.button
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={handleClose}
               >
                 <MdClose className="text-white" size={20} />
@@ -555,13 +605,12 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                       <div className="relative group">
                         <div className="w-40 h-40 rounded-xl overflow-hidden border-2 border-[#20DDBB]/30 shadow-[0_0_15px_rgba(32,221,187,0.2)] mb-2">
                           <img
-                            src={getProfileImage()}
+                            src={profileImageUrl}
                             alt="Profile"
                             className="w-full h-full object-cover"
                           />
                           <motion.div 
                             className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                            whileHover={{ opacity: 1 }}
                           >
                             <button
                               className="bg-[#20DDBB] text-black font-medium py-2 px-4 rounded-lg flex items-center gap-2"
@@ -646,8 +695,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                                       ${isSavingImage
                                         ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
                                         : 'bg-gradient-to-r from-[#20DDBB]/20 to-[#5D59FF]/20 hover:from-[#20DDBB]/30 hover:to-[#5D59FF]/30 text-[#20DDBB]'}`}
-                            whileHover={!isSavingImage ? { y: -2, boxShadow: '0 8px 20px rgba(32, 221, 187, 0.15)' } : {}}
-                            whileTap={!isSavingImage ? { y: 0 } : {}}
+                            whileTap={!isSavingImage ? { scale: 0.98 } : {}}
                             onClick={handleCrop}
                             disabled={isSavingImage}
                           >
@@ -679,10 +727,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                       <input
                         type="text"
                         value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          setFormTouched(true);
-                        }}
+                        onChange={(e) => handleNameChange(e.target.value)}
                         className="w-full bg-[#24183D]/70 text-white rounded-xl p-3 border border-white/10 focus:border-[#20DDBB] outline-none transition-all focus:shadow-[0_0_15px_rgba(32,221,187,0.15)]"
                         placeholder="Your username"
                       />
@@ -709,8 +754,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                               setRole(option.label);
                               setFormTouched(true);
                             }}
-                            whileHover={{ scale: 1.05, y: -2 }}
-                            whileTap={{ scale: 0.97 }}
+                            whileTap={{ scale: 0.98 }}
                           >
                             {option.id === 'artist' && <IoMdMusicalNotes className="text-[#20DDBB]" />}
                             {option.id === 'producer' && <MdOutlineWorkOutline className="text-[#20DDBB]" />}
@@ -732,8 +776,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                         <span>Location</span>
                         <motion.button
                           type="button"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={handleDetectLocation}
                           disabled={isDetectingLocation}
                           className="text-xs text-[#20DDBB] hover:text-[#20DDBB]/80 flex items-center gap-1 disabled:opacity-50"
@@ -749,10 +792,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                           type="text"
                           placeholder="Your location"
                           value={location}
-                          onChange={(e) => {
-                            setLocation(e.target.value);
-                            setFormTouched(true);
-                          }}
+                          onChange={(e) => handleLocationChange(e.target.value)}
                           className="w-full bg-white/5 text-white rounded-lg border border-white/10 focus:border-[#20DDBB]/50 focus:ring-1 focus:ring-[#20DDBB]/50 pl-10 py-2.5 outline-none transition"
                         />
                       </div>
@@ -770,10 +810,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                         <input
                           type="text"
                           value={website}
-                          onChange={(e) => {
-                            setWebsite(e.target.value);
-                            setFormTouched(true);
-                          }}
+                          onChange={(e) => handleWebsiteChange(e.target.value)}
                           className="w-full bg-[#24183D]/70 text-white rounded-xl p-3 pl-10 border border-white/10 focus:border-[#20DDBB] outline-none transition-all focus:shadow-[0_0_15px_rgba(32,221,187,0.15)]"
                           placeholder="Your website URL"
                         />
@@ -789,10 +826,7 @@ const EnhancedEditProfileOverlay: React.FC = () => {
                       <label className="block text-white mb-2 font-medium">Bio</label>
                       <textarea
                         value={bio}
-                        onChange={(e) => {
-                          setBio(e.target.value);
-                          setFormTouched(true);
-                        }}
+                        onChange={(e) => handleBioChange(e.target.value)}
                         className="w-full bg-[#24183D]/70 text-white rounded-xl p-3 border border-white/10 focus:border-[#20DDBB] outline-none min-h-[100px] resize-none transition-all focus:shadow-[0_0_15px_rgba(32,221,187,0.15)]"
                         placeholder="Tell us about yourself"
                       />
@@ -867,7 +901,6 @@ const EnhancedEditProfileOverlay: React.FC = () => {
             <div className="p-[5px] pt-2 flex justify-end bg-transparent border-none">
               <motion.button
                 className="relative overflow-hidden py-3 px-8 rounded-xl bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-200 flex items-center gap-2 border-none"
-                whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
                 disabled={isLoading || uploadingImage}

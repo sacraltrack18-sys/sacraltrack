@@ -1,6 +1,9 @@
 import { database, ID, Query } from "@/libs/AppWriteClient"
 import { SocialLinks } from "@/app/types"
 
+// Кэш для предотвращения дублирующих запросов
+const updateCache = new Map<string, Promise<any>>();
+
 interface UpdateProfileData {
   id: string;
   user_id?: string;
@@ -21,8 +24,18 @@ interface UpdateProfileData {
 }
 
 const useUpdateProfile = async (data: UpdateProfileData) => {
+  const { id, user_id, ...updateData } = data;
+  
+  // Создаем ключ кэша
+  const cacheKey = `${id}-${JSON.stringify(updateData)}`;
+  
+  // Проверяем кэш
+  if (updateCache.has(cacheKey)) {
+    console.log('Using cached update result');
+    return updateCache.get(cacheKey);
+  }
+  
   try {
-    const { id, user_id, ...updateData } = data;
     
     // Обработка social_links для сохранения в БД
     if (updateData.social_links && typeof updateData.social_links !== 'string') {
@@ -45,6 +58,9 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
         updateData
       );
       console.log('Профиль успешно обновлен');
+      
+      // Кэшируем результат
+      updateCache.set(cacheKey, Promise.resolve(id));
     } catch (error: any) {
       // Если документ не найден, создаем новый
       if (error.code === 404 && user_id) {
@@ -99,6 +115,9 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
           }
         );
         console.log('Новый профиль создан:', newProfileId);
+        
+        // Кэшируем результат
+        updateCache.set(cacheKey, Promise.resolve(newProfileId));
         return newProfileId;
       } else {
         // Если другая ошибка, пробрасываем её дальше
@@ -107,6 +126,8 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
     }
   } catch (error) {
     console.error('Ошибка при обновлении/создании профиля:', error);
+    // Очищаем кэш при ошибке
+    updateCache.delete(cacheKey);
     throw error;
   }
 }

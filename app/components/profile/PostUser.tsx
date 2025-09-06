@@ -606,7 +606,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4">
+        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[calc(100%-20px)] sm:max-w-[450px] mx-auto mb-4">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

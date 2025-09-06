@@ -204,7 +204,7 @@ export default function ProfileClientComponent() {
         isLoading={isLoading}
         onFriendAction={contextUser?.user?.id !== userId ? handleFriendAction : undefined}
       >
-      <div className="pt-[90px] lg:pr-0 w-full max-w-[1200px] ">
+      <div className="pt-[90px] lg:pr-0 w-full max-w-[1200px] px-[10px] sm:px-0">
         <ClientOnly>
           {!hidePostUser && (
             <div className="justify center">

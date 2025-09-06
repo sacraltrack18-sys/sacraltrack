@@ -16,7 +16,6 @@ import { Toaster } from 'react-hot-toast';
 import { Suspense } from 'react';
 import Background from '@/app/components/Background'; 
 import { PlayerProvider } from '@/app/context/playerContext'; 
-import LazyGlobalLoader from './components/lazy/LazyGlobalLoader'
 import ClientWelcomeModal from './components/ClientWelcomeModal';
 import Script from 'next/script';
 import { OnboardingProvider } from './context/OnboardingContext';
@@ -116,7 +115,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 ` }} />
             </head>
             <body className={clsx(inter.variable, 'bg-[#0F1122]')}>
-                <LazyGlobalLoader />
                 <Suspense fallback={<></>}>
                     <YandexMetrika />
                     <PerformanceMonitor />
