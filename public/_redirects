@@ -1,0 +1,13 @@
+# Статические файлы Next.js
+/_next/static/*  /_next/static/:splat  200
+/_next/image/*   /_next/image/:splat   200
+/_next/data/*    /_next/data/:splat    200
+
+# API запросы
+/api/*  /.netlify/functions/___netlify-server-handler  200
+
+# Обработка 404 ошибок
+/404  /.netlify/functions/___netlify-server-handler  200
+
+# SPA fallback - ВАЖНО: это должно быть последним правилом
+/*  /.netlify/functions/___netlify-server-handler  200 

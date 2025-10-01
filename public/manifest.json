@@ -1,0 +1,88 @@
+{
+  "name": "Sacral Track - Music Network & Marketplace",
+  "short_name": "Sacral Track",
+  "description": "Discover, stream, and monetize music on the ultimate platform for artists and music lovers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121324",
+  "theme_color": "#20DDBB",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["music", "entertainment", "social"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Upload Music",
+      "short_name": "Upload",
+      "description": "Upload your tracks to Sacral Track",
+      "url": "/upload",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Discover Music",
+      "short_name": "Discover",
+      "description": "Explore trending music and artists",
+      "url": "/",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "My Profile",
+      "short_name": "Profile",
+      "description": "View and edit your profile",
+      "url": "/profile",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Royalties",
+      "short_name": "Earnings",
+      "description": "Check your earnings and withdraw funds",
+      "url": "/royalty",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-wide.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Sacral Track Desktop Experience"
+    },
+    {
+      "src": "/images/screenshot-narrow.jpg", 
+      "sizes": "720x1280",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Sacral Track Mobile Experience"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

@@ -1,0 +1,294 @@
+"use client"
+import { useState, useEffect } from 'react';
+import { useRouter } from "next/navigation";
+import { useUser } from "@/app/context/user";
+import { BsChevronLeft } from "react-icons/bs";
+import TopNav from "@/app/layouts/includes/TopNav";
+import { motion } from 'framer-motion';
+import TermsSection, { InfoCard, FeatureGrid, Notice, CheckList } from '../components/terms/TermsSection';
+import { FaArrowRight } from "react-icons/fa";
+
+const sections = [
+  { id: 'introduction', title: 'Introduction', icon: '📝' },
+  { id: 'acceptance', title: 'Terms Acceptance', icon: '✅' },
+  { id: 'intellectual-property', title: 'Intellectual Property', icon: '⚖️' },
+  { id: 'registration', title: 'Registration', icon: '🔐' },
+  { id: 'features', title: 'Platform Features', icon: '⭐' },
+  { id: 'vibes', title: 'Vibes & Social', icon: '🌟' },
+  { id: 'copyright', title: 'Copyright & Licensing', icon: '🎵' },
+  { id: 'publication', title: 'Publication', icon: '📤' },
+  { id: 'content', title: 'Content Guidelines', icon: '📋' },
+  { id: 'royalty', title: 'Royalties & Revenue', icon: '💰' },
+  { id: 'payment', title: 'Payment', icon: '💳' },
+  { id: 'privacy', title: 'Privacy & Security', icon: '🔒' },
+  { id: 'rankings', title: 'Rankings & Ratings', icon: '🏆' }
+];
+
+export default function TermsOfUse() {
+  const router = useRouter();
+  const userContext = useUser();
+  const [activeSection, setActiveSection] = useState('introduction');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      setActiveSection(sectionId);
+    }
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 500);
+      
+      const sections = document.querySelectorAll('section[id]');
+      sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= 100 && rect.bottom >= 100) {
+          setActiveSection(section.id);
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <>
+      <TopNav params={{ id: userContext?.user?.id as string }} />
+      
+      <div className="min-h-screen bg-gradient-to-b from-[#1f1239] to-[#150c28] text-white">
+        <div className="flex">
+          {/* Side Navigation */}
+          <motion.div 
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="fixed top-[80px] left-0 w-[320px] h-[calc(100vh-80px)] bg-[#1A2338]/90 backdrop-blur-lg border-r border-[#20DDBB]/10 overflow-y-auto custom-scrollbar"
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#20DDBB] to-[#018CFD] flex items-center justify-center">
+                  <span className="text-xl">📋</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#018CFD] bg-clip-text text-transparent">
+                    Terms of Use
+                  </h2>
+                  <p className="text-sm text-[#818BAC]">Last updated: {new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
+                {sections.map((section) => (
+                  <motion.button
+                    key={section.id}
+                    onClick={() => scrollToSection(section.id)}
+                    className={`w-full text-left p-4 rounded-xl transition-all duration-200
+                               ${activeSection === section.id 
+                                 ? 'bg-[#20DDBB]/10 text-[#20DDBB] border border-[#20DDBB]/20' 
+                                 : 'hover:bg-white/5'}`}
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{section.icon}</span>
+                      <span className="text-sm">{section.title}</span>
+                    </div>
+                  </motion.button>
+                ))}
+              </nav>
+
+              <div className="mt-8 p-4 rounded-xl bg-[#252742]/50 border border-[#3f2d63]/30">
+                <p className="text-sm text-[#818BAC] mb-3">
+                  Need help understanding our terms?
+                </p>
+                <a 
+                  href="mailto:sacraltrack@gmail.com"
+                  className="inline-flex items-center gap-2 text-sm text-[#20DDBB] hover:text-[#018CFD] transition-colors"
+                >
+                  <span>Contact Support</span>
+                  <FaArrowRight className="text-xs" />
+                </a>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Main Content */}
+          <div className="flex-1 ml-[320px] p-8 pt-[100px]">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="max-w-3xl mx-auto space-y-12"
+            >
+              <TermsSection id="introduction" title="Introduction">
+                <div className="space-y-6">
+                  <div className="p-6 bg-[#1A2338]/60 backdrop-blur-md rounded-xl border border-[#3f2d63]/30">
+                    <p className="text-white/80 leading-relaxed">
+                      Welcome to sacraltrack.space. The Site, all services and APIs are the property of Sacral Projects, 
+                      registered under Partnership No. OC436704 at Palliser House Second Floor - London, United Kingdom.
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
+                      <h3 className="text-[#20DDBB] font-medium mb-2">Platform Overview</h3>
+                      <CheckList items={[
+                        'Music streaming platform',
+                        'Music marketplace',
+                        'Social network for artists and fans',
+                        'Fair royalty distribution'
+                      ]} />
+                    </div>
+
+                    <div className="p-4 bg-[#20DDBB]/5 rounded-xl border border-[#20DDBB]/10">
+                      <h3 className="text-[#20DDBB] font-medium mb-2">Key Benefits</h3>
+                      <CheckList items={[
+                        'High-quality audio streaming',
+                        'Direct fan-artist connections',
+                        'Transparent marketplace',
+                        'Global music community'
+                      ]} />
+                    </div>
+                  </div>
+                </div>
+              </TermsSection>
+
+              <TermsSection id="features" title="Platform Features">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track is a premier music streaming platform, marketplace, and social network designed for both music artists and lovers.
+                  </p>
+
+                  <InfoCard icon="🎵" title="Music Streaming & Marketplace">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        Our platform offers high-quality music streaming and a transparent marketplace:
+                      </p>
+                      <CheckList items={[
+                        'High-fidelity streaming (192-256 kbps)',
+                        'Purchase tracks ($2 fixed price)',
+                        'Artists earn $1 per sale',
+                        'Premium downloads (WAV & 320 kbps)',
+                        'Instant revenue withdrawals'
+                      ]} />
+                    </div>
+                  </InfoCard>
+
+                  <InfoCard icon="🎧" title="Social Network Features">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        Connect with the music community through our social features:
+                      </p>
+                      <CheckList items={[
+                        'Artist profiles and portfolios',
+                        'Fan following and engagement',
+                        'Share Vibes and updates',
+                        'Track comments and reactions',
+                        'Music discussion forums'
+                      ]} />
+                    </div>
+                  </InfoCard>
+                </div>
+              </TermsSection>
+
+              <TermsSection id="vibes" title="Vibes & Social">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track offers a comprehensive social network with "Vibes" - our social sharing feature that connects artists and music lovers.
+                  </p>
+
+                  <InfoCard icon="🌟" title="Vibes Feature">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        Share and engage with the music community through Vibes:
+                      </p>
+                      <CheckList items={[
+                        'Post updates, thoughts, and images',
+                        'Share music you're enjoying',
+                        'Announce new releases and events',
+                        'Connect with fans and artists',
+                        'Discover trending content'
+                      ]} />
+                    </div>
+                  </InfoCard>
+
+                  <InfoCard icon="🔍" title="Social Network Guidelines">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        When participating in our social network, users must adhere to these guidelines:
+                      </p>
+                      <CheckList items={[
+                        'Respect intellectual property rights',
+                        'Maintain a supportive community environment',
+                        'Follow content appropriateness standards',
+                        'Engage in meaningful music discussions',
+                        'Report violations through proper channels'
+                      ]} />
+                    </div>
+                  </InfoCard>
+                </div>
+              </TermsSection>
+
+              <TermsSection id="rankings" title="Rankings & Ratings">
+                <div className="space-y-6">
+                  <p className="text-white/80 leading-relaxed">
+                    Sacral Track features a comprehensive ranking and rating system to showcase artists and enhance music discovery.
+                  </p>
+
+                  <InfoCard icon="🏆" title="Artist Rankings">
+                    <div className="space-y-4">
+                      <p className="text-sm text-white/80">
+                        Our platform uses the following ranking mechanisms:
+                      </p>
+                      <CheckList items={[
+                        'Top 100 Artists chart based on streaming and sales',
+                        'Monthly trending tracks spotlight',
+                        'Featured artist recommendations'
+                      ]} />
+                    </div>
+                  </InfoCard>
+                </div>
+              </TermsSection>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Back to top button */}
+      {showBackToTop && (
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-8 right-8 w-12 h-12 rounded-full bg-[#20DDBB] flex items-center justify-center shadow-lg hover:bg-[#018CFD] transition-colors duration-300"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <BsChevronLeft className="transform rotate-90 text-black" size={18} />
+        </motion.button>
+      )}
+    </>
+  );
+}
+
+// Add custom scrollbar styles to globals.css
+/*
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #20DDBB;
+  border-radius: 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #1CB399;
+}
+*/
