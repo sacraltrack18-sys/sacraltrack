@@ -372,6 +372,7 @@ export interface PostUserCompTypes {
     params: { userId: string; postId: string; };
     post: PostWithProfile;
     userId: string;
+    trackList?: PostWithProfile[];
 }
 
 export interface PostMainCompTypes {

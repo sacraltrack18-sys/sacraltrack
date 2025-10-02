@@ -22,6 +22,7 @@ export type PlayerContextType = {
   setCurrentTrack: (track: CurrentTrackType) => void;
   togglePlayPause: () => void;
   stopAllPlayback: () => void;
+  playNextTrack: (currentTrackId: string, trackList: any[]) => void;
 };
 
 // Create the context
@@ -41,6 +42,27 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsPlaying(false);
     // Не сбрасываем currentAudioId, так как это приведет к потере выбранного трека
     // currentAudioId должен быть сброшен только когда активно выбирается другой трек
+  };
+
+  // Play next track in the list
+  const playNextTrack = (currentTrackId: string, trackList: any[]) => {
+    if (!trackList || trackList.length === 0) return;
+    
+    const currentIndex = trackList.findIndex(track => track.id === currentTrackId);
+    if (currentIndex === -1) return;
+    
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < trackList.length) {
+      const nextTrack = trackList[nextIndex];
+      console.log(`Playing next track: ${nextTrack.trackname || nextTrack.name}`);
+      setCurrentAudioId(nextTrack.id);
+      // isPlaying будет установлен автоматически в useEffect при смене currentAudioId
+    } else {
+      // Если это последний трек, останавливаем воспроизведение
+      console.log('Reached end of playlist');
+      setIsPlaying(false);
+      setCurrentAudioId(null);
+    }
   };
 
   // When changing tracks, automatically start playing
@@ -70,7 +92,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isPlaying, 
       setCurrentTrack, 
       togglePlayPause,
-      stopAllPlayback 
+      stopAllPlayback,
+      playNextTrack
     }}>
       {children}
     </PlayerContext.Provider>

@@ -217,6 +217,7 @@ export default function ProfileClientComponent() {
                     params={{ userId: userId, postId: post.id }}
                     post={post}
                     userId={userId}
+                    trackList={postsByUser}
                   />
                 </div>
               ))}

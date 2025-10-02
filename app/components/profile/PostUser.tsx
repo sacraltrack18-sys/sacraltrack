@@ -9,12 +9,13 @@ import { PostUserCompTypes } from "@/app/types";
 import toast from "react-hot-toast";
 import useDeletePostById from "@/app/hooks/useDeletePostById";
 import { BsThreeDotsVertical, BsDownload, BsPlayFill, BsPauseFill, BsChat, BsTrash, BsXCircle, BsCheck2Circle, BsGraphUp, BsPersonCheck, BsGlobe, BsLaptop } from 'react-icons/bs';
-import { FaChartLine, FaFileDownload, FaExclamationTriangle, FaCheckCircle, FaHeadphones, FaUsers, FaMobileAlt, FaPlay, FaPause, FaGlobeAmericas } from 'react-icons/fa';
+import { FaChartLine, FaFileDownload, FaExclamationTriangle, FaCheckCircle, FaHeadphones, FaUsers, FaMobileAlt, FaPlay, FaPause, FaGlobeAmericas, FaShoppingCart, FaDownload } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import EditTrackPopup from "@/app/components/trackedit/EditTrackPopup";
 import useAudioPlayer from '@/app/hooks/useAudioPlayer';
 import useTrackStatistics from '@/app/hooks/useTrackStatistics';
 import useTrackInteraction from '@/app/hooks/useTrackInteraction';
+import useTrackPurchaseStats from '@/app/hooks/useTrackPurchaseStats';
 import { AudioPlayer } from '@/app/components/AudioPlayer';
 import { format } from 'date-fns';
 import { AiFillStar } from 'react-icons/ai';
@@ -30,39 +31,41 @@ import { usePlayerContext } from '@/app/context/playerContext';
 import { useEditContext } from "@/app/context/editContext";
 
 const PostUserSkeleton = () => (
-  <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4 overflow-hidden">
-    <div className="p-4 border-b border-white/10">
-      <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
-        <div className="space-y-2">
-            <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
-            <div className="h-3 w-24 bg-white/5 rounded animate-pulse" />
+  <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4 p-[5px]">
+    <div className="bg-[#1A1E36] rounded-lg overflow-hidden">
+      <div className="px-3 py-2 border-b border-white/10">
+        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/5 animate-pulse border-2 border-white/10" />
+          <div className="space-y-2">
+              <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
+              <div className="h-3 w-24 bg-white/5 rounded animate-pulse" />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div className="relative w-full aspect-square bg-white/5 animate-pulse">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Image 
-          src="/images/T-logo.svg" 
-          alt="Loading" 
-          width={64} 
-          height={64} 
-          className="opacity-10"
-        />
-      </div>
-    </div>
-
-    <div className="p-4">
-      <div className="h-12 bg-white/5 rounded-lg animate-pulse" />
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
-      <div className="flex items-center gap-6">
-          <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
-          <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
+      <div className="relative w-full aspect-square bg-white/5 animate-pulse">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Image 
+            src="/images/T-logo.svg" 
+            alt="Loading" 
+            width={64} 
+            height={64} 
+            className="opacity-10"
+          />
         </div>
-        <div className="h-8 w-8 bg-white/5 rounded animate-pulse" />
+      </div>
+
+      <div className="px-3 py-2">
+        <div className="h-12 bg-white/5 rounded-lg animate-pulse" />
+        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center gap-6">
+            <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
+            <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
+          </div>
+          <div className="h-8 w-8 bg-white/5 rounded animate-pulse" />
+        </div>
       </div>
     </div>
   </div>
@@ -391,7 +394,7 @@ const SoundWave = memo(() => {
 
 SoundWave.displayName = 'SoundWave';
 
-export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
+export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes) => {
   const router = useRouter();
   const contextUser = useUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -407,12 +410,13 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
 
   const { statistics, isLoading: statsLoading, fetchStatistics } = useTrackStatistics(post?.id);
   const { recordInteraction, getUserDeviceInfo, getGeographicInfo } = useTrackInteraction();
+  const { stats: purchaseStats, isLoading: purchaseStatsLoading, fetchPurchaseStats } = useTrackPurchaseStats();
   const isOwner = contextUser?.user?.id === post?.user_id;
 
   const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
   const { setIsLoginOpen } = useGeneralStore();
 
-  const { currentAudioId, setCurrentAudioId, isPlaying: isGlobalPlaying, stopAllPlayback } = usePlayerContext();
+  const { currentAudioId, setCurrentAudioId, isPlaying: isGlobalPlaying, stopAllPlayback, playNextTrack } = usePlayerContext();
   const isActiveInPlayer = currentAudioId === post?.id;
 
   useEffect(() => {
@@ -447,22 +451,14 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
     };
   }, []);
 
-  // Обновляем статистику при открытии панели статистики (более частое обновление)
+  // Обновляем статистику только при первом открытии панели статистики
   useEffect(() => {
     if (showStats && post?.id) {
-      // Принудительно обновляем статистику при открытии панели
-      // Используем fetchStatistics как ручное обновление, оно не влияет на лимит
+      // Обновляем статистику только один раз при открытии панели
       fetchStatistics();
-      
-      // Обновляем статистику каждые 3 секунды, пока панель открыта
-      // Эти обновления тоже считаются ручными, так как пользователь явно открыл панель
-      const interval = setInterval(() => {
-        fetchStatistics();
-      }, 3000);
-      
-      return () => clearInterval(interval);
+      fetchPurchaseStats(post.id);
     }
-  }, [showStats, post?.id, fetchStatistics]);
+  }, [showStats, post?.id, fetchStatistics, fetchPurchaseStats]);
 
   const handlePlay = async () => {
     if (!post?.m3u8_url) {
@@ -606,27 +602,26 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[calc(100%-20px)] sm:max-w-[450px] mx-auto mb-4">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="p-4 border-b border-white/10"
-          >
+        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[calc(100%-20px)] sm:max-w-[450px] mx-auto mb-4 p-[5px]">
+          <div className="bg-[#1A1E36] rounded-lg overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="px-3 py-2 border-b border-white/10"
+            >
             <div className="flex items-center justify-between">
               <Link href={`/profile/${post.user_id}`}>
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-3">
                   <img
                     src={useCreateBucketUrl(post?.profile?.image) || '/images/placeholders/music-user-placeholder-static.svg'}
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-white/10"
                   />
                   <div>
-                    <div>
-                      <p className="text-sm sm:text-base font-semibold text-white hover:text-[#20DDBB] transition-colors truncate max-w-[140px] sm:max-w-[200px]">
-                        {post?.profile?.name}
-                      </p>
-                      <p className="text-xs sm:text-sm text-gray-400 truncate max-w-[140px] sm:max-w-[200px]">{post?.trackname}</p>
-                    </div>
+                    <p className="text-base font-bold text-white hover:text-[#20DDBB] transition-colors truncate max-w-[180px]">
+                      {post?.profile?.name}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate max-w-[180px] mt-0.5">{post?.trackname}</p>
                   </div>
                 </div>
               </Link>
@@ -783,7 +778,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="absolute top-2 sm:top-4 right-2 sm:right-4 flex flex-col gap-1 sm:gap-2 items-end z-10"
+                  className="absolute top-[15px] right-[15px] flex flex-col gap-[15px] items-end z-10"
                 >
                   <div className="flex items-center gap-1 bg-gradient-to-r from-amber-200 to-yellow-400 text-black text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium backdrop-blur-sm">
                     <AiFillStar className="w-2.5 sm:w-3 h-2.5 sm:h-3" />
@@ -807,9 +802,9 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute inset-0 p-6 flex items-center justify-center"
+                  className="absolute inset-0 p-3 flex items-center justify-center"
                 >
-                  {statsLoading ? (
+                  {(statsLoading || purchaseStatsLoading) ? (
                     <div className="flex justify-center items-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#20DDBB] border-t-transparent" />
                     </div>
@@ -827,13 +822,8 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                           </div>
                           <p className="text-sm text-white/60">Total Plays</p>
                         </div>
-                        <p className="text-2xl font-bold text-white mt-1 flex items-center">
+                        <p className="text-2xl font-bold text-white mt-1">
                           {parseInt(statistics?.plays_count || "0", 10)}
-                          {parseInt(statistics?.plays_count || "0", 10) > 0 && (
-                            <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
-                              +{Math.round(parseInt(statistics?.plays_count || "0", 10) * 0.05)} this week
-                            </span>
-                          )}
                         </p>
                       </motion.div>
                       <motion.div
@@ -843,13 +833,13 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                         className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 hover:shadow-lg hover:border-[#20DDBB]/30 transition-all"
                       >
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <FaUsers className="text-blue-400" />
+                          <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <FaShoppingCart className="text-green-400" />
                           </div>
-                          <p className="text-sm text-white/60">Unique Listeners</p>
+                          <p className="text-sm text-white/60">Purchases</p>
                         </div>
                         <p className="text-2xl font-bold text-white mt-1">
-                          {statistics?.unique_listeners || 0}
+                          {purchaseStats?.purchases_count || 0}
                         </p>
                       </motion.div>
                       <motion.div
@@ -864,15 +854,15 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                           </div>
                           <p className="text-sm text-white/60">Top Country</p>
                         </div>
-                        <p className="text-2xl font-bold text-white mt-1 flex items-center gap-2">
+                        <p className="text-xl font-bold text-white mt-1 flex items-center gap-2">
                           {Object.entries(statistics?.geographic_data || {}).length > 0 ? 
                             String(Object.entries(statistics?.geographic_data || {})
                               .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0])
                             : 'N/A'}
                           {Object.entries(statistics?.geographic_data || {}).length > 0 && (
-                            <span className="text-sm text-white/60 font-normal">
-                              {String(Object.entries(statistics?.geographic_data || {})
-                                .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[1] || 0)} plays
+                            <span className="text-xs text-white/60 font-normal">
+                              ({String(Object.entries(statistics?.geographic_data || {})
+                                .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[1] || 0)})
                             </span>
                           )}
                         </p>
@@ -884,16 +874,13 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                         className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 hover:shadow-lg hover:border-[#20DDBB]/30 transition-all"
                       >
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-                            <FaMobileAlt className="text-amber-400" />
+                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                            <FaDownload className="text-blue-400" />
                           </div>
-                          <p className="text-sm text-white/60">Top Device</p>
+                          <p className="text-sm text-white/60">Downloads</p>
                         </div>
-                        <p className="text-xl font-bold text-white mt-1 capitalize">
-                          {Object.entries(statistics?.device_types || {}).length > 0 ?
-                            String(Object.entries(statistics?.device_types || {})
-                              .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0])
-                            : 'N/A'}
+                        <p className="text-2xl font-bold text-white mt-1">
+                          {purchaseStats?.downloads_count || 0}
                         </p>
                       </motion.div>
                       <motion.div
@@ -907,8 +894,10 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                           whileTap={{ scale: 0.98 }}
                           onClick={() => {
                             setShowStats(false);
+                            const plays = parseInt(statistics?.plays_count || "0", 10);
+                            const purchases = purchaseStats?.purchases_count || 0;
                             toast.custom((t) => (
-                              <StatsToast message={`Your track "${post.trackname}" has been played ${parseInt(statistics?.plays_count || "0", 10)} times!`} />
+                              <StatsToast message={`Your track "${post.trackname}" has ${plays} plays and ${purchases} purchases!`} />
                             ), { duration: 4000 });
                           }}
                           className="w-full py-2.5 px-4 rounded-xl transition-all bg-[#20DDBB]/10 text-[#20DDBB] border border-[#20DDBB]/30 flex items-center justify-center gap-2"
@@ -928,7 +917,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="p-4"
+            className="px-3 py-2"
           >
             <AudioPlayer 
               m3u8Url={useCreateBucketUrl(post?.m3u8_url)}
@@ -941,13 +930,22 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
                 stopAllPlayback();
                 setIsPlaying(false);
               }}
+              onEnded={() => {
+                if (trackList && trackList.length > 0) {
+                  playNextTrack(post.id, trackList);
+                } else {
+                  stopAllPlayback();
+                  setCurrentAudioId(null);
+                  setIsPlaying(false);
+                }
+              }}
             />
 
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="flex items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10"
+              className="flex items-center justify-between mt-2"
             >
               <div className="flex items-center gap-3 sm:gap-6">
                 <PostMainLikes post={post} />
@@ -965,6 +963,7 @@ export const PostUser = ({ params, post, userId }: PostUserCompTypes) => {
               )}
             </motion.div>
           </motion.div>
+          </div>
         </div>
 
         <EditTrackPopup

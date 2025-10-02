@@ -12,6 +12,7 @@ interface AudioPlayerProps {
   isPlaying: boolean;
   onPlay: () => void;
   onPause: () => void;
+  onEnded?: () => void;
 }
 
 // Оптимизированный кеш с автоочисткой
@@ -85,6 +86,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   isPlaying,
   onPlay,
   onPause,
+  onEnded,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -111,7 +113,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!audioRef.current || !mountedRef.current) return;
 
     const now = Date.now();
-    if (now - lastUpdateRef.current > 250) { // Оптимизированная частота обновления UI
+    if (now - lastUpdateRef.current > 100) { // Уменьшаем интервал для более плавного обновления
       const audio = audioRef.current;
       const time = audio.currentTime;
       setCurrentTime(time);
@@ -1523,17 +1525,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     if (!isInitializedRef.current || !mountedRef.current) return;
 
-    const timeoutId = setTimeout(() => {
-      if (mountedRef.current) {
-        if (isPlaying) {
-          safePlay();
-        } else {
-          safePause();
-        }
-      }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
+    // Убираем таймаут для более быстрой реакции
+    if (isPlaying) {
+      safePlay();
+    } else {
+      safePause();
+    }
   }, [isPlaying, safePlay, safePause]);
 
   // Обработчики событий аудио
@@ -1543,7 +1540,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     const handleEnded = () => {
       if (mountedRef.current) {
-        onPause();
+        if (onEnded) {
+          onEnded();
+        } else {
+          onPause();
+        }
       }
     };
     
@@ -1678,7 +1679,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [onPause, handleTimeUpdate, handleLoadedMetadata, isInitializedRef]);
+  }, [onPause, onEnded, handleTimeUpdate, handleLoadedMetadata, isInitializedRef]);
 
   // Форматирование времени
   const formatTime = useCallback((time: number) => {
@@ -1700,32 +1701,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const wasPlaying = !audio.paused;
 
       try {
+        // Сразу обновляем UI для мгновенной реакции
+        setCurrentTime(newTime);
+        
         if (wasPlaying) {
           audio.pause();
         }
 
         audio.currentTime = newTime;
-        setCurrentTime(newTime);
 
-        if (hlsRef.current) {
+        // Упрощаем логику восстановления воспроизведения
+        if (wasPlaying) {
+          // Небольшая задержка для стабилизации
           setTimeout(() => {
-            if (hlsRef.current && mountedRef.current) {
-              hlsRef.current.startLoad();
-              if (wasPlaying) {
-                setTimeout(() => {
-                  if (wasPlaying && audio.paused && mountedRef.current) {
-                    audio.play().catch(console.warn);
-                  }
-                }, 200);
-              }
-            }
-          }, 100);
-        } else if (wasPlaying) {
-          setTimeout(() => {
-            if (wasPlaying && audio.paused && mountedRef.current) {
+            if (mountedRef.current && audio.paused) {
               audio.play().catch(console.warn);
             }
-          }, 100);
+          }, 50);
         }
       } catch (error) {
         console.warn("Error during seek:", error);
@@ -1781,8 +1773,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
           {/* Прогресс воспроизведения */}
           <div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full transition-all duration-100"
-            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#20DDBB] to-[#018CFD] rounded-full"
+            style={{ 
+              width: `${(currentTime / (duration || 1)) * 100}%`,
+              transition: isPlaying ? 'none' : 'width 0.2s ease'
+            }}
           />
 
           {/* Маркер позиции */}
@@ -1791,7 +1786,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             style={{
               left: `calc(${(currentTime / (duration || 1)) * 100}% - 6px)`,
               opacity: isPlaying ? 1 : 0.7,
-              transition: "left 0.1s linear, opacity 0.3s ease",
+              transition: isPlaying ? "opacity 0.3s ease" : "left 0.2s ease, opacity 0.3s ease",
             }}
           />
         </div>

@@ -768,9 +768,10 @@ StatsCounter.displayName = 'StatsCounter';
 // Обновляем сигнатуру компонента для корректной работы с пропсами
 interface PostMainProps {
   post: PostWithProfile;
+  trackList?: any[];
 }
 
-const PostMain = memo(({ post }: PostMainProps) => {
+const PostMain = memo(({ post, trackList }: PostMainProps) => {
     const [imageError, setImageError] = useState(false);
     const [avatarError, setAvatarError] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -793,7 +794,7 @@ const PostMain = memo(({ post }: PostMainProps) => {
     // Memoized values to prevent unnecessary recalculations
     const userContext = useUser();
     const { setIsLoginOpen } = useGeneralStore();
-    const { currentAudioId, setCurrentAudioId, isPlaying: globalIsPlaying, togglePlayPause, stopAllPlayback } = usePlayerContext();
+    const { currentAudioId, setCurrentAudioId, isPlaying: globalIsPlaying, togglePlayPause, stopAllPlayback, playNextTrack } = usePlayerContext();
     const { checkIfTrackPurchased } = useCheckPurchasedTrack();
     const { commentsByPost, setCommentsByPost, getCommentsByPostId } = useCommentStore();
     const cardRef = useRef<HTMLDivElement>(null);
@@ -1245,6 +1246,21 @@ const PostMain = memo(({ post }: PostMainProps) => {
                         }}
                         onPause={() => {
                             stopAllPlayback();
+                        }}
+                        onEnded={() => {
+                            if (trackList && trackList.length > 0) {
+                                // Фильтруем только посты (треки) из списка
+                                const trackPosts = trackList.filter(item => item.type === 'post').map(item => item.data);
+                                if (trackPosts.length > 0) {
+                                    playNextTrack(post.id, trackPosts);
+                                } else {
+                                    stopAllPlayback();
+                                    setCurrentAudioId(null);
+                                }
+                            } else {
+                                stopAllPlayback();
+                                setCurrentAudioId(null);
+                            }
                         }}
                     />
                 </div>

@@ -412,6 +412,7 @@ function HomePageContent() {
                       {item.type === 'post' ? (
                         <PostMain
                             post={item.data}
+                            trackList={filteredFeed}
                             // Pass down play/pause controls if PostMain needs to participate in global play state
                             // isGloballyPlaying={currentlyPlaying.id === item.data.id && currentlyPlaying.type === 'post'}
                             // onGlobalPlay={() => handlePlayPause(item.data.id, 'post')} // Ensure 'post' is used here
