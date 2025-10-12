@@ -5,7 +5,7 @@ import Hls from "hls.js";
 import useCreateBucketUrl from "../hooks/useCreateBucketUrl";
 import { BsFillPlayFill, BsFillPauseFill } from "react-icons/bs";
 import { motion } from "framer-motion";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 interface AudioPlayerProps {
   m3u8Url: string;
@@ -113,7 +113,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!audioRef.current || !mountedRef.current) return;
 
     const now = Date.now();
-    if (now - lastUpdateRef.current > 100) { // Уменьшаем интервал для более плавного обновления
+    if (now - lastUpdateRef.current > 250) { // Увеличиваем интервал для снижения нагрузки
       const audio = audioRef.current;
       const time = audio.currentTime;
       setCurrentTime(time);
@@ -155,14 +155,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           if (hlsRef.current.config) {
             // Временно увеличиваем размер буфера для ускорения загрузки
             const originalMaxBufferLength = hlsRef.current.config.maxBufferLength;
-            hlsRef.current.config.maxBufferLength = Math.max(60, originalMaxBufferLength || 30);
+            hlsRef.current.config.maxBufferLength = Math.max(90, originalMaxBufferLength || 30);
             
-            // Возвращаем исходное значение через 5 секунд
+            // Возвращаем исходное значение через 15 секунд
             setTimeout(() => {
               if (hlsRef.current && hlsRef.current.config && mountedRef.current) {
                 hlsRef.current.config.maxBufferLength = originalMaxBufferLength;
               }
-            }, 5000);
+            }, 15000);
+          }
+        }
+        
+        // Предотвращение скретчей при критически низком буфере
+        if (bufferedAhead < 3 && hlsRef.current && !audio.paused) {
+          console.log(`AudioPlayer: Critical buffer ahead (${bufferedAhead.toFixed(2)}s), preventing stuttering`);
+          // Временно увеличиваем все настройки буферизации
+          if (hlsRef.current.config) {
+            const config = hlsRef.current.config;
+            config.maxBufferLength = Math.max(120, config.maxBufferLength || 30);
+            config.maxBufferSize = Math.max(32 * 1024 * 1024, config.maxBufferSize || 16 * 1024 * 1024);
+            config.maxBufferHole = Math.max(1.0, config.maxBufferHole || 0.5);
           }
         }
         
@@ -587,14 +599,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       console.log(`AudioPlayer: Found ${segmentUrls.length} segments in manifest`);
       
-      // Предзагружаем первые 6 сегментов параллельно для более быстрого старта
-      const preloadCount = Math.min(6, segmentUrls.length);
+      // Предзагружаем первые 8 сегментов параллельно для более быстрого старта
+      const preloadCount = Math.min(8, segmentUrls.length);
       if (preloadCount > 0) {
         console.log(`AudioPlayer: Preloading first ${preloadCount} segments with high priority`);
         
-        // Разделяем сегменты на критические (первые 2) и остальные для приоритизации
-        const criticalSegments = segmentUrls.slice(0, 2);
-        const otherInitialSegments = segmentUrls.slice(2, preloadCount);
+        // Разделяем сегменты на критические (первые 3) и остальные для приоритизации
+        const criticalSegments = segmentUrls.slice(0, 3);
+        const otherInitialSegments = segmentUrls.slice(3, preloadCount);
         
         // Сначала загружаем критические сегменты
         try {
@@ -655,11 +667,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         const maxBackgroundPreload = Math.min(10, remainingSegments.length); // Увеличиваем количество предзагружаемых сегментов
         
         // Используем интервалы для распределения нагрузки с адаптивными задержками
-        const baseDelay = 600; // Уменьшаем базовую задержку для более быстрой загрузки
+        const baseDelay = 800; // Увеличиваем базовую задержку для стабильности
         
         for (let i = 0; i < maxBackgroundPreload; i++) {
           // Адаптивная задержка - более важные сегменты загружаются раньше
-          const delay = baseDelay + (i * Math.min(150, 50 * Math.floor(i/2))); 
+          const delay = baseDelay + (i * Math.min(200, 80 * Math.floor(i/2))); 
           setTimeout(() => {
             if (mountedRef.current) { // Проверяем, что компонент все еще смонтирован
               console.log(`AudioPlayer: Background preloading segment ${preloadCount + i}`);
@@ -670,7 +682,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   if (nextIndex < segmentUrls.length && mountedRef.current) {
                     setTimeout(() => {
                       preloadSegment(segmentUrls[nextIndex].url).catch(() => {});
-                    }, 200);
+                    }, 400); // Увеличиваем задержку
                   }
                 })
                 .catch(err => {
@@ -1036,44 +1048,66 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             }
           }
 
-          // Улучшенная конфигурация HLS для аудио
+          // Оптимизированная конфигурация HLS для стабильного воспроизведения аудио
           const hlsConfig: Partial<Hls["config"]> = {
-            enableWorker: true, // Включаем Web Worker для улучшения производительности
-            lowLatencyMode: true, // Режим низкой задержки
-            backBufferLength: 30, // Увеличиваем буфер назад для лучшего перемещения по треку
-            maxBufferSize: 12 * 1024 * 1024, // 12MB для лучшей буферизации
-            maxBufferLength: 40, // Увеличиваем максимальную длину буфера
-            maxMaxBufferLength: 90, // Увеличиваем абсолютный максимум буфера
+            // Основные настройки
+            enableWorker: true,
+            lowLatencyMode: false,
+            debug: false,
+            
+            // Настройки буферизации для предотвращения скретчей
+            maxBufferSize: 16 * 1024 * 1024, // 16MB буфер
+            maxBufferLength: 60, // 60 секунд буфера
+            maxMaxBufferLength: 120, // Максимум 120 секунд
+            backBufferLength: 30, // 30 секунд обратного буфера
+            maxBufferHole: 0.5, // Увеличиваем для предотвращения дыр в буфере
+            
+            // Настройки загрузки
+            fragLoadingTimeOut: 15000, // 15 секунд на фрагмент
+            fragLoadingMaxRetry: 8, // 8 попыток
+            levelLoadingTimeOut: 8000, // 8 секунд на уровень
+            levelLoadingMaxRetry: 5, // 5 попыток
+            manifestLoadingTimeOut: 10000, // 10 секунд на манифест
+            manifestLoadingMaxRetry: 5, // 5 попыток
+            
+            // Настройки восстановления
+            nudgeOffset: 0.5, // Смещение для восстановления
+            nudgeMaxRetry: 10, // Попытки восстановления
+            appendErrorMaxRetry: 10, // Попытки добавления в буфер
+            maxFragLookUpTolerance: 0.25, // Толерантность поиска фрагментов
+            
+            // Настройки для стабильности
+            maxStarvationDelay: 2, // Задержка при голодании
+            maxLoadingDelay: 2, // Максимальная задержка загрузки
+            highBufferWatchdogPeriod: 3, // Период проверки буфера
+            
+            // Настройки live контента
+            liveSyncDurationCount: 3, // Количество сегментов для синхронизации
+            liveMaxLatencyDurationCount: 10, // Максимальная задержка
+            maxLiveSyncPlaybackRate: 1.05, // Максимальная скорость воспроизведения
+            liveBackBufferLength: 0, // Отключаем обратный буфер для live
+            liveDurationInfinity: true, // Поддержка бесконечного live контента
+            
+            // Настройки адаптации
+            abrEwmaFastLive: 3.0, // Быстрая адаптация
+            abrEwmaSlowLive: 9.0, // Медленная адаптация
+            abrMaxWithRealBitrate: false, // Отключаем для стабильности
+            
+            // Настройки повторных попыток
+            manifestLoadingRetryDelay: 500, // Задержка между попытками манифеста
+            manifestLoadingMaxRetryTimeout: 30000, // Максимальное время для манифеста
+            levelLoadingRetryDelay: 500, // Задержка между попытками уровня
+            fragLoadingRetryDelay: 500, // Задержка между попытками фрагмента
+            fragLoadingMaxRetryTimeout: 30000, // Максимальное время для фрагмента
+            
+            // Отключаем проблемные функции
+            testBandwidth: false, // Отключаем тестирование пропускной способности
+            progressive: false, // Отключаем прогрессивную загрузку
+            startFragPrefetch: false, // Отключаем предзагрузку фрагментов
+            
+            // Дополнительные настройки
             startLevel: -1, // Автоматический выбор качества
-            manifestLoadingTimeOut: PRELOAD_SEGMENT_TIMEOUT, // Используем константу для таймаута
-            manifestLoadingMaxRetry: 8, // Увеличиваем количество попыток загрузки манифеста
-            levelLoadingTimeOut: PRELOAD_SEGMENT_TIMEOUT, // Используем константу для таймаута
-            levelLoadingMaxRetry: 8, // Увеличиваем количество попыток загрузки уровня
-            fragLoadingTimeOut: PRELOAD_SEGMENT_TIMEOUT + 2000, // Таймаут для фрагментов
-            fragLoadingMaxRetry: 8, // Увеличиваем количество попыток загрузки фрагмента
-            testBandwidth: true, // Включаем тестирование пропускной способности
-            progressive: true, // Прогрессивная загрузка
-            maxBufferHole: 0.01, // Уменьшаем максимальный размер дыры в буфере для более плавного воспроизведения
-            highBufferWatchdogPeriod: 1, // Уменьшаем период проверки высокого буфера
-            nudgeOffset: 0.01, // Уменьшаем смещение для более плавного воспроизведения
-            nudgeMaxRetry: 10, // Увеличиваем максимальное количество попыток nudge
-            appendErrorMaxRetry: 10, // Увеличиваем максимальное количество попыток добавления
-            liveSyncDurationCount: 3,
-            liveMaxLatencyDurationCount: 10,
-            maxLiveSyncPlaybackRate: 1.2,
-            abrEwmaFastLive: 1.5, // Оптимизируем для более быстрой адаптации
-            abrEwmaSlowLive: 3, // Оптимизируем для более стабильной адаптации
-            abrMaxWithRealBitrate: true, // Используем реальный битрейт
-            maxStarvationDelay: 1, // Уменьшаем задержку при голодании
-            maxLoadingDelay: 1, // Уменьшаем максимальную задержку загрузки
-            initialLiveManifestSize: 1, // Минимальный размер для начала воспроизведения
-            manifestLoadingRetryDelay: 500, // Уменьшаем задержку между повторными попытками загрузки манифеста
-            manifestLoadingMaxRetryTimeout: 30000, // Максимальное время для повторных попыток загрузки манифеста
-            levelLoadingRetryDelay: 500, // Уменьшаем задержку между повторными попытками загрузки уровня
-            fragLoadingRetryDelay: 500, // Уменьшаем задержку между повторными попытками загрузки фрагмента
-            fragLoadingMaxRetryTimeout: 30000, // Максимальное время для повторных попыток загрузки фрагмента
-            startFragPrefetch: true, // Начинаем предзагрузку фрагментов
-            debug: false // Отключаем отладку в продакшене для улучшения производительности
+            initialLiveManifestSize: 2, // Оптимальный размер для начала
           };
 
           const hls = new Hls(hlsConfig);
@@ -1103,17 +1137,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             if (data.fatal) {
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  if (retryCountRef.current < 8) { // Увеличиваем максимальное количество попыток
+                  if (retryCountRef.current < 5) { // Уменьшаем количество попыток для сетевых ошибок
                     retryCountRef.current++;
                     if (process.env.NODE_ENV === 'development') {
                       console.log(
-                        `AudioPlayer: Network error, retrying... (${retryCountRef.current}/8)`,
+                        `AudioPlayer: Network error, retrying... (${retryCountRef.current}/5)`,
                       );
                     }
                     
-                    // Экспоненциальная задержка перед повторной попыткой с джиттером
-                    const baseDelay = Math.min(1000 * Math.pow(1.5, retryCountRef.current), 15000);
-                    const jitter = Math.random() * 500; // Добавляем случайный джиттер до 500мс
+                    // Более консервативная задержка перед повторной попыткой
+                    const baseDelay = Math.min(2000 * Math.pow(1.8, retryCountRef.current), 20000);
+                    const jitter = Math.random() * 1000; // Увеличиваем джиттер
                     const backoffDelay = baseDelay + jitter;
                     
                     setTimeout(() => {
@@ -1124,10 +1158,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                             console.log(`AudioPlayer: Restarting load after ${Math.round(backoffDelay)}ms delay`);
                           }
                           
-                          // Пробуем сначала остановить и очистить загрузку перед повторной попыткой
+                          // Более осторожный подход к перезапуску
                           try {
                             hls.stopLoad();
-                            // Небольшая пауза перед перезапуском загрузки
+                            // Увеличиваем паузу перед перезапуском загрузки
                             setTimeout(() => {
                               if (mountedRef.current && hlsRef.current) {
                                 if (process.env.NODE_ENV === 'development') {
@@ -1139,7 +1173,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                   hls.startLoad();
                                 }
                               }
-                            }, 100);
+                            }, 500); // Увеличиваем паузу до 500мс
                           } catch (e) {
                             if (process.env.NODE_ENV === 'development') {
                               console.warn('AudioPlayer: Error during load reset:', e);
@@ -1162,13 +1196,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                               // Сбрасываем счетчик попыток при восстановлении соединения
                               retryCountRef.current = 0;
                               
-                              // Небольшая задержка для стабилизации соединения
+                              // Увеличиваем задержку для стабилизации соединения
                               setTimeout(() => {
                                 if (mountedRef.current && hlsRef.current && hlsRef.current.url) {
                                   hls.loadSource(hlsRef.current.url);
                                   hls.startLoad();
                                 }
-                              }, 1000);
+                              }, 2000); // Увеличиваем до 2 секунд
                               window.removeEventListener('online', onlineHandler);
                             }
                           };
@@ -1346,20 +1380,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   
                   // Если аудио воспроизводится, пробуем стратегию паузы и воспроизведения
                   if (!audioRef.current.paused) {
+                    // Сначала увеличиваем настройки буферизации
+                    if (hlsRef.current && hlsRef.current.config) {
+                      const config = hlsRef.current.config;
+                      config.maxBufferLength = Math.min(180, (config.maxBufferLength || 30) + 30);
+                      config.maxBufferSize = Math.min(64 * 1024 * 1024, (config.maxBufferSize || 16 * 1024 * 1024) * 2);
+                      config.maxBufferHole = Math.max(1.0, config.maxBufferHole || 0.5);
+                    }
+                    
+                    // Пауза для накопления буфера
                     audioRef.current.pause();
                     setTimeout(() => {
                       if (mountedRef.current && audioRef.current) {
-                        // Увеличиваем приоритет загрузки буфера
-                        if (hlsRef.current) {
-                          const currentMaxBufferLength = hlsRef.current.config.maxBufferLength || 30;
-                          hlsRef.current.config.maxBufferLength = Math.min(90, currentMaxBufferLength + 15);
-                        }
-                        
                         audioRef.current.play().catch(e => {
                           if (process.env.NODE_ENV === 'development') {
                             console.error('AudioPlayer: Error resuming after buffer stall:', e);
                           }
-                          // Если воспроизведение не удалось, пробуем еще раз через секунду
+                          // Если воспроизведение не удалось, пробуем еще раз через 3 секунды
                           setTimeout(() => {
                             if (mountedRef.current && audioRef.current) {
                               audioRef.current.play().catch(e2 => {
@@ -1368,10 +1405,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                 }
                               });
                             }
-                          }, 1000);
+                          }, 3000);
                         });
                       }
-                    }, 500);
+                    }, 1500); // Увеличиваем задержку до 1.5 секунд
                   }
                 }
               } else if (data.details === Hls.ErrorDetails.BUFFER_APPEND_ERROR) {
@@ -1645,6 +1682,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const handleWaiting = () => {
       if (mountedRef.current) {
         setIsLoading(true);
+        // При ожидании увеличиваем приоритет загрузки
+        if (hlsRef.current && hlsRef.current.config) {
+          const config = hlsRef.current.config;
+          config.maxBufferLength = Math.min(90, (config.maxBufferLength || 30) + 15);
+        }
       }
     };
 
@@ -1652,12 +1694,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (mountedRef.current) {
         setIsLoading(false);
         setError(null);
+        // При успешном воспроизведении сбрасываем настройки буферизации
+        if (hlsRef.current && hlsRef.current.config) {
+          const config = hlsRef.current.config;
+          config.maxBufferLength = Math.max(60, config.maxBufferLength || 30);
+        }
       }
     };
 
     const handleCanPlay = () => {
       if (mountedRef.current) {
         setIsLoading(false);
+      }
+    };
+    
+    const handleStalled = () => {
+      if (mountedRef.current) {
+        console.log("AudioPlayer: Audio stalled, attempting recovery");
+        // При остановке увеличиваем настройки буферизации
+        if (hlsRef.current && hlsRef.current.config) {
+          const config = hlsRef.current.config;
+          config.maxBufferLength = Math.min(120, (config.maxBufferLength || 30) + 30);
+          config.maxBufferSize = Math.min(32 * 1024 * 1024, (config.maxBufferSize || 16 * 1024 * 1024) * 1.5);
+        }
       }
     };
 
@@ -1667,6 +1726,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("playing", handlePlaying);
     audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("stalled", handleStalled);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
@@ -1676,6 +1736,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("playing", handlePlaying);
       audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("stalled", handleStalled);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
@@ -1689,7 +1750,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }, []);
 
-  // Обработчик клика по прогресс-бару
+  // Обработчик клика по прогресс-бару с улучшенной стабильностью
   const handleProgressClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!audioRef.current || isLoading || !duration || error) return;
@@ -1704,23 +1765,55 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         // Сразу обновляем UI для мгновенной реакции
         setCurrentTime(newTime);
         
+        // Пауза перед перемоткой для стабильности
         if (wasPlaying) {
           audio.pause();
         }
 
+        // Устанавливаем новое время
         audio.currentTime = newTime;
 
-        // Упрощаем логику восстановления воспроизведения
+        // Восстанавливаем воспроизведение с улучшенной логикой
         if (wasPlaying) {
-          // Небольшая задержка для стабилизации
+          // Увеличиваем задержку для стабилизации после перемотки
           setTimeout(() => {
             if (mountedRef.current && audio.paused) {
-              audio.play().catch(console.warn);
+              // Проверяем, что буфер готов для воспроизведения
+              const buffered = audio.buffered;
+              let hasBuffer = false;
+              
+              for (let i = 0; i < buffered.length; i++) {
+                if (newTime >= buffered.start(i) && newTime <= buffered.end(i)) {
+                  hasBuffer = true;
+                  break;
+                }
+              }
+              
+              if (hasBuffer) {
+                audio.play().catch(e => {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn('Error resuming after seek:', e);
+                  }
+                });
+              } else {
+                // Если буфер не готов, ждем еще немного
+                setTimeout(() => {
+                  if (mountedRef.current && audio.paused) {
+                    audio.play().catch(e => {
+                      if (process.env.NODE_ENV === 'development') {
+                        console.warn('Error resuming after seek (retry):', e);
+                      }
+                    });
+                  }
+                }, 500);
+              }
             }
-          }, 50);
+          }, 100); // Увеличиваем задержку до 100мс
         }
       } catch (error) {
-        console.warn("Error during seek:", error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("Error during seek:", error);
+        }
       }
     },
     [duration, isLoading, error],
@@ -1735,7 +1828,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   return (
     <div className="flex items-center gap-4 w-full p-3">
-      <Toaster position="top-right" />
 
       <motion.button
         onClick={isPlaying ? onPause : onPlay}
