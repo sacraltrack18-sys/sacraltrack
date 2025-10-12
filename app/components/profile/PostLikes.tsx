@@ -116,7 +116,7 @@ const PostLikes = ({ post }: PostLikesProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="w-full max-w-[650px] mx-auto rounded-2xl bg-[#24183d]/70 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.15)] transition-all duration-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.25)] flex flex-row items-center gap-0 p-0 overflow-hidden"
+            className="w-full max-w-[650px] mx-auto rounded-2xl bg-[#24183d]/70 backdrop-blur-xl border border-white/10 transition-all duration-300 flex flex-row items-center gap-0 p-0 overflow-hidden"
             style={{ height: '120px', minHeight: '120px' }}
         >
             {/* Artwork */}

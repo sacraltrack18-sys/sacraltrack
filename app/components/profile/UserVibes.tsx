@@ -36,15 +36,6 @@ const UserVibes: React.FC<UserVibesProps> = ({ userId, isProfileOwner }) => {
 
   return (
     <div className="w-full">
-      {/* Заголовок и кнопка добавления вайба */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center">
-          <MdOutlineMusicNote className="text-purple-500 w-6 h-6 mr-2" />
-          <h2 className="text-2xl font-bold text-white">
-            {isProfileOwner ? 'My Vibes' : 'Musical Vibes'}
-          </h2>
-        </div>
-      </div>
 
       {/* Отображение вайбов */}
       {isLoadingVibes ? (

@@ -78,23 +78,24 @@ const FriendCard: React.FC<{
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-2xl shadow-lg group"
-      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      className="relative overflow-hidden rounded-2xl group cursor-pointer"
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
+      onClick={() => window.location.href = `/profile/${user.user_id}`}
     >
-      {/* Card background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#24183d]/80 to-[#20113a]/90 z-0" />
+      {/* Glass morphism background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#24183d]/60 to-[#20113a]/70 backdrop-blur-xl border border-white/10 z-0" />
 
-      {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-2xl z-0 -mr-20 -mt-20" />
-      <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-[#20DDBB]/10 to-purple-500/10 rounded-full blur-2xl z-0 -ml-20 -mb-20" />
+      {/* Decorative glass elements */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-full blur-3xl z-0 -mr-16 -mt-16" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-[#20DDBB]/5 to-purple-500/5 rounded-full blur-3xl z-0 -ml-16 -mb-16" />
 
       {/* User background image */}
-      <div className="relative w-full h-48 overflow-hidden z-10">
+      <div className="relative w-full h-[300px] overflow-hidden z-10">
         <Image
           src={
             imageError
@@ -105,18 +106,18 @@ const FriendCard: React.FC<{
           }
           alt={user.name || "User"}
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-110"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
           onError={() => setImageError(true)}
         />
 
-        {/* Overlay gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1E2136]/90 via-transparent to-[#1E2136]/30 z-10" />
+        {/* Glass overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1E2136]/80 via-transparent to-[#1E2136]/20 z-10" />
 
         {/* Hover glass effect */}
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-[2px] z-10"
+          className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-blue-600/10 backdrop-blur-[1px] z-10"
           initial={{ opacity: 0 }}
-          animate={{ opacity: isHovered ? 0.7 : 0 }}
+          animate={{ opacity: isHovered ? 0.6 : 0 }}
           transition={{ duration: 0.3 }}
         />
 
@@ -124,7 +125,7 @@ const FriendCard: React.FC<{
         <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
           {user.username && (
             <motion.div
-              className="bg-[#20DDBB]/20 backdrop-blur-md px-3 py-1 rounded-full border border-[#20DDBB]/30"
+              className="bg-[#20DDBB]/15 backdrop-blur-md px-3 py-1 rounded-full border border-[#20DDBB]/20"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
@@ -135,7 +136,7 @@ const FriendCard: React.FC<{
 
           {isPending && (
             <motion.div
-              className="bg-amber-500/20 backdrop-blur-md px-3 py-1 rounded-full border border-amber-500/30"
+              className="bg-amber-500/15 backdrop-blur-md px-3 py-1 rounded-full border border-amber-500/20"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -149,7 +150,7 @@ const FriendCard: React.FC<{
 
           {isSent && (
             <motion.div
-              className="bg-blue-500/20 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/30"
+              className="bg-blue-500/15 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/20"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -163,7 +164,7 @@ const FriendCard: React.FC<{
 
           {isFriend && (
             <motion.div
-              className="bg-green-500/20 backdrop-blur-md px-3 py-1 rounded-full border border-green-500/30"
+              className="bg-green-500/15 backdrop-blur-md px-3 py-1 rounded-full border border-green-500/20"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -179,7 +180,7 @@ const FriendCard: React.FC<{
         {/* Date badge */}
         {createdAt && (
           <motion.div
-            className="absolute top-3 right-3 z-20 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full"
+            className="absolute top-3 right-3 z-20 bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
@@ -192,79 +193,60 @@ const FriendCard: React.FC<{
         )}
       </div>
 
-      {/* Bottom panel with information and buttons */}
-      <div className="relative z-20 backdrop-blur-md bg-[#1E2136]/70 p-4 border-t border-white/10">
-        <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300 truncate mb-1">
+      {/* User name overlaid on image */}
+      <div className="absolute bottom-4 left-4 z-20">
+        <h3 className="text-lg font-bold text-white truncate drop-shadow-lg">
           {user.name}
         </h3>
-
-        {/* Timeline indicator */}
-        {createdAt && (
-          <div className="relative h-1 w-full bg-white/10 rounded-full overflow-hidden mb-3 mt-2">
-            <motion.div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#20DDBB] to-purple-500"
-              initial={{ width: 0 }}
-              animate={{ width: isPending || isSent ? "30%" : "100%" }}
-              transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-        )}
-
-        {/* User actions */}
-        <div className="flex items-center mt-3 space-x-2">
-          <Link href={`/profile/${user.user_id}`} className="flex-1">
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="w-full py-2 rounded-xl bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all duration-300 font-medium shadow-lg shadow-purple-900/10 border border-white/5"
-            >
-              Profile
-            </motion.button>
-          </Link>
-
-          {isPending && requestId && (
-            <>
-              <motion.button
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-900/20 hover:from-green-600 hover:to-teal-600 transition-all duration-300 border border-white/10"
-                onClick={() => onAccept && onAccept(requestId)}
-              >
-                <BsCheckLg size={18} />
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-900/20 hover:from-red-600 hover:to-pink-600 transition-all duration-300 border border-white/10"
-                onClick={() => onReject && onReject(requestId)}
-              >
-                <BsXLg size={18} />
-              </motion.button>
-            </>
-          )}
-
-          {isFriend && (
-            <motion.button
-              whileHover={{ scale: 1.1, y: -2 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-2 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-900/20 hover:from-red-600 hover:to-pink-600 transition-all duration-300 border border-white/10"
-              onClick={() => onRemove && onRemove(user.user_id)}
-            >
-              <BsPersonDash size={18} />
-            </motion.button>
-          )}
-        </div>
       </div>
 
-      {/* Decorative glow effect */}
+      {/* Action buttons at bottom line */}
+      <div className="absolute bottom-4 right-4 z-20 flex items-center space-x-2">
+        {isPending && requestId && (
+          <>
+            <button
+              className="p-2 rounded-xl bg-gradient-to-r from-green-500/20 to-teal-500/20 backdrop-blur-md text-green-400 hover:from-green-500/30 hover:to-teal-500/30 transition-all duration-300 border border-green-500/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAccept && onAccept(requestId);
+              }}
+            >
+              <BsCheckLg size={18} />
+            </button>
+            <button
+              className="p-2 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-md text-red-400 hover:from-red-500/30 hover:to-pink-500/30 transition-all duration-300 border border-red-500/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject && onReject(requestId);
+              }}
+            >
+              <BsXLg size={18} />
+            </button>
+          </>
+        )}
+
+        {isFriend && (
+          <button
+            className="p-2 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-md text-red-400 hover:from-red-500/30 hover:to-pink-500/30 transition-all duration-300 border border-red-500/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove && onRemove(user.user_id);
+            }}
+          >
+            <BsPersonDash size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* Subtle glow effect */}
       <motion.div
-        className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full blur-xl z-5 -mr-10 -mt-10"
+        className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-2xl z-5 -mr-8 -mt-8"
         animate={{
-          scale: isHovered ? [1, 1.2, 1] : 1,
-          opacity: isHovered ? [0.3, 0.7, 0.3] : 0.3,
+          scale: isHovered ? [1, 1.1, 1] : 1,
+          opacity: isHovered ? [0.2, 0.4, 0.2] : 0.2,
         }}
         transition={{
-          duration: 3,
+          duration: 2,
           repeat: Infinity,
           repeatType: "reverse",
         }}
@@ -469,7 +451,7 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-wrap items-center gap-2 mb-6 px-3 py-2 rounded-2xl bg-white/5 backdrop-blur-xl shadow-lg border border-white/10 w-fit mx-auto"
+        className="flex flex-wrap items-center gap-2 mb-6 px-3 py-2 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 w-fit mx-auto"
       >
         <TabButton
           isActive={activeTab === "friends"}
@@ -493,15 +475,13 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
           count={sentRequests.length}
         />
         {isOwner && (
-          <motion.button
+          <button
             onClick={() => setShowSearchModal(true)}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#20DDBB]/80 to-[#5D59FF]/80 rounded-xl text-white font-medium shadow-md border border-[#20DDBB]/30 ml-2 text-xs hover:from-[#20DDBB] hover:to-[#5D59FF] transition-all"
           >
             <FaSearch className="w-4 h-4" />
             <span>Find Friends</span>
-          </motion.button>
+          </button>
         )}
       </motion.div>
 
@@ -528,15 +508,13 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                   icon={<FaUserFriends />}
                   actionButton={
                     isOwner && (
-                      <motion.button
+                      <button
                         onClick={() => setShowSearchModal(true)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         className="px-6 py-3 bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/30 text-[#20DDBB] rounded-xl font-medium border border-[#20DDBB]/30 flex items-center gap-2"
                       >
                         <BsPersonPlus size={18} />
                         <span>Find New Friends</span>
-                      </motion.button>
+                      </button>
                     )
                   }
                 />
@@ -659,15 +637,13 @@ const TabButton: React.FC<{
   label: string;
   count?: number;
 }> = ({ isActive, onClick, icon, label, count }) => (
-  <motion.button
+  <button
     onClick={onClick}
-    className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap ${
+    className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors duration-200 ${
       isActive
         ? "text-[#20DDBB] border-b-2 border-[#20DDBB]"
         : "text-gray-400 hover:text-white"
     }`}
-    whileHover={!isActive ? { y: -2 } : {}}
-    whileTap={!isActive ? { y: 0 } : {}}
   >
     {icon}
     <span>{label}</span>
@@ -682,5 +658,5 @@ const TabButton: React.FC<{
         {count}
       </span>
     )}
-  </motion.button>
+  </button>
 );

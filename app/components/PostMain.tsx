@@ -211,7 +211,7 @@ const PostHeader = memo(({ profile, avatarUrl, avatarError, setAvatarError, text
                 </div>
             </Link>
             <div className="min-w-0 flex-1">
-                <Link href={`/profile/${profile.user_id}`} className="text-white font-medium hover:underline hover:text-[#20DDBB] transition-colors line-clamp-1">
+                <Link href={`/profile/${profile.user_id}`} className="text-white font-medium hover:text-[#20DDBB] transition-colors line-clamp-1">
                     {profile.name}
                 </Link>
                 <div className="flex items-center gap-1.5 w-full">

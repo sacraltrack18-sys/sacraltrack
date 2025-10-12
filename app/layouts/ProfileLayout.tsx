@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import TopNav from "./includes/TopNav"
 import { usePathname } from "next/navigation"
 import { ProfilePageTypes, ProfileStore } from "../types"
@@ -50,36 +50,53 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
     const [isMobile, setIsMobile] = useState(false);
     const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(true);
 
-    // Check for mobile view and scroll position
+    // Check for mobile view and scroll position - оптимизированная версия
     useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
+            const newIsMobile = window.innerWidth < 768;
+            if (newIsMobile !== isMobile) {
+                setIsMobile(newIsMobile);
+            }
         };
         
         checkMobile();
-        window.addEventListener('resize', checkMobile);
-
-        const handleScroll = () => {
-            if (isMobile) {
-                const threshold = 50; // Пиксельный порог до конца страницы
-                const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - threshold;
-                setIsBottomPanelVisible(!isAtBottom);
-            } else {
-                setIsBottomPanelVisible(true); // На десктопе панель всегда видна
-            }
+        
+        // Throttle resize events
+        let resizeTimeout: NodeJS.Timeout;
+        const throttledResize = () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(checkMobile, 100);
         };
 
-        window.addEventListener('scroll', handleScroll);
+        // Throttle scroll events
+        let scrollTimeout: NodeJS.Timeout;
+        const throttledScroll = () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                if (isMobile) {
+                    const threshold = 50;
+                    const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - threshold;
+                    setIsBottomPanelVisible(!isAtBottom);
+                } else {
+                    setIsBottomPanelVisible(true);
+                }
+            }, 16); // ~60fps
+        };
+
+        window.addEventListener('resize', throttledResize);
+        window.addEventListener('scroll', throttledScroll, { passive: true });
         
         return () => {
-            window.removeEventListener('resize', checkMobile);
-            window.removeEventListener('scroll', handleScroll);
+            clearTimeout(resizeTimeout);
+            clearTimeout(scrollTimeout);
+            window.removeEventListener('resize', throttledResize);
+            window.removeEventListener('scroll', throttledScroll);
         };
     }, [isMobile]);
 
     // Проверяем, является ли текущий пользователь владельцем профиля
     // Сравниваем ID залогиненного пользователя с ID пользователя из URL
-    const isProfileOwner = contextUser?.user?.id === profileId;
+    const isProfileOwner = useMemo(() => contextUser?.user?.id === profileId, [contextUser?.user?.id, profileId]);
 
     // Проверяем URL на наличие query параметра tab
     useEffect(() => {
@@ -136,7 +153,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
         return () => clearTimeout(timer);
     }, [postsByUser, profileId, setHasUserReleases]);
 
-    const switchToTab = (tab: 'friends' | 'purchases' | 'likes' | 'vibes' | 'main') => {
+    const switchToTab = useCallback((tab: 'friends' | 'purchases' | 'likes' | 'vibes' | 'main') => {
         setShowFriends(tab === 'friends');
         setShowPurchases(tab === 'purchases' && isProfileOwner);
         setShowLikedTracks(tab === 'likes');
@@ -156,7 +173,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
             url.searchParams.delete('tab');
         }
         window.history.pushState({}, '', url);
-    };
+    }, [isProfileOwner]);
 
     return (
 		<>

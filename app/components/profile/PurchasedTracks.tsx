@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useUser } from '@/app/context/user';
 import { database, Query } from "@/libs/AppWriteClient";
 import useCreateBucketUrl from '@/app/hooks/useCreateBucketUrl';
@@ -60,7 +60,7 @@ export default function PurchasedTracks() {
   // Проверяем, просматривает ли пользователь свой собственный профиль
   const isOwner = Boolean(userContext?.user);
 
-  const fetchPurchasedTracks = async (currentPage: number) => {
+  const fetchPurchasedTracks = useCallback(async (currentPage: number) => {
     if (!userContext?.user?.id) return;
 
     try {
@@ -215,20 +215,20 @@ export default function PurchasedTracks() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userContext?.user?.id]);
 
   // Initial load
   useEffect(() => {
     fetchPurchasedTracks(0);
-  }, [userContext?.user?.id]);
+  }, [fetchPurchasedTracks]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
       fetchPurchasedTracks(nextPage);
     }
-  };
+  }, [loading, hasMore, page, fetchPurchasedTracks]);
 
   const handleDownloadFormat = async (trackId: string, url: string, trackName: string, format: string) => {
     try {

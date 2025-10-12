@@ -2,7 +2,7 @@
 
 import PostUser from "@/app/components/profile/PostUser";
 import ProfileLayout from "@/app/layouts/ProfileLayout";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUser } from "@/app/context/user";
 import ClientOnly from "@/app/components/ClientOnly";
 import { ProfileStore } from "@/app/types";
@@ -20,6 +20,32 @@ import { useFriendStore } from "@/app/stores/friendStore";
 import { useLikedStore } from "@/app/stores/likedStore";
 import { toast } from "react-hot-toast";
 
+// Мемоизированный компонент-обертка для PostUser
+const MemoizedPostUserWrapper = React.memo(({ 
+  post, 
+  userId, 
+  trackList, 
+  isLast, 
+  lastPostRef 
+}: {
+  post: PostWithProfile;
+  userId: string;
+  trackList: any[];
+  isLast: boolean;
+  lastPostRef: (node: HTMLDivElement) => void;
+}) => (
+  <div ref={isLast ? lastPostRef : null}>
+    <PostUser
+      params={{ userId: userId, postId: post.id }}
+      post={post}
+      userId={userId}
+      trackList={trackList}
+    />
+  </div>
+));
+
+MemoizedPostUserWrapper.displayName = 'MemoizedPostUserWrapper';
+
 export default function ProfileClientComponent() {
   const params = useParams();
   const userId = (params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : "") as string;
@@ -28,6 +54,9 @@ export default function ProfileClientComponent() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const postsPerPage = 5;
+  
+  // Виртуализация - показываем только видимые посты
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 10 });
 
   const contextUser = useUser();
   const { postsByUser, setPostsByUser } = usePostStore();
@@ -59,18 +88,27 @@ export default function ProfileClientComponent() {
     req => (req.friend_id === userId || req.user_id === userId) && req.id
   );
 
-  // Вычисление ранга и рейтинга
-  const friendsCount = friends.length;
-  const tracksCount = postsByUser.length;
-  const likesCount = likedPosts?.length || 0;
-  const totalScore = friendsCount * 10 + tracksCount * 15 + likesCount * 5;
-  let rankName = 'Novice';
-  if (totalScore >= 500) rankName = 'Legend';
-  else if (totalScore >= 300) rankName = 'Master';
-  else if (totalScore >= 150) rankName = 'Advanced';
-  else if (totalScore >= 50) rankName = 'Experienced';
+  // Вычисление ранга и рейтинга - мемоизировано
+  const { friendsCount, tracksCount, likesCount, totalScore, rankName } = useMemo(() => {
+    const friendsCount = friends.length;
+    const tracksCount = postsByUser.length;
+    const likesCount = likedPosts?.length || 0;
+    const totalScore = friendsCount * 10 + tracksCount * 15 + likesCount * 5;
+    let rankName = 'Novice';
+    if (totalScore >= 500) rankName = 'Legend';
+    else if (totalScore >= 300) rankName = 'Master';
+    else if (totalScore >= 150) rankName = 'Advanced';
+    else if (totalScore >= 50) rankName = 'Experienced';
+    
+    return { friendsCount, tracksCount, likesCount, totalScore, rankName };
+  }, [friends.length, postsByUser.length, likedPosts?.length]);
 
-  const handleFriendAction = async (action?: 'accept' | 'reject' | 'reset') => {
+  // Мемоизированный список видимых постов для виртуализации
+  const visiblePostsForRender = useMemo(() => {
+    return visiblePosts.slice(visibleRange.start, visibleRange.end);
+  }, [visiblePosts, visibleRange]);
+
+  const handleFriendAction = useCallback(async (action?: 'accept' | 'reject' | 'reset') => {
     if (!contextUser?.user) {
       toast.error("Please log in to add friends");
       return;
@@ -160,7 +198,7 @@ export default function ProfileClientComponent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [contextUser?.user, isFriend, pendingRequest, userId, removeFriend, rejectFriendRequest, acceptFriendRequest, sendFriendRequest]);
 
   useEffect(() => {
     // Принудительно загружаем профиль и посты для конкретного пользователя
@@ -208,19 +246,19 @@ export default function ProfileClientComponent() {
         <ClientOnly>
           {!hidePostUser && (
             <div className="justify center">
-              {visiblePosts.map((post, index) => (
-                <div 
-                  key={post.id} 
-                  ref={index === visiblePosts.length - 1 ? lastPostRef : null}
-                >
-                  <PostUser
-                    params={{ userId: userId, postId: post.id }}
+              {visiblePostsForRender.map((post, index) => {
+                const actualIndex = visibleRange.start + index;
+                return (
+                  <MemoizedPostUserWrapper
+                    key={post.id}
                     post={post}
                     userId={userId}
                     trackList={postsByUser}
+                    isLast={actualIndex === visiblePosts.length - 1}
+                    lastPostRef={lastPostRef}
                   />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ClientOnly>
