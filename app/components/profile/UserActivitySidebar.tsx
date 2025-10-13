@@ -13,6 +13,7 @@ import { usePostStore } from '@/app/stores/post';
 import { useVibeStore } from '@/app/stores/vibeStore';
 import { GiRank3 } from 'react-icons/gi';
 import { FaUserFriends, FaHeart, FaMusic, FaShoppingCart } from 'react-icons/fa';
+import SimpleSkeleton from '@/app/components/ui/UnifiedSkeleton';
 import { MdAlbum } from 'react-icons/md';
 
 interface User {
@@ -313,18 +314,17 @@ const UserActivitySidebar: React.FC<UserActivitySidebarProps> = ({
     
     // Skeleton loader for activities
     const ActivitySkeleton = () => (
-        <>
+        <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#1A1C2E]/50 animate-pulse">
-                    <div className="h-12 w-12 rounded-lg bg-[#1E2136]"></div>
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-[#1A1C2E]/50">
+                    <div className="h-10 w-10 rounded-lg bg-white/5" />
                     <div className="flex-1">
-                        <div className="h-4 w-2/3 bg-[#1E2136] rounded"></div>
-                        <div className="h-3 w-1/2 bg-[#1E2136] rounded mt-2"></div>
+                        <div className="h-4 w-2/3 bg-white/5 rounded" />
+                        <div className="h-3 w-1/2 bg-white/5 rounded mt-2" />
                     </div>
-                    <div className="h-3 w-16 bg-[#1E2136] rounded"></div>
                 </div>
             ))}
-        </>
+        </div>
     );
         
         return (

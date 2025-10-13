@@ -29,47 +29,7 @@ import { database, ID } from '@/libs/AppWriteClient';
 import { APPWRITE_CONFIG } from '@/libs/AppWriteClient';
 import { usePlayerContext } from '@/app/context/playerContext';
 import { useEditContext } from "@/app/context/editContext";
-
-const PostUserSkeleton = () => (
-  <div className="relative bg-[#24183D] rounded-xl w-full max-w-[95%] sm:max-w-[450px] mx-auto mb-4 p-[5px]">
-    <div className="bg-[#1A1E36] rounded-lg overflow-hidden">
-      <div className="px-3 py-2 border-b border-white/10">
-        <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white/5 animate-pulse border-2 border-white/10" />
-          <div className="space-y-2">
-              <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
-              <div className="h-3 w-24 bg-white/5 rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative w-full aspect-square bg-white/5 animate-pulse">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Image 
-            src="/images/T-logo.svg" 
-            alt="Loading" 
-            width={64} 
-            height={64} 
-            className="opacity-10"
-          />
-        </div>
-      </div>
-
-      <div className="px-3 py-2">
-        <div className="h-12 bg-white/5 rounded-lg animate-pulse" />
-        <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center gap-6">
-            <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
-            <div className="h-8 w-20 bg-white/5 rounded animate-pulse" />
-          </div>
-          <div className="h-8 w-8 bg-white/5 rounded animate-pulse" />
-        </div>
-      </div>
-    </div>
-  </div>
-);
+import SimpleSkeleton from "@/app/components/ui/UnifiedSkeleton";
 
 // DeleteConfirmationModal component
 interface DeleteConfirmationModalProps {
@@ -592,7 +552,7 @@ export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes)
   };
 
   if (isLoading) {
-    return <PostUserSkeleton />;
+    return <SimpleSkeleton />;
   }
 
   return ( 

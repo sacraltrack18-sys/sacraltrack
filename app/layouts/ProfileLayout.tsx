@@ -21,7 +21,6 @@ import useDownloadsStore from '@/app/stores/downloadsStore';
 import { useLikedStore } from '@/app/stores/likedStore';
 import PostLikes from "@/app/components/profile/PostLikes";
 import UserProfileSidebar from "@/app/components/profile/UserProfileSidebar";
-import WelcomeReleasesSkeleton from "@/app/components/profile/WelcomeReleasesSkeleton";
 import { usePostStore } from "@/app/stores/post";
 import FriendsTab from "@/app/components/profile/FriendsTab";
 import UserActivitySidebar from "@/app/components/profile/UserActivitySidebar";
@@ -31,6 +30,7 @@ import UserVibes from "@/app/components/profile/UserVibes";
 import { useEditContext } from "@/app/context/editContext";
 import { FaUserPlus, FaUserCheck, FaUserMinus, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
 import UniversalLoader from "@/app/components/ui/UniversalLoader";
+import SimpleSkeleton from "@/app/components/ui/UnifiedSkeleton";
 
 export default function ProfileLayout({ children, params, isFriend, pendingRequest, isLoading, onFriendAction }: { children: React.ReactNode, params: { params: { id: string } }, isFriend?: boolean, pendingRequest?: any, isLoading?: boolean, onFriendAction?: (action?: 'accept' | 'reject' | 'reset') => void }) {
     const profileId = params.params.id;
@@ -214,10 +214,10 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6">
+                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
                                         {likedLoading ? (
                                             <div className="flex justify-center items-center min-h-[400px]">
-                                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#20DDBB]"></div>
+                                                <SimpleSkeleton />
                                             </div>
                                         ) : !likedPosts || likedPosts.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
@@ -230,7 +230,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="mx-auto w-full max-w-[650px] flex flex-col gap-4 md:relative md:left-[20px]">
+                                            <div className="mx-auto w-full max-w-[650px] flex flex-col gap-4">
                                                 {likedPosts.map((post) => (
                                                     <PostLikes
                                                         key={post.$id} 
@@ -250,7 +250,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6">
+                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
                                         {currentProfile && (
                                             <FriendsTab profileId={currentProfile.user_id} />
                                         )}
@@ -265,7 +265,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6">
+                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
                                         {currentProfile && (
                                             <UserVibes userId={currentProfile.user_id} isProfileOwner={isProfileOwner} />
                                         )}
@@ -280,19 +280,29 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    {isProfileLoading ? (
-                                        <div className="flex justify-center items-center min-h-[300px]">
-                                            <UniversalLoader size="lg" variant="spinner" message="Loading profile..." />
-                                        </div>
-                                    ) : hasUserReleases || (postsByUser && postsByUser.length > 0) ? (
-                                        <div className="flex justify-center">
-                                            <div className="max-w-full flex flex-wrap justify-center gap-8 py-4">
-                                                {children}
+                                    <div className="px-[10px] md:px-0">
+                                        {isProfileLoading ? (
+                                            <div className="flex justify-center items-center min-h-[300px]">
+                                                <SimpleSkeleton />
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <WelcomeReleasesSkeleton isOwner={isProfileOwner} />
-                                    )}
+                                        ) : hasUserReleases || (postsByUser && postsByUser.length > 0) ? (
+                                            <div className="flex justify-center">
+                                                <div className="max-w-full flex flex-wrap justify-center gap-8 py-4">
+                                                    {children}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+                                                <BsVinylFill className="w-16 h-16 text-[#20DDBB]/30 mb-4" />
+                                                <p className="text-white text-lg mb-2">
+                                                    {isProfileOwner ? 'No releases yet' : 'No releases found'}
+                                                </p>
+                                                <p className="text-gray-400">
+                                                    {isProfileOwner ? 'Upload your first track to get started' : 'This user hasn\'t released any tracks yet'}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>

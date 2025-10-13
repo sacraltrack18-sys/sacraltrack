@@ -24,6 +24,7 @@ import useCreateBucketUrl from "@/app/hooks/useCreateBucketUrl";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
+import SimpleSkeleton from "@/app/components/ui/UnifiedSkeleton";
 import { useProfileStore } from "@/app/stores/profile";
 import { database } from "@/libs/AppWriteClient";
 import SearchFriendsModal from "./SearchFriendsModal";
@@ -309,33 +310,11 @@ const EmptyState: React.FC<{
   </motion.div>
 );
 
-// Enhanced loading state component
+// Unified loading state
 const LoadingState = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
     {[1, 2, 3, 4, 5, 6].map((i) => (
-      <motion.div
-        key={i}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: i * 0.05 }}
-        className="relative h-64 rounded-2xl overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2A2D42] to-[#1E2136] animate-pulse" />
-        <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1E2136]/80 to-transparent" />
-
-        <div className="absolute left-4 top-4 w-20 h-5 bg-white/5 rounded-full animate-pulse" />
-        <div className="absolute right-4 top-4 w-10 h-5 bg-white/5 rounded-full animate-pulse" />
-
-        <div className="absolute inset-x-4 bottom-4 space-y-2">
-          <div className="h-5 bg-white/5 rounded-lg w-3/4 animate-pulse" />
-          <div className="h-8 bg-white/5 rounded-lg animate-pulse" />
-        </div>
-
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-16 h-16 rounded-full bg-white/5 animate-pulse" />
-        </div>
-      </motion.div>
+      <SimpleSkeleton key={i} variant="friend" />
     ))}
   </div>
 );

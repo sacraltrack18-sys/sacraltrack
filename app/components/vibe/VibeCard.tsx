@@ -46,78 +46,10 @@ interface VibeComment {
   isOptimistic?: boolean;
 }
 
+import SimpleSkeleton from "@/app/components/ui/UnifiedSkeleton";
+
 export const VibeCardSkeleton = () => {
-  return (
-    <div className="mb-8 mx-auto w-full md:w-[450px]">
-      <div className="bg-[#1A1A2E]/50 backdrop-blur-xl rounded-xl overflow-hidden border border-white/5 relative">
-        {/* Header Section */}
-        <div className="p-4">
-          <div className="flex items-center space-x-3">
-            {/* Avatar Skeleton */}
-            <div className="relative w-10 h-10 rounded-full overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/20 to-[#1E1A36]" />
-              <div className="absolute inset-0 border border-[#20DDBB]/20 rounded-full" />
-            </div>
-
-            {/* Name and Date Skeleton */}
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-32 bg-gradient-to-r from-[#20DDBB]/20 via-[#20DDBB]/10 to-[#20DDBB]/20 rounded-md" />
-              <div className="h-3 w-24 bg-gradient-to-r from-[#20DDBB]/10 via-[#20DDBB]/5 to-[#20DDBB]/10 rounded-md" />
-            </div>
-
-            {/* Options Button Skeleton */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#20DDBB]/10 to-[#1E1A36]" />
-          </div>
-        </div>
-
-        {/* Image Skeleton */}
-        <div className="px-4 pb-4">
-          <div className="aspect-[4/5] rounded-xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1E1A36] via-[#20DDBB]/5 to-[#2A2151]">
-              <div className="absolute inset-0 backdrop-blur-xl" />
-            </div>
-
-            {/* Decorative Elements */}
-            <div className="absolute top-4 left-4 h-6 w-24 bg-gradient-to-r from-[#20DDBB]/20 to-transparent rounded-full" />
-            <div className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-gradient-to-br from-[#20DDBB]/30 to-transparent" />
-
-            {/* Glass Effect Lines */}
-            <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-[#20DDBB]/20 to-transparent transform -skew-x-45" />
-            <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-[#20DDBB]/10 to-transparent transform skew-x-45" />
-
-            {/* Additional Static Design Elements */}
-            <div className="absolute inset-x-0 top-1/3 h-px bg-gradient-to-r from-transparent via-[#20DDBB]/20 to-transparent" />
-            <div className="absolute inset-x-0 bottom-1/3 h-px bg-gradient-to-r from-transparent via-[#20DDBB]/10 to-transparent" />
-            <div className="absolute top-8 right-8 w-16 h-16 rounded-full bg-gradient-radial from-[#20DDBB]/10 to-transparent" />
-          </div>
-        </div>
-
-        {/* Action Buttons Skeleton */}
-        <div className="p-4 border-t border-white/5 bg-[#1A1A2E]/30">
-          <div className="flex justify-between items-center">
-            {/* Like Button */}
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#1E1A36]" />
-              <div className="h-3 w-8 bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/5 rounded-md" />
-            </div>
-
-            {/* Comment Button */}
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#1E1A36]" />
-              <div className="h-3 w-8 bg-gradient-to-r from-[#20DDBB]/20 to-[#20DDBB]/5 rounded-md" />
-            </div>
-
-            {/* Share Button */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#20DDBB]/20 to-[#1E1A36]" />
-          </div>
-        </div>
-
-        {/* Decorative Corner Accents */}
-        <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[#20DDBB]/10 to-transparent rounded-bl-full opacity-30" />
-        <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-[#20DDBB]/10 to-transparent rounded-tr-full opacity-30" />
-      </div>
-    </div>
-  );
+  return <SimpleSkeleton />;
 };
 
 interface VibeCardProps {
