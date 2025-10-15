@@ -856,7 +856,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
       case "video":
         if (!vibe.media_url) return null;
         return (
-          <div className="relative w-full group" style={{ minHeight: 300 }}>
+          <div className="relative w-full group aspect-[10/13] min-h-[300px]">
             {/* <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" /> */}
             {!showVideo ? (
               <div
@@ -1093,7 +1093,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   };
 
   return (
-    <div className="mb-8 mx-[10px] md:mx-auto w-full md:w-[450px] vibe-card-container">
+    <div className="mb-8 ml-0 mr-[10px] md:mx-auto w-full md:w-[450px] vibe-card-container">
       <motion.div
         id={`vibe-card-${vibe.id}`}
         ref={vibeCardRef}
