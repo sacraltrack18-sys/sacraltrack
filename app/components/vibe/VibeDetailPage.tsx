@@ -93,7 +93,7 @@ const useComments = (vibeId: string, userId?: string) => {
             let profileInfo = {
               user_id: comment.user_id,
               name: "User",
-              image: "/images/placeholders/user-placeholder.svg",
+              image: "/images/placeholders/user-placeholder.png",
               username: undefined,
             };
 
@@ -109,7 +109,7 @@ const useComments = (vibeId: string, userId?: string) => {
                   image:
                     comment.profile.image ||
                     comment.profileImage ||
-                    "/images/placeholders/user-placeholder.svg",
+                    "/images/placeholders/user-placeholder.png",
                   username: comment.profile.username,
                 };
               }
@@ -767,7 +767,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
       profile: {
         user_id: user.id,
         name: user.name || "You",
-        image: user.image || "/images/placeholders/user-placeholder.svg",
+        image: user.image || "/images/placeholders/user-placeholder.png",
       },
       isOptimistic: true,
     };
@@ -848,7 +848,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                     : user.id,
                 name: user.name || "You",
                 image:
-                  user.image || "/images/placeholders/user-placeholder.svg",
+                  user.image || "/images/placeholders/user-placeholder.png",
               },
             };
 
@@ -1359,7 +1359,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                   src={
                     vibe.profile?.image
                       ? getProfileImageUrl(vibe.profile.image)
-                      : "/images/placeholders/user-placeholder.svg"
+                      : "/images/placeholders/user-placeholder.png"
                   }
                   alt={vibe.profile?.name || "User"}
                   className="w-full h-full object-cover"
@@ -1580,7 +1580,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                                 src={
                                   comment.profile?.image
                                     ? getProfileImageUrl(comment.profile.image)
-                                    : "/images/placeholders/user-placeholder.svg"
+                                    : "/images/placeholders/user-placeholder.png"
                                 }
                                 alt={comment.profile?.name || "User"}
                                 width={40}
@@ -1849,7 +1849,7 @@ const VibeDetailPage: React.FC<VibeDetailPageProps> = ({ vibe }) => {
                         src={
                           user?.image
                             ? getProfileImageUrl(user.image)
-                            : "/images/placeholders/user-placeholder.svg"
+                            : "/images/placeholders/user-placeholder.png"
                         }
                         alt="Your profile"
                         width={32}

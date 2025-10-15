@@ -133,7 +133,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                             <Link href={`/profile/${comment.profile.user_id}`}>
                                 <img 
                                     className="w-10 h-10 rounded-full object-cover ring-2 ring-[#2E2469] hover:ring-[#20DDBB] transition-all"
-                                    src={useCreateBucketUrl(comment.profile.image) || '/images/placeholders/user-placeholder.svg'}
+                                    src={useCreateBucketUrl(comment.profile.image) || '/images/placeholders/user-placeholder.png'}
                                     alt={comment.profile.name || 'User'}
                                 />
                             </Link>
@@ -211,7 +211,7 @@ export default function Comments({ params }: CommentsCompTypes) {
                         {userContext?.user?.id && (
                             <img 
                                 className="w-8 h-8 rounded-full object-cover"
-                                src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholders/user-placeholder.svg'}
+                                src={userContext.user.image ? useCreateBucketUrl(userContext.user.image) : '/images/placeholders/user-placeholder.png'}
                                 alt="Your profile"
                             />
                         )}

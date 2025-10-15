@@ -299,7 +299,7 @@ export const useProfileStore = create<ProfileStore>()(
                                 $id: 'default-' + Date.now(),
                                 user_id: userId || 'unknown',
                                 name: 'Unknown User',
-                                image: '/images/placeholders/user-placeholder.svg',
+                                image: '/images/placeholders/user-placeholder.png',
                                 bio: '',
                                 stats: {
                                     totalLikes: 0,
@@ -340,7 +340,7 @@ export const useProfileStore = create<ProfileStore>()(
                                             {
                                                 user_id: userId,
                                                 name: 'Unknown User',
-                                                image: '/images/placeholders/user-placeholder.svg',
+                                                image: '/images/placeholders/user-placeholder.png',
                                                 bio: '',
                                                 total_likes: '0',
                                                 total_followers: '0',
@@ -355,7 +355,7 @@ export const useProfileStore = create<ProfileStore>()(
                                             $id: newProfile.$id,
                                             user_id: userId,
                                             name: 'Unknown User',
-                                            image: '/images/placeholders/user-placeholder.svg',
+                                            image: '/images/placeholders/user-placeholder.png',
                                             bio: '',
                                             stats: {
                                                 totalLikes: 0,
@@ -372,7 +372,7 @@ export const useProfileStore = create<ProfileStore>()(
                                             $id: 'default-' + Date.now(),
                                             user_id: userId || 'unknown',
                                             name: 'Unknown User',
-                                            image: '/images/placeholders/user-placeholder.svg',
+                                            image: '/images/placeholders/user-placeholder.png',
                                             bio: '',
                                             stats: {
                                                 totalLikes: 0,
@@ -389,7 +389,7 @@ export const useProfileStore = create<ProfileStore>()(
                                     $id: doc.$id,
                                     user_id: doc.user_id,
                                     name: doc.name || 'User',
-                                    image: doc.image || '/images/placeholders/user-placeholder.svg',
+                                    image: doc.image || '/images/placeholders/user-placeholder.png',
                                     bio: doc.bio || '',
                                     genre: doc.genre,
                                     location: doc.location,
@@ -452,7 +452,7 @@ export const useProfileStore = create<ProfileStore>()(
                             $id: 'error-' + Date.now(),
                             user_id: userId || 'error',
                             name: 'Unknown User',
-                            image: '/images/placeholders/user-placeholder.svg',
+                            image: '/images/placeholders/user-placeholder.png',
                             bio: '',
                             stats: {
                                 totalLikes: 0,

@@ -233,13 +233,13 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
   // Улучшенная функция для получения URL изображения профиля
   function getProfileImageUrl(imageId: string): string {
     if (!imageId || imageId.trim() === "") {
-      return "/images/placeholders/user-placeholder.svg";
+      return "/images/placeholders/user-placeholder.png";
     }
     try {
       return createBucketUrl(imageId, "user");
     } catch (error) {
       console.error("Error in getProfileImageUrl:", error);
-      return "/images/placeholders/user-placeholder.svg";
+      return "/images/placeholders/user-placeholder.png";
     }
   }
 
@@ -414,7 +414,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         profile: {
           user_id: user.id,
           name: user.name || "You",
-          image: user.image || "/images/placeholders/user-placeholder.svg",
+          image: user.image || "/images/placeholders/user-placeholder.png",
           username: undefined,
         },
         isOptimistic: true,
@@ -447,7 +447,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
           profile: {
             user_id: user.id,
             name: user.name || "You",
-            image: user.image || "/images/placeholders/user-placeholder.svg",
+            image: user.image || "/images/placeholders/user-placeholder.png",
             username: undefined,
           },
         };
@@ -649,7 +649,7 @@ const VibeCard: React.FC<VibeCardProps> = ({ vibe, onLike, onUnlike }) => {
         profile: {
           user_id: user.id,
           name: user.name || "You",
-          image: user.image || "/images/placeholders/user-placeholder.svg",
+          image: user.image || "/images/placeholders/user-placeholder.png",
           username: undefined,
         },
         isOptimistic: true,

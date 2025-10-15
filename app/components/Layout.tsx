@@ -78,7 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link href={`/profile/${user.id}`}>
                 <div className="relative w-[50px] h-[50px] rounded-xl overflow-hidden border-[0.5px] border-purple-500/30">
                   <Image 
-                    src={user.image || '/images/placeholders/user-placeholder.svg'} 
+                    src={user.image || '/images/placeholders/user-placeholder.png'} 
                     alt="Profile" 
                     fill
                     className="object-cover"

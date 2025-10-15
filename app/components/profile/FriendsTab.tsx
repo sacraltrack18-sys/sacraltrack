@@ -100,10 +100,10 @@ const FriendCard: React.FC<{
         <Image
           src={
             imageError
-              ? "/images/placeholders/user-placeholder.svg"
+              ? "/images/placeholders/user-placeholder.png"
               : user.image
                 ? useCreateBucketUrl(user.image, "user")
-                : "/images/placeholders/user-placeholder.svg"
+                : "/images/placeholders/user-placeholder.png"
           }
           alt={user.name || "User"}
           fill

@@ -172,7 +172,7 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
                                 </h3>
                                 <div className="flex items-center gap-2">
                                     <img 
-                                        src={avatarUrl || '/images/placeholders/user-placeholder.svg'} 
+                                        src={avatarUrl || '/images/placeholders/user-placeholder.png'} 
                                         alt={post.profile.name}
                                         className="w-5 h-5 rounded-full ring-1 ring-white/20"
                                     />

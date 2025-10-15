@@ -127,7 +127,7 @@ const QuickCommentModal: React.FC<QuickCommentModalProps> = ({
         profile: {
           user_id: user.id,
           name: user.name || "You",
-          image: user.image || "/images/placeholders/user-placeholder.svg",
+          image: user.image || "/images/placeholders/user-placeholder.png",
           username: undefined,
         },
         isOptimistic: true,
@@ -177,7 +177,7 @@ const QuickCommentModal: React.FC<QuickCommentModalProps> = ({
     if (imageUrl) {
       return createBucketUrl(imageUrl);
     }
-    return "/images/placeholders/user-placeholder.svg";
+    return "/images/placeholders/user-placeholder.png";
   };
 
   // Format time ago

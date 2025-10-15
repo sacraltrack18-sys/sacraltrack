@@ -268,7 +268,7 @@ export const useUserRating = () => {
             $id: profile.$id || '',
             user_id: profile.user_id || '',
             name: profile.name || 'User',
-            image: profile.image || '/images/placeholders/user-placeholder.svg',
+            image: profile.image || '/images/placeholders/user-placeholder.png',
             bio: profile.bio || '',
             stats: stats.documents[0] || {
               totalLikes: 0,
@@ -320,7 +320,7 @@ export const useUserRating = () => {
             $id: profile.$id || '',
             user_id: profile.user_id || '',
             name: profile.name || 'User',
-            image: profile.image || '/images/placeholders/user-placeholder.svg',
+            image: profile.image || '/images/placeholders/user-placeholder.png',
             bio: profile.bio || '',
             stats: stats.documents[0] || {
               totalLikes: 0,

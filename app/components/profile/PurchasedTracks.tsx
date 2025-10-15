@@ -323,7 +323,7 @@ export default function PurchasedTracks() {
                     className="w-10 h-10 rounded-full object-cover border border-[#3f2d63]/50"
                     src={purchase.authorProfile?.image 
                       ? useCreateBucketUrl(purchase.authorProfile.image) 
-                      : '/images/placeholders/user-placeholder.svg'}
+                      : '/images/placeholders/user-placeholder.png'}
                     alt={purchase.authorProfile?.name || 'Artist'}
                   />
                   <div>

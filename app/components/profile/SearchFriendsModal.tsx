@@ -282,7 +282,7 @@ export default function SearchFriendsModal({ onClose, onAddFriend, currentUserId
                                                             alt={profile.name}
                                                             fill
                                                             className="object-cover"
-                                                            onError={(e) => (e.currentTarget.src = '/images/placeholders/user-placeholder.svg')}
+                                                            onError={(e) => (e.currentTarget.src = '/images/placeholders/user-placeholder.png')}
                                                         />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-2xl text-[#20DDBB]/40">

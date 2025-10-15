@@ -165,7 +165,7 @@ const ProfileMenu = () => {
             src={
               currentUser?.image
                 ? getProfileImageUrl(currentUser.image)
-                : "/images/placeholders/user-placeholder.svg"
+                : "/images/placeholders/user-placeholder.png"
             }
             alt={currentUser?.name || "User avatar"}
           />

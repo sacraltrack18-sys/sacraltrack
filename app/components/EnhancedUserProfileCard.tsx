@@ -37,7 +37,7 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
   // Get the profile image URL (handle both undefined and empty string cases)
   const userProfileImageUrl = profile.image && profile.image.trim() 
     ? createBucketUrl(profile.image, 'user') 
-    : '/images/placeholders/user-placeholder.svg';
+    : '/images/placeholders/user-placeholder.png';
   
   const isFriend = friends.some(friend => friend.friend_id === profile.user_id);
   const pendingRequest = pendingRequests.find(
@@ -202,7 +202,7 @@ const EnhancedUserProfileCard: React.FC<EnhancedUserProfileCardProps> = ({ profi
           </div>
           {/* Добавляем рейтинг на изображение профиля */}
           <motion.img
-            src={imageError ? '/images/placeholders/user-placeholder.svg' : userProfileImageUrl}
+            src={imageError ? '/images/placeholders/user-placeholder.png' : userProfileImageUrl}
             alt={profile.name}
             className="w-full h-full object-cover"
             onError={handleImageError}

@@ -275,7 +275,7 @@ const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       console.log("Creating user profile...");
       try {
         // Используем SVG изображение вместо ID в хранилище
-        const profileImagePath = "/images/placeholders/user-placeholder.svg";
+        const profileImagePath = "/images/placeholders/user-placeholder.png";
 
         // Проверяем переменные окружения перед созданием профиля
         if (

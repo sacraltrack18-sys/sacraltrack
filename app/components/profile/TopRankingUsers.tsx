@@ -65,7 +65,7 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                         user_id: user.user_id,
                         name: user.name || 'Unknown Artist',
                         username: user.username,
-                        image: user.image || '/images/placeholders/user-placeholder.svg',
+                        image: user.image || '/images/placeholders/user-placeholder.png',
                         score,
                         rank,
                         color
@@ -121,7 +121,7 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                             user_id: profile.user_id,
                             name: profile.name || 'Unknown Artist',
                             username: profile.username,
-                            image: profile.image || '/images/placeholders/user-placeholder.svg',
+                            image: profile.image || '/images/placeholders/user-placeholder.png',
                             score, // Добавляем рассчитанный счет
                             rank, // Добавляем ранг
                             color // Добавляем цвет для ранга
@@ -282,7 +282,7 @@ const TopRankingUsers: React.FC<TopRankingUsersProps> = ({ users: externalUsers,
                                     <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-r ${getRankGradient(index)} opacity-50 blur-sm transition-opacity group-hover:opacity-80`}></div>
                                     <div className="relative w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-b from-purple-900/50 to-blue-900/50">
                                         <Image 
-                                            src={imageErrors[user.user_id] ? '/images/placeholders/user-placeholder.svg' : (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/user-placeholder.svg')}
+                                            src={imageErrors[user.user_id] ? '/images/placeholders/user-placeholder.png' : (user.image ? useCreateBucketUrl(user.image, 'user') : '/images/placeholders/user-placeholder.png')}
                                             alt={user.name} 
                                             width={48} 
                                             height={48}

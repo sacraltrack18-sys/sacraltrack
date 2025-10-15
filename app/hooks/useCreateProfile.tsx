@@ -27,7 +27,7 @@ const useCreateProfile = async (userId: string, name: string, image: string, bio
         }
 
         // Используем дефолтное изображение, если не указано
-        const profileImage = image || '/images/placeholders/user-placeholder.svg';
+        const profileImage = image || '/images/placeholders/user-placeholder.png';
 
         // Создаем документ профиля
         const result = await database.createDocument(

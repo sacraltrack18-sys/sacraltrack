@@ -7,7 +7,7 @@ import createBucketUrl from "@/app/hooks/useCreateBucketUrl";
  */
 export function getProfileImageUrl(imageId: string): string {
   if (!imageId || imageId.trim() === '') {
-    return '/images/placeholders/user-placeholder.svg';
+    return '/images/placeholders/user-placeholder.png';
   }
   
   try {
@@ -15,7 +15,7 @@ export function getProfileImageUrl(imageId: string): string {
     return createBucketUrl(imageId, 'user');
   } catch (error) {
     console.error('Error in getProfileImageUrl:', error);
-    return '/images/placeholders/user-placeholder.svg';
+    return '/images/placeholders/user-placeholder.png';
   }
 }
 

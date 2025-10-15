@@ -92,7 +92,7 @@ const useUpdateProfile = async (data: UpdateProfileData) => {
           {
             user_id: user_id,
             name: updateData.name || 'Unknown User',
-            image: '/images/placeholders/user-placeholder.svg',
+            image: '/images/placeholders/user-placeholder.png',
             bio: updateData.bio || '',
             genre: updateData.genre || '',
             location: updateData.location || '',

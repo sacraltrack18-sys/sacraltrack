@@ -218,7 +218,7 @@ const SearchBar = ({ isHomePage }: SearchBarProps) => {
   // Helper function for image URLs with error handling
   const getSearchResultImageUrl = useCallback((imageId: string, type: string) => {
     if (!imageId || imageId.trim() === '') {
-      if (type === 'profile') return '/images/placeholders/user-placeholder.svg';
+      if (type === 'profile') return '/images/placeholders/user-placeholder.png';
       return '/images/placeholders/default-placeholder.svg';
     }
     

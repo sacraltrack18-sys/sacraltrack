@@ -34,7 +34,7 @@ const useGetProfileByUserId = async (userId: string) => {
                 id: null,
                 user_id: null,
                 name: 'Unknown User',
-                image: '/images/placeholders/user-placeholder.svg',
+                image: '/images/placeholders/user-placeholder.png',
                 bio: ''
             };
         }
@@ -70,7 +70,7 @@ const useGetProfileByUserId = async (userId: string) => {
                 id: null,
                 user_id: userId,
                 name: 'Unknown User',
-                image: '/images/placeholders/user-placeholder.svg',
+                image: '/images/placeholders/user-placeholder.png',
                 bio: ''
             };
             
@@ -85,7 +85,7 @@ const useGetProfileByUserId = async (userId: string) => {
             id: doc?.$id,
             user_id: doc?.user_id,
             name: doc?.name || 'Unknown User',
-            image: doc?.image || '/images/placeholders/user-placeholder.svg',
+            image: doc?.image || '/images/placeholders/user-placeholder.png',
             bio: doc?.bio || '',
             genre: doc?.genre,
             location: doc?.location,
@@ -112,7 +112,7 @@ const useGetProfileByUserId = async (userId: string) => {
             id: null,
             user_id: userId,
             name: 'Unknown User',
-            image: '/images/placeholders/user-placeholder.svg',
+            image: '/images/placeholders/user-placeholder.png',
             bio: ''
         };
     }

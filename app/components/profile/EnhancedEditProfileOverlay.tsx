@@ -490,10 +490,10 @@ const EnhancedEditProfileOverlay: React.FC = () => {
         return createBucketUrl(currentProfile.image, 'user');
       } catch (error) {
         console.error('Error getting profile image:', error);
-        return '/images/placeholders/user-placeholder.svg';
+        return '/images/placeholders/user-placeholder.png';
       }
     }
-    return '/images/placeholders/user-placeholder.svg';
+    return '/images/placeholders/user-placeholder.png';
   }, [imagePreview, currentProfile?.image]);
   
   // Мемоизированные вычисляемые значения

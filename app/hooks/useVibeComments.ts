@@ -164,7 +164,7 @@ export const useVibeComments = (vibeId?: string) => {
           profile: user ? {
             user_id: user.id,
             name: user.name || 'User',
-            image: user.image || '/images/placeholders/user-placeholder.svg',
+            image: user.image || '/images/placeholders/user-placeholder.png',
             username: undefined
           } : undefined
         };

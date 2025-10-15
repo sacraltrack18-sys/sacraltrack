@@ -55,10 +55,10 @@ export default function SideNavMain({ params }: ProfilePageTypes) {
                                     <img className="md:absolute bottom-0 left-0 md:mt-[5px] w-[80px] md:w-full md:max-h-[240px] object-cover rounded-2xl" 
                                     src={currentProfile.image && currentProfile.image.trim() 
                                         ? createBucketUrl(currentProfile.image, 'user') 
-                                        : '/images/placeholders/user-placeholder.svg'} 
+                                        : '/images/placeholders/user-placeholder.png'} 
                                     style={{ boxShadow: '0px 10px 10px -10px rgba(0, 0, 0, 0.3)' }} />
                                 ) : (
-                                    <img src="/images/placeholders/user-placeholder.svg" className="min-w-full max-h-[300px] rounded-xl" />
+                                    <img src="/images/placeholders/user-placeholder.png" className="min-w-full max-h-[300px] rounded-xl" />
                                 )}
                             </ClientOnly>
 

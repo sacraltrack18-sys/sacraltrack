@@ -181,7 +181,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full px-[10px] md:px-8 box-border max-w-full overflow-x-hidden smooth-scroll-container content-with-top-nav">
+		<div className="w-full pl-0 pr-[20px] box-border max-w-full overflow-x-hidden smooth-scroll-container content-with-top-nav">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -364,7 +364,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                 onClick={isProfileOwner ? () => setIsEditProfileOpen(true) : undefined} // Keep this for avatar/name click
                             >
                                 <img
-                                    src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.svg'}
+                                    src={currentProfile?.image && currentProfile.image.trim() ? useCreateBucketUrl(currentProfile.image, 'user') : '/images/placeholders/user-placeholder.png'}
                                     alt={currentProfile?.name || 'Profile'}
                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                 />

@@ -124,7 +124,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
   // Get profile image URL
   const profileImageUrl = imageUrl
     ? useCreateBucketUrl(imageUrl)
-    : "/images/placeholders/user-placeholder.svg";
+    : "/images/placeholders/user-placeholder.png";
 
   // Handler to open profile editor
   const handleOpenProfileEditor = () => {
@@ -355,7 +355,7 @@ const UserProfileSidebar: React.FC<UserProfileSidebarProps> = ({ profile }) => {
           <motion.img
             src={
               imageError
-                ? "/images/placeholders/user-placeholder.svg"
+                ? "/images/placeholders/user-placeholder.png"
                 : profileImageUrl
             }
             alt={name || "Profile"}
