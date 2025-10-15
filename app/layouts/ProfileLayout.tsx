@@ -181,7 +181,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
 		
 		{isEditProfileOpen && <EnhancedEditProfileOverlay />}
 
-		<div className="w-full mx-auto px-4 md:px-8 box-border max-w-full overflow-x-hidden smooth-scroll-container content-with-top-nav">
+		<div className="w-full px-[10px] md:px-8 box-border max-w-full overflow-x-hidden smooth-scroll-container content-with-top-nav">
             <div className="max-w-[1500px] mx-auto">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left sidebar with user profile */}
@@ -214,7 +214,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
+                                    <div className="max-w-[1500px] mx-auto py-6">
                                         {likedLoading ? (
                                             <div className="flex justify-center items-center min-h-[400px]">
                                                 <SimpleSkeleton />
@@ -250,7 +250,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
+                                    <div className="max-w-[1500px] mx-auto py-6">
                                         {currentProfile && (
                                             <FriendsTab profileId={currentProfile.user_id} />
                                         )}
@@ -265,7 +265,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="max-w-[1500px] mx-auto py-6 px-[10px] md:px-0">
+                                    <div className="max-w-[1500px] mx-auto py-6">
                                         {currentProfile && (
                                             <UserVibes userId={currentProfile.user_id} isProfileOwner={isProfileOwner} />
                                         )}
@@ -280,7 +280,7 @@ export default function ProfileLayout({ children, params, isFriend, pendingReque
                                     transition={{ duration: 0.3 }}
                                     className="w-full"
                                 >
-                                    <div className="px-[10px] md:px-0">
+                                    <div>
                                         {isProfileLoading ? (
                                             <div className="flex justify-center items-center min-h-[300px]">
                                                 <SimpleSkeleton />

@@ -498,7 +498,7 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                   }
                 />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2 lg:ml-[30px] lg:mr-[30px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-[10px] md:px-2">
                   {friends.map((friend) => (
                     <FriendCard
                       key={friend.id}
@@ -530,7 +530,7 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                   icon={<FaUserClock />}
                 />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-[10px] md:px-2">
                   {pendingRequests.map((request) => (
                     <FriendCard
                       key={request.id}
@@ -575,7 +575,7 @@ export default function FriendsTab({ profileId }: { profileId: string }) {
                   }
                 />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-[10px] md:px-2">
                   {sentRequests.map((request) => (
                     <FriendCard
                       key={request.id}

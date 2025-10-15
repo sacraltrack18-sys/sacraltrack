@@ -491,12 +491,12 @@ export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes)
       
       toast.custom((t) => (
         <DownloadToast message={`Track "${post.trackname}" downloaded successfully!`} />
-      ), { duration: 3000 });
+      ), { duration: 2000 });
     } catch (error) {
       console.error('Error downloading track:', error);
       toast.custom((t) => (
         <ErrorToast message="Couldn't download the track. Please try again." />
-      ), { duration: 4000 });
+      ), { duration: 2500 });
     }
   };
 
@@ -513,7 +513,7 @@ export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes)
       setIsDeleting(false);
       toast.custom((t) => (
         <ErrorToast message="We couldn't process your deletion request. Please try again later." />
-      ), { duration: 4000 });
+      ), { duration: 2500 });
     }
   }, [params, post]);
 
@@ -562,7 +562,7 @@ export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes)
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[calc(100%-20px)] sm:max-w-[450px] mx-auto mb-4 p-[5px]">
+        <div className="relative bg-[#24183D] rounded-xl w-full max-w-[calc(100vw-20px)] sm:max-w-[450px] mx-[10px] sm:mx-auto mb-4 p-[5px]">
           <div className="bg-[#1A1E36] rounded-lg overflow-hidden">
             <motion.div 
               initial={{ opacity: 0 }}
@@ -858,7 +858,7 @@ export const PostUser = ({ params, post, userId, trackList }: PostUserCompTypes)
                             const purchases = purchaseStats?.purchases_count || 0;
                             toast.custom((t) => (
                               <StatsToast message={`Your track "${post.trackname}" has ${plays} plays and ${purchases} purchases!`} />
-                            ), { duration: 4000 });
+                            ), { duration: 2500 });
                           }}
                           className="w-full py-2.5 px-4 rounded-xl transition-all bg-[#20DDBB]/10 text-[#20DDBB] border border-[#20DDBB]/30 flex items-center justify-center gap-2"
                         >
