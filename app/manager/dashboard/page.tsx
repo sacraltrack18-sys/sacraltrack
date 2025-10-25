@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BsCheck2Circle, BsXCircle, BsCashStack, BsBank2, BsPaypal, BsCreditCard } from 'react-icons/bs';
+import { BsCheck2Circle, BsXCircle, BsCashStack, BsBank2, BsPaypal, BsCreditCard, BsUpload } from 'react-icons/bs';
 import { FaBitcoin } from 'react-icons/fa';
 import { SiVisa } from 'react-icons/si';
 import { useWithdrawalManagement, WithdrawalRequest } from '@/app/hooks/useWithdrawalManagement';
@@ -11,6 +11,7 @@ import { ID } from 'appwrite';
 import { database } from '@/libs/AppWriteClient';
 import process from 'process';
 import { Query } from 'appwrite';
+import Link from 'next/link';
 
 interface PaymentCard {
   user_id: string;
@@ -442,6 +443,16 @@ export default function ManagerDashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <Link 
+              href="/upload-free"
+              className="bg-gradient-to-r from-[#20DDBB] to-[#018CFD] text-white px-6 py-3 rounded-xl font-medium 
+                       shadow-lg shadow-[#20DDBB]/20 hover:shadow-xl hover:shadow-[#20DDBB]/30 
+                       transition-all duration-300 flex items-center gap-2 hover:scale-105 active:scale-95"
+            >
+              <BsUpload className="text-lg" />
+              Upload Free
+            </Link>
+            
             <div className="flex gap-4 bg-[#272B43] p-3 rounded-xl border border-[#3f2d63]">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>

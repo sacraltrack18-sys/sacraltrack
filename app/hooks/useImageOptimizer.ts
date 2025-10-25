@@ -41,6 +41,9 @@ export const optimizeImage = async (
     }
 
     img.onload = () => {
+      // Сохраняем URL для последующей очистки
+      const objectUrl = img.src;
+      
       try {
         console.log(`Original image dimensions: ${img.width}x${img.height}`);
         
@@ -124,6 +127,8 @@ export const optimizeImage = async (
             // Log successful optimization
             console.log(`Image optimized successfully: ${optimizedFile.name}, size: ${optimizedFile.size} bytes (${(optimizedFile.size / file.size * 100).toFixed(2)}% of original), type: ${optimizedFile.type}`);
 
+            // Освобождаем память от object URL
+            URL.revokeObjectURL(objectUrl);
             resolve(optimizedFile);
           },
           mimeType,
@@ -131,12 +136,16 @@ export const optimizeImage = async (
         );
       } catch (error) {
         console.error('Error optimizing image:', error);
+        // Освобождаем память от object URL даже при ошибке
+        URL.revokeObjectURL(objectUrl);
         reject(error);
       }
     };
 
     img.onerror = (error) => {
       console.error('Failed to load image for optimization:', error);
+      // Освобождаем память от object URL при ошибке загрузки
+      URL.revokeObjectURL(img.src);
       reject(new Error('Failed to load image'));
     };
 

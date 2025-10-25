@@ -59,17 +59,35 @@ export const clearAllAuthFlags = () => {
   }
 };
 
+// Глобальная переменная для хранения интервала
+let authCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
 /**
  * Устанавливает таймер для автоматической проверки и очистки флагов аутентификации
  */
 export const setupAuthCleanupTimer = () => {
   if (typeof window === 'undefined') return;
   
+  // Очищаем предыдущий интервал если существует
+  if (authCleanupInterval) {
+    clearInterval(authCleanupInterval);
+  }
+  
   // Сначала проверяем флаги при инициализации
   checkAndClearAuthFlags();
   
   // Настраиваем интервал для периодической проверки
-  const interval = setInterval(checkAndClearAuthFlags, 60000); // каждую минуту
+  authCleanupInterval = setInterval(checkAndClearAuthFlags, 60000); // каждую минуту
   
-  return interval;
+  return authCleanupInterval;
+};
+
+/**
+ * Очищает таймер аутентификации
+ */
+export const clearAuthCleanupTimer = () => {
+  if (authCleanupInterval) {
+    clearInterval(authCleanupInterval);
+    authCleanupInterval = null;
+  }
 }; 

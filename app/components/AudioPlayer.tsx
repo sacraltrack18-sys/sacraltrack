@@ -22,8 +22,8 @@ const MAX_MANIFEST_CACHE_SIZE = 50;
 
 // Кеш для предзагруженных сегментов с оптимизированными настройками
 const segmentCache = new Map<string, { blob: Blob; timestamp: number }>();
-const SEGMENT_CACHE_TTL = 15 * 60 * 1000; // 15 минут
-const MAX_SEGMENT_CACHE_SIZE = 150; // Увеличиваем максимальное количество сегментов в кеше
+const SEGMENT_CACHE_TTL = 5 * 60 * 1000; // Сокращено до 5 минут
+const MAX_SEGMENT_CACHE_SIZE = 80; // Увеличено до 80 сегментов для лучшей производительности
 const PRELOAD_SEGMENT_TIMEOUT = 8000; // 8 секунд таймаут для предзагрузки сегментов
 
 // Очистка кеша манифестов
@@ -1055,10 +1055,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             lowLatencyMode: false,
             debug: false,
             
-            // Настройки буферизации для предотвращения скретчей
-            maxBufferSize: 16 * 1024 * 1024, // 16MB буфер
-            maxBufferLength: 60, // 60 секунд буфера
-            maxMaxBufferLength: 120, // Максимум 120 секунд
+            // Настройки буферизации для предотвращения скретчей (сокращено для экономии памяти)
+            maxBufferSize: 8 * 1024 * 1024, // 8MB буфер (сокращено с 16MB)
+            maxBufferLength: 30, // 30 секунд буфера (сокращено с 60)
+            maxMaxBufferLength: 60, // Максимум 60 секунд (сокращено с 120)
             backBufferLength: 30, // 30 секунд обратного буфера
             maxBufferHole: 0.5, // Увеличиваем для предотвращения дыр в буфере
             
@@ -1819,12 +1819,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     [duration, isLoading, error],
   );
 
-  // Cleanup на размонтирование
+  // Cleanup на размонтирование и принудительная очистка кеша
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      // Принудительно очищаем кеш сегментов при смене трека для экономии памяти
+      segmentCache.clear();
+      manifestCache.clear();
     };
-  }, []);
+  }, [m3u8Url]); // Очищаем при смене URL трека
 
   return (
     <div className="flex items-center gap-4 w-full p-3">

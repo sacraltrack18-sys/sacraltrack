@@ -40,6 +40,7 @@ interface PostStore {
   setCurrentPlayingPostId: (id: string | null) => void; // Added setter
   loadMorePosts: () => Promise<void>;
   searchTracksByName: (query: string) => Promise<{ id: string; name: string; image: string; type: string; matchType?: string; user_id: string }[]>;
+  clearMemoryCache: () => void; // Функция очистки памяти
 }
 
 export const usePostStore = create<PostStore>()(
@@ -305,17 +306,27 @@ export const usePostStore = create<PostStore>()(
             set({ isLoading: false });
           }
         },
+        
+        // Функция принудительной очистки памяти
+        clearMemoryCache: () => {
+          set((state) => ({
+            allPosts: state.allPosts.slice(-100), // Оставляем только последние 100 постов
+            displayedPosts: state.displayedPosts.slice(-50), // Оставляем только последние 50 отображаемых
+            postsByUser: state.postsByUser.slice(-50), // Оставляем только последние 50 постов пользователя
+          }));
+          console.log("[DEBUG] Post store memory cache cleared");
+        },
       }),
       {
         name: "post-store",
         storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({
-          // Only persist these specific states
-          allPosts: state.allPosts,
-          displayedPosts: state.displayedPosts,
-          postsByUser: state.postsByUser,
+          // Ограничиваем количество сохраняемых постов для экономии памяти
+          allPosts: state.allPosts.slice(0, 100), // Максимум 100 постов
+          displayedPosts: state.displayedPosts.slice(0, 50), // Максимум 50 отображаемых
+          postsByUser: state.postsByUser.slice(0, 50), // Максимум 50 постов пользователя
           postById: state.postById,
-          page: state.page,
+          page: Math.min(state.page, 20), // Ограничиваем количество страниц
           hasMore: state.hasMore,
           // Explicitly NOT persisting selectedGenre so it resets to "all" on refresh
         }),

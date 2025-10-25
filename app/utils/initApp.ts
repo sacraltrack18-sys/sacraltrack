@@ -6,8 +6,9 @@
  */
 
 import disableConsoleLogs from './disableConsoleLog';
-import { setupAuthCleanupTimer, checkAndClearAuthFlags } from './authCleanup';
+import { setupAuthCleanupTimer, checkAndClearAuthFlags, clearAuthCleanupTimer } from './authCleanup';
 import { isIOS, optimizeStorageForIOS } from './deviceDetection';
+import { setupMemoryManagement, stopMemoryManagement, cleanupLocalStorage } from './memoryManager';
 
 /**
  * Initialize the application with various configurations
@@ -30,11 +31,23 @@ export const initializeApp = () => {
       optimizeStorageForIOS();
     }
     
+    // Инициализируем систему управления памятью
+    setupMemoryManagement();
+    
+    // Очищаем старые записи localStorage при запуске
+    cleanupLocalStorage();
+    
     // Add any other initialization logic here
     // For example:
     // - Setting up global error handlers
     // - Initializing analytics
     // - Loading preferences
+    
+    // Очищаем интервалы при выгрузке страницы для предотвращения утечек памяти
+    window.addEventListener('beforeunload', () => {
+      clearAuthCleanupTimer();
+      stopMemoryManagement();
+    });
   }
 };
 
