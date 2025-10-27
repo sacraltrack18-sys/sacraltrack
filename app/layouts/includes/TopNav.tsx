@@ -332,8 +332,8 @@ const TopNav = React.memo(({ params }: { params: { id: string } }) => {
                         }}
                     >
                         <img 
-                            className="min-w-[24px] w-[24px] transition-transform duration-200 group-hover:scale-110" 
-                            src="/images/T-logo.svg"
+                            className="min-w-[48px] w-[48px] transition-transform duration-200 group-hover:scale-110" 
+                            src="/st-logo-skelet.svg"
                             alt="Sacral Track Logo"
                         />
                         <span className="px-1 py-1 pb-[2px] font-medium text-[16px] text-white hidden md:inline">ST</span>   

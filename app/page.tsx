@@ -5,6 +5,7 @@ import { usePostStore } from "@/app/stores/post"
 import { useVibeStore } from "@/app/stores/vibeStore"
 import ClientOnly from "./components/ClientOnly"
 import PostMain from "./components/PostMain"
+import PostMainFree from "./components/PostMainFree"
 import { VibeCardSkeleton } from "./components/vibe/VibeCard"
 import { GenreProvider } from "@/app/context/GenreContext";
 import { useRouter } from "next/navigation";
@@ -410,14 +411,18 @@ function HomePageContent() {
                       className={`my-4 ${item.type === 'vibe' ? 'flex justify-center' : ''}`}
                     >
                       {item.type === 'post' ? (
-                        <PostMain
+                        // Условно рендерим PostMainFree если трек бесплатный
+                        item.data.is_free ? (
+                          <PostMainFree
                             post={item.data}
                             trackList={filteredFeed}
-                            // Pass down play/pause controls if PostMain needs to participate in global play state
-                            // isGloballyPlaying={currentlyPlaying.id === item.data.id && currentlyPlaying.type === 'post'}
-                            // onGlobalPlay={() => handlePlayPause(item.data.id, 'post')} // Ensure 'post' is used here
-                            // onGlobalPause={() => handlePlayPause(item.data.id, 'post')} // Ensure 'post' is used here
-                        />
+                          />
+                        ) : (
+                          <PostMain
+                            post={item.data}
+                            trackList={filteredFeed}
+                          />
+                        )
                       ) : item.type === 'vibe' ? (
                         <ErrorBoundary fallback={<div className="bg-[#1A1A2E] p-4 rounded-xl text-white">Could not display this vibe</div>}>
                           <SafeVibeCard

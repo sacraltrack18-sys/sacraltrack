@@ -129,6 +129,7 @@ export interface Post {
     name: string;
     image: string;
     description?: string;
+    is_free?: boolean; // Поле для бесплатных треков
     profile: {
         user_id: string;
         name: string;
@@ -149,6 +150,7 @@ export interface PostWithProfile {
     price: any;
     genre: string;
     description?: string;
+    is_free?: boolean; // Поле для бесплатных треков
     profile: {
         user_id: string;
         name: string;

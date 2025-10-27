@@ -335,6 +335,81 @@ body.welcome-modal-open {
   background-size: 200% 100%;
 }
 
+/* Cosmic animations for landing page */
+@keyframes cosmic-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+@keyframes cosmic-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes sacred-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(32, 221, 187, 0.3);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(32, 221, 187, 0.6);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes mystical-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes energy-wave {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+.animate-cosmic-float {
+  animation: cosmic-float 6s ease-in-out infinite;
+}
+
+.animate-cosmic-pulse {
+  animation: cosmic-pulse 4s ease-in-out infinite;
+}
+
+.animate-sacred-glow {
+  animation: sacred-glow 3s ease-in-out infinite;
+}
+
+.animate-mystical-rotate {
+  animation: mystical-rotate 20s linear infinite;
+}
+
+.animate-energy-wave {
+  animation: energy-wave 2s ease-out infinite;
+}
+
 /* Optimized floatY - reduced movement for performance */
 @keyframes floatY {
   0% {

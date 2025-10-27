@@ -567,7 +567,7 @@ export default function UploadFree() {
                 trackname,
                 genre,
                 userId: user?.id,
-                isFree: true // Mark as free content
+                is_free: true // Mark as free content
             };
             
             // Send request to process audio for free

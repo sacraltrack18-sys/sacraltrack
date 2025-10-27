@@ -4,7 +4,7 @@ import { database, ID } from '@/libs/AppWriteClient';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { audioId, imageId, trackname, genre, userId } = body;
+    const { audioId, imageId, trackname, genre, userId, is_free } = body;
 
     // Validate required fields
     if (!audioId || !imageId || !trackname || !genre || !userId) {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log('Processing free content:', { audioId, imageId, trackname, genre, userId });
+    console.log('Processing free content:', { audioId, imageId, trackname, genre, userId, is_free });
 
     // Create post directly in database - marking as free content
     const postId = ID.unique();
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         audio_url: audioId, // Use the uploaded file ID
         image_url: imageId, // Use the uploaded image ID
         mp3_url: audioId, // Same as audio_url for free content
-        is_free: true, // Mark as free content
+        is_free: is_free || true, // Mark as free content (default true for this API)
         created_at: new Date().toISOString()
       };
 
