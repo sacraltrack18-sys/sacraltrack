@@ -67,6 +67,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setShowWelcomeModal(false);
     };
 
+    // Hide left sidebar on profile pages to prevent statistics overlap
+    const isProfilePage = pathname.startsWith('/profile/');
+
     return (
 		<>
 			<TopNav params={{ id: userContext?.user?.id as string }} />
@@ -74,23 +77,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
 		<div className="flex mx-auto w-full px-0 smooth-scroll-container content-with-top-nav">
 			
-			<div className="hidden md:flex w-[350px] relative">
-			<motion.div
-                initial={{ opacity: 0, x: -100 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full sticky top-0 h-screen"
-            >
-                {/* Profile card for desktop and iPad */}
-                {userContext?.user && currentProfile && (
-                  <div className="px-3">
-                    <UserProfileSidebar profile={currentProfile} />
-                  </div>
-                )}
-				{/*<SideNavMain />*/}
-				{/*<MainComponentsFilter />*/}
-				</motion.div>
-			</div>
+			{/* Hide left sidebar on profile pages */}
+			{!isProfilePage && (
+				<div className="hidden md:flex w-[350px] relative">
+				<motion.div
+	                initial={{ opacity: 0, x: -100 }}
+	                animate={{ opacity: 1, x: 0 }}
+	                transition={{ duration: 0.5 }}
+	                className="w-full sticky top-0 h-screen"
+	            >
+	                {/* Profile card for desktop and iPad */}
+	                {userContext?.user && currentProfile && (
+	                  <div className="px-3">
+	                    <UserProfileSidebar profile={currentProfile} />
+	                  </div>
+	                )}
+					{/*<SideNavMain />*/}
+					{/*<MainComponentsFilter />*/}
+					</motion.div>
+				</div>
+			)}
 
             <PlayerProvider>
 			<div className="flex justify-center w-full px-0">
@@ -105,20 +111,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 			</div>
             </PlayerProvider>
 
-			<div className="hidden md:flex w-[300px] pr-[20px]">
-			<motion.div
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full"
-            >
-    			{/*	TOP 100 <RightSideBar /> 
-                <TechMessage />*/}
-                <div className="sticky top-[80px] pt-0">
-                    <ContentFilter />
-                </div>
-                </motion.div>
-			</div>
+			{/* Hide right sidebar on profile pages */}
+			{!isProfilePage && (
+				<div className="hidden md:flex w-[300px] pr-[20px]">
+				<motion.div
+	                initial={{ opacity: 0, x: 100 }}
+	                animate={{ opacity: 1, x: 0 }}
+	                transition={{ duration: 0.5 }}
+	                className="w-full"
+	            >
+	    			{/*	TOP 100 <RightSideBar /> 
+	                <TechMessage />*/}
+	                <div className="sticky top-[80px] pt-0">
+	                    <ContentFilter />
+	                </div>
+	                </motion.div>
+				</div>
+			)}
 
             {/* Mobile filter for smaller screens */}
             <motion.div 

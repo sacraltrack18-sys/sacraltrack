@@ -121,31 +121,68 @@ const UniversalSkeleton: React.FC<UniversalSkeletonProps> = ({
             key={index}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`aspect-[3/4] min-h-[360px] max-h-[480px] rounded-2xl relative overflow-hidden bg-[#1A1A2E]/50 border border-white/5 ${className}`}
+            className={`aspect-[4/5] rounded-2xl relative overflow-hidden border border-white/10 backdrop-blur-sm ${className}`}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/80">
-              <div className="absolute inset-0 bg-[#20DDBB]/5 mix-blend-overlay" />
-            </div>
+            {/* Full-size background with gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1E1A36]/60 to-[#2A2151]/80" />
             
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-              {/* Avatar */}
-              <div className="relative w-24 h-24 rounded-full bg-[#20DDBB]/20 border border-[#20DDBB]/30 mb-4 animate-pulse overflow-hidden">
-                {shimmerGradient}
-              </div>
-
-              {/* Name */}
-              <div className="h-4 w-32 bg-[#20DDBB]/20 rounded-md mb-2 animate-pulse relative overflow-hidden">
-                {shimmerGradient}
-              </div>
-
-              {/* Stats */}
-              <div className="flex items-center gap-3 mt-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-[#20DDBB]/20 animate-pulse" />
-                    <div className="h-2 w-8 bg-[#20DDBB]/20 rounded animate-pulse" />
+            {/* Dark gradient overlay like real cards */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-black/10" />
+            
+            {/* Shimmer overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#20DDBB]/5 to-transparent animate-pulse" />
+            
+            {/* Content with same padding as real cards */}
+            <div className="absolute inset-[5px] flex flex-col justify-between">
+              {/* Top section - Rating placeholder */}
+              <div className="flex justify-end">
+                <div className="flex flex-col items-end">
+                  {/* Rating stars placeholder */}
+                  <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <div key={star} className="p-0.5">
+                        <div className="w-3 h-3 rounded-sm bg-gray-600/40 animate-pulse" />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                  {/* Rating text placeholder */}
+                  <div className="mt-1 h-4 w-12 bg-black/30 rounded px-2 py-0.5 animate-pulse" />
+                </div>
+              </div>
+
+              {/* Bottom section - User info and stats */}
+              <div className="space-y-3">
+                {/* User name and rank placeholder */}
+                <div>
+                  <div className="h-5 w-32 bg-white/20 rounded mb-2 animate-pulse relative overflow-hidden">
+                    {shimmerGradient}
+                  </div>
+                  <div className="h-4 w-20 bg-[#20DDBB]/20 rounded-full border border-white/20 animate-pulse" />
+                </div>
+
+                {/* Stats and friend button placeholder */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {/* Friends count placeholder */}
+                    <div className="bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-sm bg-[#20DDBB]/40 animate-pulse" />
+                        <div className="w-4 h-2 bg-white/30 rounded animate-pulse" />
+                      </div>
+                    </div>
+
+                    {/* Ratings count placeholder */}
+                    <div className="bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-sm bg-yellow-400/40 animate-pulse" />
+                        <div className="w-4 h-2 bg-white/30 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Friend action button placeholder */}
+                  <div className="w-8 h-8 bg-[#20DDBB]/30 border border-[#20DDBB]/50 rounded-full animate-pulse" />
+                </div>
               </div>
             </div>
           </motion.div>

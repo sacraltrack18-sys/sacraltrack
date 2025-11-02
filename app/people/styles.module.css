@@ -1,10 +1,16 @@
 /* Base styles */
 .container {
     @apply max-w-7xl mx-auto;
+    background: #1A1A2E;
+    min-height: 100vh;
+    width: 100%;
 }
 
 .pageContent {
     @apply space-y-0;
+    background: #1A1A2E;
+    min-height: 100vh;
+    width: 100%;
 }
 
 /* Grid container with improved scrolling */
@@ -180,31 +186,15 @@
     @apply bg-white/5 rounded-2xl aspect-[4/5];
 }
 
-/* Enhanced mobile navigation - No jerking, smooth animations */
+/* Fixed mobile navigation - always visible, no animations */
 .mobileNav {
     @apply fixed bottom-0 left-0 right-0 z-50 lg:hidden flex items-center justify-center;
-    background: linear-gradient(
-        to top,
-        rgba(26, 26, 46, 1) 0%,
-        rgba(26, 26, 46, 0.98) 70%,
-        rgba(26, 26, 46, 0.95) 100%
-    );
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: rgba(26, 26, 46, 1);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow:
-        0 -10px 30px rgba(0, 0, 0, 0.4),
-        0 -1px 0 rgba(32, 221, 187, 0.15),
-        0 -20px 40px rgba(32, 221, 187, 0.08);
-    transform: translateZ(0); /* Force hardware acceleration */
-    will-change: transform;
-    height: 60px; /* Увеличена для лучшего UX */
+    height: 60px;
     padding: 0 1.5rem;
-    /* Prevent layout shifts */
     position: fixed;
     contain: layout style paint;
-    /* Smooth transitions */
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Mobile-first responsive container sizes */
@@ -240,9 +230,9 @@
         z-index: 30;
         transform: translateZ(0);
         will-change: transform;
-        /* Enhanced backdrop */
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        /* Enhanced backdrop - optimized */
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
 
     /* Enhanced mobile button styles */
@@ -514,8 +504,8 @@
     .topRankedModal {
         @apply fixed inset-0 z-50;
         background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
     }
 
     .topRankedContent {
@@ -532,8 +522,8 @@
     .topRankedHeader {
         @apply sticky top-0 z-10 px-5 pb-4 border-b border-white/5;
         background: linear-gradient(to top, #1a1a2e 0%, #252840 100%);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .topRankedList {
@@ -595,9 +585,9 @@
     .mobileSearchInput {
         width: 100%;
         padding: 1rem 3rem 1rem 1.25rem; /* More padding for better UX */
-        background: rgba(26, 26, 46, 0.98);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        background: rgba(26, 26, 46, 0.95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 1.5rem;
         color: white;
@@ -680,3 +670,4 @@
         box-shadow: 0 0 20px rgba(32, 221, 187, 0.3);
     }
 }
+

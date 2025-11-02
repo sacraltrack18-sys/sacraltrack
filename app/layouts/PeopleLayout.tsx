@@ -21,7 +21,7 @@ export default function PeopleLayout({ children }: PeopleLayoutProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="min-h-screen bg-gradient-to-br from-[#1E1A36] to-[#2A2151]"
+            className="min-h-screen w-full bg-[#1A1A2E]"
         >
             {/* Верхняя навигация с высоким z-index */}
             <TopNav params={{ id: userContext?.user?.id as string }} />
@@ -32,13 +32,13 @@ export default function PeopleLayout({ children }: PeopleLayoutProps) {
             </div>
 
             {/* Основной контент с учетом z-index */}
-            <div className="flex mx-auto w-full px-[10px] md:px-0 relative z-[2] pt-[60px]">
+            <div className="flex mx-auto w-full px-0 relative z-[2] pt-[60px]">
                 <div className="flex justify-center w-full px-0 relative">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
-                        className="w-full"
+                        className="w-full min-h-[calc(100vh-60px)]"
                     >
                         {children}
                     </motion.div>

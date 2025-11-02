@@ -141,6 +141,7 @@ interface UserCardProps {
     total_likes?: string | number;
     average_rating?: string | number;
     total_ratings?: string | number;
+    index?: number; // Optional index for loading optimization
     stats: {
       totalLikes: number;
       totalFollowers: number;
@@ -299,8 +300,8 @@ const UserCard: React.FC<UserCardProps> = memo(
 
     return (
       <motion.div
-        className="group relative rounded-2xl overflow-hidden border border-white/10 backdrop-blur-sm hover:border-[#20DDBB]/30 transition-all duration-300 cursor-pointer aspect-[4/5]"
-        whileHover={{ y: -8, scale: 1.02, transition: { duration: 0.3 } }}
+        className="group relative rounded-2xl overflow-hidden border border-white/10 hover:border-[#20DDBB]/30 transition-colors duration-200 cursor-pointer aspect-[4/5]"
+        whileHover={{ y: -4, scale: 1.01, transition: { duration: 0.2 } }}
         initial={false}
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
@@ -315,33 +316,68 @@ const UserCard: React.FC<UserCardProps> = memo(
               fill
               className="object-cover"
               onError={() => setImageError(true)}
+              loading={user.index !== undefined && user.index < 6 ? "eager" : "lazy"} // Load first 6 images immediately
+              priority={user.index !== undefined && user.index < 3} // High priority for first 3
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              placeholder="blur"
+              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADASAAIRAxEAPwCdABmX/9k="
             />
           ) : (
-            <DefaultAvatar className="w-full h-full rounded-none" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1E1A36]/80 to-[#2A2151]/90 relative overflow-hidden">
+              {/* Beautiful gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/10 via-[#5D59FF]/5 to-[#1E1A36]/20" />
+              
+              {/* Animated shimmer effect */}
+              <div className="absolute inset-0 opacity-30">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
+              </div>
+
+              {/* Large user icon */}
+              <div className="relative z-10 flex flex-col items-center justify-center opacity-40">
+                <svg
+                  width="80"
+                  height="80"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="text-white mb-2"
+                >
+                  <path
+                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <div className="text-white/30 text-xs font-medium">No Photo</div>
+              </div>
+
+              {/* Subtle pattern overlay */}
+              <div className="absolute inset-0 opacity-5" style={{
+                backgroundImage: `radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                                 radial-gradient(circle at 80% 20%, rgba(32, 221, 187, 0.3) 0%, transparent 50%),
+                                 radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)`
+              }} />
+            </div>
           )}
         </div>
 
         {/* Dark gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
 
-        {/* Hover gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/5 via-transparent to-[#5D59FF]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Hover gradient overlay - simplified */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#20DDBB]/3 via-transparent to-[#5D59FF]/3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
         {/* Content with 5px padding */}
         <div className="absolute inset-[5px] flex flex-col justify-between">
           {/* Top section - Rating */}
           <div className="flex justify-end">
             <div className="flex flex-col items-end">
-              <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+              <div className="flex items-center bg-black/50 rounded-full px-2 py-1 border border-white/20">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <motion.button
+                  <button
                     key={star}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                     onClick={(e) => handleRatingClick(e, star)}
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(0)}
-                    className={`p-0.5 focus:outline-none ${!currentUser?.user?.id ? "cursor-not-allowed opacity-60" : ""}`}
+                    className={`p-0.5 focus:outline-none hover:scale-105 transition-transform duration-100 ${!currentUser?.user?.id ? "cursor-not-allowed opacity-60" : ""}`}
                     disabled={!currentUser?.user?.id}
                   >
                     <StarIconDynamic
@@ -355,7 +391,7 @@ const UserCard: React.FC<UserCardProps> = memo(
                           : "text-gray-600"
                       } transition-all duration-200`}
                     />
-                  </motion.button>
+                  </button>
                 ))}
               </div>
               <div className="mt-1 text-xs text-white/80 bg-black/30 rounded px-2 py-0.5">
@@ -371,7 +407,7 @@ const UserCard: React.FC<UserCardProps> = memo(
           <div className="space-y-3">
             {/* User name and rank */}
             <div>
-              <h3 className="text-lg font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-[#20DDBB] group-hover:to-[#5D59FF] transition-all duration-300 mb-1">
+              <h3 className="text-lg font-bold text-white group-hover:text-[#20DDBB] transition-colors duration-200 mb-1">
                 {user.name}
               </h3>
               <div
@@ -385,7 +421,7 @@ const UserCard: React.FC<UserCardProps> = memo(
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {/* Friends count */}
-                <div className="bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+                <div className="bg-black/50 rounded-full px-2 py-1 border border-white/20">
                   <div className="flex items-center gap-1">
                     <UserPlusIcon className="w-3 h-3 text-[#20DDBB]" />
                     <span className="text-xs font-medium text-white">
@@ -395,7 +431,7 @@ const UserCard: React.FC<UserCardProps> = memo(
                 </div>
 
                 {/* Ratings count */}
-                <div className="bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/20">
+                <div className="bg-black/50 rounded-full px-2 py-1 border border-white/20">
                   <div className="flex items-center gap-1">
                     <StarIconDynamic className="w-3 h-3 text-yellow-400" />
                     <span className="text-xs font-medium text-white">
@@ -406,11 +442,9 @@ const UserCard: React.FC<UserCardProps> = memo(
               </div>
 
               {/* Friend action button */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={handleFriendAction}
-                className={`backdrop-blur-md rounded-full p-2 border transition-all duration-200 ${
+                className={`bg-black/30 rounded-full p-2 border transition-all duration-150 hover:scale-105 ${
                   isFriend
                     ? "bg-pink-500/30 border-pink-500/50 hover:bg-pink-500/40 text-pink-400"
                     : "bg-[#20DDBB]/30 border-[#20DDBB]/50 hover:bg-[#20DDBB]/40 text-[#20DDBB]"
@@ -421,7 +455,7 @@ const UserCard: React.FC<UserCardProps> = memo(
                 ) : (
                   <UserPlusIconDynamic className="w-4 h-4" />
                 )}
-              </motion.button>
+              </button>
             </div>
           </div>
         </div>
@@ -430,12 +464,19 @@ const UserCard: React.FC<UserCardProps> = memo(
   },
 );
 
-// Мемоизированная версия UserCard для предотвращения лишних ререндеров
+// Enhanced memoized UserCard with deeper comparison
 const MemoizedUserCard = React.memo(UserCard, (prevProps, nextProps) => {
   return (
     prevProps.user.$id === nextProps.user.$id &&
+    prevProps.user.name === nextProps.user.name &&
+    prevProps.user.image === nextProps.user.image &&
+    prevProps.user.average_rating === nextProps.user.average_rating &&
+    prevProps.user.total_ratings === nextProps.user.total_ratings &&
     prevProps.isFriend === nextProps.isFriend &&
-    prevProps.totalFriends === nextProps.totalFriends
+    prevProps.totalFriends === nextProps.totalFriends &&
+    prevProps.onAddFriend === nextProps.onAddFriend &&
+    prevProps.onRemoveFriend === nextProps.onRemoveFriend &&
+    prevProps.onRateUser === nextProps.onRateUser
   );
 });
 
@@ -527,11 +568,12 @@ const useVirtualScroll = (items: any[], itemHeight: number) => {
   return { containerRef, visibleRange };
 };
 
-// Custom hook for search functionality
+// Optimized search hook with caching
 const useSearch = (profiles: any[]) => {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(profiles);
+  const searchCacheRef = useRef<Map<string, any[]>>(new Map());
 
   const debouncedSearch = useCallback(
     debounce((text: string) => {
@@ -541,16 +583,34 @@ const useSearch = (profiles: any[]) => {
         return;
       }
 
-      const searchTerms = text.toLowerCase().trim().split(/\s+/);
+      const normalizedQuery = text.toLowerCase().trim();
+      
+      // Check cache first
+      if (searchCacheRef.current.has(normalizedQuery)) {
+        setSearchResults(searchCacheRef.current.get(normalizedQuery)!);
+        setSearching(false);
+        return;
+      }
+
+      const searchTerms = normalizedQuery.split(/\s+/);
       const results = profiles.filter((profile) => {
         const searchableText =
           `${profile.name} ${profile.username || ""} ${profile.bio || ""}`.toLowerCase();
         return searchTerms.every((term) => searchableText.includes(term));
       });
 
+      // Cache the results
+      searchCacheRef.current.set(normalizedQuery, results);
+      
+      // Limit cache size to prevent memory leaks
+      if (searchCacheRef.current.size > 50) {
+        const firstKey = searchCacheRef.current.keys().next().value;
+        searchCacheRef.current.delete(firstKey);
+      }
+
       setSearchResults(results);
       setSearching(false);
-    }, 300),
+    }, 250), // Reduced debounce time for faster response
     [profiles],
   );
 
@@ -585,6 +645,9 @@ const useSearch = (profiles: any[]) => {
 
   // Update search results when original profiles change
   useEffect(() => {
+    // Clear cache when profiles change
+    searchCacheRef.current.clear();
+    
     if (!query.trim()) {
       setSearchResults(profiles);
     } else {
@@ -652,6 +715,9 @@ export default function People() {
   const [friendsCountCache, setFriendsCountCache] = useState<{
     [userId: string]: number;
   }>({});
+  
+  // Avatar error tracking for all modals
+  const [avatarErrors, setAvatarErrors] = useState<{[key: string]: boolean}>({});
 
   const {
     friends,
@@ -763,91 +829,55 @@ export default function People() {
     return () => container.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  // Enhanced mobile navigation with smooth animations and no jerking
+  // Fixed mobile navigation - no hide/show, always visible
   const MobileNav = () => (
-    <motion.nav
-      className={styles.mobileNav}
-      initial={{ y: 100, opacity: 0 }}
-      animate={{
-        y: 0,
-        opacity: 1,
-        transition: {
-          type: "spring",
-          stiffness: 300,
-          damping: 30,
-          mass: 0.8,
-          opacity: { duration: 0.4 },
-        },
-      }}
-      exit={{
-        y: 100,
-        opacity: 0,
-        transition: { duration: 0.3 },
-      }}
-    >
-      <motion.button
+    <nav className={styles.mobileNav}>
+      <button
         onClick={() => setShowTopRanked(true)}
-        className="relative px-6 py-3 rounded-2xl flex flex-col items-center text-white/70 hover:text-white active:text-[#20DDBB] transition-all duration-300 group"
-        whileTap={{ scale: 0.95 }}
-        whileHover={{ scale: 1.05 }}
+        className="relative px-6 py-3 rounded-2xl flex flex-col items-center text-white/80 active:text-[#20DDBB] transition-colors duration-150 group"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-        {/* Background glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#20DDBB]/0 to-[#5D59FF]/0 group-hover:from-[#20DDBB]/10 group-hover:to-[#5D59FF]/10 group-active:from-[#20DDBB]/20 group-active:to-[#5D59FF]/20 rounded-2xl transition-all duration-300"></div>
+        {/* Simplified background */}
+        <div className="absolute inset-0 bg-white/0 group-active:bg-[#20DDBB]/10 rounded-2xl transition-all duration-150"></div>
 
-        {/* Icon with enhanced styling */}
+        {/* Simplified icon */}
         <div className="relative z-10 flex flex-col items-center">
-          <div className="relative">
-            <FaTrophy className="w-6 h-6 group-hover:text-[#20DDBB] transition-colors duration-300" />
-            {/* Subtle glow for icon */}
-            <div className="absolute inset-0 w-6 h-6 bg-[#20DDBB]/0 group-hover:bg-[#20DDBB]/20 rounded-full blur-sm transition-all duration-300"></div>
-          </div>
-          <span className="text-xs mt-1 font-medium group-hover:text-[#20DDBB] transition-colors duration-300">
+          <FaTrophy className="w-6 h-6 group-active:text-[#20DDBB] transition-colors duration-150" />
+          <span className="text-xs mt-1 font-medium group-active:text-[#20DDBB] transition-colors duration-150">
             Top Rankings
           </span>
         </div>
-
-        {/* Ripple effect on tap */}
-        <div className="absolute inset-0 rounded-2xl overflow-hidden">
-          <div className="absolute inset-0 bg-white/0 group-active:bg-white/10 transition-all duration-150"></div>
-        </div>
-      </motion.button>
-    </motion.nav>
+      </button>
+    </nav>
   );
 
-  // Enhanced TopRankedModal with better UX/UI
-  const TopRankedModal = () => (
-    <AnimatePresence>
-      {showTopRanked && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 lg:hidden"
-          onClick={() => setShowTopRanked(false)}
+  // Avatar error handler
+  const handleAvatarError = useCallback((userId: string) => {
+    setAvatarErrors(prev => ({ ...prev, [userId]: true }));
+  }, []);
+
+  // Optimized TopRankedModal - simpler and faster
+  const TopRankedModal = () => {
+    if (!showTopRanked) return null;
+    
+    return (
+      <div
+        className="fixed inset-0 bg-black/70 z-50 lg:hidden"
+        onClick={() => setShowTopRanked(false)}
+      >
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-[#1A1A2E] rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col border-t border-white/10"
+          onClick={(e) => e.stopPropagation()}
         >
-          <motion.div
-            initial={{ y: "100%", scale: 0.95 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={{ y: "100%", scale: 0.95 }}
-            transition={{
-              type: "spring",
-              damping: 30,
-              stiffness: 300,
-              mass: 0.8,
-            }}
-            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#1A1A2E] to-[#252840] rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border-t border-white/10"
-            onClick={(e) => e.stopPropagation()}
-          >
             {/* Drag indicator */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-12 h-1.5 bg-white/20 rounded-full"></div>
             </div>
 
             {/* Header with tabs */}
-            <div className="px-5 pb-4 border-b border-white/5 sticky top-0 bg-gradient-to-t from-[#1A1A2E] to-[#252840] z-10 backdrop-blur-xl">
+            <div className="px-5 pb-4 border-b border-white/5 sticky top-0 bg-[#1A1A2E] z-10">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-[#20DDBB] to-[#5D59FF] bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold text-[#20DDBB]">
                   Top Rankings
                 </h2>
                 <button
@@ -863,20 +893,20 @@ export default function People() {
                 <div className="inline-flex bg-white/5 p-1 rounded-2xl border border-white/10">
                   <button
                     onClick={() => setActiveTab(TabTypes.USERS)}
-                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-colors duration-150 ${
                       activeTab === TabTypes.USERS
-                        ? "text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-lg border border-[#20DDBB]/20"
-                        : "text-white/60 hover:text-white hover:bg-white/5"
+                        ? "text-white bg-[#20DDBB]/30"
+                        : "text-white/60 active:text-white active:bg-white/5"
                     }`}
                   >
                     Users
                   </button>
                   <button
                     onClick={() => setActiveTab(TabTypes.ARTISTS)}
-                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-colors duration-150 ${
                       activeTab === TabTypes.ARTISTS
-                        ? "text-white bg-gradient-to-r from-[#20DDBB]/30 to-[#5D59FF]/30 shadow-lg border border-[#20DDBB]/20"
-                        : "text-white/60 hover:text-white hover:bg-white/5"
+                        ? "text-white bg-[#20DDBB]/30"
+                        : "text-white/60 active:text-white active:bg-white/5"
                     }`}
                   >
                     Artists
@@ -892,15 +922,12 @@ export default function People() {
               {topRankedUsers.length > 0 ? (
                 // Show top users immediately if available
                 topRankedUsers.map((rankedUser, index) => (
-                  <motion.div
+                  <div
                     key={rankedUser.$id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer group ${
+                    className={`p-4 rounded-2xl border transition-colors duration-150 cursor-pointer active:scale-95 ${
                       index < 3
-                        ? "bg-gradient-to-r from-white/10 to-white/5 border-[#20DDBB]/30 hover:border-[#20DDBB]/50"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                        ? "bg-white/8 border-[#20DDBB]/30 active:bg-white/12"
+                        : "bg-white/5 border-white/10 active:bg-white/8"
                     }`}
                     onClick={() => navigateTo(`/profile/${rankedUser.user_id}`)}
                   >
@@ -917,18 +944,19 @@ export default function People() {
                       </div>
 
                       {/* User avatar */}
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20">
-                        {rankedUser.image ? (
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                        {rankedUser.image && !avatarErrors[rankedUser.user_id] ? (
                           <Image
                             src={useCreateBucketUrl(rankedUser.image, "user")}
                             alt={rankedUser.name}
                             fill
                             className="object-cover"
+                            loading="lazy"
+                            sizes="48px"
+                            onError={() => handleAvatarError(rankedUser.user_id)}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <UserGroupIcon className="w-6 h-6 text-[#20DDBB]/60" />
-                          </div>
+                          <DefaultAvatar className="w-full h-full rounded-none" />
                         )}
                       </div>
 
@@ -977,7 +1005,7 @@ export default function People() {
                         <div className="text-xs text-white/60">score</div>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
               ) : isLoadingTopUsers ? (
                 // Simple loading without animation
@@ -997,11 +1025,10 @@ export default function People() {
                 </div>
               )}
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+        </div>
+      </div>
+    );
+  };
 
   // Optimize profile loading
   const loadUsers = useCallback(async () => {
@@ -1060,6 +1087,9 @@ export default function People() {
       setCache("initial_profiles", loadedProfiles);
       setProfiles(loadedProfiles);
       setVisibleProfiles(loadedProfiles); // Update visible profiles as well
+      
+      // Clear avatar errors cache when profiles are updated
+      setAvatarErrors({});
     } catch (error) {
       console.error("[ERROR] Error loading users:", error);
       setError("Failed to load users. Please try again later.");
@@ -1691,6 +1721,13 @@ export default function People() {
       // Кэшируем результаты
       setCache(cacheKey, topUsers);
       setTopRankedUsers(topUsers);
+      
+      // Clear avatar errors for top users when they're updated
+      const clearedErrors = { ...avatarErrors };
+      topUsers.forEach(user => {
+        delete clearedErrors[user.user_id];
+      });
+      setAvatarErrors(clearedErrors);
 
       console.log(
         `Loaded top ${activeTab} (optimized):`,
@@ -1884,33 +1921,33 @@ export default function People() {
     }
   }, [profiles.length, loadTopUsers, activeTab, getCache]);
 
-  // Handle add friend - memoized for performance
+  // Optimized handlers with better performance
   const handleAddFriend = useCallback(async (userId: string) => {
     try {
       await addFriend(userId);
-      // Toast уже показывается в friends store, не дублируем
     } catch (error) {
       console.error("Error adding friend:", error);
-      // Toast ошибки тоже уже показывается в friends store
     }
   }, [addFriend]);
 
-  // Handle remove friend - memoized for performance
   const handleRemoveFriend = useCallback(async (userId: string) => {
     try {
       await removeFriend(userId);
-      // Toast уже показывается в friends store, не дублируем
     } catch (error) {
       console.error("Error removing friend:", error);
-      // Toast ошибки тоже уже показывается в friends store
     }
   }, [removeFriend]);
 
-  // Handle rate user - memoized for performance
   const handleRateUser = useCallback((userId: string, rating: number) => {
     console.log(`Rating user ${userId} with ${rating} stars`);
-    // Add rating logic here
   }, []);
+
+  // Memoized handlers for better performance
+  const memoizedHandlers = useMemo(() => ({
+    onAddFriend: handleAddFriend,
+    onRemoveFriend: handleRemoveFriend,
+    onRateUser: handleRateUser,
+  }), [handleAddFriend, handleRemoveFriend, handleRateUser]);
 
   // Load initial data - оптимизированная загрузка
   useEffect(() => {
@@ -1993,13 +2030,27 @@ export default function People() {
         <meta name="twitter:title" content="People - Discover Artists & Connect" />
         <meta name="twitter:description" content="Discover talented artists, musicians, and creators on Sacral Track." />
         <link rel="canonical" href="https://sacraltrack.com/people" />
+        {/* Performance optimizations */}
+        <link rel="preconnect" href="https://cloud.appwrite.io" />
+        <link rel="dns-prefetch" href="https://cloud.appwrite.io" />
+        <link rel="preload" href="/images/placeholders/user-placeholder.png" as="image" />
+        {/* Hide scrollbar styles */}
+        <style>{`
+          .sidebar-scroll::-webkit-scrollbar {
+            display: none;
+          }
+          .sidebar-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
       </Head>
       
       <PeopleSearchProvider onSearch={handleSearchInput}>
         <PeopleLayout>
           <div
             {...swipeHandlers}
-            className="h-screen bg-[#1A1A2E] overflow-hidden"
+            className="min-h-screen w-full bg-[#1A1A2E] overflow-hidden"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
           >
@@ -2030,15 +2081,13 @@ export default function People() {
                               </div>
                             ),
                           )
-                        : visibleProfiles.map((profile) => (
+                        : visibleProfiles.map((profile, index) => (
                             <div key={profile.$id} className="transform-gpu">
-                              <UserCard
-                                user={profile}
+                              <MemoizedUserCard
+                                user={{...profile, index}}
                                 isFriend={isFriend(profile.user_id)}
                                 totalFriends={getUserFriendsCount(profile.user_id)}
-                                onAddFriend={handleAddFriend}
-                                onRemoveFriend={handleRemoveFriend}
-                                onRateUser={handleRateUser}
+                                {...memoizedHandlers}
                               />
                             </div>
                           ))}
@@ -2074,7 +2123,7 @@ export default function People() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: 0.2 }}
-                    className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl shadow-lg border border-white/5 sticky top-20 h-[calc(100vh-100px)] flex flex-col overflow-hidden"
+                    className="bg-gradient-to-br from-[#252840] to-[#1E2136] rounded-2xl shadow-lg border border-white/5 sticky top-20 h-[calc(100vh-100px)] flex flex-col"
                   >
                     {/* Header */}
                     <div className="p-5 border-b border-white/5">
@@ -2109,7 +2158,8 @@ export default function People() {
 
                     {/* Users List - with custom scrollbar */}
                     <div
-                      className={`flex-1 overflow-y-auto px-2 py-3 ${styles.hideScrollbar}`}
+                      className="flex-1 overflow-y-auto px-2 py-3 sidebar-scroll"
+                      onScroll={(e) => e.stopPropagation()}
                     >
                       {topRankedUsers.length > 0 ? (
                         topRankedUsers.slice(0, 8).map((user, index) => {
@@ -2127,26 +2177,26 @@ export default function People() {
                                 window.location.href = `/profile/${userId}`;
                               }}
                             >
-                              <div className="p-1 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer border border-white/5 backdrop-blur-sm group">
+                               <div className="p-1 rounded-xl bg-white/5 hover:bg-gradient-to-r hover:from-[#20DDBB]/10 hover:to-[#5D59FF]/10 transition-all cursor-pointer border border-white/5 hover:border-[#20DDBB]/30 group">
                                 <div className="flex items-center gap-2">
                                   {/* Rank Number */}
                                   <div
                                     className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                                       index === 0
-                                        ? "bg-gradient-to-br from-yellow-500/30 to-amber-600/30 text-yellow-400"
+                                        ? "bg-yellow-500/30 text-yellow-300"
                                         : index === 1
-                                          ? "bg-gradient-to-br from-slate-400/30 to-slate-500/30 text-slate-300"
+                                          ? "bg-gray-400/30 text-gray-300"
                                           : index === 2
-                                            ? "bg-gradient-to-br from-amber-600/30 to-amber-700/30 text-amber-500"
-                                            : "bg-gradient-to-br from-purple-500/20 to-purple-600/20 text-purple-400"
+                                            ? "bg-orange-500/30 text-orange-300"
+                                            : "bg-purple-500/20 text-purple-400"
                                     }`}
                                   >
                                     {index + 1}
                                   </div>
 
                                   {/* Avatar */}
-                                  <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 group-hover:border-[#20DDBB]/50 transition-colors">
-                                    {user.image ? (
+                                   <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 group-hover:border-[#20DDBB]/60 transition-all duration-200">
+                                    {user.image && !avatarErrors[userId] ? (
                                       <Image
                                         src={useCreateBucketUrl(
                                           user.image,
@@ -2156,11 +2206,10 @@ export default function People() {
                                         width={32}
                                         height={32}
                                         className="object-cover w-full h-full"
+                                        onError={() => handleAvatarError(userId)}
                                       />
                                     ) : (
-                                      <div className="w-full h-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center">
-                                        <div className="w-3 h-3 rounded-full bg-white/30"></div>
-                                      </div>
+                                      <DefaultAvatar className="w-full h-full rounded-none" size={32} />
                                     )}
                                   </div>
 
@@ -2346,11 +2395,15 @@ export default function People() {
                               {/* Rank */}
                               <div
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                                  index < 3
-                                    ? "bg-gradient-to-br from-yellow-500/30 to-amber-600/30 text-yellow-400"
-                                    : index < 10
-                                      ? "bg-gradient-to-br from-slate-400/30 to-slate-500/30 text-slate-300"
-                                      : "bg-gradient-to-br from-purple-500/20 to-purple-600/20 text-purple-400"
+                                  index === 0
+                                    ? "bg-yellow-500/30 text-yellow-300"
+                                    : index === 1
+                                      ? "bg-gray-400/30 text-gray-300"
+                                      : index === 2
+                                        ? "bg-orange-500/30 text-orange-300"
+                                        : index < 10
+                                          ? "bg-slate-400/30 text-slate-300"
+                                          : "bg-purple-500/20 text-purple-400"
                                 }`}
                               >
                                 {index + 1}
@@ -2358,18 +2411,17 @@ export default function People() {
 
                               {/* Avatar */}
                               <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-[#20DDBB]/50 transition-colors">
-                                {user.image ? (
+                                {user.image && !avatarErrors[user.user_id] ? (
                                   <Image
                                     src={useCreateBucketUrl(user.image, "user")}
                                     alt={user.name}
                                     width={40}
                                     height={40}
                                     className="object-cover w-full h-full"
+                                    onError={() => handleAvatarError(user.user_id)}
                                   />
                                 ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-[#20DDBB]/20 to-[#5D59FF]/20 flex items-center justify-center">
-                                    <div className="w-4 h-4 rounded-full bg-white/30"></div>
-                                  </div>
+                                  <DefaultAvatar className="w-full h-full rounded-none" size={40} />
                                 )}
                               </div>
 
